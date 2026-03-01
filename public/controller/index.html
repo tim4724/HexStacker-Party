@@ -17,22 +17,33 @@
   <canvas id="bg-canvas"></canvas>
 
   <!-- Lobby / waiting screen -->
-  <div id="waiting-screen" class="screen hidden">
-    <h1 id="lobby-title">TETRIS PARTY</h1>
-    <div id="name-form">
-      <input id="name-input" type="text" maxlength="16" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" placeholder="Enter name...">
-      <button id="name-join-btn">JOIN</button>
-    </div>
-    <div id="player-identity" class="hidden">
-      <div id="player-identity-card">
-        <span id="player-identity-name"></span>
+  <div id="waiting-screen" class="screen controller-shell hidden">
+    <div class="controller-shell__frame controller-shell__frame--waiting">
+      <div class="controller-shell__brand">
+        <h1 id="lobby-title" class="controller-shell__title">TETRIS PARTY</h1>
+      </div>
+      <div class="controller-shell__body">
+        <div id="name-form">
+          <input id="name-input" type="text" maxlength="16" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" placeholder="Enter name...">
+        </div>
+        <div id="player-identity" class="hidden">
+          <div id="player-identity-card">
+            <span id="player-identity-name"></span>
+          </div>
+        </div>
+        <div class="controller-shell__copy">
+          <p id="status-text">Connecting...</p>
+          <p id="status-detail"></p>
+        </div>
+      </div>
+      <div class="controller-shell__actions controller-shell__actions--waiting">
+        <button id="name-join-btn">JOIN</button>
+        <p id="waiting-action-text" class="hidden"></p>
+        <button id="start-btn" class="hidden" disabled>START</button>
+        <button id="rejoin-btn" class="hidden">Rejoin</button>
+        <button id="disconnect-btn" class="hidden">DISCONNECT</button>
       </div>
     </div>
-    <button id="start-btn" class="hidden" disabled>START</button>
-    <p id="status-text">Connecting...</p>
-    <p id="status-detail"></p>
-    <button id="rejoin-btn" class="hidden">Rejoin</button>
-    <button id="disconnect-btn" class="hidden">DISCONNECT</button>
   </div>
 
   <!-- Game screen with touch area -->
@@ -65,14 +76,20 @@
   </div>
 
   <!-- Game over screen -->
-  <div id="gameover-screen" class="screen hidden">
-    <h1 id="gameover-title" class="results-title">GAME OVER</h1>
-    <div id="results-list"></div>
-    <div id="gameover-buttons" class="hidden">
-      <button id="play-again-btn">PLAY AGAIN</button>
-      <button id="new-game-btn">NEW GAME</button>
+  <div id="gameover-screen" class="screen controller-shell hidden">
+    <div class="controller-shell__frame controller-shell__frame--results">
+      <div class="controller-shell__brand controller-shell__brand--results">
+        <h1 class="controller-shell__title">TETRIS PARTY</h1>
+      </div>
+      <div class="controller-shell__body controller-shell__body--results">
+        <div id="results-list"></div>
+        <p id="gameover-status"></p>
+      </div>
+      <div id="gameover-buttons" class="controller-shell__actions hidden">
+        <button id="play-again-btn">PLAY AGAIN</button>
+        <button id="new-game-btn">NEW GAME</button>
+      </div>
     </div>
-    <p id="gameover-status"></p>
   </div>
 
   <script src="/shared/protocol.js"></script>

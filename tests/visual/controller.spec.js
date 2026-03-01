@@ -31,6 +31,14 @@ test.afterEach(async ({ request }) => {
 });
 
 test.describe('Controller', () => {
+  test('name entry screen', async ({ page, context }) => {
+    const { roomCode } = await createRoom(page);
+    const controller = await context.newPage();
+    await controller.goto(`/${roomCode}`);
+    await waitForFont(controller);
+    await expect(controller).toHaveScreenshot('controller-name-entry.png');
+  });
+
   test('connecting screen', async ({ page, request }) => {
     const displayPage = page;
     const { roomCode } = await createRoom(displayPage);
@@ -60,7 +68,7 @@ test.describe('Controller', () => {
   test('lobby - non-host view', async ({ page, context }) => {
     const { controllers } = await setupJoinedRoom(page, context, ['Player 1', 'Player 2']);
     const nonHost = controllers[1];
-    await nonHost.waitForFunction(() => document.getElementById('status-text').textContent.includes('Waiting for host'));
+    await nonHost.waitForFunction(() => document.getElementById('waiting-action-text').textContent.includes('Waiting for host'));
     await expect(nonHost).toHaveScreenshot('controller-lobby-nonhost.png');
   });
 

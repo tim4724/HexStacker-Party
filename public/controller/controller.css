@@ -4,9 +4,15 @@
   box-sizing: border-box;
 }
 
+:root {
+  --app-height: 100dvh;
+  --keyboard-inset: 0px;
+}
+
 html, body {
   width: 100%;
-  height: 100%;
+  height: var(--app-height);
+  min-height: var(--app-height);
   overflow: hidden;
   touch-action: none;
   user-select: none;
@@ -14,16 +20,18 @@ html, body {
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
   position: fixed;
+  inset: 0;
   background: var(--bg-primary);
   color: white;
   font-family: system-ui, -apple-system, sans-serif;
+  overscroll-behavior: none;
 }
 
 #bg-canvas {
   position: fixed;
   inset: 0;
   width: 100%;
-  height: 100%;
+  height: var(--app-height);
   pointer-events: none;
 }
 
@@ -32,12 +40,116 @@ html, body {
   top: 0;
   left: 0;
   width: 100%;
-  height: 100%;
+  height: var(--app-height);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.controller-shell {
+  padding:
+    max(env(safe-area-inset-top), 24px)
+    20px
+    max(env(safe-area-inset-bottom), 24px);
+  background:
+    radial-gradient(ellipse at 50% 22%, rgba(0, 100, 255, 0.06) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 82%, rgba(0, 255, 136, 0.04) 0%, transparent 48%);
+}
+
+.controller-shell__frame {
+  width: min(100%, 380px);
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.controller-shell__brand {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding-top: clamp(4px, 1vh, 12px);
+}
+
+.controller-shell__brand--results {
+  padding-top: 0;
+}
+
+.controller-shell__title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(1.4rem, 7vw, 2.2rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan), var(--accent-green));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 8px rgba(0, 200, 255, 0.15));
+  animation: lobbyFadeDown 0.5s ease-out both;
+}
+
+.controller-shell__body {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.controller-shell__body--results {
+  justify-content: flex-start;
+  gap: 18px;
+}
+
+.controller-shell__copy {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.controller-shell__actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+  margin-top: auto;
+}
+
+.controller-shell__actions--waiting {
+  padding-top: 8px;
+}
+
+body.keyboard-open .controller-shell__frame--waiting {
+  gap: 16px;
+}
+
+body.keyboard-open .controller-shell__brand {
+  padding-top: 0;
+}
+
+body.keyboard-open .controller-shell__body {
+  justify-content: flex-end;
+  padding-bottom: clamp(12px, 3vh, 28px);
+}
+
+body.keyboard-open .controller-shell__actions--waiting {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+body.keyboard-open #name-form {
+  max-width: 100%;
 }
 
 .hidden {
@@ -48,7 +160,6 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
   width: 100%;
   max-width: 280px;
   animation: lobbyFadeUp 0.5s 0.15s ease-out both;
@@ -82,9 +193,10 @@ html, body {
   box-shadow: 0 0 12px rgba(0, 200, 255, 0.1);
 }
 
-#name-join-btn {
+#name-join-btn,
+#start-btn {
   width: 100%;
-  padding: 14px 28px;
+  padding: 1rem 1.5rem;
   border: none;
   border-radius: var(--radius-md);
   font-family: 'Orbitron', sans-serif;
@@ -95,30 +207,25 @@ html, body {
   color: var(--text-secondary);
   cursor: default;
   transition: all var(--transition-normal);
-  margin-top: 8px;
 }
 
-#name-join-btn:not(:disabled) {
+#name-join-btn {
+  animation: lobbyFadeUp 0.5s 0.4s ease-out both;
+}
+
+#name-join-btn:not(:disabled),
+#start-btn:not(:disabled) {
   background: linear-gradient(180deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
   color: var(--btn-green-text);
   cursor: pointer;
-  animation: btnPulse 2.5s 0.5s ease-in-out infinite;
+  animation: lobbyFadeUp 0.5s 0.4s ease-out both, btnPulse 2.5s 1s ease-in-out infinite;
 }
 
-#name-join-btn:not(:disabled):active {
+#name-join-btn:not(:disabled):active,
+#start-btn:not(:disabled):active {
   transform: scale(0.95);
   animation: none;
   box-shadow: 0 0 8px rgba(0, 255, 136, 0.3);
-}
-
-/* Waiting screen */
-#waiting-screen {
-  gap: 32px;
-  justify-content: flex-start;
-  padding: max(env(safe-area-inset-top), 24px) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-  background:
-    radial-gradient(ellipse at 50% 30%, rgba(0, 100, 255, 0.06) 0%, transparent 60%),
-    radial-gradient(ellipse at 50% 80%, rgba(0, 255, 136, 0.04) 0%, transparent 50%);
 }
 
 /* Lobby entrance animations */
@@ -135,20 +242,6 @@ html, body {
 @keyframes lobbyFadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
-}
-
-#lobby-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: clamp(1.4rem, 7vw, 2.2rem);
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan), var(--accent-green));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  filter: drop-shadow(0 0 8px rgba(0, 200, 255, 0.15));
-  margin-bottom: clamp(16px, 6vh, 48px);
-  animation: lobbyFadeDown 0.5s ease-out both;
 }
 
 #player-identity {
@@ -175,53 +268,51 @@ html, body {
   color: var(--player-color, var(--text-primary));
 }
 
-#start-btn {
-  padding: 1rem 3rem;
-  border: none;
-  border-radius: var(--radius-md);
+#waiting-action-text {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.8rem 1rem;
   font-family: 'Orbitron', sans-serif;
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  cursor: default;
-  transition: all var(--transition-normal);
-  animation: lobbyFadeUp 0.5s 0.4s ease-out both;
-}
-
-#start-btn:not(:disabled) {
-  background: linear-gradient(180deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
-  color: var(--btn-green-text);
-  cursor: pointer;
-  animation: lobbyFadeUp 0.5s 0.4s ease-out both, btnPulse 2.5s 1s ease-in-out infinite;
-}
-
-#start-btn:not(:disabled):active {
-  transform: scale(0.95);
-  animation: none;
-  box-shadow: 0 0 8px rgba(0, 255, 136, 0.3);
+  font-size: clamp(0.72rem, 3.2vw, 0.85rem);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: rgba(160, 180, 210, 0.56);
+  text-align: center;
+  line-height: 1.35;
+  animation: lobbyFadeUp 0.5s 0.35s ease-out both;
 }
 
 #status-text {
   font-family: 'Orbitron', sans-serif;
-  font-size: clamp(1.1rem, 5.5vw, 1.6rem);
+  font-size: clamp(1.2rem, 5.8vw, 1.85rem);
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: rgba(0, 200, 255, 0.9);
   animation: lobbyFadeUp 0.5s 0.15s ease-out both;
+  text-align: center;
 }
 
 #status-detail {
   font-size: clamp(0.85rem, 3.5vw, 1rem);
   color: rgba(160, 160, 200, 0.7);
-  margin-top: 8px;
   letter-spacing: 0.02em;
   animation: lobbyFadeUp 0.5s 0.25s ease-out both;
+  text-align: center;
+  max-width: 30ch;
+  line-height: 1.45;
+}
+
+#status-text:empty,
+#status-detail:empty,
+#gameover-status:empty {
+  display: none;
 }
 
 #rejoin-btn {
-  padding: 14px 32px;
+  width: 100%;
+  padding: 14px 24px;
   border: 1.5px solid rgba(0, 200, 255, 0.5);
   border-radius: var(--radius-md);
   background: transparent;
@@ -231,7 +322,6 @@ html, body {
   letter-spacing: 0.08em;
   color: rgba(0, 200, 255, 0.9);
   cursor: pointer;
-  margin-top: 24px;
   transition: all var(--transition-fast);
   animation: lobbyFadeUp 0.5s 0.35s ease-out both;
 }
@@ -242,9 +332,8 @@ html, body {
 }
 
 #disconnect-btn {
-  margin-top: auto;
-  margin-bottom: max(env(safe-area-inset-bottom), 24px);
-  padding: 0.75rem 2rem;
+  width: 100%;
+  padding: 0.85rem 1.5rem;
   border: 1.5px solid rgba(255, 80, 80, 0.5);
   border-radius: var(--radius-md);
   background: transparent;
@@ -482,9 +571,6 @@ html, body {
 
 /* Game over screen */
 #gameover-screen {
-  gap: 0;
-  justify-content: flex-start;
-  padding: max(env(safe-area-inset-top), 6vh) 20px max(env(safe-area-inset-bottom), 24px);
   background:
     radial-gradient(ellipse at 50% 20%, var(--winner-glow, rgba(255, 215, 0, 0.06)) 0%, transparent 60%),
     radial-gradient(ellipse at 50% 90%, rgba(68, 68, 255, 0.03) 0%, transparent 40%),
@@ -497,18 +583,12 @@ html, body {
   to { opacity: 1; }
 }
 
-#gameover-title {
-  font-size: clamp(1.3rem, 6vw, 1.8rem);
-  letter-spacing: 0.14em;
-}
-
 #results-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
   width: 100%;
-  max-width: 400px;
-  margin-top: 24px;
+  max-width: 100%;
 }
 
 .result-row {
@@ -540,8 +620,9 @@ html, body {
 .result-info {
   flex: 1;
   display: flex;
-  align-items: baseline;
-  gap: clamp(0.6rem, 3vw, 1.2rem);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -549,30 +630,30 @@ html, body {
   font-size: clamp(1rem, 5vw, 1.4rem);
   font-weight: 900;
   letter-spacing: 0.03em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex-shrink: 1;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  width: 100%;
 }
 
 .result-stats {
   display: flex;
   gap: clamp(0.5rem, 2.5vw, 1rem);
+  flex-wrap: wrap;
   font-size: clamp(0.85rem, 4vw, 1.2rem);
   font-variant-numeric: tabular-nums;
   color: rgba(160, 160, 200, 0.5);
   letter-spacing: 0.02em;
-  flex-shrink: 0;
+  width: 100%;
 }
 
 #gameover-buttons {
-  display: flex;
-  gap: 12px;
-  margin-top: 28px;
+  margin-top: auto;
 }
 
 #play-again-btn {
-  padding: 14px 28px;
+  width: 100%;
+  padding: 14px 24px;
   border: none;
   border-radius: 10px;
   background: linear-gradient(180deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
@@ -593,7 +674,8 @@ html, body {
 }
 
 #new-game-btn {
-  padding: 14px 28px;
+  width: 100%;
+  padding: 14px 24px;
   border: 1px solid rgba(30, 30, 68, 0.8);
   border-radius: 10px;
   background: transparent;
@@ -614,11 +696,11 @@ html, body {
 }
 
 #gameover-status {
-  margin-top: 16px;
-  font-size: 14px;
+  font-size: clamp(0.9rem, 4vw, 1.05rem);
   font-weight: 600;
   color: rgba(106, 106, 136, 0.7);
   letter-spacing: 0.04em;
+  text-align: center;
   animation: resultsBtnIn 0.5s 0.6s ease-out both;
 }
 

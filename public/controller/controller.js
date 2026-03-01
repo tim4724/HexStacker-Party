@@ -20,22 +20,58 @@
   let lastLines = 0;
   let lastGameResults = null;
 
+  function getViewportMetrics() {
+    if (window.visualViewport) {
+      return {
+        width: Math.round(window.visualViewport.width),
+        height: Math.round(window.visualViewport.height),
+        offsetTop: Math.round(window.visualViewport.offsetTop || 0),
+      };
+    }
+
+    return {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      offsetTop: 0,
+    };
+  }
+
+  function syncViewportLayout() {
+    const metrics = getViewportMetrics();
+    const keyboardInset = Math.max(0, window.innerHeight - metrics.height - metrics.offsetTop);
+    const keyboardOpen = keyboardInset > 120
+      && currentScreen === 'waiting'
+      && document.activeElement === nameInput;
+
+    document.documentElement.style.setProperty('--app-height', metrics.height + 'px');
+    document.documentElement.style.setProperty('--keyboard-inset', keyboardInset + 'px');
+    document.body.classList.toggle('keyboard-open', keyboardOpen);
+
+    if (welcomeBg) {
+      welcomeBg.resize(metrics.width, metrics.height);
+    }
+  }
+
   // Falling tetromino background
   const bgCanvas = document.getElementById('bg-canvas');
   let welcomeBg = null;
   if (bgCanvas) {
     welcomeBg = new WelcomeBackground(bgCanvas, 8);
-    welcomeBg.resize(window.innerWidth, window.innerHeight);
+    const metrics = getViewportMetrics();
+    welcomeBg.resize(metrics.width, metrics.height);
     welcomeBg.start();
-    window.addEventListener('resize', function () {
-      welcomeBg.resize(window.innerWidth, window.innerHeight);
-    });
+  }
+  window.addEventListener('resize', syncViewportLayout);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncViewportLayout);
+    window.visualViewport.addEventListener('scroll', syncViewportLayout);
   }
 
   // DOM refs
   const nameForm = document.getElementById('name-form');
   const nameInput = document.getElementById('name-input');
   const nameJoinBtn = document.getElementById('name-join-btn');
+  const waitingActionText = document.getElementById('waiting-action-text');
   const waitingScreen = document.getElementById('waiting-screen');
   const gameScreen = document.getElementById('game-screen');
   const gameoverScreen = document.getElementById('gameover-screen');
@@ -50,7 +86,6 @@
   const playerIdentityName = document.getElementById('player-identity-name');
   const touchArea = document.getElementById('touch-area');
   const feedbackLayer = document.getElementById('feedback-layer');
-  const gameoverTitle = document.getElementById('gameover-title');
   const resultsList = document.getElementById('results-list');
   const gameoverButtons = document.getElementById('gameover-buttons');
   const playAgainBtn = document.getElementById('play-again-btn');
@@ -96,6 +131,8 @@
         bgCanvas.classList.add('hidden');
       }
     }
+
+    syncViewportLayout();
   }
 
   // Extract room code and optional rejoin ID from URL
@@ -117,6 +154,9 @@
     playerName = name;
     localStorage.setItem('tetris_player_name', name);
     nameForm.classList.add('hidden');
+    nameJoinBtn.classList.add('hidden');
+    waitingActionText.textContent = '';
+    waitingActionText.classList.add('hidden');
     statusText.textContent = 'Connecting...';
     statusDetail.textContent = '';
     connect();
@@ -125,6 +165,12 @@
   nameJoinBtn.addEventListener('click', function () { vibrate(10); submitName(); });
   nameInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') submitName();
+  });
+  nameInput.addEventListener('focus', function () {
+    setTimeout(syncViewportLayout, 50);
+  });
+  nameInput.addEventListener('blur', function () {
+    setTimeout(syncViewportLayout, 50);
   });
 
   function vibrate(pattern) {
@@ -466,10 +512,18 @@
     startBtn.textContent = 'START (' + playerCount + (playerCount === 1 ? ' player)' : ' players)');
   }
 
+  function setWaitingActionMessage(message) {
+    waitingActionText.textContent = message || '';
+    waitingActionText.classList.toggle('hidden', !message);
+  }
+
   function hideLobbyElements() {
     lobbyTitle.classList.add('hidden');
     nameForm.classList.add('hidden');
+    nameJoinBtn.classList.add('hidden');
     playerIdentity.classList.add('hidden');
+    setWaitingActionMessage('');
+    rejoinBtn.classList.add('hidden');
     disconnectBtn.classList.add('hidden');
     startBtn.classList.add('hidden');
   }
@@ -491,6 +545,7 @@
     lobbyTitle.classList.remove('hidden');
     nameForm.classList.add('hidden');
     rejoinBtn.classList.add('hidden');
+    nameJoinBtn.classList.add('hidden');
 
     playerIdentity.style.setProperty('--player-color', playerColor);
     playerIdentityName.textContent = playerName || ('Player ' + playerId);
@@ -500,12 +555,14 @@
     if (isHost) {
       startBtn.classList.remove('hidden');
       startBtn.disabled = false;
+      setWaitingActionMessage('');
       updateStartButton();
       statusText.textContent = '';
       statusDetail.textContent = '';
     } else {
       startBtn.classList.add('hidden');
-      statusText.textContent = 'Waiting for host to start...';
+      setWaitingActionMessage('Waiting for host to start...');
+      statusText.textContent = '';
       statusDetail.textContent = '';
     }
 
@@ -555,7 +612,6 @@
 
   function renderGameResults(results) {
     resultsList.innerHTML = '';
-    gameoverTitle.textContent = 'GAME OVER';
 
     // Show buttons for host, status text for others
     gameoverButtons.classList.toggle('hidden', !isHost);
@@ -828,6 +884,7 @@
     reconnectAttempts = 0;
     clearTimeout(reconnectTimer);
     rejoinBtn.classList.add('hidden');
+    setWaitingActionMessage('');
     statusText.textContent = 'Connecting...';
     statusDetail.textContent = '';
     connect();
@@ -867,6 +924,7 @@
     lobbyTitle.classList.remove('hidden');
     nameInput.value = playerName || '';
     nameForm.classList.remove('hidden');
+    nameJoinBtn.classList.remove('hidden');
     statusText.textContent = '';
     statusDetail.textContent = '';
     showScreen('waiting');
@@ -922,6 +980,8 @@
     // Reconnect — hide name form, show connecting status
     playerName = savedName || null;
     nameForm.classList.add('hidden');
+    nameJoinBtn.classList.add('hidden');
+    setWaitingActionMessage('');
     statusText.textContent = 'Connecting...';
     statusDetail.textContent = '';
     showScreen('waiting');
@@ -929,9 +989,13 @@
   } else {
     // Fresh join — show name form
     nameInput.value = savedName;
+    nameJoinBtn.classList.remove('hidden');
+    setWaitingActionMessage('');
     statusText.textContent = '';
     statusDetail.textContent = '';
     showScreen('waiting');
     nameInput.focus();
   }
+
+  syncViewportLayout();
 })();
