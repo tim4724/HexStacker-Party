@@ -88,22 +88,9 @@ html, body {
 
 #new-game-btn {
   padding: clamp(0.8rem, 1.6vh, 1.5rem) clamp(2.5rem, 5vw, 7rem);
-  border: none;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(180deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
-  color: var(--btn-green-text);
-  font-family: 'Orbitron', sans-serif;
   font-size: clamp(1rem, 2.2vh, 1.8rem);
-  font-weight: 700;
   letter-spacing: 0.08em;
-  cursor: pointer;
-  transition: all 0.25s ease;
   animation: fadeUp 0.6s 0.3s ease-out both, btnPulse 2.5s 1s ease-in-out infinite;
-}
-
-#new-game-btn:hover {
-  transform: scale(1.06);
-  box-shadow: 0 0 36px rgba(0, 255, 136, 0.5);
 }
 
 #welcome-footer {
@@ -266,29 +253,19 @@ html, body {
 #start-btn {
   margin-top: auto;
   padding: clamp(0.7rem, 1.4vh, 1.3rem) clamp(2rem, 4vw, 6rem);
-  border: none;
-  border-radius: var(--radius-md);
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  font-family: 'Orbitron', sans-serif;
   font-size: clamp(1rem, 2vh, 1.6rem);
-  font-weight: 700;
   letter-spacing: 0.08em;
-  cursor: not-allowed;
-  transition: all 0.25s ease;
   animation: fadeUp 0.5s 0.45s ease-out both;
 }
 
-#start-btn:not(:disabled) {
-  background: linear-gradient(180deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
-  color: var(--btn-green-text);
-  cursor: pointer;
-  animation: fadeUp 0.5s 0.45s ease-out both, btnPulse 2.5s 1.2s ease-in-out infinite;
+#start-btn:disabled {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: not-allowed;
 }
 
-#start-btn:not(:disabled):hover {
-  transform: scale(1.04);
-  box-shadow: 0 0 32px rgba(0, 255, 136, 0.5);
+#start-btn:not(:disabled) {
+  animation: fadeUp 0.5s 0.45s ease-out both, btnPulse 2.5s 1.2s ease-in-out infinite;
 }
 
 /* ============================================
@@ -429,40 +406,14 @@ html, body {
 
 #pause-continue-btn {
   padding: clamp(0.6rem, 1.2vh, 1.2rem) clamp(2rem, 4vw, 4rem);
-  border: none;
-  border-radius: var(--radius-md);
-  background: linear-gradient(180deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
-  color: var(--btn-green-text);
-  font-family: 'Orbitron', sans-serif;
   font-size: clamp(0.85rem, 1.6vh, 1.2rem);
-  font-weight: 700;
   letter-spacing: 0.06em;
-  cursor: pointer;
-  transition: all 0.25s ease;
-}
-
-#pause-continue-btn:hover {
-  transform: scale(1.04);
-  box-shadow: 0 0 24px rgba(0, 255, 136, 0.4);
 }
 
 #pause-newgame-btn {
   padding: clamp(0.6rem, 1.2vh, 1.2rem) clamp(2rem, 4vw, 4rem);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text-secondary);
-  font-family: 'Orbitron', sans-serif;
   font-size: clamp(0.85rem, 1.6vh, 1.2rem);
-  font-weight: 700;
   letter-spacing: 0.06em;
-  cursor: pointer;
-  transition: var(--transition-fast);
-}
-
-#pause-newgame-btn:hover {
-  border-color: rgba(0, 200, 255, 0.5);
-  color: rgba(0, 200, 255, 0.9);
 }
 
 /* ============================================
@@ -552,42 +503,16 @@ html, body {
 
 #play-again-btn {
   padding: clamp(0.6rem, 1.2vh, 1.2rem) clamp(2rem, 4vw, 4rem);
-  border: none;
-  border-radius: var(--radius-md);
-  background: linear-gradient(180deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
-  color: var(--btn-green-text);
-  font-family: 'Orbitron', sans-serif;
   font-size: clamp(0.85rem, 1.6vh, 1.2rem);
-  font-weight: 700;
   letter-spacing: 0.06em;
-  cursor: pointer;
-  transition: all 0.25s ease;
   animation: resultsBtnIn 0.5s 0.6s ease-out both, btnPulse 2.5s 1.5s infinite;
-}
-
-#play-again-btn:hover {
-  transform: scale(1.04);
-  box-shadow: 0 0 24px rgba(0, 255, 136, 0.4);
 }
 
 #new-game-results-btn {
   padding: clamp(0.6rem, 1.2vh, 1.2rem) clamp(2rem, 4vw, 4rem);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text-secondary);
-  font-family: 'Orbitron', sans-serif;
   font-size: clamp(0.85rem, 1.6vh, 1.2rem);
-  font-weight: 700;
   letter-spacing: 0.06em;
-  cursor: pointer;
-  transition: var(--transition-fast);
   animation: resultsBtnIn 0.5s 0.7s ease-out both;
-}
-
-#new-game-results-btn:hover {
-  border-color: rgba(0, 200, 255, 0.5);
-  color: rgba(0, 200, 255, 0.9);
 }
 
 /* ============================================

@@ -61,3 +61,45 @@
   --radius-md: 10px;
   --radius-lg: 12px;
 }
+
+/* ==========================================================
+   Shared Button Classes
+   ========================================================== */
+
+.btn {
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
+  color: var(--btn-green-text);
+}
+
+.btn-primary:hover {
+  box-shadow: 0 0 24px var(--glow-green);
+}
+
+.btn-primary:active {
+  scale: 0.95;
+  box-shadow: 0 0 8px var(--glow-green);
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.btn-secondary:hover {
+  border-color: rgba(0, 200, 255, 0.5);
+  color: rgba(0, 200, 255, 0.9);
+}
+
+.btn-secondary:active {
+  scale: 0.95;
+}
