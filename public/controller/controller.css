@@ -347,7 +347,9 @@ body.keyboard-open #name-form {
   width: 100%;
   padding: 8px 12px;
   padding-top: max(env(safe-area-inset-top), 8px);
+  padding-bottom: 12px;
   flex-shrink: 0;
+  background: var(--bg-board);
 }
 
 #game-name-card {
