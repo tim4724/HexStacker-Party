@@ -27,10 +27,6 @@
   <!-- Welcome screen: unlocks audio via user gesture -->
   <div id="welcome-screen" class="screen">
     <h1 class="gradient-title">TETRIS PARTY</h1>
-    <div class="welcome-chips">
-      <span class="welcome-chip"><i class="welcome-chip-icon">📱</i> Use your phone as controller</span>
-      <span class="welcome-chip"><i class="welcome-chip-icon welcome-chip-icon--grey">👥</i> 1 – 4 players</span>
-    </div>
     <button id="new-game-btn" class="btn btn-primary">START NEW GAME</button>
     <div id="welcome-footer">
       <span id="version-label"></span>
@@ -40,7 +36,10 @@
 
   <!-- Lobby screen: QR code + player list + start button -->
   <div id="lobby-screen" class="screen hidden">
-    <h1 class="gradient-title">TETRIS PARTY</h1>
+    <div id="lobby-header">
+      <button id="lobby-back-btn" class="nav-back-btn" aria-label="Back to start"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4L6 10L14 16"/></svg></button>
+      <h1 class="gradient-title">TETRIS PARTY</h1>
+    </div>
     <div id="qr-container">
       <canvas id="qr-code"></canvas>
       <p id="qr-label">Scan to join</p>

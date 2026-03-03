@@ -43,36 +43,6 @@ html, body {
   gap: clamp(2rem, 5vh, 4rem);
 }
 
-.welcome-chips {
-  display: flex;
-  gap: clamp(0.6rem, 1.2vw, 1rem);
-  margin-top: -0.8em;
-}
-
-.welcome-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5em;
-  font-family: 'Orbitron', monospace;
-  font-weight: 500;
-  font-size: clamp(10px, 1.3vw, 14px);
-  color: rgba(224, 224, 255, 0.55);
-  padding: clamp(0.4rem, 0.8vh, 0.6rem) clamp(0.8rem, 1.4vw, 1.2rem);
-  border: 1px solid rgba(224, 224, 255, 0.15);
-  border-radius: var(--radius-md);
-  background: rgba(224, 224, 255, 0.06);
-}
-
-.welcome-chip-icon {
-  font-style: normal;
-  font-size: 1.8em;
-  line-height: 1;
-}
-
-.welcome-chip-icon--grey {
-  filter: grayscale(1);
-}
-
 #welcome-screen h1 {
   font-size: clamp(2.5rem, 7vh, 6rem);
   filter: drop-shadow(0 0 24px rgba(0, 200, 255, 0.35));
@@ -147,10 +117,42 @@ html, body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-#lobby-screen h1 {
+#lobby-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  animation: fadeDown 0.6s ease-out both;
+}
+
+#lobby-header h1 {
   font-size: clamp(2rem, 5vh, 5rem);
   filter: drop-shadow(0 0 18px rgba(0, 200, 255, 0.3));
-  animation: fadeDown 0.6s ease-out both;
+}
+
+#lobby-screen .nav-back-btn {
+  width: 48px;
+  height: 48px;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.2s ease;
+}
+
+#lobby-screen .nav-back-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+#lobby-screen .nav-back-btn:active {
+  background: rgba(255, 255, 255, 0.18);
+  transform: scale(0.92);
 }
 
 #qr-container {

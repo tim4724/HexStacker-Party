@@ -39,6 +39,7 @@ const pauseBtn = document.getElementById('pause-btn');
 const pauseOverlay = document.getElementById('pause-overlay');
 const pauseContinueBtn = document.getElementById('pause-continue-btn');
 const pauseNewGameBtn = document.getElementById('pause-newgame-btn');
+const lobbyBackBtn = document.getElementById('lobby-back-btn');
 const muteBtn = document.getElementById('mute-btn');
 let muted = false;
 
@@ -599,6 +600,26 @@ newGameBtn.addEventListener('click', () => {
   }
   connect();
   showScreen('lobby');
+});
+
+// Lobby back button — return to welcome screen and close room
+lobbyBackBtn.addEventListener('click', () => {
+  if (ws) {
+    ws.onclose = null;
+    ws.onerror = null;
+    try { ws.close(); } catch (_) {}
+    ws = null;
+  }
+  lastRoomCode = null;
+  players.clear();
+  playerOrder = [];
+  playerIndexCounter = 0;
+  gameState = null;
+  boardRenderers = [];
+  uiRenderers = [];
+  disconnectedQRs.clear();
+  garbageIndicatorEffects.clear();
+  showScreen('welcome');
 });
 
 // Start button
