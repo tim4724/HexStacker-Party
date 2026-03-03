@@ -928,6 +928,18 @@ function drawTimer(elapsedMs) {
   ctx.letterSpacing = '0px';
 }
 
+// --- Cursor Auto-Hide ---
+let cursorTimer = null;
+function showCursor() {
+  document.body.classList.remove('cursor-hidden');
+  clearTimeout(cursorTimer);
+  cursorTimer = setTimeout(() => {
+    document.body.classList.add('cursor-hidden');
+  }, 3000);
+}
+document.addEventListener('mousemove', showCursor);
+showCursor();
+
 // --- Window Resize ---
 window.addEventListener('resize', () => {
   resizeCanvas();
