@@ -52,7 +52,7 @@ test.describe('Controller', () => {
     await controller.click('#name-join-btn');
     await controller.waitForFunction(() => {
       return document.getElementById('name-form').classList.contains('hidden')
-        && document.getElementById('status-text').textContent === 'Connecting...';
+        && document.getElementById('name-status-text').textContent === 'Connecting...';
     });
     await expect(controller).toHaveScreenshot('controller-connecting.png');
     await controller.waitForSelector('#player-identity:not(.hidden)');
@@ -137,8 +137,8 @@ test.describe('Controller', () => {
     await page.fill('#name-input', 'Player 1');
     await page.click('#name-join-btn');
     await page.waitForFunction(() => {
-      return document.getElementById('status-text').textContent === 'Game Over'
-        && document.getElementById('status-detail').textContent === 'Room not found.';
+      return document.getElementById('name-status-text').textContent === 'Game Over'
+        && document.getElementById('name-status-detail').textContent === 'Room not found.';
     });
     await expect(page).toHaveScreenshot('controller-error-room-notfound.png');
   });
@@ -147,10 +147,10 @@ test.describe('Controller', () => {
     const { controllers } = await setupJoinedRoom(page, context, ['Player 1', 'Player 2']);
     const host = controllers[0];
     const nonHost = controllers[1];
-    await host.click('#disconnect-btn');
+    await host.click('#lobby-back-btn');
     await nonHost.waitForFunction(() => {
-      return document.getElementById('status-text').textContent === 'Game Cancelled'
-        && document.getElementById('status-detail').textContent === 'Host disconnected.'
+      return document.getElementById('name-status-text').textContent === 'Game Cancelled'
+        && document.getElementById('name-status-detail').textContent === 'Host disconnected.'
         && !document.getElementById('rejoin-btn').classList.contains('hidden');
     });
     await expect(nonHost).toHaveScreenshot('controller-error-host-disconnected.png');
@@ -161,8 +161,8 @@ test.describe('Controller', () => {
     const controller = controllers[0];
     await resetTestServer(request);
     await controller.waitForFunction(() => {
-      return document.getElementById('status-text').textContent === 'Game Over'
-        && document.getElementById('status-detail').textContent === '';
+      return document.getElementById('name-status-text').textContent === 'Game Over'
+        && document.getElementById('name-status-detail').textContent === '';
     });
     await expect(controller).toHaveScreenshot('controller-error-room-reset.png');
   });
@@ -176,8 +176,8 @@ test.describe('Controller', () => {
     await controller.goto(`/${roomCode}`);
     await waitForFont(controller);
     await controller.waitForFunction(() => {
-      return document.getElementById('status-text').textContent === 'Error'
-        && document.getElementById('status-detail').textContent === 'Reconnection failed'
+      return document.getElementById('name-status-text').textContent === 'Error'
+        && document.getElementById('name-status-detail').textContent === 'Reconnection failed'
         && !document.getElementById('rejoin-btn').classList.contains('hidden');
     });
     await expect(controller).toHaveScreenshot('controller-error-reconnection-failed.png');

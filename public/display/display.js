@@ -39,7 +39,6 @@ const pauseBtn = document.getElementById('pause-btn');
 const pauseOverlay = document.getElementById('pause-overlay');
 const pauseContinueBtn = document.getElementById('pause-continue-btn');
 const pauseNewGameBtn = document.getElementById('pause-newgame-btn');
-const lobbyBackBtn = document.getElementById('lobby-back-btn');
 const muteBtn = document.getElementById('mute-btn');
 let muted = false;
 
@@ -593,17 +592,7 @@ function playCountdownBeep(isGo) {
 }
 
 // Welcome screen button: unlocks audio, enters fullscreen, connects, enters lobby
-newGameBtn.addEventListener('click', () => {
-  initMusic();
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen().catch(() => {});
-  }
-  connect();
-  showScreen('lobby');
-});
-
-// Lobby back button — return to welcome screen and close room
-lobbyBackBtn.addEventListener('click', () => {
+function resetToWelcome() {
   if (ws) {
     ws.onclose = null;
     ws.onerror = null;
@@ -620,6 +609,25 @@ lobbyBackBtn.addEventListener('click', () => {
   disconnectedQRs.clear();
   garbageIndicatorEffects.clear();
   showScreen('welcome');
+}
+
+newGameBtn.addEventListener('click', () => {
+  initMusic();
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  }
+  connect();
+  history.pushState({ screen: 'lobby' }, '');
+  showScreen('lobby');
+});
+
+window.addEventListener('popstate', () => {
+  if (currentScreen === 'lobby') {
+    resetToWelcome();
+  } else if (currentScreen !== 'welcome') {
+    // Block back during game/results
+    history.pushState({ screen: currentScreen }, '');
+  }
 });
 
 // Start button
