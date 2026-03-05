@@ -621,8 +621,12 @@ newGameBtn.addEventListener('click', () => {
   showScreen('lobby');
 });
 
-window.addEventListener('popstate', () => {
-  if (currentScreen === 'lobby') {
+window.addEventListener('popstate', (e) => {
+  if (currentScreen === 'welcome' && e.state && e.state.screen === 'lobby') {
+    // Forward from welcome back to lobby
+    connect();
+    showScreen('lobby');
+  } else if (currentScreen === 'lobby') {
     resetToWelcome();
   } else if (currentScreen !== 'welcome') {
     // Block back during game/results
