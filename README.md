@@ -73,10 +73,10 @@ tests/       # Unit tests (node:test) and Playwright visual snapshots
 ## Testing
 
 ```bash
-# Unit tests (239 tests across 8 files)
+# Unit tests (184 tests across 8 files)
 npm test
 
-# Visual snapshot tests (32 Playwright tests)
+# Visual snapshot tests (26 Playwright tests)
 npm run test:visual
 
 # Update visual snapshots after intentional UI changes
