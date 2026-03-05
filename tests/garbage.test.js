@@ -103,22 +103,23 @@ describe('GarbageManager - cancellation of incoming garbage', () => {
 });
 
 describe('GarbageManager - garbage distribution', () => {
-  test('garbage distributes to opponents, not sender', () => {
+  test('garbage targets single opponent (lowest stack), not all', () => {
     const mgr = makeManager('p1', 'p2', 'p3');
-    const { deliveries } = mgr.processLineClear('p1', 4, false, -1, false);
+    // p3 has the highest stack, so it should be targeted
+    const getStackHeight = (id) => (id === 'p3' ? 10 : 5);
+    const { deliveries } = mgr.processLineClear('p1', 4, false, -1, false, getStackHeight);
 
     const p2Queue = mgr.queues.get('p2');
     const p3Queue = mgr.queues.get('p3');
     const p1Queue = mgr.queues.get('p1');
 
-    assert.strictEqual(p2Queue.length, 1, 'p2 should receive garbage');
-    assert.strictEqual(p3Queue.length, 1, 'p3 should receive garbage');
+    assert.strictEqual(p3Queue.length, 1, 'p3 (highest stack) should receive garbage');
+    assert.strictEqual(p2Queue.length, 0, 'p2 should not receive garbage');
     assert.strictEqual(p1Queue.length, 0, 'p1 (sender) should not receive own garbage');
-    assert.deepStrictEqual(deliveries, [
-      { fromId: 'p1', toId: 'p2', lines: 4, gapColumn: deliveries[0].gapColumn },
-      { fromId: 'p1', toId: 'p3', lines: 4, gapColumn: deliveries[0].gapColumn }
-    ]);
-    assert.strictEqual(p2Queue[0].senderId, 'p1', 'queued garbage should retain sender');
+    assert.strictEqual(deliveries.length, 1);
+    assert.strictEqual(deliveries[0].toId, 'p3');
+    assert.strictEqual(deliveries[0].lines, 4);
+    assert.strictEqual(p3Queue[0].senderId, 'p1', 'queued garbage should retain sender');
   });
 
   test('single clear sends no garbage to anyone', () => {
@@ -137,25 +138,40 @@ describe('GarbageManager - garbage distribution', () => {
   });
 });
 
-describe('GarbageManager - getIncomingGarbage', () => {
-  test('getIncomingGarbage returns queued garbage and clears the queue', () => {
+describe('GarbageManager - tick-based garbage delay', () => {
+  test('garbage is not ready until delay ticks elapse', () => {
     const mgr = makeManager('p1', 'p2');
     mgr.processLineClear('p1', 4, false, -1, false); // sends 4 to p2
 
-    const incoming = mgr.getIncomingGarbage('p2');
-    assert.strictEqual(incoming.length, 1);
-    assert.strictEqual(incoming[0].lines, 4);
-    assert.strictEqual(incoming[0].senderId, 'p1');
+    assert.strictEqual(mgr.getPendingLines('p2'), 4, 'p2 has 4 pending lines');
 
-    // Queue should now be empty
-    const again = mgr.getIncomingGarbage('p2');
-    assert.strictEqual(again.length, 0);
+    // Tick once — not ready yet
+    const ready = mgr.tick();
+    assert.strictEqual(ready.length, 0, 'garbage should not be ready after 1 tick');
+    assert.strictEqual(mgr.getPendingLines('p2'), 4, 'still pending');
   });
 
-  test('getIncomingGarbage returns empty array when no garbage queued', () => {
+  test('garbage becomes ready after GARBAGE_DELAY_TICKS', () => {
+    const { GARBAGE_DELAY_TICKS } = require('../server/constants');
+    const mgr = makeManager('p1', 'p2');
+    mgr.processLineClear('p1', 4, false, -1, false);
+
+    // Tick through the full delay
+    let allReady = [];
+    for (let i = 0; i < GARBAGE_DELAY_TICKS; i++) {
+      allReady.push(...mgr.tick());
+    }
+
+    assert.strictEqual(allReady.length, 1);
+    assert.strictEqual(allReady[0].playerId, 'p2');
+    assert.strictEqual(allReady[0].lines, 4);
+    assert.strictEqual(allReady[0].senderId, 'p1');
+    assert.strictEqual(mgr.getPendingLines('p2'), 0, 'queue should be empty after delivery');
+  });
+
+  test('getPendingLines returns 0 when no garbage queued', () => {
     const mgr = makeManager('p1');
-    const incoming = mgr.getIncomingGarbage('p1');
-    assert.deepStrictEqual(incoming, []);
+    assert.strictEqual(mgr.getPendingLines('p1'), 0);
   });
 });
 

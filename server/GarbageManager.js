@@ -1,10 +1,10 @@
 'use strict';
 
-const { GARBAGE_TABLE, TSPIN_GARBAGE_MULTIPLIER, COMBO_GARBAGE } = require('./constants');
+const { GARBAGE_TABLE, TSPIN_GARBAGE_MULTIPLIER, COMBO_GARBAGE, GARBAGE_DELAY_TICKS } = require('./constants');
 
 class GarbageManager {
   constructor() {
-    this.queues = new Map(); // playerId -> array of { lines, gapColumn, senderId }
+    this.queues = new Map(); // playerId -> array of { lines, gapColumn, senderId, ticksLeft }
   }
 
   addPlayer(playerId) {
@@ -15,7 +15,25 @@ class GarbageManager {
     this.queues.delete(playerId);
   }
 
-  processLineClear(senderId, linesCleared, isTSpin, combo, backToBack) {
+  /**
+   * Called each game tick to count down garbage delays.
+   * Returns an array of { playerId, lines, gapColumn, senderId } for garbage that is ready.
+   */
+  tick() {
+    const ready = [];
+    for (const [playerId, queue] of this.queues) {
+      for (let i = queue.length - 1; i >= 0; i--) {
+        queue[i].ticksLeft--;
+        if (queue[i].ticksLeft <= 0) {
+          const g = queue.splice(i, 1)[0];
+          ready.push({ playerId, lines: g.lines, gapColumn: g.gapColumn, senderId: g.senderId });
+        }
+      }
+    }
+    return ready;
+  }
+
+  processLineClear(senderId, linesCleared, isTSpin, combo, backToBack, getStackHeight) {
     if (linesCleared === 0) return { sent: 0, cancelled: 0, deliveries: [] };
 
     // Calculate garbage lines to send
@@ -39,7 +57,7 @@ class GarbageManager {
 
     if (garbageLines <= 0) return { sent: 0, cancelled: 0, deliveries: [] };
 
-    // Cancel sender's incoming garbage first
+    // Cancel sender's incoming garbage first (oldest first)
     const senderQueue = this.queues.get(senderId) || [];
     let remaining = garbageLines;
     let cancelled = 0;
@@ -57,28 +75,43 @@ class GarbageManager {
       }
     }
 
-    // Distribute remainder to opponents
+    // Send remainder to opponent with the lowest stack (most vulnerable)
     let sent = 0;
     const deliveries = [];
     if (remaining > 0) {
-      const gapColumn = this.generateGapColumn();
-      for (const [playerId, queue] of this.queues) {
-        if (playerId !== senderId) {
-          queue.push({ lines: remaining, gapColumn, senderId });
-          deliveries.push({ fromId: senderId, toId: playerId, lines: remaining, gapColumn });
-          sent = remaining;
-        }
+      const targetId = this._pickTarget(senderId, getStackHeight);
+      if (targetId) {
+        const gapColumn = this.generateGapColumn();
+        const queue = this.queues.get(targetId);
+        queue.push({ lines: remaining, gapColumn, senderId, ticksLeft: GARBAGE_DELAY_TICKS });
+        deliveries.push({ fromId: senderId, toId: targetId, lines: remaining, gapColumn });
+        sent = remaining;
       }
     }
 
     return { sent, cancelled, deliveries };
   }
 
-  getIncomingGarbage(playerId) {
+  _pickTarget(senderId, getStackHeight) {
+    let bestId = null;
+    let bestHeight = -1;
+
+    for (const [playerId] of this.queues) {
+      if (playerId === senderId) continue;
+      const height = getStackHeight ? getStackHeight(playerId) : 0;
+      if (height > bestHeight) {
+        bestHeight = height;
+        bestId = playerId;
+      }
+    }
+
+    return bestId;
+  }
+
+  getPendingLines(playerId) {
     const queue = this.queues.get(playerId);
-    if (!queue || queue.length === 0) return [];
-    const garbage = queue.splice(0);
-    return garbage;
+    if (!queue) return 0;
+    return queue.reduce((sum, g) => sum + g.lines, 0);
   }
 
   generateGapColumn() {

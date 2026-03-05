@@ -459,6 +459,15 @@ class PlayerBoard {
     return true;
   }
 
+  getStackHeight() {
+    for (let row = 0; row < BOARD_HEIGHT; row++) {
+      for (let col = 0; col < BOARD_WIDTH; col++) {
+        if (this.grid[row][col] !== 0) return BOARD_HEIGHT - row;
+      }
+    }
+    return 0;
+  }
+
   getState() {
     // Return only visible rows (bottom 20 of the 24-row grid)
     const visibleGrid = this.grid.slice(BUFFER_ROWS);

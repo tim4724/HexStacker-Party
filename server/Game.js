@@ -131,28 +131,29 @@ class Game {
         this.dirty = true;
       }
 
-      // Apply pending garbage
-      const incoming = this.garbageManager.getIncomingGarbage(id);
-      if (incoming && incoming.length > 0) {
-        this.dirty = true;
-        for (const g of incoming) {
-          board.addPendingGarbage(g.lines, g.gapColumn);
-          this.callbacks.onEvent({
-            type: 'garbage_sent',
-            senderId: g.senderId,
-            toId: id,
-            lines: g.lines,
-            gapColumn: g.gapColumn
-          });
-        }
-      }
-
       // Check if player just died
       if (!board.alive) {
         this.dirty = true;
         this.callbacks.onEvent({
           type: 'player_ko',
           playerId: id
+        });
+      }
+    }
+
+    // Tick garbage delay timers and apply any that are ready
+    const readyGarbage = this.garbageManager.tick();
+    for (const g of readyGarbage) {
+      const board = this.boards.get(g.playerId);
+      if (board && board.alive) {
+        this.dirty = true;
+        board.addPendingGarbage(g.lines, g.gapColumn);
+        this.callbacks.onEvent({
+          type: 'garbage_sent',
+          senderId: g.senderId,
+          toId: g.playerId,
+          lines: g.lines,
+          gapColumn: g.gapColumn
         });
       }
     }
@@ -172,6 +173,8 @@ class Game {
     for (const [id, board] of this.boards) {
       const state = board.getState();
       state.id = id;
+      // Include delayed garbage from GarbageManager in the pending count
+      state.pendingGarbage += this.garbageManager.getPendingLines(id);
       playerArr.push(state);
     }
 
@@ -199,7 +202,11 @@ class Game {
       combo
     });
 
-    this.garbageManager.processLineClear(playerId, lines, isTSpin, combo, backToBack);
+    const getStackHeight = (id) => {
+      const b = this.boards.get(id);
+      return b && b.alive ? b.getStackHeight() : -1;
+    };
+    this.garbageManager.processLineClear(playerId, lines, isTSpin, combo, backToBack, getStackHeight);
   }
 
   checkWinCondition() {
