@@ -25,21 +25,26 @@ const RESULT_LEVELS = [5, 4, 3, 2];
 
 function createPrimaryGrid() {
   const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
-  grid[19] = [1, 7, 7, 3, 3, 3, 0, 2, 2, 2];
-  grid[18] = [1, 0, 7, 3, 0, 0, 0, 0, 2, 0];
-  grid[17] = [1, 0, 7, 0, 0, 0, 0, 0, 0, 0];
-  grid[16] = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  grid[15] = [8, 8, 8, 0, 8, 8, 8, 8, 8, 8];
-  grid[14] = [8, 8, 8, 8, 8, 0, 8, 8, 8, 8];
+  // Placed pieces on top of garbage
+  grid[16] = [1, 7, 7, 3, 3, 3, 0, 2, 2, 2];
+  grid[15] = [1, 0, 7, 3, 0, 0, 0, 0, 2, 0];
+  grid[14] = [1, 0, 7, 0, 0, 0, 0, 0, 0, 0];
+  grid[13] = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  // Garbage rows at bottom
+  grid[19] = [8, 8, 8, 8, 8, 0, 8, 8, 8, 8];
+  grid[18] = [8, 8, 8, 0, 8, 8, 8, 8, 8, 8];
+  grid[17] = [8, 8, 8, 8, 0, 8, 8, 8, 8, 8];
   return grid;
 }
 
 function createSecondaryGrid() {
   const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
-  grid[19] = [5, 5, 0, 0, 4, 4, 6, 6, 6, 0];
-  grid[18] = [5, 5, 0, 0, 4, 4, 0, 6, 0, 0];
-  grid[17] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  grid[16] = [8, 8, 0, 8, 8, 8, 8, 8, 8, 8];
+  // Placed pieces on top of garbage
+  grid[17] = [5, 5, 0, 0, 4, 4, 6, 6, 6, 0];
+  grid[16] = [5, 5, 0, 0, 4, 4, 0, 6, 0, 0];
+  // Garbage rows at bottom
+  grid[19] = [8, 8, 0, 8, 8, 8, 8, 8, 8, 8];
+  grid[18] = [8, 8, 8, 8, 8, 0, 8, 8, 8, 8];
   return grid;
 }
 
