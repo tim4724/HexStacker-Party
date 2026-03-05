@@ -188,6 +188,7 @@ class Game {
     const lines = clearResult.linesCleared;
     const isTSpin = clearResult.isTSpin || false;
     const combo = (clearResult.scoreResult && clearResult.scoreResult.combo) || 0;
+    const backToBack = (clearResult.scoreResult && clearResult.scoreResult.backToBack) || false;
 
     this.callbacks.onEvent({
       type: 'line_clear',
@@ -198,7 +199,7 @@ class Game {
       combo
     });
 
-    this.garbageManager.processLineClear(playerId, lines, isTSpin, combo);
+    this.garbageManager.processLineClear(playerId, lines, isTSpin, combo, backToBack);
   }
 
   checkWinCondition() {

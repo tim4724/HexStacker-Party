@@ -107,7 +107,7 @@ const THEME = Object.freeze({
   stroke: Object.freeze({
     grid:   0.5,
     border: 1,
-    ghost:  1.5,
+    ghost:  2.5,
   }),
 
   // ---- Animation Timing (ms) ----

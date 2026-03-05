@@ -52,6 +52,7 @@ class Scoring {
 
     this.score += points;
     this.lines += linesCleared;
+    this.level = Math.floor(this.lines / 10) + 1;
 
     return {
       score: points,

@@ -8,6 +8,7 @@ const {
   COUNTDOWN_SECONDS
 } = require('./constants.js');
 const { PLAYER_COLORS } = require('../public/shared/colors.js');
+const { send } = require('./send.js');
 
 // Track active room codes to avoid collisions
 const activeRoomCodes = new Set();
@@ -483,6 +484,7 @@ class Room {
     }
     this._countdownCallback = null;
     this._countdownRemaining = 0;
+    this.paused = false;
 
     if (this.game) {
       this.game.stop();
@@ -518,7 +520,6 @@ class Room {
     for (const id of disconnectedIds) {
       this.players.delete(id);
     }
-    this.paused = false;
     this._lastResults = null;
     this.state = ROOM_STATE.LOBBY;
 
@@ -617,12 +618,6 @@ class Room {
     }
     this.players.clear();
     activeRoomCodes.delete(this.roomCode);
-  }
-}
-
-function send(ws, type, data) {
-  if (ws && ws.readyState === 1) { // WebSocket.OPEN = 1
-    ws.send(JSON.stringify({ type, ...data }));
   }
 }
 

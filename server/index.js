@@ -8,6 +8,7 @@ const { WebSocketServer } = require('ws');
 const Room = require('./Room.js');
 const { MSG } = require('../public/shared/protocol.js');
 const { applyVisualScenario } = require('./visualTestScenarios.js');
+const { send } = require('./send.js');
 
 const PORT = parseInt(process.env.PORT, 10) || 4000;
 const PUBLIC_URL = process.env.PUBLIC_URL || ''; // e.g. https://main.tetris-party.duckdns.org
@@ -457,13 +458,6 @@ function handleControllerMessage(room, playerId, msg) {
     case MSG.LEAVE:
       room.removePlayer(playerId, true);
       break;
-  }
-}
-
-// --- Helper ---
-function send(ws, type, data) {
-  if (ws && ws.readyState === 1) {
-    ws.send(JSON.stringify({ type, ...data }));
   }
 }
 
