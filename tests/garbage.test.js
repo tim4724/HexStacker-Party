@@ -90,15 +90,25 @@ describe('GarbageManager - cancellation of incoming garbage', () => {
 
   test('excess incoming garbage remains in queue after partial cancel', () => {
     const mgr = makeManager('p1', 'p2');
-    // 6 incoming garbage, p1 sends a double (1 garbage)
+    // 6 incoming garbage, p1 clears a double (defense = 2 lines cleared)
     mgr.queues.get('p1').push({ lines: 6, gapColumn: 3 });
 
     const { cancelled } = mgr.processLineClear('p1', 2, false, -1, false);
-    assert.strictEqual(cancelled, 1, '1 line cancelled');
+    assert.strictEqual(cancelled, 2, '2 lines cancelled (defense = lines cleared)');
 
     const remaining = mgr.queues.get('p1');
     assert.strictEqual(remaining.length, 1, 'Remaining garbage entry should still exist');
-    assert.strictEqual(remaining[0].lines, 5, '5 lines should remain in queue');
+    assert.strictEqual(remaining[0].lines, 4, '4 lines should remain in queue');
+  });
+
+  test('single clear cancels 1 incoming garbage line', () => {
+    const mgr = makeManager('p1', 'p2');
+    mgr.queues.get('p1').push({ lines: 3, gapColumn: 0 });
+
+    const { sent, cancelled } = mgr.processLineClear('p1', 1, false, -1, false);
+    assert.strictEqual(cancelled, 1, 'Single cancels 1 incoming garbage');
+    assert.strictEqual(sent, 0, 'Single sends no attack');
+    assert.strictEqual(mgr.queues.get('p1')[0].lines, 2, '2 lines remain');
   });
 });
 

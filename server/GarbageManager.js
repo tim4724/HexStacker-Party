@@ -55,37 +55,38 @@ class GarbageManager {
       garbageLines += 1;
     }
 
-    if (garbageLines <= 0) return { sent: 0, cancelled: 0, deliveries: [] };
-
-    // Cancel sender's incoming garbage first (oldest first)
+    // Cancel sender's incoming garbage first (defense = lines cleared)
     const senderQueue = this.queues.get(senderId) || [];
-    let remaining = garbageLines;
+    let defenseRemaining = linesCleared;
     let cancelled = 0;
 
-    while (remaining > 0 && senderQueue.length > 0) {
+    while (defenseRemaining > 0 && senderQueue.length > 0) {
       const front = senderQueue[0];
-      if (front.lines <= remaining) {
-        remaining -= front.lines;
+      if (front.lines <= defenseRemaining) {
+        defenseRemaining -= front.lines;
         cancelled += front.lines;
         senderQueue.shift();
       } else {
-        front.lines -= remaining;
-        cancelled += remaining;
-        remaining = 0;
+        front.lines -= defenseRemaining;
+        cancelled += defenseRemaining;
+        defenseRemaining = 0;
       }
     }
 
-    // Send remainder to opponent with the lowest stack (most vulnerable)
+    // Remaining attack after cancellation absorbs some offensive power
+    const netAttack = Math.max(0, garbageLines - cancelled);
+
+    // Send net attack to opponent with the highest stack (most vulnerable)
     let sent = 0;
     const deliveries = [];
-    if (remaining > 0) {
+    if (netAttack > 0) {
       const targetId = this._pickTarget(senderId, getStackHeight);
       if (targetId) {
         const gapColumn = this.generateGapColumn();
         const queue = this.queues.get(targetId);
-        queue.push({ lines: remaining, gapColumn, senderId, ticksLeft: GARBAGE_DELAY_TICKS });
-        deliveries.push({ fromId: senderId, toId: targetId, lines: remaining, gapColumn });
-        sent = remaining;
+        queue.push({ lines: netAttack, gapColumn, senderId, ticksLeft: GARBAGE_DELAY_TICKS });
+        deliveries.push({ fromId: senderId, toId: targetId, lines: netAttack, gapColumn });
+        sent = netAttack;
       }
     }
 
