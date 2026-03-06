@@ -198,12 +198,12 @@ function connectAndCreateRoom() {
     }
   };
 
-  party.onClose = function() {
+  party.onClose = function(attempt, maxAttempts) {
     if (roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN) {
-      // Pause the game while disconnected
       if (!paused) pauseGame();
       reconnectOverlay.classList.remove('hidden');
       pauseOverlay.classList.add('hidden');
+      reconnectStatus.textContent = 'Attempt ' + attempt + ' of ' + maxAttempts;
     }
   };
 

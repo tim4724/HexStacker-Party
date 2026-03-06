@@ -368,14 +368,14 @@
       }
     };
 
-    party.onClose = function () {
+    party.onClose = function (attempt, maxAttempts) {
       stopPing();
       if (gameCancelled) return;
       if (currentScreen === 'game') {
         reconnectOverlay.classList.remove('hidden');
         reconnectHeading.textContent = 'RECONNECTING';
-        reconnectStatus.textContent = 'Reconnecting...';
-        reconnectRejoinBtn.classList.add('hidden');
+        reconnectStatus.textContent = 'Attempt ' + attempt + ' of ' + maxAttempts;
+        reconnectRejoinBtn.classList.toggle('hidden', attempt < maxAttempts);
       }
     };
 
@@ -396,8 +396,8 @@
       if (Date.now() - lastPongTime > PONG_TIMEOUT_MS) {
         if (currentScreen === 'game') {
           reconnectOverlay.classList.remove('hidden');
-          reconnectHeading.textContent = 'RECONNECTING';
-          reconnectStatus.textContent = 'Connection lost...';
+          reconnectHeading.textContent = 'CONNECTION LOST';
+          reconnectStatus.textContent = 'Display not responding';
           reconnectRejoinBtn.classList.remove('hidden');
         }
       }

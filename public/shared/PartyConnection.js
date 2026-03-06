@@ -22,10 +22,12 @@ class PartyConnection {
     this._reconnectTimer = null;
     this._reconnectDelay = 1000;
     this._shouldReconnect = true;
+    this.maxReconnectAttempts = (options && options.maxReconnectAttempts) || 5;
+    this.reconnectAttempt = 0;
 
     // Callbacks
     this.onOpen = null;        // () => void
-    this.onClose = null;       // () => void
+    this.onClose = null;       // (attempt: number, maxAttempts: number) => void
     this.onError = null;       // () => void
     this.onMessage = null;     // (from: string, data: object) => void
     this.onProtocol = null;    // (type: string, msg: object) => void
@@ -41,6 +43,7 @@ class PartyConnection {
     ws.onopen = () => {
       if (this.ws !== ws) return; // stale
       this._reconnectDelay = 1000;
+      this.reconnectAttempt = 0;
       if (this.onOpen) this.onOpen();
     };
 
@@ -58,8 +61,9 @@ class PartyConnection {
 
     ws.onclose = () => {
       if (this.ws !== ws) return; // stale — already replaced by reconnectNow
-      if (this.onClose) this.onClose();
-      if (this._shouldReconnect) {
+      this.reconnectAttempt++;
+      if (this.onClose) this.onClose(this.reconnectAttempt, this.maxReconnectAttempts);
+      if (this._shouldReconnect && this.reconnectAttempt < this.maxReconnectAttempts) {
         this._scheduleReconnect();
       }
     };
@@ -115,6 +119,7 @@ class PartyConnection {
   reconnectNow() {
     clearTimeout(this._reconnectTimer);
     this._reconnectDelay = 1000;
+    this.reconnectAttempt = 0;
     this.connect();
   }
 
