@@ -1,7 +1,7 @@
 'use strict';
 
-// Party-Server relay URL
-var RELAY_URL = 'wss://party-sockets.duckdns.org';
+// Party-Server relay URL (override via RELAY_URL env var on server)
+var RELAY_URL = (typeof window !== 'undefined' && window.__RELAY_URL__) || 'wss://ws.tetris.party';
 
 // Message types for game communication (inside Party-Server data field)
 var MSG = {

@@ -104,6 +104,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+
   // Map directory paths to index.html
   if (urlPath === '/') {
     urlPath = '/display/index.html';
@@ -136,6 +137,15 @@ const server = http.createServer((req, res) => {
       headers['Cache-Control'] = 'no-store, no-cache, must-revalidate';
       headers['Pragma'] = 'no-cache';
       headers['Expires'] = '0';
+    }
+
+    // Inject relay URL override into HTML pages when env var is set
+    if (ext === '.html' && process.env.RELAY_URL) {
+      const inject = `<script>window.__RELAY_URL__=${JSON.stringify(process.env.RELAY_URL)}</script>`;
+      const html = data.toString().replace('<head>', '<head>' + inject);
+      res.writeHead(200, headers);
+      res.end(html);
+      return;
     }
 
     res.writeHead(200, headers);
