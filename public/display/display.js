@@ -199,7 +199,7 @@ function connectAndCreateRoom() {
         onDisplayRejoined(msg.room, msg.clients);
         break;
       case 'peer_joined':
-        // Ignore — wait for hello message to register players
+        onPeerJoined(msg.clientId);
         break;
       case 'peer_left':
         onPeerLeft(msg.clientId);
@@ -290,6 +290,28 @@ function onDisplayRejoined(partyRoomCode, clients) {
       requestAnimationFrame(function() { renderTetrisQR(qrCode, qrMatrix); });
     });
   }
+}
+
+function onPeerJoined(clientId) {
+  if (players.has(clientId)) return;
+  if (roomState !== ROOM_STATE.LOBBY) return;
+  if (players.size >= GameConstants.MAX_PLAYERS) return;
+
+  var index = playerIndexCounter++;
+  var color = PLAYER_COLORS[index % PLAYER_COLORS.length];
+  var isHost = hostId === null;
+  if (isHost) hostId = clientId;
+
+  players.set(clientId, {
+    playerName: 'P' + (index + 1),
+    playerColor: color,
+    playerIndex: index,
+    lastPingTime: Date.now()
+  });
+  playerOrder.push(clientId);
+
+  updatePlayerList();
+  updateStartButton();
 }
 
 function onPeerLeft(clientId) {
@@ -398,7 +420,7 @@ function onHello(fromId, msg) {
   var name = typeof msg.name === 'string' ? msg.name.trim().slice(0, 16) : '';
   var playerName = name || 'Player';
 
-  // Reconnecting player
+  // Player already registered (from peer_joined or reconnect)
   if (players.has(fromId)) {
     var existing = players.get(fromId);
 
@@ -407,6 +429,10 @@ function onHello(fromId, msg) {
       clearTimeout(graceTimers.get(fromId));
       graceTimers.delete(fromId);
     }
+
+    // Update name (replaces placeholder like "P1")
+    existing.playerName = playerName;
+    updatePlayerList();
 
     // Send welcome with current state
     party.sendTo(fromId, {
@@ -418,10 +444,12 @@ function onHello(fromId, msg) {
       alive: lastAliveState[fromId] != null ? lastAliveState[fromId] : true,
       paused: paused
     });
+
+    broadcastLobbyUpdate();
     return;
   }
 
-  // New player joining
+  // New player joining (peer_joined was missed or not used)
   if (roomState !== ROOM_STATE.LOBBY) {
     party.sendTo(fromId, { type: MSG.ERROR, message: 'Game already in progress' });
     return;
