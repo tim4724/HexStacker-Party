@@ -32,19 +32,20 @@ class PartyConnection {
   }
 
   connect() {
-    if (this.ws) {
-      try { this.ws.close(); } catch (_) {}
-    }
+    this._discardOldWs();
 
     this._shouldReconnect = true;
-    this.ws = new WebSocket(this.relayUrl);
+    var ws = new WebSocket(this.relayUrl);
+    this.ws = ws;
 
-    this.ws.onopen = () => {
+    ws.onopen = () => {
+      if (this.ws !== ws) return; // stale
       this._reconnectDelay = 1000;
       if (this.onOpen) this.onOpen();
     };
 
-    this.ws.onmessage = (event) => {
+    ws.onmessage = (event) => {
+      if (this.ws !== ws) return; // stale
       var msg;
       try { msg = JSON.parse(event.data); } catch (_) { return; }
 
@@ -55,16 +56,27 @@ class PartyConnection {
       }
     };
 
-    this.ws.onclose = () => {
+    ws.onclose = () => {
+      if (this.ws !== ws) return; // stale — already replaced by reconnectNow
       if (this.onClose) this.onClose();
       if (this._shouldReconnect) {
         this._scheduleReconnect();
       }
     };
 
-    this.ws.onerror = () => {
+    ws.onerror = () => {
+      if (this.ws !== ws) return; // stale
       if (this.onError) this.onError();
     };
+  }
+
+  _discardOldWs() {
+    if (this.ws) {
+      var old = this.ws;
+      this.ws = null;
+      old.onopen = old.onmessage = old.onclose = old.onerror = null;
+      try { old.close(); } catch (_) {}
+    }
   }
 
   _scheduleReconnect() {
@@ -101,10 +113,6 @@ class PartyConnection {
   }
 
   reconnectNow() {
-    if (this.ws) {
-      try { this.ws.close(); } catch (_) {}
-      this.ws = null;
-    }
     clearTimeout(this._reconnectTimer);
     this._reconnectDelay = 1000;
     this.connect();
@@ -113,10 +121,7 @@ class PartyConnection {
   close() {
     this._shouldReconnect = false;
     clearTimeout(this._reconnectTimer);
-    if (this.ws) {
-      try { this.ws.close(); } catch (_) {}
-      this.ws = null;
-    }
+    this._discardOldWs();
   }
 
   get connected() {

@@ -308,8 +308,21 @@ function onDisplayRejoined(partyRoomCode, clients) {
     resumeGame();
   }
 
-  // Players will re-send hello to re-register
-  // Show lobby while waiting for players to reconnect
+  // Re-send WELCOME to all known players so controllers clear their reconnect overlay
+  for (var entry of players) {
+    var id = entry[0];
+    var info = entry[1];
+    party.sendTo(id, {
+      type: MSG.WELCOME,
+      playerColor: info.playerColor,
+      isHost: id === hostId,
+      playerCount: players.size,
+      roomState: roomState,
+      alive: lastAliveState[id] != null ? lastAliveState[id] : true,
+      paused: paused
+    });
+  }
+
   if (roomState === ROOM_STATE.LOBBY) {
     showScreen('lobby');
     updateStartButton();
@@ -592,6 +605,10 @@ function startLivenessCheck() {
         if (!paused) pauseGame();
         reconnectOverlay.classList.remove('hidden');
         pauseOverlay.classList.add('hidden');
+      }
+      // Force reconnect once (reconnectNow is idempotent via _discardOldWs,
+      // but no point closing a WS that's still connecting)
+      if (party.connected) {
         party.reconnectNow();
       }
       return;

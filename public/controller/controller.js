@@ -349,8 +349,13 @@
         });
       } else if (type === 'peer_left') {
         if (msg.clientId === 'display') {
-          // Display disconnected — show error
-          showErrorState('', 'Host disconnected');
+          // Display disconnected — show reconnect overlay, it may come back
+          if (currentScreen === 'game') {
+            reconnectOverlay.classList.remove('hidden');
+            reconnectHeading.textContent = 'RECONNECTING';
+            reconnectStatus.textContent = 'Display reconnecting...';
+            reconnectRejoinBtn.classList.add('hidden');
+          }
         }
       } else if (type === 'error') {
         showRoomGone();
