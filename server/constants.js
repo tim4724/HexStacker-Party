@@ -1,10 +1,9 @@
 'use strict';
 
-/* eslint-disable no-var */
 // UMD: works in Node.js (require) and browser (window.GameConstants)
 (function(exports) {
 
-var BOARD_WIDTH = 10;
+const BOARD_WIDTH = 10;
 const BOARD_HEIGHT = 24; // 20 visible + 4 buffer
 const VISIBLE_HEIGHT = 20;
 const BUFFER_ROWS = 4;

@@ -915,7 +915,7 @@
           el.classList.add('fade-out');
           el.addEventListener('animationend', function () { el.remove(); });
         }
-      } else if (action !== 'soft_drop') {
+      } else {
         // Regular input: left, right, rotate_cw, hard_drop, hold
         sendToDisplay(MSG.INPUT, { action: action, seq: inputSeq++ });
       }

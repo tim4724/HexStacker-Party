@@ -671,8 +671,6 @@ body.keyboard-open #name-form {
 .ping-ok { color: #ffa726; }
 .ping-bad { color: #e74856; }
 
-#game-top-bar #mute-btn {
-}
 
 /* Mute button */
 #mute-btn.muted {

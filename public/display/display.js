@@ -381,8 +381,8 @@ function onPeerLeft(clientId) {
     removeLobbyPlayer(clientId);
     if (!wasHost) {
       party.broadcast({ type: MSG.RETURN_TO_LOBBY, playerCount: players.size });
-      returnToLobbyUI();
     }
+    returnToLobbyUI();
   } else {
     // In game/countdown — show disconnect QR overlay
     showDisconnectQR(clientId);
@@ -550,7 +550,7 @@ function onSoftDrop(fromId, speed) {
   softDropTimers.set(fromId, setTimeout(function() {
     softDropTimers.delete(fromId);
     if (displayGame) displayGame.handleSoftDropEnd(fromId);
-  }, 200));
+  }, 300));
 }
 
 function removePlayer(clientId, immediate) {
@@ -844,6 +844,8 @@ function returnToLobby() {
   // Clear countdown state
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
   if (goTimeout) { clearTimeout(goTimeout); goTimeout = null; }
+  graceTimers.forEach(clearTimeout);
+  graceTimers.clear();
   countdownCallback = null;
   countdownRemaining = 0;
   paused = false;
@@ -1161,9 +1163,14 @@ function renderResults(results) {
   if (winner) {
     var wInfo = players.get(winner.playerId);
     var winnerColor = wInfo?.playerColor || PLAYER_COLORS[wInfo?.playerIndex] || '#ffd700';
-    var r = parseInt(winnerColor.slice(1, 3), 16) || 255;
-    var g = parseInt(winnerColor.slice(3, 5), 16) || 215;
-    var b = parseInt(winnerColor.slice(5, 7), 16) || 0;
+    var parsed = [
+      parseInt(winnerColor.slice(1, 3), 16),
+      parseInt(winnerColor.slice(3, 5), 16),
+      parseInt(winnerColor.slice(5, 7), 16)
+    ];
+    var r = isNaN(parsed[0]) ? 255 : parsed[0];
+    var g = isNaN(parsed[1]) ? 215 : parsed[1];
+    var b = isNaN(parsed[2]) ? 0 : parsed[2];
     resultsScreen.style.setProperty('--winner-glow', 'rgba(' + r + ', ' + g + ', ' + b + ', 0.08)');
   }
 
