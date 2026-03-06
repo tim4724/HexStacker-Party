@@ -108,6 +108,7 @@
   var reconnectHeading = document.getElementById('reconnect-heading');
   var reconnectStatus = document.getElementById('reconnect-status');
   var reconnectRejoinBtn = document.getElementById('reconnect-rejoin-btn');
+  var pingDisplay = document.getElementById('ping-display');
   var muteBtn = document.getElementById('mute-btn');
   var muted = localStorage.getItem('tetris_muted') === '1';
 
@@ -403,6 +404,13 @@
     if (pongCheckTimer) { clearInterval(pongCheckTimer); pongCheckTimer = null; }
   }
 
+  function updatePingDisplay(ms) {
+    if (!pingDisplay) return;
+    pingDisplay.textContent = ms + 'ms';
+    pingDisplay.classList.remove('ping-good', 'ping-ok', 'ping-bad');
+    pingDisplay.classList.add(ms < 50 ? 'ping-good' : ms < 100 ? 'ping-ok' : 'ping-bad');
+  }
+
   // =====================================================================
   // Send Helper
   // =====================================================================
@@ -462,6 +470,10 @@
         break;
       case MSG.PONG:
         lastPongTime = Date.now();
+        if (data.t) {
+          var rtt = Date.now() - data.t;
+          updatePingDisplay(Math.round(rtt / 2));
+        }
         reconnectOverlay.classList.add('hidden');
         break;
       case MSG.ERROR:

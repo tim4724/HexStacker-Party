@@ -660,9 +660,18 @@ body.keyboard-open #name-form {
   display: none;
 }
 
-/* Push buttons to right in game top bar */
-#game-top-bar #mute-btn {
+/* Ping indicator */
+.ping-display {
+  font-size: 0.7rem;
+  font-family: 'Orbitron', monospace;
+  opacity: 0.5;
   margin-left: auto;
+}
+.ping-good { color: #66bb6a; }
+.ping-ok { color: #ffa726; }
+.ping-bad { color: #e74856; }
+
+#game-top-bar #mute-btn {
 }
 
 /* Mute button */
