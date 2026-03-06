@@ -355,6 +355,11 @@ function removeLobbyPlayer(clientId) {
 function handleControllerMessage(fromId, msg) {
   if (!msg || !msg.type) return;
 
+  // Any message from a controller proves it's alive — clear disconnect overlay
+  disconnectedQRs.delete(fromId);
+  var senderPlayer = players.get(fromId);
+  if (senderPlayer) senderPlayer.lastPingTime = Date.now();
+
   switch (msg.type) {
     case MSG.HELLO:
       onHello(fromId, msg);
@@ -385,8 +390,6 @@ function handleControllerMessage(fromId, msg) {
       break;
     case MSG.PING:
       party.sendTo(fromId, { type: MSG.PONG, t: msg.t });
-      var player = players.get(fromId);
-      if (player) player.lastPingTime = Date.now();
       break;
   }
 }
@@ -398,16 +401,12 @@ function onHello(fromId, msg) {
   // Reconnecting player
   if (players.has(fromId)) {
     var existing = players.get(fromId);
-    existing.lastPingTime = Date.now();
 
     // Clear grace timer if any
     if (graceTimers.has(fromId)) {
       clearTimeout(graceTimers.get(fromId));
       graceTimers.delete(fromId);
     }
-
-    // Remove disconnect QR overlay
-    disconnectedQRs.delete(fromId);
 
     // Send welcome with current state
     party.sendTo(fromId, {
