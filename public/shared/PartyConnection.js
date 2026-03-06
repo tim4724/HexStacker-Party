@@ -100,6 +100,16 @@ class PartyConnection {
     this._send({ type: 'send', data: data });
   }
 
+  reconnectNow() {
+    if (this.ws) {
+      try { this.ws.close(); } catch (_) {}
+      this.ws = null;
+    }
+    clearTimeout(this._reconnectTimer);
+    this._reconnectDelay = 1000;
+    this.connect();
+  }
+
   close() {
     this._shouldReconnect = false;
     clearTimeout(this._reconnectTimer);

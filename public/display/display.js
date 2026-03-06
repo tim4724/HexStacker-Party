@@ -35,9 +35,13 @@ var goTimeout = null;
 // Soft drop auto-timeout (200ms without a soft_drop message ends soft drop)
 var softDropTimers = new Map();
 
-// Controller liveness (5s without ping -> show disconnect QR)
+// Controller liveness (3s without ping -> show disconnect QR)
 var LIVENESS_TIMEOUT_MS = 3000;
 var livenessInterval = null;
+
+// Display heartbeat — send echo to self via relay to verify connection
+var lastHeartbeatEcho = 0;
+var heartbeatSent = false;
 
 // Grace period timers for disconnected players in lobby
 var graceTimers = new Map();
@@ -224,6 +228,10 @@ function connectAndCreateRoom() {
   };
 
   party.onMessage = function(from, data) {
+    if (from === 'display' && data && data.type === '_heartbeat') {
+      lastHeartbeatEcho = Date.now();
+      return;
+    }
     handleControllerMessage(from, data);
   };
 
@@ -567,13 +575,33 @@ function broadcastLobbyUpdate() {
 
 function startLivenessCheck() {
   stopLivenessCheck();
+  lastHeartbeatEcho = Date.now();
+  heartbeatSent = false;
   livenessInterval = setInterval(function() {
     var now = Date.now();
+
+    // Send heartbeat echo to self via relay
+    party.sendTo('display', { type: '_heartbeat' });
+
+    // Check if our own connection is dead (no echo back within timeout)
+    var displayDead = heartbeatSent && (now - lastHeartbeatEcho > LIVENESS_TIMEOUT_MS);
+    heartbeatSent = true;
+
+    if (displayDead) {
+      if (roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN) {
+        if (!paused) pauseGame();
+        reconnectOverlay.classList.remove('hidden');
+        pauseOverlay.classList.add('hidden');
+        party.reconnectNow();
+      }
+      return;
+    }
+
+    // Check individual controller liveness
     for (var entry of players) {
       var id = entry[0];
       var player = entry[1];
       if (player.lastPingTime && (now - player.lastPingTime > LIVENESS_TIMEOUT_MS)) {
-        // Controller hasn't pinged recently — show disconnect QR
         if (roomState !== ROOM_STATE.LOBBY && !disconnectedQRs.has(id)) {
           showDisconnectQR(id);
         }
