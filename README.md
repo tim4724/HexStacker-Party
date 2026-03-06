@@ -18,7 +18,7 @@ graph LR
     R -- game events --> P
 ```
 
-The display browser runs the game engine and renders all player boards. Controllers send input through a [Party-Sockets](https://github.com/tim4724/Party-Sockets) WebSocket relay. The Node.js server only serves static files and a QR code API.
+The display browser runs the game engine and renders all player boards. Controllers send input through a [Party-Sockets](https://github.com/tim4724/Party-Sockets) WebSocket relay. The Node.js server only serves static files and a QR code API. Since the display client is the game authority, there is no server-side validation of game outcomes -- this is an accepted trade-off for a local party game.
 
 ## Features
 

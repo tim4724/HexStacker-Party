@@ -52,8 +52,8 @@ const server = http.createServer((req, res) => {
   if (urlPath === '/api/qr' && req.method === 'GET') {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const text = url.searchParams.get('text');
-    if (!text) {
-      sendJson(res, 400, { error: 'Missing text parameter' });
+    if (!text || text.length > 2048) {
+      sendJson(res, 400, { error: !text ? 'Missing text parameter' : 'Text too long' });
       return;
     }
     try {
@@ -75,9 +75,7 @@ const server = http.createServer((req, res) => {
         if (err) { res.writeHead(404); res.end('Not Found'); return; }
         res.writeHead(200, {
           'Content-Type': 'text/javascript',
-          'Cache-Control': 'no-store, no-cache, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
+          'Cache-Control': 'no-cache, must-revalidate'
         });
         res.end(data);
       });
@@ -141,7 +139,7 @@ const server = http.createServer((req, res) => {
 
     // Inject relay URL override into HTML pages when env var is set
     if (ext === '.html' && process.env.RELAY_URL) {
-      const inject = `<script>window.__RELAY_URL__=${JSON.stringify(process.env.RELAY_URL)}</script>`;
+      const inject = `<script>window.__RELAY_URL__=${JSON.stringify(process.env.RELAY_URL).replace(/</g, '\\u003c')}</script>`;
       const html = data.toString().replace('<head>', '<head>' + inject);
       res.writeHead(200, headers);
       res.end(html);
