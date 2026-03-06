@@ -1,6 +1,6 @@
 'use strict';
 
-const { test, describe, beforeEach } = require('node:test');
+const { test, describe, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { INPUT } = require('../public/shared/protocol');
 
@@ -42,6 +42,10 @@ describe('TouchInput gesture sessions', () => {
     touchInput = new TouchInput(createMockElement(), (action, data) => {
       actions.push({ action, data });
     });
+  });
+
+  afterEach(() => {
+    touchInput.destroy();
   });
 
   test('fresh downward flick triggers hard drop', () => {
@@ -96,12 +100,22 @@ describe('TouchInput gesture sessions', () => {
     touchInput._onPointerMove(pointerEvent({ clientX: 60, clientY: 90, timeStamp: 120 }));
     touchInput._onPointerMove(pointerEvent({ clientX: 120, clientY: 120, timeStamp: 220 }));
 
+    // soft_drop emits once on start (interval handles repeats asynchronously)
     assert.deepEqual(actions.map(entry => entry.action), [
-      'soft_drop_start',
+      'soft_drop',
       INPUT.RIGHT,
       INPUT.RIGHT,
-      'soft_drop_start'
     ]);
+  });
+
+  test('soft_drop includes speed based on finger distance', () => {
+    touchInput._onPointerDown(pointerEvent({ clientX: 0, clientY: 0, timeStamp: 0 }));
+    touchInput._onPointerMove(pointerEvent({ clientX: 0, clientY: 100, timeStamp: 140 }));
+
+    const softDropEntry = actions.find(entry => entry.action === 'soft_drop');
+    assert.ok(softDropEntry, 'soft_drop action emitted');
+    assert.ok(softDropEntry.data && typeof softDropEntry.data.speed === 'number', 'speed is a number');
+    assert.ok(softDropEntry.data.speed >= 3 && softDropEntry.data.speed <= 10, 'speed in range 3-10');
   });
 
   test('fresh upward flick still triggers hold', () => {
@@ -135,7 +149,7 @@ describe('TouchInput gesture sessions', () => {
     touchInput._onPointerMove(pointerEvent({ clientX: 0, clientY: 100, timeStamp: 140 }));
     touchInput._onPointerUp(pointerEvent({ clientX: 0, clientY: 180, timeStamp: 180 }));
 
-    assert.deepEqual(actions.map(entry => entry.action), ['soft_drop_start', 'soft_drop_end']);
+    assert.deepEqual(actions.map(entry => entry.action), ['soft_drop', 'soft_drop_end']);
   });
 
   test('slower downward drag still becomes soft drop instead of hard drop', () => {
@@ -144,6 +158,6 @@ describe('TouchInput gesture sessions', () => {
     touchInput._onPointerMove(pointerEvent({ clientX: 0, clientY: 90, timeStamp: 180 }));
     touchInput._onPointerUp(pointerEvent({ clientX: 0, clientY: 140, timeStamp: 260 }));
 
-    assert.deepEqual(actions.map(entry => entry.action), ['soft_drop_start', 'soft_drop_end']);
+    assert.deepEqual(actions.map(entry => entry.action), ['soft_drop', 'soft_drop_end']);
   });
 });

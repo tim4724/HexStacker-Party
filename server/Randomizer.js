@@ -1,6 +1,10 @@
 'use strict';
 
-const { PIECE_TYPES } = require('./constants');
+// UMD: works in Node.js (require) and browser (window.GameRandomizer)
+(function(exports) {
+
+var constants = (typeof require !== 'undefined') ? require('./constants') : window.GameConstants;
+var PIECE_TYPES = constants.PIECE_TYPES;
 
 // Mulberry32: simple, fast 32-bit seeded PRNG
 function mulberry32(seed) {
@@ -36,4 +40,6 @@ class Randomizer {
   }
 }
 
-module.exports = { Randomizer };
+exports.Randomizer = Randomizer;
+
+})(typeof module !== 'undefined' ? module.exports : (window.GameRandomizer = {}));

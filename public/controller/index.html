@@ -73,6 +73,7 @@
   <div id="game-screen" class="screen hidden">
     <div id="game-top-bar">
       <div id="game-name-card" class="player-card"><span id="player-name">Player</span></div>
+      <span id="ping-display" class="ping-display"></span>
       <button id="mute-btn" class="icon-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="sound-waves" d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></button>
       <button id="pause-btn" class="icon-btn hidden"><span class="pause-icon"></span></button>
     </div>
@@ -86,7 +87,7 @@
     </div>
     <div id="reconnect-overlay" class="game-overlay hidden">
       <h1 id="reconnect-heading">RECONNECTING</h1>
-      <p id="reconnect-status" class="game-overlay__status">Attempt 1 of 5</p>
+      <p id="reconnect-status" class="game-overlay__status"></p>
       <button id="reconnect-rejoin-btn" class="btn btn-primary hidden">REJOIN</button>
     </div>
     <div id="touch-area">
@@ -122,6 +123,7 @@
     </div>
   </div>
 
+  <script src="/shared/PartyConnection.js"></script>
   <script src="/shared/protocol.js"></script>
   <script src="/shared/theme.js"></script>
   <script src="/shared/colors.js"></script>

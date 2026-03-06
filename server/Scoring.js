@@ -1,9 +1,14 @@
 'use strict';
 
-const {
-  LINE_CLEAR_SCORES, TSPIN_SCORES, TSPIN_MINI_SCORES,
-  COMBO_TABLE, BACK_TO_BACK_MULTIPLIER
-} = require('./constants');
+// UMD: works in Node.js (require) and browser (window.GameScoring)
+(function(exports) {
+
+var constants = (typeof require !== 'undefined') ? require('./constants') : window.GameConstants;
+var LINE_CLEAR_SCORES = constants.LINE_CLEAR_SCORES;
+var TSPIN_SCORES = constants.TSPIN_SCORES;
+var TSPIN_MINI_SCORES = constants.TSPIN_MINI_SCORES;
+var COMBO_TABLE = constants.COMBO_TABLE;
+var BACK_TO_BACK_MULTIPLIER = constants.BACK_TO_BACK_MULTIPLIER;
 
 class Scoring {
   constructor() {
@@ -92,4 +97,6 @@ class Scoring {
   }
 }
 
-module.exports = { Scoring };
+exports.Scoring = Scoring;
+
+})(typeof module !== 'undefined' ? module.exports : (window.GameScoring = {}));

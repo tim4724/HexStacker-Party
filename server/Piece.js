@@ -1,6 +1,10 @@
 'use strict';
 
-const { PIECE_TYPE_TO_ID } = require('./constants');
+// UMD: works in Node.js (require) and browser (window.GamePiece)
+(function(exports) {
+
+var constants = (typeof require !== 'undefined') ? require('./constants') : window.GameConstants;
+var PIECE_TYPE_TO_ID = constants.PIECE_TYPE_TO_ID;
 
 // SRS rotation states for all 7 tetrominoes
 // Each piece type maps to 4 rotation states (0-3)
@@ -111,4 +115,9 @@ class Piece {
   }
 }
 
-module.exports = { PIECES, WALL_KICKS, I_WALL_KICKS, Piece };
+exports.PIECES = PIECES;
+exports.WALL_KICKS = WALL_KICKS;
+exports.I_WALL_KICKS = I_WALL_KICKS;
+exports.Piece = Piece;
+
+})(typeof module !== 'undefined' ? module.exports : (window.GamePiece = {}));

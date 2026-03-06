@@ -20,6 +20,9 @@ class TouchInput {
     this.WHEEL_V_THRESHOLD = 120;
     this.WHEEL_RESET_MS = 150;
 
+    // Soft drop interval config
+    this.SOFT_DROP_INTERVAL_MS = 50;
+
     // Pointer tracking state
     this.activeId = null;
     this.anchorX = 0;
@@ -29,6 +32,8 @@ class TouchInput {
     this.isDragging = false;
     this.isSoftDropping = false;
     this.hasSoftDropped = false;
+    this._softDropIntervalId = null;
+    this._lastDyFromStart = 0;
 
     // Ring buffer for velocity calculation (last 4 positions)
     this.posBuffer = [];
@@ -73,6 +78,8 @@ class TouchInput {
     this.isDragging = false;
     this.isSoftDropping = false;
     this.hasSoftDropped = false;
+    this._lastDyFromStart = 0;
+    this._stopSoftDropInterval();
     this.posBuffer = [];
     if (this.onProgress) this.onProgress(null, 0);
   }
@@ -105,6 +112,23 @@ class TouchInput {
     const range = this.SOFT_DROP_MAX_DIST - this.SOFT_DROP_DEAD_ZONE;
     const t = Math.min(Math.max((distY - this.SOFT_DROP_DEAD_ZONE) / range, 0), 1);
     return Math.round(this.SOFT_DROP_MIN_SPEED + t * (this.SOFT_DROP_MAX_SPEED - this.SOFT_DROP_MIN_SPEED));
+  }
+
+  _startSoftDropInterval() {
+    this._stopSoftDropInterval();
+    const speed = this._calcSoftDropSpeed(this._lastDyFromStart);
+    this.onInput('soft_drop', { speed });
+    this._softDropIntervalId = setInterval(() => {
+      const s = this._calcSoftDropSpeed(this._lastDyFromStart);
+      this.onInput('soft_drop', { speed: s });
+    }, this.SOFT_DROP_INTERVAL_MS);
+  }
+
+  _stopSoftDropInterval() {
+    if (this._softDropIntervalId !== null) {
+      clearInterval(this._softDropIntervalId);
+      this._softDropIntervalId = null;
+    }
   }
 
   _isFreshFlingCandidate(totalDx, totalDy, duration, vx, vy) {
@@ -211,15 +235,18 @@ class TouchInput {
     const freshFlingCandidate = !this.hasSoftDropped
       && this._isFreshFlingCandidate(dxFromStart, dyFromStart, duration, vx, vy);
 
+    this._lastDyFromStart = dyFromStart;
+
     if (dyFromStart > this.SOFT_DROP_DEAD_ZONE && !freshFlingCandidate) {
       if (!this.isSoftDropping) {
         this.isSoftDropping = true;
         this.hasSoftDropped = true;
         this._haptic(15);
+        this._startSoftDropInterval();
       }
-      this.onInput('soft_drop_start', { speed: this._calcSoftDropSpeed(dyFromStart) });
     } else if (this.isSoftDropping) {
       this.isSoftDropping = false;
+      this._stopSoftDropInterval();
       this.onInput('soft_drop_end');
     }
 
@@ -378,6 +405,7 @@ class TouchInput {
     this.el.removeEventListener('pointercancel', this._onPointerCancel);
     this.el.removeEventListener('wheel', this._onWheel);
     this.el.removeEventListener('contextmenu', this._onContextMenu);
+    this._stopSoftDropInterval();
     clearTimeout(this._wheelTimer);
   }
 }

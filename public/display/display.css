@@ -280,23 +280,8 @@ html, body {
   background: rgba(255, 255, 255, 0.8);
 }
 
-#pause-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 15;
-  background: var(--overlay-bg);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  animation: fadeIn 0.3s ease both;
-}
-
 #pause-overlay h1 {
-  font-family: 'Orbitron', sans-serif;
   font-size: clamp(1.6rem, 4vh, 3.5rem);
-  font-weight: 900;
-  letter-spacing: 0.15em;
-  color: var(--text-primary);
   margin-bottom: clamp(1.5rem, 3vh, 3rem);
 }
 

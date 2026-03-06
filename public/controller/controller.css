@@ -660,53 +660,24 @@ body.keyboard-open #name-form {
   display: none;
 }
 
-/* Push buttons to right in game top bar */
-#game-top-bar #mute-btn {
+/* Ping indicator */
+.ping-display {
+  font-size: 0.7rem;
+  font-family: 'Orbitron', monospace;
+  opacity: 0.5;
   margin-left: auto;
 }
+.ping-good { color: #66bb6a; }
+.ping-ok { color: #ffa726; }
+.ping-bad { color: #e74856; }
+
 
 /* Mute button */
 #mute-btn.muted {
   color: rgba(255, 255, 255, 0.25);
 }
 
-/* Game overlays (pause, reconnect) */
-.game-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 15;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  background: var(--overlay-bg);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  animation: fadeIn 0.3s ease both;
-}
-
-.game-overlay.hidden {
-  display: none !important;
-}
-
-.game-overlay h1 {
-  font-family: 'Orbitron', sans-serif;
-  font-size: clamp(1.3rem, 6vw, 1.8rem);
-  font-weight: 900;
-  letter-spacing: 0.15em;
-  color: var(--text-primary);
-}
-
-.game-overlay__status {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  letter-spacing: 0.04em;
-}
+/* Game overlay overrides (controller-specific) */
 
 #pause-buttons {
   display: flex;

@@ -1,14 +1,24 @@
 'use strict';
 
-const {
-  BOARD_WIDTH, BOARD_HEIGHT, VISIBLE_HEIGHT, BUFFER_ROWS,
-  GRAVITY_TABLE, SOFT_DROP_MULTIPLIER,
-  LOCK_DELAY_MS, MAX_LOCK_RESETS, GARBAGE_CELL,
-  LINE_CLEAR_DELAY_MS, MAX_DROPS_PER_TICK
-} = require('./constants');
-const { Piece } = require('./Piece');
-const { Randomizer } = require('./Randomizer');
-const { Scoring } = require('./Scoring');
+// UMD: works in Node.js (require) and browser (window.GamePlayerBoard)
+(function(exports) {
+
+var constants = (typeof require !== 'undefined') ? require('./constants') : window.GameConstants;
+var BOARD_WIDTH = constants.BOARD_WIDTH;
+var BOARD_HEIGHT = constants.BOARD_HEIGHT;
+var VISIBLE_HEIGHT = constants.VISIBLE_HEIGHT;
+var BUFFER_ROWS = constants.BUFFER_ROWS;
+var GRAVITY_TABLE = constants.GRAVITY_TABLE;
+var SOFT_DROP_MULTIPLIER = constants.SOFT_DROP_MULTIPLIER;
+var LOCK_DELAY_MS = constants.LOCK_DELAY_MS;
+var MAX_LOCK_RESETS = constants.MAX_LOCK_RESETS;
+var GARBAGE_CELL = constants.GARBAGE_CELL;
+var LINE_CLEAR_DELAY_MS = constants.LINE_CLEAR_DELAY_MS;
+var MAX_DROPS_PER_TICK = constants.MAX_DROPS_PER_TICK;
+
+var Piece = ((typeof require !== 'undefined') ? require('./Piece') : window.GamePiece).Piece;
+var Randomizer = ((typeof require !== 'undefined') ? require('./Randomizer') : window.GameRandomizer).Randomizer;
+var Scoring = ((typeof require !== 'undefined') ? require('./Scoring') : window.GameScoring).Scoring;
 
 const NEXT_QUEUE_SIZE = 6;
 
@@ -495,4 +505,6 @@ class PlayerBoard {
   }
 }
 
-module.exports = { PlayerBoard };
+exports.PlayerBoard = PlayerBoard;
+
+})(typeof module !== 'undefined' ? module.exports : (window.GamePlayerBoard = {}));

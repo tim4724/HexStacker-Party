@@ -1,11 +1,14 @@
 'use strict';
 
-const { PlayerBoard } = require('./PlayerBoard.js');
-const { GarbageManager } = require('./GarbageManager.js');
-const { LOGIC_TICK_MS } = require('./constants.js');
+// UMD: works in Node.js (require) and browser (window.Game)
+(function(exports) {
+
+var PlayerBoard = ((typeof require !== 'undefined') ? require('./PlayerBoard.js') : window.GamePlayerBoard).PlayerBoard;
+var GarbageManager = ((typeof require !== 'undefined') ? require('./GarbageManager.js') : window.GameGarbageManager).GarbageManager;
+var LOGIC_TICK_MS = ((typeof require !== 'undefined') ? require('./constants.js') : window.GameConstants).LOGIC_TICK_MS;
 
 class Game {
-  constructor(players, callbacks) {
+  constructor(players, callbacks, seed) {
     this.callbacks = callbacks; // { onGameState, onEvent, onGameEnd }
     this.boards = new Map();
     this.playerIds = [];
@@ -17,7 +20,8 @@ class Game {
     this.pausedAt = null;
 
     // Shared seed so all players get the same piece sequence
-    const seed = (Math.random() * 0xFFFFFFFF) >>> 0;
+    if (seed == null) seed = (Math.random() * 0xFFFFFFFF) >>> 0;
+    this.seed = seed;
 
     for (const [id] of players) {
       const board = new PlayerBoard(id, seed);
@@ -260,4 +264,6 @@ class Game {
   }
 }
 
-module.exports = Game;
+exports.Game = Game;
+
+})(typeof module !== 'undefined' ? module.exports : (window.GameEngine = {}));

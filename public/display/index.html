@@ -61,12 +61,18 @@
   </div>
 
   <!-- Pause overlay -->
-  <div id="pause-overlay" class="screen hidden">
+  <div id="pause-overlay" class="game-overlay hidden">
     <h1>PAUSED</h1>
     <div id="pause-buttons">
       <button id="pause-continue-btn" class="btn btn-primary">Continue</button>
       <button id="pause-newgame-btn" class="btn btn-secondary">New Game</button>
     </div>
+  </div>
+
+  <!-- Reconnect overlay -->
+  <div id="reconnect-overlay" class="game-overlay hidden">
+    <h1 id="reconnect-heading">RECONNECTING</h1>
+    <p id="reconnect-status" class="game-overlay__status">Connection lost...</p>
   </div>
 
   <!-- Results overlay (shown on top of game screen) -->
@@ -78,6 +84,14 @@
     </div>
   </div>
 
+  <script src="/engine/constants.js"></script>
+  <script src="/engine/Piece.js"></script>
+  <script src="/engine/Randomizer.js"></script>
+  <script src="/engine/Scoring.js"></script>
+  <script src="/engine/GarbageManager.js"></script>
+  <script src="/engine/PlayerBoard.js"></script>
+  <script src="/engine/Game.js"></script>
+  <script src="/shared/PartyConnection.js"></script>
   <script src="/shared/protocol.js"></script>
   <script src="/shared/theme.js"></script>
   <script src="/shared/colors.js"></script>

@@ -1,6 +1,13 @@
 'use strict';
 
-const { GARBAGE_TABLE, TSPIN_GARBAGE_MULTIPLIER, COMBO_GARBAGE, GARBAGE_DELAY_TICKS } = require('./constants');
+// UMD: works in Node.js (require) and browser (window.GameGarbageManager)
+(function(exports) {
+
+var constants = (typeof require !== 'undefined') ? require('./constants') : window.GameConstants;
+var GARBAGE_TABLE = constants.GARBAGE_TABLE;
+var TSPIN_GARBAGE_MULTIPLIER = constants.TSPIN_GARBAGE_MULTIPLIER;
+var COMBO_GARBAGE = constants.COMBO_GARBAGE;
+var GARBAGE_DELAY_TICKS = constants.GARBAGE_DELAY_TICKS;
 
 class GarbageManager {
   constructor() {
@@ -120,4 +127,6 @@ class GarbageManager {
   }
 }
 
-module.exports = { GarbageManager };
+exports.GarbageManager = GarbageManager;
+
+})(typeof module !== 'undefined' ? module.exports : (window.GameGarbageManager = {}));
