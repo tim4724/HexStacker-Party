@@ -885,7 +885,7 @@
           softDropWash.className = 'feedback-wash feedback-wash-up feedback-wash-hold';
           feedbackLayer.appendChild(softDropWash);
         }
-        sendToDisplay(MSG.SOFT_DROP);
+        sendToDisplay(MSG.SOFT_DROP, { speed: data && data.speed });
       } else if (action === 'soft_drop_end') {
         // Local visual cleanup only — no network message sent
         softDropActive = false;

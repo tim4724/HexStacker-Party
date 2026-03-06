@@ -344,7 +344,7 @@ function handleControllerMessage(fromId, msg) {
       onInput(fromId, msg);
       break;
     case MSG.SOFT_DROP:
-      onSoftDrop(fromId);
+      onSoftDrop(fromId, msg.speed);
       break;
     case MSG.START_GAME:
       if (fromId === hostId) startGame();
@@ -450,12 +450,12 @@ function onInput(fromId, msg) {
   displayGame.processInput(fromId, msg.action);
 }
 
-function onSoftDrop(fromId) {
+function onSoftDrop(fromId, speed) {
   if (roomState !== ROOM_STATE.PLAYING || paused) return;
   if (!displayGame) return;
 
-  // Start or continue soft drop
-  displayGame.handleSoftDropStart(fromId);
+  // Start or continue soft drop with speed
+  displayGame.handleSoftDropStart(fromId, speed);
 
   // Reset auto-end timeout
   if (softDropTimers.has(fromId)) {

@@ -89,7 +89,7 @@ async function createRoom(page) {
     const qrCanvas = document.getElementById('qr-code');
     return joinUrl && joinUrl.textContent && joinUrl.textContent.length > 0
       && qrCanvas && qrCanvas.width > 0;
-  }, { timeout: 10000 });
+  }, null, { timeout: 10000 });
 
   const joinUrl = (await page.textContent('#join-url')).trim();
   const roomCode = joinUrl.split('/').pop();
