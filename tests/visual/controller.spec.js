@@ -123,6 +123,51 @@ test.describe('Controller', () => {
     });
   });
 
+  test('reconnect overlay - attempt', async ({ page, context }) => {
+    const { controllers } = await setupJoinedRoom(page, context, ['Player 1']);
+    const host = controllers[0];
+    await host.click('#start-btn');
+    await waitForControllerGame(host);
+    await host.evaluate(() => {
+      document.getElementById('reconnect-overlay').classList.remove('hidden');
+      document.getElementById('reconnect-heading').textContent = 'RECONNECTING';
+      document.getElementById('reconnect-status').textContent = 'Attempt 2 of 5';
+      document.getElementById('reconnect-rejoin-btn').classList.add('hidden');
+    });
+    await host.waitForTimeout(150);
+    await expect(host).toHaveScreenshot('09a-reconnect-attempt.png');
+  });
+
+  test('reconnect overlay - display disconnected', async ({ page, context }) => {
+    const { controllers } = await setupJoinedRoom(page, context, ['Player 1']);
+    const host = controllers[0];
+    await host.click('#start-btn');
+    await waitForControllerGame(host);
+    await host.evaluate(() => {
+      document.getElementById('reconnect-overlay').classList.remove('hidden');
+      document.getElementById('reconnect-heading').textContent = 'RECONNECTING';
+      document.getElementById('reconnect-status').textContent = 'Display reconnecting...';
+      document.getElementById('reconnect-rejoin-btn').classList.add('hidden');
+    });
+    await host.waitForTimeout(150);
+    await expect(host).toHaveScreenshot('09b-reconnect-display.png');
+  });
+
+  test('reconnect overlay - failed with rejoin', async ({ page, context }) => {
+    const { controllers } = await setupJoinedRoom(page, context, ['Player 1']);
+    const host = controllers[0];
+    await host.click('#start-btn');
+    await waitForControllerGame(host);
+    await host.evaluate(() => {
+      document.getElementById('reconnect-overlay').classList.remove('hidden');
+      document.getElementById('reconnect-heading').textContent = 'RECONNECTING';
+      document.getElementById('reconnect-status').textContent = 'Attempt 5 of 5';
+      document.getElementById('reconnect-rejoin-btn').classList.remove('hidden');
+    });
+    await host.waitForTimeout(150);
+    await expect(host).toHaveScreenshot('09c-reconnect-rejoin.png');
+  });
+
   test('error - room not found', async ({ page }) => {
     // Navigate to a room code that doesn't exist on Party-Server
     await page.goto('/ZZZZ');
