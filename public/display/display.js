@@ -174,16 +174,26 @@ function calculateLayout() {
 // Party-Server Connection
 // =====================================================================
 
-function connectParty() {
+// Pending action to execute once the WebSocket is open
+var pendingPartyAction = null;
+
+function ensurePartyConnected(callback) {
+  if (party && party.connected) {
+    callback();
+    return;
+  }
+
+  pendingPartyAction = callback;
+
   if (party) party.close();
 
   party = new PartyConnection(RELAY_URL, { clientId: 'display' });
 
   party.onOpen = function() {
-    if (lastRoomCode) {
-      party.join(lastRoomCode);
-    } else {
-      party.create(5);
+    if (pendingPartyAction) {
+      var action = pendingPartyAction;
+      pendingPartyAction = null;
+      action();
     }
   };
 
@@ -212,6 +222,22 @@ function connectParty() {
   };
 
   party.connect();
+}
+
+function preconnectParty() {
+  ensurePartyConnected(function() {
+    // Connection warm — nothing to do until user clicks New Game
+  });
+}
+
+function createRoom() {
+  ensurePartyConnected(function() {
+    if (lastRoomCode) {
+      party.join(lastRoomCode);
+    } else {
+      party.create(5);
+    }
+  });
 }
 
 // =====================================================================
@@ -1168,7 +1194,7 @@ newGameBtn.addEventListener('click', function() {
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen().catch(function() {});
   }
-  connectParty();
+  createRoom();
   history.pushState({ screen: 'lobby' }, '');
   showScreen('lobby');
 });
@@ -1180,7 +1206,7 @@ window.addEventListener('popstate', function(e) {
   }
   var target = e.state && e.state.screen;
   if (currentScreen === 'welcome' && target === 'lobby') {
-    connectParty();
+    createRoom();
     showScreen('lobby');
   } else if (currentScreen === 'lobby') {
     if (target === 'game') {
@@ -1523,4 +1549,5 @@ if (bgCanvas) {
 }
 
 fetchBaseUrl();
+preconnectParty();
 requestAnimationFrame(renderLoop);
