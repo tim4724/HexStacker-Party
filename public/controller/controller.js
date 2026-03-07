@@ -108,6 +108,7 @@
   var reconnectStatus = document.getElementById('reconnect-status');
   var reconnectRejoinBtn = document.getElementById('reconnect-rejoin-btn');
   var pingDisplay = document.getElementById('ping-display');
+  var compassHints = document.getElementById('compass-hints');
   var muteBtn = document.getElementById('mute-btn');
   ControllerAudio.setMuted(localStorage.getItem('tetris_muted') === '1');
 
@@ -310,7 +311,7 @@
 
   function updatePingDisplay(ms) {
     if (!pingDisplay) return;
-    pingDisplay.textContent = ms + 'ms';
+    pingDisplay.textContent = ms + ' ms';
     pingDisplay.classList.remove('ping-good', 'ping-ok', 'ping-bad');
     pingDisplay.classList.add(ms < 50 ? 'ping-good' : ms < 100 ? 'ping-ok' : 'ping-bad');
   }
@@ -531,6 +532,7 @@
   function onGameStart() {
     ControllerAudio.tick();
     lastLines = 0;
+    if (compassHints) compassHints.classList.remove('faded');
     gameScreen.classList.remove('dead');
     gameScreen.classList.remove('paused');
     gameScreen.classList.remove('countdown');
@@ -770,6 +772,11 @@
     touchArea.addEventListener('pointerdown', coordTracker, { passive: true });
 
     touchInput = new TouchInput(touchArea, function (action, data) {
+      // Fade compass hints after first interaction
+      if (compassHints && !compassHints.classList.contains('faded')) {
+        compassHints.classList.add('faded');
+      }
+
       // Gesture feedback
       if (action === 'rotate_cw') {
         ControllerAudio.tick();
