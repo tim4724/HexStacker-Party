@@ -77,7 +77,11 @@ class Game {
       console.error('Game engine error:', err);
       this.ended = true;
       this.stop();
-      this.callbacks.onGameEnd(this.getResults());
+      try {
+        this.callbacks.onGameEnd(this.getResults());
+      } catch (recoveryErr) {
+        console.error('Failed to send game-end after engine error:', recoveryErr);
+      }
     }
   }
 

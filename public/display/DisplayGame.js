@@ -185,7 +185,7 @@ function runGameLocally() {
   stopDisplayGame();
 
   var Game = window.GameEngine.Game;
-  // Freeze playerOrder at game start — prevents mid-game layout drift
+  // Snapshot playerOrder at game start — prevents mid-game layout drift
   playerOrder = playerOrder.slice();
   var gamePlayers = new Map();
   for (var i = 0; i < playerOrder.length; i++) {
@@ -266,7 +266,7 @@ function onCountdownDisplay(value) {
 
 function onGameState(msg) {
   gameState = msg;
-  // playerOrder is frozen at game start — no dynamic pushes mid-game
+  // playerOrder is snapshotted at game start — no dynamic pushes mid-game
   if (msg.players && boardRenderers.length !== msg.players.length) {
     calculateLayout();
   }
