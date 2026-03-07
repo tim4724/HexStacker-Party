@@ -168,6 +168,7 @@ function onDisplayRejoined(partyRoomCode, clients) {
     var info = entry[1];
     party.sendTo(id, {
       type: MSG.WELCOME,
+      playerName: info.playerName,
       playerColor: info.playerColor,
       isHost: id === hostId,
       playerCount: players.size,

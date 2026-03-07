@@ -91,11 +91,6 @@ function onHello(fromId, msg) {
     return;
   }
 
-  if (players.size >= GameConstants.MAX_PLAYERS) {
-    party.sendTo(fromId, { type: MSG.ERROR, message: 'Room is full' });
-    return;
-  }
-
   var index = nextAvailableSlot();
   if (index < 0) {
     party.sendTo(fromId, { type: MSG.ERROR, message: 'Room is full' });
@@ -595,7 +590,7 @@ if (new URLSearchParams(window.location.search).get('test') === '1') {
         var index = nextAvailableSlot();
         var color = PLAYER_COLORS[index % PLAYER_COLORS.length];
         players.set(p.id, {
-          playerName: p.name || 'P' + (index + 1),
+          playerName: sanitizePlayerName(p.name, index),
           playerColor: color,
           playerIndex: index
         });

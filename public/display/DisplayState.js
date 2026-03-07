@@ -12,7 +12,8 @@ var joinUrl = null;
 var lastRoomCode = null;
 var gameState = null;
 var players = new Map();       // clientId -> { playerName, playerColor, playerIndex }
-var playerOrder = [];          // ordered clientIds for layout
+var playerOrder = [];          // compact list of active clientIds for game layout (join order)
+                               // lobby UI uses playerIndex on each player for slot positioning
 var hostId = null;             // clientId of host (first joiner)
 var roomState = ROOM_STATE.LOBBY;
 
@@ -42,23 +43,6 @@ var music = null;
 var canvas = null;
 var ctx = null;
 var lastFrameTime = null;
-// Find the first available player slot (0–3) not used by any current player
-function nextAvailableSlot() {
-  var used = [];
-  for (var entry of players) {
-    used.push(entry[1].playerIndex);
-  }
-  for (var i = 0; i < GameConstants.MAX_PLAYERS; i++) {
-    if (used.indexOf(i) < 0) return i;
-  }
-  return -1;
-}
-
-// Sanitize player name: replace "P1"–"P4" with the correct slot label
-function sanitizePlayerName(name, slotIndex) {
-  if (!name || /^P[1-4]$/i.test(name)) return 'P' + (slotIndex + 1);
-  return name;
-}
 var disconnectedQRs = new Map();
 var garbageIndicatorEffects = new Map();
 var welcomeBg = null;
@@ -101,6 +85,25 @@ var preCreatedRoom = null;  // { roomCode, joinUrl, qrMatrix }
 
 // Mute
 var muted = localStorage.getItem('tetris_muted') === '1';
+
+// --- Slot Helpers ---
+// Find the first available player slot (0–3) not used by any current player
+function nextAvailableSlot() {
+  var used = [];
+  for (var entry of players) {
+    used.push(entry[1].playerIndex);
+  }
+  for (var i = 0; i < GameConstants.MAX_PLAYERS; i++) {
+    if (used.indexOf(i) < 0) return i;
+  }
+  return -1;
+}
+
+// Sanitize player name: replace "P1"–"P4" with the correct slot label
+function sanitizePlayerName(name, slotIndex) {
+  if (!name || /^P[1-4]$/i.test(name)) return 'P' + (slotIndex + 1);
+  return name;
+}
 
 // --- DOM References ---
 var welcomeScreen = document.getElementById('welcome-screen');
