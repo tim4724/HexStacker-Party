@@ -51,7 +51,15 @@ function darkenColor(hex, percent) {
 
 // Shared font detection — returns the preferred display font family string.
 // Checks whether Orbitron has loaded; falls back to monospace.
+// Re-checks on each font load event until Orbitron is detected.
 var _fontLoaded = false;
+if (typeof document !== 'undefined' && document.fonts && document.fonts.addEventListener) {
+  document.fonts.addEventListener('loadingdone', function() {
+    if (!_fontLoaded) {
+      _fontLoaded = document.fonts.check('12px Orbitron');
+    }
+  });
+}
 function getDisplayFont() {
   if (!_fontLoaded) {
     _fontLoaded = document.fonts?.check?.('12px Orbitron') ?? false;

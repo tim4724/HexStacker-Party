@@ -357,7 +357,7 @@ pauseNewGameBtn.addEventListener('click', function() {
 // Render Loop
 // =====================================================================
 
-var _lastThrottled = null;
+var lastThrottled = null;
 function renderLoop(timestamp) {
   requestAnimationFrame(renderLoop);
 
@@ -371,11 +371,11 @@ function renderLoop(timestamp) {
   var hasAnimations = animations && animations.active.length > 0;
   var hasGarbageEffects = garbageIndicatorEffects.size > 0;
   if ((paused || currentScreen === 'results') && !hasAnimations && !hasGarbageEffects) {
-    if (!_lastThrottled) _lastThrottled = timestamp;
-    if (timestamp - _lastThrottled < 250) return;
-    _lastThrottled = timestamp;
+    if (!lastThrottled) lastThrottled = timestamp;
+    if (timestamp - lastThrottled < 250) return;
+    lastThrottled = timestamp;
   } else {
-    _lastThrottled = null;
+    lastThrottled = null;
   }
 
   var w = window.innerWidth;
@@ -595,6 +595,7 @@ if (new URLSearchParams(window.location.search).get('test') === '1') {
     },
 
     injectGameState: function(state) {
+      // Step through valid transitions (LOBBY→COUNTDOWN→PLAYING)
       setRoomState(ROOM_STATE.COUNTDOWN);
       setRoomState(ROOM_STATE.PLAYING);
       gameState = state;
@@ -604,6 +605,7 @@ if (new URLSearchParams(window.location.search).get('test') === '1') {
     },
 
     injectResults: function(results) {
+      // Step through valid transitions to reach RESULTS
       if (roomState === ROOM_STATE.LOBBY) {
         setRoomState(ROOM_STATE.COUNTDOWN);
         setRoomState(ROOM_STATE.PLAYING);

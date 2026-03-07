@@ -18,7 +18,7 @@ var roomState = ROOM_STATE.LOBBY;
 
 // Valid room state transitions
 var VALID_TRANSITIONS = {};
-VALID_TRANSITIONS[ROOM_STATE.LOBBY] = [ROOM_STATE.COUNTDOWN, ROOM_STATE.LOBBY];
+VALID_TRANSITIONS[ROOM_STATE.LOBBY] = [ROOM_STATE.COUNTDOWN];
 VALID_TRANSITIONS[ROOM_STATE.COUNTDOWN] = [ROOM_STATE.PLAYING, ROOM_STATE.LOBBY];
 VALID_TRANSITIONS[ROOM_STATE.PLAYING] = [ROOM_STATE.RESULTS, ROOM_STATE.LOBBY];
 VALID_TRANSITIONS[ROOM_STATE.RESULTS] = [ROOM_STATE.COUNTDOWN, ROOM_STATE.LOBBY];
@@ -164,8 +164,8 @@ function calculateLayout() {
   var w = window.innerWidth;
   var h = window.innerHeight;
   var padding = THEME.size.canvasPad;
-  var totalCellsWide = 10 + 3 + 3;
-  var totalCellsTall = 20 + 3.6;
+  var totalCellsWide = GameConstants.BOARD_WIDTH + 3 + 3;
+  var totalCellsTall = GameConstants.VISIBLE_HEIGHT + 3.6;
 
   function cellSizeFor(cols, rows) {
     var aw = (w - padding * (cols + 1)) / cols;

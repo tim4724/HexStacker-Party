@@ -187,20 +187,20 @@ function onPeerLeft(clientId) {
 
   if (roomState === ROOM_STATE.LOBBY) {
     // Grace period: hold slot for 5s so reconnecting controller can rejoin
-    var timer = setTimeout(function() {
+    var graceTimer = setTimeout(function() {
       graceTimers.delete(clientId);
       if (!players.has(clientId)) return;
       removeLobbyPlayer(clientId);
     }, 5000);
-    graceTimers.set(clientId, timer);
+    graceTimers.set(clientId, graceTimer);
   } else if (roomState === ROOM_STATE.RESULTS) {
     // Results screen — return to lobby
-    var wasHost = clientId === hostId;
+    var peerWasHost = clientId === hostId;
     stopDisplayGame();
     lastResults = null;
     setRoomState(ROOM_STATE.LOBBY);
     removeLobbyPlayer(clientId);
-    if (!wasHost) {
+    if (!peerWasHost) {
       party.broadcast({ type: MSG.RETURN_TO_LOBBY, playerCount: players.size });
     }
     returnToLobbyUI();
