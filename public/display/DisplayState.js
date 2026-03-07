@@ -89,7 +89,7 @@ var muted = localStorage.getItem('tetris_muted') === '1';
 // Find the first available player slot (0–3) not used by any current player
 function nextAvailableSlot() {
   var used = [];
-  for (var entry of players) {
+  for (const entry of players) {
     used.push(entry[1].playerIndex);
   }
   for (var i = 0; i < GameConstants.MAX_PLAYERS; i++) {
@@ -248,7 +248,7 @@ function updatePlayerList() {
     // Find player assigned to this slot by playerIndex
     var playerId = null;
     var info = null;
-    for (var entry of players) {
+    for (const entry of players) {
       if (entry[1].playerIndex === i) {
         playerId = entry[0];
         info = entry[1];

@@ -62,13 +62,11 @@ function onWelcome(data) {
     gameScreen.classList.remove('paused');
     gameScreen.style.setProperty('--player-color', playerColor);
     removeKoOverlay();
-    if (compassHints) {
-      clearTimeout(hintsFadeTimer);
-      hintsFadeTimer = null;
-      hintsSawLeft = false;
-      hintsSawRight = false;
-      compassHints.classList.remove('faded');
-    }
+    clearTimeout(hintsFadeTimer);
+    hintsFadeTimer = null;
+    hintsSawLeft = false;
+    hintsSawRight = false;
+    compassHints.classList.remove('faded');
 
     if (data.paused) {
       onGamePaused();
@@ -87,10 +85,15 @@ function onWelcome(data) {
     return;
   }
 
-  if (data.roomState === 'results' && lastGameResults) {
-    renderGameResults(lastGameResults);
-    showScreen('gameover');
-    return;
+  if (data.roomState === 'results') {
+    var reconnectResults = data.results || lastGameResults;
+    if (reconnectResults) {
+      lastGameResults = reconnectResults;
+      renderGameResults(reconnectResults);
+      showScreen('gameover');
+      return;
+    }
+    // No results available (e.g. fresh controller joining mid-results) — fall through to lobby
   }
 
   showLobbyUI();
@@ -107,13 +110,11 @@ function onLobbyUpdate(data) {
 function onGameStart() {
   ControllerAudio.tick();
   lastLines = 0;
-  if (compassHints) {
-    clearTimeout(hintsFadeTimer);
-    hintsFadeTimer = null;
-    hintsSawLeft = false;
-    hintsSawRight = false;
-    compassHints.classList.remove('faded');
-  }
+  clearTimeout(hintsFadeTimer);
+  hintsFadeTimer = null;
+  hintsSawLeft = false;
+  hintsSawRight = false;
+  compassHints.classList.remove('faded');
   gameScreen.classList.remove('dead');
   gameScreen.classList.remove('paused');
   gameScreen.classList.remove('countdown');
@@ -309,6 +310,7 @@ function onDragProgress(direction, progress) {
   }
   if (buildupDir !== direction) {
     removeBuildupEl();
+    // Wash originates from the opposite edge (shows where piece "came from")
     var washDir = direction;
     if (direction === 'left') washDir = 'right';
     else if (direction === 'right') washDir = 'left';
@@ -340,7 +342,7 @@ function initTouchInput() {
 
   touchInput = new TouchInput(touchArea, function (action, data) {
     // Fade compass hints after player has used both left and right
-    if (compassHints && !compassHints.classList.contains('faded')) {
+    if (!compassHints.classList.contains('faded')) {
       if (action === 'left') hintsSawLeft = true;
       if (action === 'right') hintsSawRight = true;
       if (hintsSawLeft && hintsSawRight && !hintsFadeTimer) {

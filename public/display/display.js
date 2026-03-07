@@ -70,7 +70,7 @@ function onHello(fromId, msg) {
     updatePlayerList();
 
     // Send welcome with current state
-    party.sendTo(fromId, {
+    var welcomeMsg = {
       type: MSG.WELCOME,
       playerName: existing.playerName,
       playerColor: existing.playerColor,
@@ -79,7 +79,12 @@ function onHello(fromId, msg) {
       roomState: roomState,
       alive: lastAliveState[fromId] != null ? lastAliveState[fromId] : true,
       paused: paused
-    });
+    };
+    // lastResults is { elapsed, results: [...] } — send the results array
+    if (roomState === ROOM_STATE.RESULTS && lastResults) {
+      welcomeMsg.results = lastResults.results;
+    }
+    party.sendTo(fromId, welcomeMsg);
 
     broadcastLobbyUpdate();
     return;
@@ -178,15 +183,7 @@ function renderResults(results) {
   if (winner) {
     var wInfo = players.get(winner.playerId);
     var winnerColor = wInfo?.playerColor || PLAYER_COLORS[wInfo?.playerIndex] || '#ffd700';
-    var parsed = [
-      parseInt(winnerColor.slice(1, 3), 16),
-      parseInt(winnerColor.slice(3, 5), 16),
-      parseInt(winnerColor.slice(5, 7), 16)
-    ];
-    var r = isNaN(parsed[0]) ? 255 : parsed[0];
-    var g = isNaN(parsed[1]) ? 215 : parsed[1];
-    var b = isNaN(parsed[2]) ? 0 : parsed[2];
-    resultsScreen.style.setProperty('--winner-glow', 'rgba(' + r + ', ' + g + ', ' + b + ', 0.08)');
+    resultsScreen.style.setProperty('--winner-glow', 'color-mix(in srgb, ' + winnerColor + ' 8%, transparent)');
   }
 
   var solo = sorted.length === 1;

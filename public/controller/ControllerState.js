@@ -1,14 +1,13 @@
 'use strict';
 
 // =====================================================================
-// Controller IIFE — opened here in ControllerState.js (loaded first),
-// closed in controller.js (loaded last). All vars stay private to the
-// closure and are shared across the four controller script files.
-// =====================================================================
-(function () {
-
-// =====================================================================
-// Controller State
+// Controller State — shared globals across all controller script files.
+// All four files execute in global scope (no IIFE), matching the display
+// pattern. Variables declared here are accessible to the other files.
+//
+// LOAD ORDER (required): ControllerState → ControllerConnection →
+//   ControllerGame → controller.js
+// See controller/index.html <script> tags for the canonical order.
 // =====================================================================
 
 // --- State ---
@@ -106,7 +105,6 @@ var roomGoneDetail = document.getElementById('room-gone-detail');
 var nameScreen = document.getElementById('name-screen');
 var lobbyScreen = document.getElementById('lobby-screen');
 var lobbyBackBtn = document.getElementById('lobby-back-btn');
-var lobbyTitle = document.getElementById('lobby-title');
 var waitingActionText = document.getElementById('waiting-action-text');
 var gameScreen = document.getElementById('game-screen');
 var gameoverScreen = document.getElementById('gameover-screen');
@@ -134,7 +132,7 @@ var reconnectHeading = document.getElementById('reconnect-heading');
 var reconnectStatus = document.getElementById('reconnect-status');
 var reconnectRejoinBtn = document.getElementById('reconnect-rejoin-btn');
 var pingDisplay = document.getElementById('ping-display');
-var compassHints = document.getElementById('compass-hints');
+var compassHints = document.getElementById('compass-hints'); // always present in index.html
 var muteBtn = document.getElementById('mute-btn');
 
 // --- Screen Management ---
