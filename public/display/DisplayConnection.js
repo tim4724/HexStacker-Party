@@ -150,7 +150,6 @@ function onDisplayRejoined(partyRoomCode, clients) {
 
   // Clear reconnect overlay — connection restored
   reconnectOverlay.classList.add('hidden');
-  reconnectBtn.classList.add('hidden');
   if (paused && (roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN)) {
     // Clear any surviving countdown interval to prevent duplicates
     if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
@@ -300,6 +299,9 @@ function startLivenessCheck() {
       if (roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN) {
         if (!paused) pauseGame();
         reconnectOverlay.classList.remove('hidden');
+        reconnectHeading.textContent = 'RECONNECTING';
+        reconnectStatus.textContent = '';
+        reconnectBtn.classList.add('hidden');
         pauseOverlay.classList.add('hidden');
       }
       // Force reconnect once
