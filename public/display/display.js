@@ -511,17 +511,13 @@ function renderLoop(timestamp) {
   }
 }
 
-var _timerFontReady = false;
 function drawTimer(elapsedMs) {
   var totalSeconds = Math.floor(elapsedMs / 1000);
   var minutes = Math.floor(totalSeconds / 60);
   var seconds = totalSeconds % 60;
   var timeStr = String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
 
-  if (!_timerFontReady) {
-    _timerFontReady = document.fonts?.check?.('14px Orbitron') ?? false;
-  }
-  var font = _timerFontReady ? 'Orbitron' : '"Courier New", monospace';
+  var font = getDisplayFont();
 
   var btnH = Math.min(52, Math.max(36, window.innerHeight * 0.04));
   var labelSize = Math.round(btnH * 0.6);

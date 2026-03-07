@@ -83,7 +83,8 @@ function onRoomCreated(partyRoomCode) {
 function applyRoomCreated(partyRoomCode, newJoinUrl) {
   roomCode = partyRoomCode;
   lastRoomCode = partyRoomCode;
-  setRoomState(ROOM_STATE.LOBBY);
+  // Ensure we're in LOBBY (may already be if coming from welcome screen)
+  if (roomState !== ROOM_STATE.LOBBY) setRoomState(ROOM_STATE.LOBBY);
 
   joinUrl = newJoinUrl;
   joinUrlEl.textContent = joinUrl;
@@ -126,6 +127,9 @@ function onDisplayRejoined(partyRoomCode, clients) {
   // Clear reconnect overlay — connection restored
   reconnectOverlay.classList.add('hidden');
   if (paused && (roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN)) {
+    // Clear any surviving countdown interval to prevent duplicates
+    if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+    if (goTimeout) { clearTimeout(goTimeout); goTimeout = null; }
     resumeGame();
   }
 
@@ -200,10 +204,12 @@ function onPeerLeft(clientId) {
     lastResults = null;
     setRoomState(ROOM_STATE.LOBBY);
     removeLobbyPlayer(clientId);
+    // removeLobbyPlayer handles UI + broadcast for host disconnect;
+    // for non-host, we still need to notify controllers and update UI.
     if (!peerWasHost) {
       party.broadcast({ type: MSG.RETURN_TO_LOBBY, playerCount: players.size });
+      returnToLobbyUI();
     }
-    returnToLobbyUI();
   } else {
     // In game/countdown — show disconnect QR overlay
     showDisconnectQR(clientId);
@@ -221,6 +227,7 @@ function removeLobbyPlayer(clientId) {
     garbageIndicatorEffects.clear();
     updatePlayerList();
     updateStartButton();
+    returnToLobbyUI();
   } else {
     players.delete(clientId);
     playerOrder = playerOrder.filter(function(id) { return id !== clientId; });
