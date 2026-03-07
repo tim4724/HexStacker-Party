@@ -535,6 +535,8 @@
     if (compassHints) {
       clearTimeout(compassHints._fadeTimer);
       compassHints._fadeTimer = null;
+      compassHints._sawLeft = false;
+      compassHints._sawRight = false;
       compassHints.classList.remove('faded');
     }
     gameScreen.classList.remove('dead');
@@ -776,11 +778,15 @@
     touchArea.addEventListener('pointerdown', coordTracker, { passive: true });
 
     touchInput = new TouchInput(touchArea, function (action, data) {
-      // Fade compass hints shortly after first interaction
-      if (compassHints && !compassHints._fadeTimer && !compassHints.classList.contains('faded')) {
-        compassHints._fadeTimer = setTimeout(function () {
-          compassHints.classList.add('faded');
-        }, 3000);
+      // Fade compass hints after player has used both left and right
+      if (compassHints && !compassHints.classList.contains('faded')) {
+        if (action === 'left') compassHints._sawLeft = true;
+        if (action === 'right') compassHints._sawRight = true;
+        if (compassHints._sawLeft && compassHints._sawRight && !compassHints._fadeTimer) {
+          compassHints._fadeTimer = setTimeout(function () {
+            compassHints.classList.add('faded');
+          }, 5000);
+        }
       }
 
       // Gesture feedback
