@@ -1,6 +1,6 @@
 {
   "name": "tetris-party",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Browser-based multiplayer Tetris with phone controllers",
   "main": "server/index.js",
   "scripts": {
@@ -8,7 +8,11 @@
     "dev": "node --watch server/index.js",
     "test": "node --test tests/*.test.js",
     "test:visual": "npx playwright test",
-    "test:visual:update": "npx playwright test --update-snapshots"
+    "test:visual:update": "npx playwright test --update-snapshots",
+    "ad:pieces": "node ad/scripts/generate-piece-assets.js",
+    "ad:display": "node ad/scripts/capture-display-clip.js",
+    "ad:controller": "node ad/scripts/capture-controller-clip.js",
+    "ad:all": "npm run ad:pieces && npm run ad:display && npm run ad:controller"
   },
   "dependencies": {
     "qrcode": "^1.5.4"
