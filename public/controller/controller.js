@@ -188,10 +188,9 @@
 
   function submitName() {
     var name = nameInput.value.trim();
-    if (!name) return;
 
-    playerName = name;
-    localStorage.setItem('tetris_player_name', name);
+    playerName = name || null;
+    if (name) localStorage.setItem('tetris_player_name', name);
     nameJoinBtn.disabled = true;
     nameJoinBtn.textContent = 'CONNECTING...';
     nameInput.disabled = true;
@@ -498,8 +497,8 @@
 
     reconnectOverlay.classList.add('hidden');
 
-    // Use the name we sent
-    if (!playerName) playerName = 'Player';
+    // Use display-assigned name if we didn't provide one (e.g. "P1")
+    if (!playerName) playerName = data.playerName || 'Player';
     playerNameEl.textContent = playerName;
 
     // Reconnected into active game

@@ -458,7 +458,6 @@ function handleControllerMessage(fromId, msg) {
 
 function onHello(fromId, msg) {
   var name = typeof msg.name === 'string' ? msg.name.trim().slice(0, 16) : '';
-  var playerName = name || 'Player';
 
   // Player already registered (from peer_joined or reconnect)
   if (players.has(fromId)) {
@@ -470,13 +469,14 @@ function onHello(fromId, msg) {
       graceTimers.delete(fromId);
     }
 
-    // Update name (replaces placeholder like "P1")
-    existing.playerName = playerName;
+    // Update name only if player provided one (keep slot label like "P1" otherwise)
+    if (name) existing.playerName = name;
     updatePlayerList();
 
     // Send welcome with current state
     party.sendTo(fromId, {
       type: MSG.WELCOME,
+      playerName: existing.playerName,
       playerColor: existing.playerColor,
       isHost: fromId === hostId,
       playerCount: players.size,
@@ -506,7 +506,7 @@ function onHello(fromId, msg) {
   if (isHost) hostId = fromId;
 
   players.set(fromId, {
-    playerName: playerName,
+    playerName: name || 'P' + (index + 1),
     playerColor: color,
     playerIndex: index,
     lastPingTime: Date.now()
@@ -516,6 +516,7 @@ function onHello(fromId, msg) {
   // Send welcome to new player
   party.sendTo(fromId, {
     type: MSG.WELCOME,
+    playerName: name || 'P' + (index + 1),
     playerColor: color,
     isHost: isHost,
     playerCount: players.size,
