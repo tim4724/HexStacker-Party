@@ -20,11 +20,20 @@ function connectAndCreateRoom() {
   };
 
   party.onClose = function(attempt, maxAttempts) {
+    if (currentScreen === 'welcome') return;
+    reconnectOverlay.classList.remove('hidden');
     if (roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN) {
       if (!paused) pauseGame();
-      reconnectOverlay.classList.remove('hidden');
       pauseOverlay.classList.add('hidden');
+    }
+    if (attempt >= maxAttempts) {
+      reconnectHeading.textContent = 'DISCONNECTED';
+      reconnectStatus.textContent = '';
+      reconnectBtn.classList.remove('hidden');
+    } else {
+      reconnectHeading.textContent = 'RECONNECTING';
       reconnectStatus.textContent = 'Attempt ' + attempt + ' of ' + maxAttempts;
+      reconnectBtn.classList.add('hidden');
     }
   };
 
@@ -121,6 +130,21 @@ function onDisplayRejoined(partyRoomCode, clients) {
 
   joinUrl = getBaseUrl() + '/' + roomCode;
   joinUrlEl.textContent = joinUrl;
+
+  // Reset liveness for clients still in the room; handle missing ones
+  var now = Date.now();
+  var connectedSet = new Set(clients || []);
+  var disconnectedIds = [];
+  for (var pEntry of players) {
+    if (connectedSet.has(pEntry[0])) {
+      pEntry[1].lastPingTime = now;
+    } else {
+      disconnectedIds.push(pEntry[0]);
+    }
+  }
+  for (var i = 0; i < disconnectedIds.length; i++) {
+    onPeerLeft(disconnectedIds[i]);
+  }
 
   startLivenessCheck();
 
@@ -275,6 +299,9 @@ function startLivenessCheck() {
       if (roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN) {
         if (!paused) pauseGame();
         reconnectOverlay.classList.remove('hidden');
+        reconnectHeading.textContent = 'RECONNECTING';
+        reconnectStatus.textContent = '';
+        reconnectBtn.classList.add('hidden');
         pauseOverlay.classList.add('hidden');
       }
       // Force reconnect once
