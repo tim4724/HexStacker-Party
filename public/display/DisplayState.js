@@ -24,13 +24,14 @@ VALID_TRANSITIONS[ROOM_STATE.PLAYING] = [ROOM_STATE.RESULTS, ROOM_STATE.LOBBY];
 VALID_TRANSITIONS[ROOM_STATE.RESULTS] = [ROOM_STATE.COUNTDOWN, ROOM_STATE.LOBBY];
 
 function setRoomState(newState) {
-  if (newState === roomState) return;
+  if (newState === roomState) return true;
   var allowed = VALID_TRANSITIONS[roomState];
   if (!allowed || allowed.indexOf(newState) < 0) {
     console.warn('Invalid room state transition: ' + roomState + ' → ' + newState);
-    return;
+    return false;
   }
   roomState = newState;
+  return true;
 }
 
 var paused = false;

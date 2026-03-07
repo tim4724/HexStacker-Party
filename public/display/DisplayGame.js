@@ -2,6 +2,8 @@
 
 // =====================================================================
 // Display Game — game lifecycle, event handlers, audio
+// Depends on: DisplayState.js (globals), DisplayConnection.js (broadcastLobbyUpdate, showDisconnectQR, stopLivenessCheck)
+// Called by: display.js (message handlers and UI buttons)
 // =====================================================================
 
 function startGame() {

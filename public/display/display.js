@@ -2,6 +2,8 @@
 
 // =====================================================================
 // Display Entry Point — message dispatch, render loop, results, UI, init
+// Depends on: DisplayState.js, DisplayConnection.js, DisplayGame.js
+// Loaded last; wires up event listeners and starts the render loop
 // =====================================================================
 
 // =====================================================================
@@ -355,6 +357,7 @@ pauseNewGameBtn.addEventListener('click', function() {
 // Render Loop
 // =====================================================================
 
+var _lastThrottled = null;
 function renderLoop(timestamp) {
   requestAnimationFrame(renderLoop);
 
@@ -368,11 +371,11 @@ function renderLoop(timestamp) {
   var hasAnimations = animations && animations.active.length > 0;
   var hasGarbageEffects = garbageIndicatorEffects.size > 0;
   if ((paused || currentScreen === 'results') && !hasAnimations && !hasGarbageEffects) {
-    if (!renderLoop._lastThrottled) renderLoop._lastThrottled = timestamp;
-    if (timestamp - renderLoop._lastThrottled < 250) return;
-    renderLoop._lastThrottled = timestamp;
+    if (!_lastThrottled) _lastThrottled = timestamp;
+    if (timestamp - _lastThrottled < 250) return;
+    _lastThrottled = timestamp;
   } else {
-    renderLoop._lastThrottled = null;
+    _lastThrottled = null;
   }
 
   var w = window.innerWidth;

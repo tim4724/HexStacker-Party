@@ -2,6 +2,8 @@
 
 // =====================================================================
 // Display Connection — PartyConnection lifecycle, liveness, QR helpers
+// Depends on: DisplayState.js (globals), DisplayGame.js (pauseGame, resumeGame, etc.)
+// Called by: display.js (handleControllerMessage dispatches here)
 // =====================================================================
 
 function connectAndCreateRoom() {
