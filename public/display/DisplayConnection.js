@@ -298,7 +298,7 @@ function startLivenessCheck() {
     party.sendTo('display', { type: '_heartbeat' });
 
     // Check if our own connection is dead (no echo back within timeout)
-    var displayDead = heartbeatSent && (now - lastHeartbeatEcho > LIVENESS_TIMEOUT_MS);
+    var displayDead = heartbeatSent && (now - lastHeartbeatEcho > GameConstants.LIVENESS_TIMEOUT_MS);
     heartbeatSent = true;
 
     if (displayDead) {
@@ -328,7 +328,7 @@ function startLivenessCheck() {
     for (var entry of players) {
       var id = entry[0];
       var player = entry[1];
-      if (player.lastPingTime && (now - player.lastPingTime > LIVENESS_TIMEOUT_MS)) {
+      if (player.lastPingTime && (now - player.lastPingTime > GameConstants.LIVENESS_TIMEOUT_MS)) {
         if (roomState !== ROOM_STATE.LOBBY && !disconnectedQRs.has(id)) {
           showDisconnectQR(id);
         }
@@ -385,63 +385,4 @@ function showDisconnectQR(clientId) {
   });
 }
 
-function renderTetrisQR(canvas, qrMatrix) {
-  if (!qrMatrix || !qrMatrix.modules) return;
-  var size = qrMatrix.size;
-  var modules = qrMatrix.modules;
-
-  var dpr = window.devicePixelRatio || 1;
-  var cssSize = canvas.parentElement
-    ? Math.min(canvas.parentElement.clientWidth, canvas.parentElement.clientHeight, 280)
-    : 280;
-  var cellPx = Math.floor((cssSize * dpr) / size);
-  var totalPx = cellPx * size;
-
-  canvas.width = totalPx;
-  canvas.height = totalPx;
-  canvas.style.width = (totalPx / dpr) + 'px';
-  canvas.style.height = (totalPx / dpr) + 'px';
-
-  var qrCtx = canvas.getContext('2d');
-  qrCtx.clearRect(0, 0, totalPx, totalPx);
-
-  qrCtx.fillStyle = THEME.color.text.white;
-  qrCtx.fillRect(0, 0, totalPx, totalPx);
-
-  var color = THEME.color.bg.card;
-  var inset = Math.max(0.5, cellPx * 0.03);
-  var radius = Math.max(1, cellPx * 0.15);
-
-  for (var row = 0; row < size; row++) {
-    for (var col = 0; col < size; col++) {
-      var idx = row * size + col;
-      var isDark = modules[idx] & 1;
-      if (!isDark) continue;
-
-      var x = col * cellPx;
-      var y = row * cellPx;
-      var s = cellPx;
-
-      var grad = qrCtx.createLinearGradient(x, y, x, y + s);
-      grad.addColorStop(0, lightenColor(color, 15));
-      grad.addColorStop(1, darkenColor(color, 10));
-
-      qrCtx.fillStyle = grad;
-      roundRect(qrCtx, x + inset, y + inset, s - inset * 2, s - inset * 2, radius);
-      qrCtx.fill();
-
-      qrCtx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-      qrCtx.fillRect(x + inset + radius, y + inset, s - inset * 2 - radius * 2, Math.max(1, s * 0.08));
-
-      qrCtx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-      qrCtx.fillRect(x + inset, y + inset + radius, Math.max(1, s * 0.07), s - inset * 2 - radius * 2);
-
-      qrCtx.fillStyle = 'rgba(0, 0, 0, 0.25)';
-      qrCtx.fillRect(x + inset + radius, y + s - inset - Math.max(1, s * 0.08), s - inset * 2 - radius * 2, Math.max(1, s * 0.08));
-
-      qrCtx.fillStyle = 'rgba(255, 255, 255, 0.12)';
-      var shineSize = s * 0.25;
-      qrCtx.fillRect(x + s * 0.25, y + s * 0.2, shineSize, shineSize * 0.5);
-    }
-  }
-}
+// renderTetrisQR() lives in DisplayState.js (rendering helper, not connection logic)
