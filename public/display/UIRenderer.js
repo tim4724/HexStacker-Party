@@ -41,8 +41,6 @@ class UIRenderer {
   }
 
   render(playerState) {
-    // Re-check font availability each render via shared utility
-
     // 1. Player name + accent stripe above board
     this.drawPlayerName(playerState);
 
