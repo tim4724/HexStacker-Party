@@ -532,7 +532,11 @@
   function onGameStart() {
     ControllerAudio.tick();
     lastLines = 0;
-    if (compassHints) compassHints.classList.remove('faded');
+    if (compassHints) {
+      clearTimeout(compassHints._fadeTimer);
+      compassHints._fadeTimer = null;
+      compassHints.classList.remove('faded');
+    }
     gameScreen.classList.remove('dead');
     gameScreen.classList.remove('paused');
     gameScreen.classList.remove('countdown');
@@ -772,9 +776,11 @@
     touchArea.addEventListener('pointerdown', coordTracker, { passive: true });
 
     touchInput = new TouchInput(touchArea, function (action, data) {
-      // Fade compass hints after first interaction
-      if (compassHints && !compassHints.classList.contains('faded')) {
-        compassHints.classList.add('faded');
+      // Fade compass hints shortly after first interaction
+      if (compassHints && !compassHints._fadeTimer && !compassHints.classList.contains('faded')) {
+        compassHints._fadeTimer = setTimeout(function () {
+          compassHints.classList.add('faded');
+        }, 3000);
       }
 
       // Gesture feedback
