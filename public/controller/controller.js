@@ -164,6 +164,17 @@
     showRoomGone();
     return;
   }
+  var joinedSessionKey = 'joined_' + roomCode;
+  var hasJoinedSession = sessionStorage.getItem(joinedSessionKey) === '1';
+
+  function setJoinedSession(active) {
+    hasJoinedSession = !!active;
+    if (hasJoinedSession) {
+      sessionStorage.setItem(joinedSessionKey, '1');
+    } else {
+      sessionStorage.removeItem(joinedSessionKey);
+    }
+  }
 
   // Generate or restore clientId
   function generateClientId() {
@@ -240,6 +251,7 @@
 
     party.onProtocol = function (type, msg) {
       if (type === 'joined') {
+        setJoinedSession(true);
         // Successfully joined room — send hello to display
         startPing();
         vibrate(10);
@@ -474,6 +486,7 @@
       party = null;
     }
     sessionStorage.removeItem('clientId_' + roomCode);
+    setJoinedSession(false);
     var params = new URLSearchParams(location.search);
     params.delete('rejoin');
     var qs = params.toString();
@@ -498,6 +511,7 @@
 
   function showRoomGone() {
     sessionStorage.removeItem('clientId_' + roomCode);
+    setJoinedSession(false);
     gameCancelled = true;
     nameForm.classList.add('hidden');
     nameJoinBtn.classList.add('hidden');
@@ -511,6 +525,7 @@
 
   function showErrorState(heading, detail) {
     sessionStorage.removeItem('clientId_' + roomCode);
+    setJoinedSession(false);
     gameCancelled = true;
     stopPing();
 
@@ -911,7 +926,8 @@
   });
 
   // --- Initialization ---
-  if ((hadStoredId || rejoinId) && savedName) {
+  var shouldAutoReconnect = !!rejoinId || (!!hadStoredId && hasJoinedSession);
+  if (shouldAutoReconnect) {
     playerName = savedName || null;
     nameInput.value = savedName;
     nameJoinBtn.disabled = true;
