@@ -43,7 +43,7 @@ class Game {
       board.spawnPiece();
     }
 
-    this.logicInterval = setInterval(() => this.logicTick(), LOGIC_TICK_MS);
+    this.logicInterval = setInterval(() => this._safeTick(), LOGIC_TICK_MS);
   }
 
   stop() {
@@ -67,7 +67,22 @@ class Game {
     this.startTime += pausedDuration;
     this.paused = false;
     this.pausedAt = null;
-    this.logicInterval = setInterval(() => this.logicTick(), LOGIC_TICK_MS);
+    this.logicInterval = setInterval(() => this._safeTick(), LOGIC_TICK_MS);
+  }
+
+  _safeTick() {
+    try {
+      this.logicTick();
+    } catch (err) {
+      console.error('Game engine error:', err);
+      this.ended = true;
+      this.stop();
+      try {
+        this.callbacks.onGameEnd(this.getResults());
+      } catch (recoveryErr) {
+        console.error('Failed to send game-end after engine error:', recoveryErr);
+      }
+    }
   }
 
   processInput(playerId, action) {

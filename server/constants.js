@@ -67,6 +67,10 @@ const ROOM_CODE_LENGTH = 4;
 // Countdown
 const COUNTDOWN_SECONDS = 3;
 
+// Display-side timing
+const SOFT_DROP_TIMEOUT_MS = 300;   // Auto-end soft drop if no message received within this window
+const LIVENESS_TIMEOUT_MS = 3000;   // Controller considered disconnected after this silence
+
 // Piece types (1-indexed to match grid cell values)
 const PIECE_TYPES = ['I', 'J', 'L', 'O', 'S', 'T', 'Z'];
 const PIECE_TYPE_TO_ID = { I: 1, J: 2, L: 3, O: 4, S: 5, T: 6, Z: 7 };
@@ -98,5 +102,7 @@ exports.COUNTDOWN_SECONDS = COUNTDOWN_SECONDS;
 exports.PIECE_TYPES = PIECE_TYPES;
 exports.PIECE_TYPE_TO_ID = PIECE_TYPE_TO_ID;
 exports.GARBAGE_CELL = GARBAGE_CELL;
+exports.SOFT_DROP_TIMEOUT_MS = SOFT_DROP_TIMEOUT_MS;
+exports.LIVENESS_TIMEOUT_MS = LIVENESS_TIMEOUT_MS;
 
 })(typeof module !== 'undefined' ? module.exports : (window.GameConstants = {}));

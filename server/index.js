@@ -10,6 +10,17 @@ const PORT = parseInt(process.env.PORT, 10) || 4000;
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const APP_VERSION = require('../package.json').version;
 
+// Explicit allowlist of engine modules serveable via /engine/ route
+const ENGINE_FILES = new Set([
+  'constants.js',
+  'Game.js',
+  'GarbageManager.js',
+  'Piece.js',
+  'PlayerBoard.js',
+  'Randomizer.js',
+  'Scoring.js',
+]);
+
 // --- MIME types ---
 const MIME_TYPES = {
   '.html': 'text/html',
@@ -68,8 +79,7 @@ const server = http.createServer((req, res) => {
   // Serve game engine modules to browser
   if (urlPath.startsWith('/engine/')) {
     const engineFile = urlPath.slice('/engine/'.length);
-    const allowed = ['constants.js', 'Piece.js', 'Randomizer.js', 'Scoring.js', 'GarbageManager.js', 'PlayerBoard.js', 'Game.js'];
-    if (allowed.includes(engineFile)) {
+    if (ENGINE_FILES.has(engineFile)) {
       const enginePath = path.join(__dirname, engineFile);
       fs.readFile(enginePath, (err, data) => {
         if (err) { res.writeHead(404); res.end('Not Found'); return; }

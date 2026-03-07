@@ -147,7 +147,7 @@ function onSoftDrop(fromId, speed) {
   softDropTimers.set(fromId, setTimeout(function() {
     softDropTimers.delete(fromId);
     if (displayGame) displayGame.handleSoftDropEnd(fromId);
-  }, 300));
+  }, GameConstants.SOFT_DROP_TIMEOUT_MS));
 }
 
 function removePlayer(clientId, immediate) {

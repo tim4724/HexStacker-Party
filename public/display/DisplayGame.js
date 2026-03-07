@@ -31,7 +31,7 @@ function startNewGame() {
 
     // Show disconnect QR for any players that disconnected during countdown
     for (var entry of players) {
-      if (entry[1].lastPingTime && Date.now() - entry[1].lastPingTime > LIVENESS_TIMEOUT_MS) {
+      if (entry[1].lastPingTime && Date.now() - entry[1].lastPingTime > GameConstants.LIVENESS_TIMEOUT_MS) {
         showDisconnectQR(entry[0]);
       }
     }
@@ -119,7 +119,7 @@ function returnToLobby() {
   // Remove disconnected players
   var disconnectedIds = [];
   for (var entry of players) {
-    if (entry[1].lastPingTime && Date.now() - entry[1].lastPingTime > LIVENESS_TIMEOUT_MS) {
+    if (entry[1].lastPingTime && Date.now() - entry[1].lastPingTime > GameConstants.LIVENESS_TIMEOUT_MS) {
       disconnectedIds.push(entry[0]);
     }
   }
@@ -185,6 +185,8 @@ function runGameLocally() {
   stopDisplayGame();
 
   var Game = window.GameEngine.Game;
+  // Snapshot playerOrder at game start — prevents mid-game layout drift
+  playerOrder = playerOrder.slice();
   var gamePlayers = new Map();
   for (var i = 0; i < playerOrder.length; i++) {
     gamePlayers.set(playerOrder[i], {});
@@ -264,14 +266,7 @@ function onCountdownDisplay(value) {
 
 function onGameState(msg) {
   gameState = msg;
-  if (msg.players) {
-    for (var i = 0; i < msg.players.length; i++) {
-      var p = msg.players[i];
-      if (playerOrder.indexOf(p.id) < 0) {
-        playerOrder.push(p.id);
-      }
-    }
-  }
+  // playerOrder is snapshotted at game start — no dynamic pushes mid-game
   if (msg.players && boardRenderers.length !== msg.players.length) {
     calculateLayout();
   }
