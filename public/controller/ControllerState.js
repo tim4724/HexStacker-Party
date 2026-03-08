@@ -2,8 +2,7 @@
 
 // =====================================================================
 // Controller State — shared globals across all controller script files.
-// All four files execute in global scope (no IIFE), matching the display
-// pattern. Variables declared here are accessible to the other files.
+// DOM queries are deferred to initControllerDOM() for testability.
 //
 // LOAD ORDER (required): ControllerState → ControllerConnection →
 //   ControllerGame → controller.js
@@ -79,61 +78,120 @@ function syncViewportLayout() {
 }
 
 // --- Background ---
-var bgCanvas = document.getElementById('bg-canvas');
+var bgCanvas = null;
 var welcomeBg = null;
-if (bgCanvas) {
-  welcomeBg = new WelcomeBackground(bgCanvas, 8);
-  var metrics = getViewportMetrics();
-  welcomeBg.resize(metrics.width, metrics.height);
-  welcomeBg.start();
-}
-window.addEventListener('resize', syncViewportLayout);
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', syncViewportLayout);
-  window.visualViewport.addEventListener('scroll', syncViewportLayout);
+
+function initControllerBackground() {
+  bgCanvas = document.getElementById('bg-canvas');
+  if (bgCanvas) {
+    welcomeBg = new WelcomeBackground(bgCanvas, 8);
+    var metrics = getViewportMetrics();
+    welcomeBg.resize(metrics.width, metrics.height);
+    welcomeBg.start();
+  }
+  window.addEventListener('resize', syncViewportLayout);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncViewportLayout);
+    window.visualViewport.addEventListener('scroll', syncViewportLayout);
+  }
 }
 
-// --- DOM Refs ---
-var nameForm = document.getElementById('name-form');
-var nameInput = document.getElementById('name-input');
-var nameJoinBtn = document.getElementById('name-join-btn');
-var nameStatusText = document.getElementById('name-status-text');
-var nameStatusDetail = document.getElementById('name-status-detail');
-var roomGoneMessage = document.getElementById('room-gone-message');
-var roomGoneHeading = document.getElementById('room-gone-heading');
-var roomGoneDetail = document.getElementById('room-gone-detail');
-var nameScreen = document.getElementById('name-screen');
-var lobbyScreen = document.getElementById('lobby-screen');
-var lobbyBackBtn = document.getElementById('lobby-back-btn');
-var waitingActionText = document.getElementById('waiting-action-text');
-var gameScreen = document.getElementById('game-screen');
-var gameoverScreen = document.getElementById('gameover-screen');
-var playerIdentity = document.getElementById('player-identity');
-var startBtn = document.getElementById('start-btn');
-var statusText = document.getElementById('status-text');
-var statusDetail = document.getElementById('status-detail');
-var playerNameEl = document.getElementById('player-name');
-var playerIdentityName = document.getElementById('player-identity-name');
-var touchArea = document.getElementById('touch-area');
-var feedbackLayer = document.getElementById('feedback-layer');
-var resultsList = document.getElementById('results-list');
-var gameoverButtons = document.getElementById('gameover-buttons');
-var playAgainBtn = document.getElementById('play-again-btn');
-var newGameBtn = document.getElementById('new-game-btn');
-var gameoverStatus = document.getElementById('gameover-status');
-var pauseBtn = document.getElementById('pause-btn');
-var pauseOverlay = document.getElementById('pause-overlay');
-var pauseContinueBtn = document.getElementById('pause-continue-btn');
-var pauseNewGameBtn = document.getElementById('pause-newgame-btn');
-var pauseStatus = document.getElementById('pause-status');
-var pauseButtons = document.getElementById('pause-buttons');
-var reconnectOverlay = document.getElementById('reconnect-overlay');
-var reconnectHeading = document.getElementById('reconnect-heading');
-var reconnectStatus = document.getElementById('reconnect-status');
-var reconnectRejoinBtn = document.getElementById('reconnect-rejoin-btn');
-var pingDisplay = document.getElementById('ping-display');
-var compassHints = document.getElementById('compass-hints'); // always present in index.html
-var muteBtn = document.getElementById('mute-btn');
+// --- DOM Refs (deferred to initControllerDOM for testability) ---
+var nameForm = null;
+var nameInput = null;
+var nameJoinBtn = null;
+var nameStatusText = null;
+var nameStatusDetail = null;
+var roomGoneMessage = null;
+var roomGoneHeading = null;
+var roomGoneDetail = null;
+var nameScreen = null;
+var lobbyScreen = null;
+var lobbyBackBtn = null;
+var waitingActionText = null;
+var gameScreen = null;
+var gameoverScreen = null;
+var playerIdentity = null;
+var startBtn = null;
+var statusText = null;
+var statusDetail = null;
+var playerNameEl = null;
+var playerIdentityName = null;
+var touchArea = null;
+var feedbackLayer = null;
+var resultsList = null;
+var gameoverButtons = null;
+var playAgainBtn = null;
+var newGameBtn = null;
+var gameoverStatus = null;
+var pauseBtn = null;
+var pauseOverlay = null;
+var pauseContinueBtn = null;
+var pauseNewGameBtn = null;
+var pauseStatus = null;
+var pauseButtons = null;
+var reconnectOverlay = null;
+var reconnectHeading = null;
+var reconnectStatus = null;
+var reconnectRejoinBtn = null;
+var pingDisplay = null;
+var compassHints = null;
+var muteBtn = null;
+
+function initControllerDOM() {
+  nameForm = document.getElementById('name-form');
+  nameInput = document.getElementById('name-input');
+  nameJoinBtn = document.getElementById('name-join-btn');
+  nameStatusText = document.getElementById('name-status-text');
+  nameStatusDetail = document.getElementById('name-status-detail');
+  roomGoneMessage = document.getElementById('room-gone-message');
+  roomGoneHeading = document.getElementById('room-gone-heading');
+  roomGoneDetail = document.getElementById('room-gone-detail');
+  nameScreen = document.getElementById('name-screen');
+  lobbyScreen = document.getElementById('lobby-screen');
+  lobbyBackBtn = document.getElementById('lobby-back-btn');
+  waitingActionText = document.getElementById('waiting-action-text');
+  gameScreen = document.getElementById('game-screen');
+  gameoverScreen = document.getElementById('gameover-screen');
+  playerIdentity = document.getElementById('player-identity');
+  startBtn = document.getElementById('start-btn');
+  statusText = document.getElementById('status-text');
+  statusDetail = document.getElementById('status-detail');
+  playerNameEl = document.getElementById('player-name');
+  playerIdentityName = document.getElementById('player-identity-name');
+  touchArea = document.getElementById('touch-area');
+  feedbackLayer = document.getElementById('feedback-layer');
+  resultsList = document.getElementById('results-list');
+  gameoverButtons = document.getElementById('gameover-buttons');
+  playAgainBtn = document.getElementById('play-again-btn');
+  newGameBtn = document.getElementById('new-game-btn');
+  gameoverStatus = document.getElementById('gameover-status');
+  pauseBtn = document.getElementById('pause-btn');
+  pauseOverlay = document.getElementById('pause-overlay');
+  pauseContinueBtn = document.getElementById('pause-continue-btn');
+  pauseNewGameBtn = document.getElementById('pause-newgame-btn');
+  pauseStatus = document.getElementById('pause-status');
+  pauseButtons = document.getElementById('pause-buttons');
+  reconnectOverlay = document.getElementById('reconnect-overlay');
+  reconnectHeading = document.getElementById('reconnect-heading');
+  reconnectStatus = document.getElementById('reconnect-status');
+  reconnectRejoinBtn = document.getElementById('reconnect-rejoin-btn');
+  pingDisplay = document.getElementById('ping-display');
+  compassHints = document.getElementById('compass-hints');
+  muteBtn = document.getElementById('mute-btn');
+}
+
+// --- State Namespace (read-only accessor for testing and debugging) ---
+var CS = {
+  get currentScreen() { return currentScreen; },
+  get clientId() { return clientId; },
+  get playerName() { return playerName; },
+  get playerColor() { return playerColor; },
+  get roomCode() { return roomCode; },
+  get isHost() { return isHost; },
+  get playerCount() { return playerCount; },
+  get gameCancelled() { return gameCancelled; }
+};
 
 // --- Screen Management ---
 var SCREEN_ORDER = { name: 0, lobby: 1, game: 2, gameover: 3 };

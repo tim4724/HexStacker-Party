@@ -242,10 +242,13 @@ class Animations {
     }
   }
 
-  update(deltaMs) {
-    const now = performance.now();
+  /**
+   * Update animation state. Pass the RAF timestamp for consistent timing.
+   * @param {number} timestamp - DOMHighResTimeStamp from requestAnimationFrame
+   */
+  update(timestamp) {
     this.active = this.active.filter(anim => {
-      const elapsed = now - anim.startTime;
+      const elapsed = timestamp - anim.startTime;
       const progress = Math.min(elapsed / anim.duration, 1);
       if (anim.update) {
         anim.update(progress);
@@ -254,12 +257,15 @@ class Animations {
     });
   }
 
-  render() {
+  /**
+   * Render all active animations. Pass the RAF timestamp for consistent timing.
+   * @param {number} timestamp - DOMHighResTimeStamp from requestAnimationFrame
+   */
+  render(timestamp) {
     const ctx = this.ctx;
-    const now = performance.now();
 
     for (const anim of this.active) {
-      const elapsed = now - anim.startTime;
+      const elapsed = timestamp - anim.startTime;
       const progress = Math.min(elapsed / anim.duration, 1);
       if (anim.render) {
         anim.render(ctx, progress);

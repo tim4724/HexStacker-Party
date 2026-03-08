@@ -149,6 +149,7 @@ class WelcomeBackground {
   }
 
   _loop = (timestamp) => {
+    if (!this._canvas.isConnected) { this.stop(); return; }
     this.rafId = requestAnimationFrame(this._loop);
 
     if (this.lastTime === null) { this.lastTime = timestamp; return; }

@@ -38,6 +38,7 @@ class UIRenderer {
     this.panelWidth = cellSize * THEME.size.panelWidth;
     this.miniSize = cellSize * THEME.font.cellScale.mini;
     this.panelGap = Math.max(THEME.size.panelGapMin, cellSize * THEME.size.panelGap);
+    this._miniGradients = new Map(); // cached per pieceType+size key
   }
 
   render(playerState) {
@@ -302,23 +303,33 @@ class UIRenderer {
     const offsetX = centerX - (bounds.w * size) / 2;
     const offsetY = centerY - (bounds.h * size) / 2;
 
+    // Cache gradient per piece type (all blocks share the same color)
+    const gradKey = pieceType;
+    let grad = this._miniGradients.get(gradKey);
+    if (!grad) {
+      grad = ctx.createLinearGradient(0, 0, 0, size);
+      grad.addColorStop(0, color);
+      grad.addColorStop(1, darkenColor(color, 15));
+      this._miniGradients.set(gradKey, grad);
+    }
+
     for (const [bx, by] of blocks) {
       const dx = offsetX + (bx - bounds.minX) * size;
       const dy = offsetY + (by - bounds.minY) * size;
       const inset = 0.5;
       const r = THEME.radius.mini(size);
 
-      // Mini block with gradient
-      const grad = ctx.createLinearGradient(dx, dy, dx, dy + size);
-      grad.addColorStop(0, color);
-      grad.addColorStop(1, darkenColor(color, 15));
+      // Mini block with gradient (cached)
+      ctx.save();
+      ctx.translate(dx, dy);
       ctx.fillStyle = grad;
-      roundRect(ctx, dx + inset, dy + inset, size - inset * 2, size - inset * 2, r);
+      roundRect(ctx, inset, inset, size - inset * 2, size - inset * 2, r);
       ctx.fill();
 
       // Top highlight
       ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.highlight})`;
-      ctx.fillRect(dx + inset + r, dy + inset, size - inset * 2 - r * 2, 1);
+      ctx.fillRect(inset + r, inset, size - inset * 2 - r * 2, 1);
+      ctx.restore();
     }
   }
 

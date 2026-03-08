@@ -82,9 +82,11 @@ class PartyConnection {
 
   _scheduleReconnect() {
     clearTimeout(this._reconnectTimer);
+    // Exponential backoff: 1s, 2s, 4s, 8s... capped at 30s
+    var delay = Math.min(1000 * Math.pow(2, this.reconnectAttempt - 1), 30000);
     this._reconnectTimer = setTimeout(() => {
       this.connect();
-    }, 1000);
+    }, delay);
   }
 
   _send(msg) {

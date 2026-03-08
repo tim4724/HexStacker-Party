@@ -20,6 +20,7 @@ function connectAndCreateRoom() {
   };
 
   party.onClose = function(attempt, maxAttempts) {
+    preCreatedRoom = null;
     if (currentScreen === 'welcome') return;
     clearTimeout(disconnectedTimer);
 
@@ -392,4 +393,4 @@ function showDisconnectQR(clientId) {
   });
 }
 
-// renderTetrisQR() lives in DisplayState.js (rendering helper, not connection logic)
+// renderTetrisQR() lives in DisplayUI.js (rendering helper)

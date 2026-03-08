@@ -7,66 +7,77 @@
 // =====================================================================
 
 // =====================================================================
+// Initialize DOM and Background
+// =====================================================================
+
+initControllerDOM();
+initControllerBackground();
+
+// =====================================================================
 // Message Dispatch
 // =====================================================================
 
 function handleMessage(data) {
-  switch (data.type) {
-    case MSG.WELCOME:
-      onWelcome(data);
-      break;
-    case MSG.LOBBY_UPDATE:
-      onLobbyUpdate(data);
-      break;
-    case MSG.GAME_START:
-      onGameStart();
-      break;
-    case MSG.COUNTDOWN:
-      removeKoOverlay();
-      if (currentScreen !== 'game') {
+  try {
+    switch (data.type) {
+      case MSG.WELCOME:
+        onWelcome(data);
+        break;
+      case MSG.LOBBY_UPDATE:
+        onLobbyUpdate(data);
+        break;
+      case MSG.GAME_START:
+        onGameStart();
+        break;
+      case MSG.COUNTDOWN:
+        removeKoOverlay();
+        if (currentScreen !== 'game') {
+          gameScreen.classList.remove('dead');
+          gameScreen.classList.remove('paused');
+          gameScreen.classList.add('countdown');
+          gameScreen.style.setProperty('--player-color', playerColor);
+          pauseOverlay.classList.add('hidden');
+          pauseBtn.disabled = false;
+          pauseBtn.classList.toggle('hidden', !isHost);
+          showScreen('game');
+        }
+        break;
+      case MSG.PLAYER_STATE:
+        onPlayerState(data);
+        break;
+      case MSG.GAME_OVER:
+        break;
+      case MSG.GAME_END:
+        onGameEnd(data);
+        break;
+      case MSG.GAME_PAUSED:
+        onGamePaused();
+        break;
+      case MSG.GAME_RESUMED:
+        onGameResumed();
+        break;
+      case MSG.RETURN_TO_LOBBY:
+        playerCount = data.playerCount || playerCount;
         gameScreen.classList.remove('dead');
         gameScreen.classList.remove('paused');
-        gameScreen.classList.add('countdown');
-        gameScreen.style.setProperty('--player-color', playerColor);
-        pauseOverlay.classList.add('hidden');
-        pauseBtn.disabled = false;
-        pauseBtn.classList.toggle('hidden', !isHost);
-        showScreen('game');
-      }
-      break;
-    case MSG.PLAYER_STATE:
-      onPlayerState(data);
-      break;
-    case MSG.GAME_OVER:
-      break;
-    case MSG.GAME_END:
-      onGameEnd(data);
-      break;
-    case MSG.GAME_PAUSED:
-      onGamePaused();
-      break;
-    case MSG.GAME_RESUMED:
-      onGameResumed();
-      break;
-    case MSG.RETURN_TO_LOBBY:
-      playerCount = data.playerCount || playerCount;
-      gameScreen.classList.remove('dead');
-      gameScreen.classList.remove('paused');
-      showLobbyUI();
-      break;
-    case MSG.PONG:
-      lastPongTime = Date.now();
-      if (data.t) {
-        var rtt = Date.now() - data.t;
-        updatePingDisplay(Math.round(rtt / 2));
-      }
-      if (party) party.resetReconnectCount();
-      clearTimeout(disconnectedTimer);
-      reconnectOverlay.classList.add('hidden');
-      break;
-    case MSG.ERROR:
-      onError(data);
-      break;
+        showLobbyUI();
+        break;
+      case MSG.PONG:
+        lastPongTime = Date.now();
+        if (data.t) {
+          var rtt = Date.now() - data.t;
+          updatePingDisplay(Math.round(rtt / 2));
+        }
+        if (party) party.resetReconnectCount();
+        clearTimeout(disconnectedTimer);
+        reconnectOverlay.classList.add('hidden');
+        break;
+      case MSG.ERROR:
+        onError(data);
+        break;
+    }
+  } catch (err) {
+    console.error('[controller] Error handling message:', data && data.type, err);
   }
 }
 

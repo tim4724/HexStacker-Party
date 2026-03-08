@@ -218,6 +218,77 @@ describe('Scoring - drop bonuses', () => {
   });
 });
 
+describe('Scoring - back-to-back edge cases', () => {
+  test('back-to-back maintained across consecutive tetris clears', () => {
+    const scoring = new Scoring();
+    scoring.addLineClear(4, false, false); // first tetris, sets b2b
+    assert.strictEqual(scoring.backToBack, true);
+    scoring.addLineClear(4, false, false); // second tetris, b2b bonus applied
+    assert.strictEqual(scoring.backToBack, true);
+    scoring.addLineClear(4, false, false); // third tetris, still b2b
+    assert.strictEqual(scoring.backToBack, true);
+  });
+
+  test('back-to-back maintained across tetris and T-spin sequence', () => {
+    const scoring = new Scoring();
+    scoring.addLineClear(4, false, false); // tetris sets b2b
+    assert.strictEqual(scoring.backToBack, true);
+    scoring.addLineClear(2, true, false);  // T-spin double keeps b2b
+    assert.strictEqual(scoring.backToBack, true);
+    scoring.addLineClear(1, true, false);  // T-spin single keeps b2b
+    assert.strictEqual(scoring.backToBack, true);
+    scoring.addLineClear(4, false, false); // tetris keeps b2b
+    assert.strictEqual(scoring.backToBack, true);
+  });
+
+  test('back-to-back broken by double clear', () => {
+    const scoring = new Scoring();
+    scoring.addLineClear(4, false, false); // tetris sets b2b
+    assert.strictEqual(scoring.backToBack, true);
+    scoring.addLineClear(2, false, false); // double breaks b2b
+    assert.strictEqual(scoring.backToBack, false);
+  });
+
+  test('back-to-back broken by triple clear', () => {
+    const scoring = new Scoring();
+    scoring.addLineClear(4, false, false); // tetris sets b2b
+    assert.strictEqual(scoring.backToBack, true);
+    scoring.addLineClear(3, false, false); // triple breaks b2b
+    assert.strictEqual(scoring.backToBack, false);
+  });
+
+  test('back-to-back not set by non-difficult clears', () => {
+    const scoring = new Scoring();
+    scoring.addLineClear(1, false, false);
+    assert.strictEqual(scoring.backToBack, false);
+    scoring.addLineClear(2, false, false);
+    assert.strictEqual(scoring.backToBack, false);
+    scoring.addLineClear(3, false, false);
+    assert.strictEqual(scoring.backToBack, false);
+  });
+
+  test('T-spin zero-line clear counts as difficult for back-to-back', () => {
+    const scoring = new Scoring();
+    scoring.addLineClear(0, true, false); // T-spin no lines = difficult
+    assert.strictEqual(scoring.backToBack, true);
+    scoring.addLineClear(0, true, false); // second T-spin gets b2b bonus
+    const state = scoring.getState();
+    assert.strictEqual(state.backToBack, true);
+    // Score should include b2b multiplier on second T-spin
+    // First: 400, Second: floor(400 * 1.5) + combo(50) = 650
+    assert.strictEqual(scoring.score, 400 + 650);
+  });
+
+  test('back-to-back bonus value is correct for tetris after tetris', () => {
+    const scoring = new Scoring();
+    scoring.addLineClear(4, false, false); // 800 points (level 1)
+    const firstScore = scoring.score;
+    assert.strictEqual(firstScore, 800);
+    scoring.addLineClear(4, false, false); // floor(800 * 1.5) + combo(50) = 1250
+    assert.strictEqual(scoring.score - firstScore, 1250);
+  });
+});
+
 describe('Scoring - getState', () => {
   test('getState returns correct fields', () => {
     const scoring = new Scoring();

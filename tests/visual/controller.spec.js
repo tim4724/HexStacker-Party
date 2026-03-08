@@ -72,6 +72,11 @@ test.describe('Controller', () => {
     const host = controllers[0];
     await host.click('#start-btn');
     await waitForControllerGame(nonHost);
+    // Hide ping display to avoid flaky diffs from varying latency values
+    await nonHost.evaluate(() => {
+      const ping = document.getElementById('ping-display');
+      if (ping) ping.style.visibility = 'hidden';
+    });
     await expect(nonHost).toHaveScreenshot('06-game-nonhost.png');
   });
 

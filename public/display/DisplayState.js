@@ -2,6 +2,7 @@
 
 // =====================================================================
 // Shared Display State — loaded first, all vars are globals
+// DOM queries are deferred to initDOM() for testability.
 // =====================================================================
 
 // --- State ---
@@ -85,6 +86,9 @@ var preCreatedRoom = null;  // { roomCode, joinUrl, qrMatrix }
 // Mute
 var muted = localStorage.getItem('tetris_muted') === '1';
 
+// Render loop RAF handle (for stop/start)
+var rafId = null;
+
 // --- Slot Helpers ---
 // Find the first available player slot (0–3) not used by any current player
 function nextAvailableSlot() {
@@ -104,31 +108,58 @@ function sanitizePlayerName(name, slotIndex) {
   return name;
 }
 
-// --- DOM References ---
-var welcomeScreen = document.getElementById('welcome-screen');
-var newGameBtn = document.getElementById('new-game-btn');
-var lobbyScreen = document.getElementById('lobby-screen');
-var gameScreen = document.getElementById('game-screen');
-var resultsScreen = document.getElementById('results-screen');
-var qrCode = document.getElementById('qr-code');
-var joinUrlEl = document.getElementById('join-url');
-var playerListEl = document.getElementById('player-list');
-var startBtn = document.getElementById('start-btn');
-var countdownOverlay = document.getElementById('countdown-overlay');
-var resultsList = document.getElementById('results-list');
-var playAgainBtn = document.getElementById('play-again-btn');
-var newGameResultsBtn = document.getElementById('new-game-results-btn');
-var gameToolbar = document.getElementById('game-toolbar');
-var fullscreenBtn = document.getElementById('fullscreen-btn');
-var pauseBtn = document.getElementById('pause-btn');
-var pauseOverlay = document.getElementById('pause-overlay');
-var pauseContinueBtn = document.getElementById('pause-continue-btn');
-var pauseNewGameBtn = document.getElementById('pause-newgame-btn');
-var reconnectOverlay = document.getElementById('reconnect-overlay');
-var reconnectHeading = document.getElementById('reconnect-heading');
-var reconnectStatus = document.getElementById('reconnect-status');
-var reconnectBtn = document.getElementById('reconnect-btn');
-var muteBtn = document.getElementById('mute-btn');
+// --- DOM References (deferred to initDOM for testability) ---
+var welcomeScreen = null;
+var newGameBtn = null;
+var lobbyScreen = null;
+var gameScreen = null;
+var resultsScreen = null;
+var qrCode = null;
+var joinUrlEl = null;
+var playerListEl = null;
+var startBtn = null;
+var countdownOverlay = null;
+var resultsList = null;
+var playAgainBtn = null;
+var newGameResultsBtn = null;
+var gameToolbar = null;
+var fullscreenBtn = null;
+var pauseBtn = null;
+var pauseOverlay = null;
+var pauseContinueBtn = null;
+var pauseNewGameBtn = null;
+var reconnectOverlay = null;
+var reconnectHeading = null;
+var reconnectStatus = null;
+var reconnectBtn = null;
+var muteBtn = null;
+
+function initDOM() {
+  welcomeScreen = document.getElementById('welcome-screen');
+  newGameBtn = document.getElementById('new-game-btn');
+  lobbyScreen = document.getElementById('lobby-screen');
+  gameScreen = document.getElementById('game-screen');
+  resultsScreen = document.getElementById('results-screen');
+  qrCode = document.getElementById('qr-code');
+  joinUrlEl = document.getElementById('join-url');
+  playerListEl = document.getElementById('player-list');
+  startBtn = document.getElementById('start-btn');
+  countdownOverlay = document.getElementById('countdown-overlay');
+  resultsList = document.getElementById('results-list');
+  playAgainBtn = document.getElementById('play-again-btn');
+  newGameResultsBtn = document.getElementById('new-game-results-btn');
+  gameToolbar = document.getElementById('game-toolbar');
+  fullscreenBtn = document.getElementById('fullscreen-btn');
+  pauseBtn = document.getElementById('pause-btn');
+  pauseOverlay = document.getElementById('pause-overlay');
+  pauseContinueBtn = document.getElementById('pause-continue-btn');
+  pauseNewGameBtn = document.getElementById('pause-newgame-btn');
+  reconnectOverlay = document.getElementById('reconnect-overlay');
+  reconnectHeading = document.getElementById('reconnect-heading');
+  reconnectStatus = document.getElementById('reconnect-status');
+  reconnectBtn = document.getElementById('reconnect-btn');
+  muteBtn = document.getElementById('mute-btn');
+}
 
 // --- Screen Management ---
 function showScreen(name) {
@@ -146,6 +177,9 @@ function showScreen(name) {
   if (name === 'game' || name === 'results') {
     initCanvas();
     calculateLayout();
+    startRenderLoop();
+  } else {
+    stopRenderLoop();
   }
   if (name === 'lobby') {
     updatePlayerList();
@@ -155,6 +189,19 @@ function showScreen(name) {
     else welcomeBg.stop();
   }
 }
+
+// --- State Namespace (read-only accessor for testing and debugging) ---
+var DS = {
+  get roomState() { return roomState; },
+  get currentScreen() { return currentScreen; },
+  get players() { return players; },
+  get playerOrder() { return playerOrder; },
+  get hostId() { return hostId; },
+  get paused() { return paused; },
+  get gameState() { return gameState; },
+  get muted() { return muted; },
+  get roomCode() { return roomCode; }
+};
 
 // --- Canvas Setup ---
 function initCanvas() {
@@ -173,177 +220,5 @@ function resizeCanvas() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   if (currentScreen === 'game') {
     calculateLayout();
-  }
-}
-
-// --- Layout Calculation ---
-function calculateLayout() {
-  if (!ctx || playerOrder.length === 0) return;
-
-  var n = playerOrder.length;
-  var w = window.innerWidth;
-  var h = window.innerHeight;
-  var padding = THEME.size.canvasPad;
-  var totalCellsWide = GameConstants.BOARD_WIDTH + 3 + 3;
-  var totalCellsTall = GameConstants.VISIBLE_HEIGHT + 3.6;
-
-  function cellSizeFor(cols, rows) {
-    var aw = (w - padding * (cols + 1)) / cols;
-    var ah = (h - padding * (rows + 1)) / rows;
-    return Math.floor(Math.min(aw / totalCellsWide, ah / totalCellsTall));
-  }
-
-  var gridCols, gridRows;
-  if (n === 1) { gridCols = 1; gridRows = 1; }
-  else if (n === 2) { gridCols = 2; gridRows = 1; }
-  else if (n === 3) { gridCols = 3; gridRows = 1; }
-  else {
-    if (cellSizeFor(4, 1) >= cellSizeFor(2, 2)) {
-      gridCols = 4; gridRows = 1;
-    } else {
-      gridCols = 2; gridRows = 2;
-    }
-  }
-
-  var cellSize = cellSizeFor(gridCols, gridRows);
-  var boardWidthPx = 10 * cellSize;
-  var boardHeightPx = 20 * cellSize;
-
-  boardRenderers = [];
-  uiRenderers = [];
-  animations = new Animations(ctx);
-
-  for (var i = 0; i < n; i++) {
-    var col = i % gridCols;
-    var row = Math.floor(i / gridCols);
-    var cellAreaW = w / gridCols;
-    var cellAreaH = h / gridRows;
-    var boardX = cellAreaW * col + (cellAreaW - boardWidthPx) / 2;
-    var boardY = cellAreaH * row + (cellAreaH - boardHeightPx) / 2 + 10;
-    var playerIndex = players.get(playerOrder[i])?.playerIndex ?? i;
-    boardRenderers.push(new BoardRenderer(ctx, boardX, boardY, cellSize, playerIndex));
-    uiRenderers.push(new UIRenderer(ctx, boardX, boardY, cellSize, boardWidthPx, boardHeightPx, playerIndex));
-  }
-}
-
-// --- Lobby UI ---
-var SLOT_LABELS = ['P1', 'P2', 'P3', 'P4'];
-var MAX_SLOTS = 4;
-
-function updatePlayerList() {
-  if (playerListEl.children.length === 0) {
-    for (var i = 0; i < MAX_SLOTS; i++) {
-      var card = document.createElement('div');
-      card.className = 'player-card empty';
-      var name = document.createElement('span');
-      name.textContent = SLOT_LABELS[i];
-      card.appendChild(name);
-      playerListEl.appendChild(card);
-    }
-  }
-
-  for (var i = 0; i < MAX_SLOTS; i++) {
-    var card = playerListEl.children[i];
-    var nameEl = card.querySelector('span');
-    // Find player assigned to this slot by playerIndex
-    var playerId = null;
-    var info = null;
-    for (const entry of players) {
-      if (entry[1].playerIndex === i) {
-        playerId = entry[0];
-        info = entry[1];
-        break;
-      }
-    }
-    var wasEmpty = card.classList.contains('empty');
-
-    if (info) {
-      var color = info.playerColor || PLAYER_COLORS[info.playerIndex] || '#fff';
-      card.style.setProperty('--player-color', color);
-      nameEl.textContent = info.playerName || PLAYER_NAMES[info.playerIndex] || 'Player';
-      card.classList.remove('empty');
-      card.dataset.playerId = playerId;
-      if (wasEmpty) {
-        card.classList.remove('join-pop');
-        void card.offsetWidth;
-        card.classList.add('join-pop');
-      }
-    } else {
-      card.style.removeProperty('--player-color');
-      nameEl.textContent = SLOT_LABELS[i];
-      card.classList.add('empty');
-      card.classList.remove('join-pop');
-      delete card.dataset.playerId;
-    }
-  }
-}
-
-function updateStartButton() {
-  var hasPlayers = players.size > 0;
-  startBtn.disabled = !hasPlayers;
-  startBtn.textContent = hasPlayers
-    ? 'START (' + players.size + ' player' + (players.size > 1 ? 's' : '') + ')'
-    : 'Waiting for players...';
-}
-
-// --- QR Code Rendering ---
-function renderTetrisQR(canvas, qrMatrix) {
-  if (!qrMatrix || !qrMatrix.modules) return;
-  var size = qrMatrix.size;
-  var modules = qrMatrix.modules;
-
-  var dpr = window.devicePixelRatio || 1;
-  var cssSize = canvas.parentElement
-    ? Math.min(canvas.parentElement.clientWidth, canvas.parentElement.clientHeight, 280)
-    : 280;
-  var cellPx = Math.floor((cssSize * dpr) / size);
-  var totalPx = cellPx * size;
-
-  canvas.width = totalPx;
-  canvas.height = totalPx;
-  canvas.style.width = (totalPx / dpr) + 'px';
-  canvas.style.height = (totalPx / dpr) + 'px';
-
-  var qrCtx = canvas.getContext('2d');
-  qrCtx.clearRect(0, 0, totalPx, totalPx);
-
-  qrCtx.fillStyle = THEME.color.text.white;
-  qrCtx.fillRect(0, 0, totalPx, totalPx);
-
-  var color = THEME.color.bg.card;
-  var inset = Math.max(0.5, cellPx * 0.03);
-  var radius = Math.max(1, cellPx * 0.15);
-
-  for (var row = 0; row < size; row++) {
-    for (var col = 0; col < size; col++) {
-      var idx = row * size + col;
-      var isDark = modules[idx] & 1;
-      if (!isDark) continue;
-
-      var x = col * cellPx;
-      var y = row * cellPx;
-      var s = cellPx;
-
-      var grad = qrCtx.createLinearGradient(x, y, x, y + s);
-      grad.addColorStop(0, lightenColor(color, 15));
-      grad.addColorStop(1, darkenColor(color, 10));
-
-      qrCtx.fillStyle = grad;
-      roundRect(qrCtx, x + inset, y + inset, s - inset * 2, s - inset * 2, radius);
-      qrCtx.fill();
-
-      qrCtx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-      qrCtx.fillRect(x + inset + radius, y + inset, s - inset * 2 - radius * 2, Math.max(1, s * 0.08));
-
-      qrCtx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-      qrCtx.fillRect(x + inset, y + inset + radius, Math.max(1, s * 0.07), s - inset * 2 - radius * 2);
-
-      qrCtx.fillStyle = 'rgba(0, 0, 0, 0.25)';
-      qrCtx.fillRect(x + inset + radius, y + s - inset - Math.max(1, s * 0.08), s - inset * 2 - radius * 2, Math.max(1, s * 0.08));
-
-      qrCtx.fillStyle = 'rgba(255, 255, 255, 0.12)';
-      var shineSize = s * 0.25;
-      qrCtx.fillRect(x + s * 0.25, y + s * 0.2, shineSize, shineSize * 0.5);
-    }
   }
 }

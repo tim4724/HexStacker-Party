@@ -10,6 +10,11 @@ var TSPIN_MINI_SCORES = constants.TSPIN_MINI_SCORES;
 var COMBO_TABLE = constants.COMBO_TABLE;
 var BACK_TO_BACK_MULTIPLIER = constants.BACK_TO_BACK_MULTIPLIER;
 
+/**
+ * Score calculator following the Tetris Guideline scoring system.
+ * Tracks score, lines cleared, combo count, back-to-back bonus state,
+ * and level progression (level = floor(lines/10) + 1).
+ */
 class Scoring {
   constructor() {
     this.score = 0;
@@ -18,6 +23,14 @@ class Scoring {
     this.backToBack = false;
   }
 
+  /**
+   * Calculate and apply score for a line clear event.
+   * @param {number} linesCleared - Number of lines cleared (0–4)
+   * @param {boolean} isTSpin - Whether a full T-spin was detected
+   * @param {boolean} isTSpinMini - Whether a T-spin mini was detected
+   * @returns {null|{ score: number, linesAdded: number, combo: number, backToBack: boolean, isTetris: boolean, isTSpin: boolean }}
+   *   null if no lines cleared and no T-spin; otherwise the scoring breakdown
+   */
   addLineClear(linesCleared, isTSpin, isTSpinMini) {
     if (linesCleared === 0 && !isTSpin && !isTSpinMini) return null;
 
