@@ -75,11 +75,7 @@ tests/       # Unit tests (node:test) and Playwright visual snapshots
 
 ## Configuration
 
-The display and controllers connect to a WebSocket relay (Party-Server) for message forwarding. By default this is `wss://ws.tetris.party`. To use a custom relay, set the `RELAY_URL` environment variable:
-
-```bash
-RELAY_URL=wss://your-relay.example.com node server/index.js
-```
+The display and controllers connect to a WebSocket relay (Party-Server) for message forwarding at `wss://ws.tetris.party`.
 
 ## Testing
 
