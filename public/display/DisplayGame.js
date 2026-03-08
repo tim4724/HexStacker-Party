@@ -216,6 +216,8 @@ function runGameLocally() {
         onPlayerKO(event);
         lastAliveState[event.playerId] = false;
         party.sendTo(event.playerId, { type: MSG.GAME_OVER });
+      } else if (event.type === 'garbage_cancelled') {
+        onGarbageCancelled(event);
       } else if (event.type === 'garbage_sent') {
         onGarbageSent(event);
       }
@@ -285,6 +287,28 @@ function onLineClear(msg) {
   animations.addLineClear(br.x, br.y, br.cellSize, msg.rows || [], isTetris, msg.isTSpin);
   if (msg.combo >= 2) {
     animations.addCombo(br.x + br.boardWidth / 2, br.y + br.boardHeight / 2 - 30, msg.combo);
+  }
+}
+
+function onGarbageCancelled(msg) {
+  // The pending garbage count is already reduced in the engine;
+  // broadcastTick will update the meter on the next frame.
+  // Clear stale indicator effects since garbage was defended.
+  var effects = garbageIndicatorEffects.get(msg.playerId);
+  if (effects && effects.length > 0) {
+    var remaining = msg.lines;
+    while (remaining > 0 && effects.length > 0) {
+      var last = effects[effects.length - 1];
+      if (last.lines <= remaining) {
+        remaining -= last.lines;
+        effects.pop();
+      } else {
+        last.lines -= remaining;
+        last.rowStart += remaining;
+        remaining = 0;
+      }
+    }
+    garbageIndicatorEffects.set(msg.playerId, effects);
   }
 }
 

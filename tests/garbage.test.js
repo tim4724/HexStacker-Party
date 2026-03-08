@@ -113,23 +113,23 @@ describe('GarbageManager - cancellation of incoming garbage', () => {
 });
 
 describe('GarbageManager - garbage distribution', () => {
-  test('garbage targets single opponent (lowest stack), not all', () => {
+  test('garbage targets opponent with lowest stack (strongest player)', () => {
     const mgr = makeManager('p1', 'p2', 'p3');
-    // p3 has the highest stack, so it should be targeted
-    const getStackHeight = (id) => (id === 'p3' ? 10 : 5);
+    // p2 has the lowest stack, so it should be targeted
+    const getStackHeight = (id) => (id === 'p3' ? 10 : 3);
     const { deliveries } = mgr.processLineClear('p1', 4, false, -1, false, getStackHeight);
 
     const p2Queue = mgr.queues.get('p2');
     const p3Queue = mgr.queues.get('p3');
     const p1Queue = mgr.queues.get('p1');
 
-    assert.strictEqual(p3Queue.length, 1, 'p3 (highest stack) should receive garbage');
-    assert.strictEqual(p2Queue.length, 0, 'p2 should not receive garbage');
+    assert.strictEqual(p2Queue.length, 1, 'p2 (lowest stack) should receive garbage');
+    assert.strictEqual(p3Queue.length, 0, 'p3 should not receive garbage');
     assert.strictEqual(p1Queue.length, 0, 'p1 (sender) should not receive own garbage');
     assert.strictEqual(deliveries.length, 1);
-    assert.strictEqual(deliveries[0].toId, 'p3');
+    assert.strictEqual(deliveries[0].toId, 'p2');
     assert.strictEqual(deliveries[0].lines, 4);
-    assert.strictEqual(p3Queue[0].senderId, 'p1', 'queued garbage should retain sender');
+    assert.strictEqual(p2Queue[0].senderId, 'p1', 'queued garbage should retain sender');
   });
 
   test('single clear sends no garbage to anyone', () => {
@@ -145,6 +145,27 @@ describe('GarbageManager - garbage distribution', () => {
     const { sent, cancelled } = mgr.processLineClear('p1', 0, false, -1, false);
     assert.strictEqual(sent, 0);
     assert.strictEqual(cancelled, 0);
+  });
+});
+
+describe('GarbageManager - target selection', () => {
+  test('garbage targets lowest stack when multiple opponents exist', () => {
+    const mgr = makeManager('p1', 'p2', 'p3', 'p4');
+    const getStackHeight = (id) => ({ p2: 8, p3: 2, p4: 12 })[id] || 0;
+    const { deliveries } = mgr.processLineClear('p1', 4, false, -1, false, getStackHeight);
+
+    assert.strictEqual(deliveries.length, 1);
+    assert.strictEqual(deliveries[0].toId, 'p3', 'should target p3 with lowest stack (2)');
+  });
+
+  test('garbage targets first opponent when stacks are equal', () => {
+    const mgr = makeManager('p1', 'p2', 'p3');
+    const getStackHeight = () => 5;
+    const { deliveries } = mgr.processLineClear('p1', 4, false, -1, false, getStackHeight);
+
+    assert.strictEqual(deliveries.length, 1);
+    // When equal, first non-sender in iteration order wins
+    assert.ok(deliveries[0].toId !== 'p1', 'should not target sender');
   });
 });
 

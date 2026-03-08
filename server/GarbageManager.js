@@ -103,12 +103,12 @@ class GarbageManager {
 
   _pickTarget(senderId, getStackHeight) {
     let bestId = null;
-    let bestHeight = -1;
+    let bestHeight = Infinity;
 
     for (const [playerId] of this.queues) {
       if (playerId === senderId) continue;
       const height = getStackHeight ? getStackHeight(playerId) : 0;
-      if (height > bestHeight) {
+      if (height < bestHeight) {
         bestHeight = height;
         bestId = playerId;
       }

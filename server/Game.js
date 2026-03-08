@@ -220,6 +220,13 @@ class Game {
       return b && b.alive ? b.getStackHeight() : -1;
     };
     const result = this.garbageManager.processLineClear(playerId, lines, isTSpin, combo, backToBack, getStackHeight);
+    if (result.cancelled > 0) {
+      this.callbacks.onEvent({
+        type: 'garbage_cancelled',
+        playerId,
+        lines: result.cancelled
+      });
+    }
     for (const d of result.deliveries) {
       this.callbacks.onEvent({
         type: 'garbage_sent',
