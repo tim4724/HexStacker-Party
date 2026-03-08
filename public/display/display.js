@@ -280,8 +280,9 @@ window.addEventListener('popstate', function(e) {
   }
   var target = e.state && e.state.screen;
   if (currentScreen === 'welcome' && target === 'lobby') {
-    connectAndCreateRoom();
-    showScreen('lobby');
+    // Prevent forward navigation to stale lobby
+    suppressPopstate = true;
+    history.back();
   } else if (currentScreen === 'lobby') {
     if (target === 'game') {
       suppressPopstate = true;
