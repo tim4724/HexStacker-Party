@@ -90,7 +90,7 @@ const THEME = Object.freeze({
     soft:      0.15,  // borders, soft accents
     highlight: 0.22,  // block top highlight
     shadow:    0.25,  // block bottom shadow
-    label:     0.5,   // panel labels, toolbar text
+    label:     0.6,   // panel labels, toolbar text
     strong:    0.7,   // prominent text
     overlay:   0.75,  // dark overlays
     panel:     0.9,   // card/panel backgrounds

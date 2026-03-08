@@ -22,7 +22,7 @@ html, body {
   position: fixed;
   inset: 0;
   background: var(--bg-primary);
-  color: white;
+  color: var(--text-primary);
   font-family: system-ui, -apple-system, sans-serif;
   overscroll-behavior: none;
 }
@@ -180,8 +180,8 @@ body.keyboard-open #name-form {
   padding: 14px 20px;
   border-radius: var(--radius-md);
   border: 1.5px solid var(--border);
-  background: rgba(18, 18, 42, 0.9);
-  color: #fff;
+  background: var(--bg-card);
+  color: var(--text-primary);
   font-family: 'Orbitron', sans-serif;
   font-size: clamp(1.1rem, 5vw, 1.4rem);
   font-weight: 700;
@@ -193,7 +193,7 @@ body.keyboard-open #name-form {
 }
 
 #name-input::placeholder {
-  color: rgba(106, 106, 136, 0.4);
+  color: var(--text-secondary);
   font-weight: 500;
   letter-spacing: 0.02em;
 }
@@ -252,7 +252,7 @@ body.keyboard-open #name-form {
   font-size: clamp(1rem, 4.5vw, 1.2rem);
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   text-align: center;
   line-height: 1.35;
   animation: fadeUp 0.5s 0.35s ease-out both;
@@ -272,7 +272,7 @@ body.keyboard-open #name-form {
 #status-detail,
 #name-status-detail {
   font-size: clamp(1rem, 4.5vw, 1.2rem);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   letter-spacing: 0.04em;
   animation: fadeUp 0.5s 0.25s ease-out both;
   text-align: center;
@@ -301,7 +301,7 @@ body.keyboard-open #name-form {
 
 #room-gone-detail {
   font-size: clamp(1rem, 4.5vw, 1.2rem);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   letter-spacing: 0.04em;
   text-align: center;
 }
@@ -399,7 +399,7 @@ body.keyboard-open #name-form {
   align-items: center;
   gap: 6px;
   color: color-mix(in srgb, var(--player-color, #888) 40%, white);
-  opacity: 0.25;
+  opacity: 0.35;
 }
 
 .compass-arrow span {
@@ -639,7 +639,7 @@ body.keyboard-open #name-form {
   flex-wrap: wrap;
   font-size: clamp(0.85rem, 4vw, 1.2rem);
   font-variant-numeric: tabular-nums;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   letter-spacing: 0.02em;
   width: 100%;
 }
@@ -672,8 +672,8 @@ body.keyboard-open #name-form {
 }
 
 #new-game-btn:active {
-  border-color: rgba(0, 200, 255, 0.5);
-  color: var(--text-cyan);
+  border-color: var(--text-primary);
+  color: var(--text-primary);
 }
 
 #gameover-status {
@@ -684,7 +684,7 @@ body.keyboard-open #name-form {
   padding: 0.8rem 1rem;
   font-size: clamp(1rem, 4.5vw, 1.2rem);
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   letter-spacing: 0.04em;
   text-align: center;
   line-height: 1.35;
@@ -713,9 +713,9 @@ body.keyboard-open #name-form {
   font-family: 'Orbitron', monospace;
   opacity: 0.5;
 }
-.ping-good { color: #66bb6a; }
-.ping-ok { color: #ffa726; }
-.ping-bad { color: #e74856; }
+.ping-good { color: var(--ping-good); }
+.ping-ok { color: var(--ping-ok); }
+.ping-bad { color: var(--ping-bad); }
 
 
 /* Mute button */
@@ -723,9 +723,6 @@ body.keyboard-open #name-form {
   margin-left: auto;
 }
 
-#mute-btn.muted {
-  color: rgba(255, 255, 255, 0.25);
-}
 
 /* Game overlay overrides (controller-specific) */
 
@@ -743,8 +740,8 @@ body.keyboard-open #name-form {
 }
 
 #pause-newgame-btn:active {
-  border-color: rgba(0, 200, 255, 0.5);
-  color: var(--text-cyan);
+  border-color: var(--text-primary);
+  color: var(--text-primary);
 }
 
 /* Countdown state — neutral touch area, no player color */

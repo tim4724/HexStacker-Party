@@ -87,7 +87,7 @@ class UIRenderer {
       const lvlSize = Math.max(9, this.cellSize * THEME.font.cellScale.label);
       ctx.font = `700 ${lvlSize}px ${getDisplayFont()}`;
       ctx.textAlign = 'right';
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.label})`;
       ctx.fillText(`Level ${playerState.level}`, this.boardX + this.boardWidth - 2, nameY - 2);
     }
   }
@@ -193,7 +193,7 @@ class UIRenderer {
     // Lines count
     const smallSize = Math.max(9, this.cellSize * THEME.font.cellScale.label);
     ctx.font = `500 ${smallSize}px ${getDisplayFont()}`;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.label})`;
     const statsY = panelY + scoreSize + Math.max(4, this.cellSize * 0.15);
     ctx.fillText(
       `${playerState.lines || 0} LINES`,
@@ -224,12 +224,12 @@ class UIRenderer {
       const by = y + inset;
       const bw = meter.cellSize - inset * 2;
       const bh = meter.cellSize - inset * 2;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+      ctx.strokeStyle = `rgba(255, 255, 255, ${THEME.opacity.label})`;
       ctx.lineWidth = THEME.stroke.ghost;
       ctx.setLineDash([3, 3]);
       ctx.strokeRect(bx, by, bw, bh);
       ctx.setLineDash([]);
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.muted})`;
       ctx.fillRect(bx, by, bw, bh);
     }
   }
@@ -317,7 +317,7 @@ class UIRenderer {
       ctx.fill();
 
       // Top highlight
-      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.highlight})`;
       ctx.fillRect(dx + inset + r, dy + inset, size - inset * 2 - r * 2, 1);
     }
   }

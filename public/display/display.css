@@ -67,7 +67,7 @@ html, body {
 }
 
 #version-label {
-  color: rgba(224, 224, 255, 0.15);
+  color: var(--text-secondary);
   font-family: system-ui, -apple-system, sans-serif;
   font-size: clamp(11px, 1.2vw, 13px);
   font-weight: 500;
@@ -78,7 +78,7 @@ html, body {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: rgba(224, 224, 255, 0.2);
+  color: var(--text-secondary);
   font-family: system-ui, -apple-system, sans-serif;
   font-size: clamp(11px, 1.2vw, 13px);
   font-weight: 500;
@@ -88,7 +88,7 @@ html, body {
 }
 
 #github-link:hover {
-  color: rgba(224, 224, 255, 0.5);
+  color: var(--text-secondary);
   filter: drop-shadow(0 0 6px rgba(0, 200, 255, 0.2));
 }
 
@@ -165,10 +165,9 @@ html, body {
 
 .player-card.empty {
   background: transparent;
-  border: 2px dashed rgba(255, 255, 255, 0.1);
+  border: 2px dashed var(--text-secondary);
   box-shadow: none;
   color: var(--text-secondary);
-  opacity: 0.35;
 }
 
 @keyframes slotPopIn {
@@ -447,7 +446,7 @@ html, body {
 
 #mobile-hint-detail {
   font-size: clamp(1rem, 4.5vw, 1.2rem);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   letter-spacing: 0.04em;
   line-height: 1.5;
   max-width: 28ch;
