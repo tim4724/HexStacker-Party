@@ -107,6 +107,7 @@ function returnToLobby() {
   // Clear countdown state
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
   if (goTimeout) { clearTimeout(goTimeout); goTimeout = null; }
+  if (goOverlayTimer) { clearTimeout(goOverlayTimer); goOverlayTimer = null; }
   graceTimers.forEach(clearTimeout);
   graceTimers.clear();
   countdownCallback = null;
@@ -179,10 +180,12 @@ function stopDisplayGame() {
     clearTimeout(entry[1]);
   }
   softDropTimers.clear();
-  clearTimeout(countdownTimer);
+  clearInterval(countdownTimer);
   clearTimeout(goTimeout);
+  clearTimeout(goOverlayTimer);
   countdownTimer = null;
   goTimeout = null;
+  goOverlayTimer = null;
 }
 
 function runGameLocally() {
@@ -263,7 +266,8 @@ function onCountdownDisplay(value) {
       music.start();
       if (muted) music.masterGain.gain.setValueAtTime(0, music.ctx.currentTime);
     }
-    setTimeout(function() {
+    goOverlayTimer = setTimeout(function() {
+      goOverlayTimer = null;
       countdownOverlay.classList.add('hidden');
       countdownOverlay.textContent = '';
     }, 400);

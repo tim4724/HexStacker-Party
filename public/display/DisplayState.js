@@ -54,6 +54,7 @@ var countdownTimer = null;
 var countdownRemaining = 0;
 var countdownCallback = null;
 var goTimeout = null;
+var goOverlayTimer = null;
 
 // Soft drop auto-timeout
 var softDropTimers = new Map();
