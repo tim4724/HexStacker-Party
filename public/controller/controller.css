@@ -6,7 +6,6 @@
 
 :root {
   --app-height: 100dvh;
-  --keyboard-inset: 0px;
 }
 
 html, body {
@@ -31,7 +30,7 @@ html, body {
   position: fixed;
   inset: 0;
   width: 100%;
-  height: var(--app-height);
+  height: 100%;
   pointer-events: none;
 }
 
@@ -50,7 +49,7 @@ html, body {
 
 .controller-shell {
   padding:
-    calc(max(env(safe-area-inset-top), 8px) + 64px)
+    max(env(safe-area-inset-top), 8px)
     12px
     calc(env(safe-area-inset-bottom) + 16px);
   background:
@@ -65,7 +64,7 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
+  justify-content: center;
 }
 
 .controller-shell__brand {
@@ -83,18 +82,13 @@ html, body {
 
 .controller-shell__body {
   width: 100%;
-  flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 18px;
-}
-
-.controller-shell__body--results {
-  justify-content: flex-start;
-  gap: 18px;
+  margin-top: 28px;
 }
 
 .controller-shell__copy {
@@ -108,20 +102,16 @@ html, body {
 
 .controller-shell__actions {
   width: 100%;
+  max-width: 280px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   align-items: stretch;
-  margin-top: auto;
-}
-
-.controller-shell__actions--name {
-  padding-top: 8px;
+  margin-top: 14px;
 }
 
 #lobby-screen.controller-shell {
   padding-top: 0;
-  justify-content: flex-start;
 }
 
 #lobby-top-bar {
@@ -137,6 +127,7 @@ html, body {
 .controller-shell__frame--lobby {
   flex: 1;
   height: auto;
+  justify-content: center;
 }
 
 .icon-btn {
@@ -144,23 +135,6 @@ html, body {
   height: 56px;
 }
 
-body.keyboard-open .controller-shell__frame--name {
-  gap: 16px;
-}
-
-body.keyboard-open .controller-shell__body {
-  justify-content: flex-end;
-  padding-bottom: clamp(12px, 3vh, 28px);
-}
-
-body.keyboard-open .controller-shell__actions--name {
-  margin-top: 0;
-  padding-top: 0;
-}
-
-body.keyboard-open #name-form {
-  max-width: 100%;
-}
 
 .hidden {
   display: none !important;
@@ -253,6 +227,7 @@ body.keyboard-open #name-form {
   font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--text-secondary);
+  white-space: nowrap;
   text-align: center;
   line-height: 1.35;
   animation: fadeUp 0.5s 0.35s ease-out both;
@@ -645,7 +620,8 @@ body.keyboard-open #name-form {
 }
 
 #gameover-actions {
-  margin-top: auto;
+  max-width: 280px;
+  margin-top: 24px;
 }
 
 #gameover-buttons {

@@ -36,8 +36,8 @@ test.describe('Controller', () => {
     await waitForFont(controller);
     await controller.fill('#name-input', 'Player 1');
     await controller.focus('#name-input');
+    // Simulate reduced viewport height when soft keyboard is open
     await controller.evaluate(() => {
-      document.body.classList.add('keyboard-open');
       document.documentElement.style.setProperty('--app-height', '544px');
     });
     await expect(controller).toHaveScreenshot('01b-name-keyboard.png');
@@ -63,6 +63,12 @@ test.describe('Controller', () => {
     // Start game via host
     await host.click('#start-btn');
     await waitForControllerGame(host);
+    // Freeze ping to placeholder to avoid flaky diffs (override global-scope function)
+    await host.evaluate(() => {
+      window.updatePingDisplay = function() {};
+      const ping = document.getElementById('ping-display');
+      if (ping) { ping.textContent = '-- ms'; ping.className = 'ping-display'; }
+    });
     await expect(host).toHaveScreenshot('05-game-host.png');
   });
 
@@ -72,10 +78,11 @@ test.describe('Controller', () => {
     const host = controllers[0];
     await host.click('#start-btn');
     await waitForControllerGame(nonHost);
-    // Hide ping display to avoid flaky diffs from varying latency values
+    // Freeze ping to placeholder to avoid flaky diffs (override global-scope function)
     await nonHost.evaluate(() => {
+      window.updatePingDisplay = function() {};
       const ping = document.getElementById('ping-display');
-      if (ping) ping.style.visibility = 'hidden';
+      if (ping) { ping.textContent = '-- ms'; ping.className = 'ping-display'; }
     });
     await expect(nonHost).toHaveScreenshot('06-game-nonhost.png');
   });
