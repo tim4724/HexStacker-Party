@@ -63,6 +63,12 @@ test.describe('Controller', () => {
     // Start game via host
     await host.click('#start-btn');
     await waitForControllerGame(host);
+    // Freeze ping to placeholder to avoid flaky diffs
+    await host.evaluate(() => {
+      window.updatePingDisplay = function() {};
+      const ping = document.getElementById('ping-display');
+      if (ping) { ping.textContent = '-- ms'; ping.className = 'ping-display'; }
+    });
     await expect(host).toHaveScreenshot('05-game-host.png');
   });
 
@@ -72,10 +78,11 @@ test.describe('Controller', () => {
     const host = controllers[0];
     await host.click('#start-btn');
     await waitForControllerGame(nonHost);
-    // Hide ping display to avoid flaky diffs from varying latency values
+    // Freeze ping to placeholder to avoid flaky diffs from varying latency values
     await nonHost.evaluate(() => {
+      window.updatePingDisplay = function() {};
       const ping = document.getElementById('ping-display');
-      if (ping) ping.style.visibility = 'hidden';
+      if (ping) { ping.textContent = '-- ms'; ping.className = 'ping-display'; }
     });
     await expect(nonHost).toHaveScreenshot('06-game-nonhost.png');
   });

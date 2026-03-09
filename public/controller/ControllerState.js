@@ -64,17 +64,11 @@ function getViewportMetrics() {
 
 function syncViewportLayout() {
   var metrics = getViewportMetrics();
-  var keyboardInset = Math.max(0, window.innerHeight - metrics.height - metrics.offsetTop);
-  var keyboardOpen = keyboardInset > 120
-    && currentScreen === 'name'
-    && document.activeElement === nameInput;
 
   document.documentElement.style.setProperty('--app-height', metrics.height + 'px');
-  document.documentElement.style.setProperty('--keyboard-inset', keyboardInset + 'px');
-  document.body.classList.toggle('keyboard-open', keyboardOpen);
 
   if (welcomeBg) {
-    welcomeBg.resize(metrics.width, metrics.height);
+    welcomeBg.resize(window.innerWidth, window.innerHeight);
   }
 }
 
