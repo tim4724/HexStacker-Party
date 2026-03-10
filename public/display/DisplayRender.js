@@ -28,10 +28,25 @@ function renderLoop(timestamp) {
   // Drive game physics from RAF
   if (displayGame && roomState === ROOM_STATE.PLAYING && !paused) {
     var deltaMs = prevFrameTime ? Math.min(timestamp - prevFrameTime, 50) : 0;
-    if (deltaMs > 0) {
-      displayGame.update(deltaMs);
+    try {
+      if (deltaMs > 0) {
+        displayGame.update(deltaMs);
+      }
+      gameState = displayGame.getSnapshot();
+    } catch (err) {
+      console.error('Game engine error:', err);
+      displayGame.ended = true;
+      var results = displayGame.getResults();
+      displayGame = null;
+      prevFrameTime = 0;
+      if (results) {
+        setRoomState(ROOM_STATE.RESULTS);
+        lastResults = results;
+        party.broadcast({ type: MSG.GAME_END, elapsed: results.elapsed, results: results.results });
+        onGameEnd(results);
+      }
+      return;
     }
-    gameState = displayGame.getSnapshot();
 
     // Recalculate layout if player count changed
     if (gameState.players && boardRenderers.length !== gameState.players.length) {

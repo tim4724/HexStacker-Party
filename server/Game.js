@@ -45,6 +45,7 @@ class Game {
 
   start() {
     this.init();
+    // Flag so resume() knows to restart the interval (not needed for RAF-driven path via init())
     this._usesInterval = true;
     this.logicInterval = setInterval(() => this._safeTick(), LOGIC_TICK_MS);
   }
