@@ -158,6 +158,8 @@ function returnToLobby() {
 function returnToLobbyUI() {
   var wasInGame = currentScreen === SCREEN.GAME || currentScreen === SCREEN.RESULTS;
   gameState = null;
+  prevFrameTime = 0;
+  lastRelayTime = 0;
   disconnectedQRs.clear();
   garbageIndicatorEffects.clear();
   garbageDefenceEffects.clear();
@@ -176,7 +178,6 @@ function returnToLobbyUI() {
 
 function stopDisplayGame() {
   if (displayGame) {
-    displayGame.stop();
     displayGame = null;
   }
   for (const entry of softDropTimers) {
@@ -201,20 +202,6 @@ function runGameLocally() {
   var seed = (Math.random() * 0xFFFFFFFF) >>> 0;
 
   displayGame = new Game(gamePlayers, {
-    onGameState: function(state) {
-      onGameState(state);
-      // Relay per-player state to controllers
-      if (state.players) {
-        for (var k = 0; k < state.players.length; k++) {
-          var p = state.players[k];
-          party.sendTo(p.id, {
-            type: MSG.PLAYER_STATE,
-            score: p.score, level: p.level, lines: p.lines,
-            alive: p.alive, garbageIncoming: p.pendingGarbage || 0
-          });
-        }
-      }
-    },
     onEvent: function(event) {
       if (event.type === 'line_clear') {
         onLineClear(event);
@@ -244,7 +231,7 @@ function runGameLocally() {
     }
   }, seed);
 
-  displayGame.start();
+  displayGame.init();
 }
 
 // =====================================================================
@@ -270,18 +257,6 @@ function onCountdownDisplay(value) {
       countdownOverlay.classList.add('hidden');
       countdownOverlay.textContent = '';
     }, 400);
-  }
-}
-
-function onGameState(msg) {
-  gameState = msg;
-  // playerOrder is snapshotted at game start — no dynamic pushes mid-game
-  if (msg.players && boardRenderers.length !== msg.players.length) {
-    calculateLayout();
-  }
-  if (music && music.playing && msg.players && msg.players.length > 0) {
-    var maxLevel = Math.max.apply(null, msg.players.map(function(p) { return p.level || 1; }));
-    music.setSpeed(maxLevel);
   }
 }
 
@@ -380,6 +355,8 @@ function onPlayerKO(msg) {
 function onGameEnd(msg) {
   if (music) music.stop();
   stopDisplayGame();
+  prevFrameTime = 0;
+  lastRelayTime = 0;
   disconnectedQRs.clear();
   garbageIndicatorEffects.clear();
   garbageDefenceEffects.clear();

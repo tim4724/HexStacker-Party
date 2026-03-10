@@ -19,11 +19,51 @@ function stopRenderLoop() {
   }
 }
 
+function relayStateToControllers(state) {
+  if (!state || !state.players || !party) return;
+  for (var k = 0; k < state.players.length; k++) {
+    var p = state.players[k];
+    party.sendTo(p.id, {
+      type: MSG.PLAYER_STATE,
+      score: p.score, level: p.level, lines: p.lines,
+      alive: p.alive, garbageIncoming: p.pendingGarbage || 0
+    });
+  }
+}
+
 function renderLoop(timestamp) {
   if (rafId == null) return;
   rafId = requestAnimationFrame(renderLoop);
 
   if ((currentScreen !== SCREEN.GAME && currentScreen !== SCREEN.RESULTS) || !ctx) return;
+
+  // Drive game physics from RAF
+  if (displayGame && roomState === ROOM_STATE.PLAYING && !paused) {
+    var deltaMs = prevFrameTime ? Math.min(timestamp - prevFrameTime, 50) : 0;
+    if (deltaMs > 0) {
+      displayGame.update(deltaMs);
+    }
+    gameState = displayGame.getSnapshot();
+
+    // Recalculate layout if player count changed
+    if (gameState.players && boardRenderers.length !== gameState.players.length) {
+      calculateLayout();
+    }
+    // Update music speed
+    if (music && music.playing && gameState.players && gameState.players.length > 0) {
+      var maxLevel = Math.max.apply(null, gameState.players.map(function(p) { return p.level || 1; }));
+      music.setSpeed(maxLevel);
+    }
+
+    // Throttle controller relay to ~15Hz
+    if (timestamp - lastRelayTime >= 66) {
+      relayStateToControllers(gameState);
+      lastRelayTime = timestamp;
+    }
+    prevFrameTime = timestamp;
+  } else {
+    prevFrameTime = 0;
+  }
 
   // Throttle to ~4fps when paused/results with no active animations
   var hasAnimations = animations && animations.active.length > 0;
