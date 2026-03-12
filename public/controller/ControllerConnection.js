@@ -122,14 +122,11 @@ function performDisconnect() {
     party.close();
     party = null;
   }
-  sessionStorage.removeItem('clientId_' + roomCode);
   var params = new URLSearchParams(location.search);
   params.delete('rejoin');
   var qs = params.toString();
   history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
   rejoinId = null;
-  clientId = generateClientId();
-  sessionStorage.setItem('clientId_' + roomCode, clientId);
   playerColor = null;
   isHost = false;
   gameCancelled = false;
