@@ -124,6 +124,11 @@ const server = http.createServer((req, res) => {
   }
 
 
+  // Serve SVG favicon for /favicon.ico requests
+  if (urlPath === '/favicon.ico') {
+    urlPath = '/favicon.svg';
+  }
+
   // Map directory paths to index.html
   if (urlPath === '/') {
     urlPath = '/display/index.html';
