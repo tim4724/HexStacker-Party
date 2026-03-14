@@ -6,6 +6,22 @@
 // Called by: display.js (message handlers and UI buttons)
 // =====================================================================
 
+// Wake Lock — prevent screen sleep during active games
+function acquireWakeLock() {
+  if (!navigator.wakeLock) return;
+  navigator.wakeLock.request('screen').then(function(lock) {
+    wakeLock = lock;
+    lock.addEventListener('release', function() { wakeLock = null; });
+  }).catch(function() {});
+}
+
+function releaseWakeLock() {
+  if (wakeLock) {
+    wakeLock.release().catch(function() {});
+    wakeLock = null;
+  }
+}
+
 function startGame() {
   if (roomState !== ROOM_STATE.LOBBY) return;
   if (players.size < 1) return;
@@ -23,6 +39,7 @@ function startNewGame() {
   lastResults = null;
   lastAliveState = {};
   setRoomState(ROOM_STATE.COUNTDOWN);
+  acquireWakeLock();
 
   startCountdown(function() {
     setRoomState(ROOM_STATE.PLAYING);
@@ -115,6 +132,7 @@ function returnToLobby() {
   countdownCallback = null;
   countdownRemaining = 0;
   paused = false;
+  releaseWakeLock();
 
   if (music) music.stop();
   stopDisplayGame();
@@ -363,6 +381,7 @@ function onPlayerKO(msg) {
 
 function onGameEnd(msg) {
   if (music) music.stop();
+  releaseWakeLock();
   stopDisplayGame();
   prevFrameTime = 0;
   disconnectedQRs.clear();

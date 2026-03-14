@@ -92,6 +92,9 @@ var muted = localStorage.getItem('tetris_muted') === '1';
 // Render loop RAF handle (for stop/start)
 var rafId = null;
 
+// Wake Lock — prevents screen sleep during active games
+var wakeLock = null;
+
 // RAF-driven game loop timing
 var prevFrameTime = 0;
 

@@ -12,6 +12,7 @@
 // =====================================================================
 
 function resetToWelcome() {
+  releaseWakeLock();
   if (party) {
     party.close();
     party = null;
@@ -121,6 +122,14 @@ if (new URLSearchParams(window.location.search).get('test') === '1') {
 window.addEventListener('resize', function() {
   resizeCanvas();
   if (welcomeBg) welcomeBg.resize(window.innerWidth, window.innerHeight);
+});
+
+// --- Re-acquire Wake Lock on tab focus (browser releases it on visibility change) ---
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible' && !wakeLock &&
+      (roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN)) {
+    acquireWakeLock();
+  }
 });
 
 // --- Mobile Hint ---
