@@ -71,11 +71,9 @@ function calculateLayout() {
 }
 
 // --- Lobby UI ---
-var PLACEHOLDER_SLOTS = 4;  // Always show 4 placeholders in lobby
-
 function updatePlayerList() {
-  // Determine how many cards we need: at least PLACEHOLDER_SLOTS, or more if players exceed that
-  var totalSlots = Math.max(PLACEHOLDER_SLOTS, GameConstants.MAX_PLAYERS);
+  var placeholderSlots = window.innerWidth >= 2400 ? 8 : 4;
+  var totalSlots = Math.max(placeholderSlots, GameConstants.MAX_PLAYERS);
 
   // Ensure we have enough card elements
   while (playerListEl.children.length < totalSlots) {
@@ -93,7 +91,7 @@ function updatePlayerList() {
   for (const entry of players) {
     if (entry[1].playerIndex > highestOccupied) highestOccupied = entry[1].playerIndex;
   }
-  var visibleSlots = Math.max(PLACEHOLDER_SLOTS, highestOccupied + 1);
+  var visibleSlots = Math.max(placeholderSlots, highestOccupied + 1);
 
   for (var j = 0; j < totalSlots; j++) {
     var card = playerListEl.children[j];

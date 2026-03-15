@@ -271,6 +271,10 @@ function onCountdownDisplay(value) {
     history.pushState({ screen: 'game' }, '');
   }
   showScreen(SCREEN.GAME);
+  clearTimeout(cursorTimer);
+  cursorTimer = null;
+  document.body.classList.add('cursor-hidden');
+  gameToolbar.classList.add('toolbar-autohide');
   countdownOverlay.classList.remove('hidden');
   countdownOverlay.textContent = value;
   playCountdownBeep(value === 'GO');

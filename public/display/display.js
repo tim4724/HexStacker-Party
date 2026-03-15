@@ -126,6 +126,7 @@ if (new URLSearchParams(window.location.search).get('test') === '1') {
 window.addEventListener('resize', function() {
   resizeCanvas();
   if (welcomeBg) welcomeBg.resize(window.innerWidth, window.innerHeight);
+  if (currentScreen === SCREEN.LOBBY) updatePlayerList();
 });
 
 // --- Re-acquire Wake Lock on tab focus (browser releases it on visibility change) ---

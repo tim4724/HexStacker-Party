@@ -62,6 +62,23 @@ test.describe('Display', () => {
     });
   });
 
+  test('lobby screen - wide (8 slots)', async ({ page }) => {
+    await page.setViewportSize({ width: 2560, height: 1440 });
+    await gotoDisplayTest(page);
+    await page.evaluate(() => {
+      document.getElementById('join-url').textContent = 'http://localhost:4100/TEST';
+      document.getElementById('lobby-screen').classList.remove('hidden');
+      document.getElementById('welcome-screen').classList.add('hidden');
+    });
+    await injectPlayers(page, 3);
+    await page.waitForTimeout(200);
+    await stopDisplayBackground(page);
+    await expect(page).toHaveScreenshot('04b-lobby-wide.png', {
+      mask: [page.locator('#qr-container')],
+      maxDiffPixelRatio: 0.02,
+    });
+  });
+
   test('game screen - 1 player', async ({ page }) => {
     await gotoDisplayTest(page);
     await injectPlayers(page, 1);
