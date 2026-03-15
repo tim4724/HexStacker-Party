@@ -8,7 +8,7 @@ Browser-based multiplayer Tetris where phones become controllers and a shared sc
 
 ## Overview
 
-Tetris Party supports 1 to 8 players on a single shared display. One browser window acts as the game screen (TV, monitor, or laptop), while each player joins by scanning a QR code with their phone. The phone becomes a touch-based controller with gesture input and haptic feedback. The display client runs the authoritative game engine at 60 Hz, communicating with controllers through a lightweight WebSocket relay.
+Tetris Party supports 1 to 8 players on a single shared display. One browser window acts as the game screen (TV, monitor, or laptop), while each player joins by scanning a QR code with their phone. The phone becomes a touch-based controller with gesture input and haptic feedback. The display client runs the authoritative game engine, communicating with controllers through a lightweight WebSocket relay.
 
 ## Architecture
 
@@ -20,12 +20,12 @@ graph LR
     R -- game events --> P
 ```
 
-The display browser runs the game engine and renders all player boards. Controllers send input through a [Party-Sockets](https://github.com/tim4724/Party-Sockets) WebSocket relay. The Node.js server only serves static files and a QR code API. Since the display client is the game authority, there is no server-side validation of game outcomes -- this is an accepted trade-off for a local party game.
+The display browser runs the game engine and renders all player boards. Controllers send input through a [Party-Sockets](https://github.com/tim4724/Party-Sockets) WebSocket relay. The Node.js server only serves static files and a QR code API.
 
 ## Features
 
-- 1--8 players on one screen
-- QR code join -- scan and play, no app install
+- 1–8 players on one screen
+- QR code join – scan and play, no app install
 - Touch gesture controls with haptic feedback
 - Competitive mode with garbage lines
 - SRS rotation with wall kicks and T-spin detection
@@ -38,17 +38,10 @@ npm install
 node server/index.js
 ```
 
-1. Open `http://localhost:4000` on a big screen (TV, monitor, or projector).
-2. Scan the QR code shown on the display with your phone.
-3. Once players have joined, the host starts the game from their phone.
-
-## How to Play
-
-1. **Set up the display.** Open the display URL in a browser on a large screen visible to all players.
-2. **Join the game.** Each player scans the QR code with their phone. The phone browser opens a controller page automatically.
-3. **Start.** The first player to join is the host. The host starts the match from their phone. A 3-second countdown begins.
-4. **Play.** Use touch gestures on your phone to control your falling pieces. Your board is shown on the shared display alongside other players.
-5. **Win.** The last player standing wins.
+1. Open `http://localhost:4000` on a big screen.
+2. Players scan the QR code with their phones to join.
+3. The first player to join is the host and starts the game.
+4. Use touch gestures on your phone to control pieces. Last player standing wins.
 
 ## Controller Gestures
 
@@ -76,7 +69,14 @@ banner/      # GitHub banner/preview image generator (Playwright)
 
 ## Configuration
 
-The display and controllers connect to a WebSocket relay (Party-Server) for message forwarding at `wss://ws.tetris.party`.
+The display and controllers connect to a [Party-Sockets](https://github.com/tim4724/Party-Sockets) WebSocket relay for message forwarding. The relay URL is set in `public/shared/protocol.js` (default: `wss://ws.tetris.party`). If you run your own relay, update this value and the CSP `connect-src` directive in `server/index.js`.
+
+| Environment Variable | Default | Description |
+|---|---|---|
+| `PORT` | `4000` | HTTP server port |
+| `BASE_URL` | Auto-detected LAN IP | Base URL for join links and QR codes |
+| `APP_ENV` | `development` | Set to `production` for production mode |
+| `GIT_SHA` | – | Git commit SHA shown in version endpoint |
 
 ## Testing
 
