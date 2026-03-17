@@ -85,6 +85,11 @@ function updatePlayerList() {
     var idx = playerListEl.children.length;
     name.textContent = 'P' + (idx + 1);
     card.appendChild(name);
+    var ph = document.createElement('div');
+    ph.className = 'level-controls level-placeholder';
+    ph.setAttribute('aria-hidden', 'true');
+    ph.innerHTML = '<span class="level-heading">Level</span><span class="level-btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/></svg></span><span class="level-label">1</span><span class="level-btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/><line x1="7" y1="2" x2="7" y2="12"/></svg></span>';
+    card.appendChild(ph);
     slot.appendChild(card);
     playerListEl.appendChild(slot);
   }
@@ -128,13 +133,16 @@ function updatePlayerList() {
         void card.offsetWidth;
         card.classList.add('join-pop');
       }
-      // Level controls below card
-      var levelCtrl = slot.querySelector('.level-controls');
+      // Remove placeholder if present
+      var ph = card.querySelector('.level-placeholder');
+      if (ph) ph.remove();
+      // Level controls inside card
+      var levelCtrl = card.querySelector('.level-controls');
       if (!levelCtrl) {
         levelCtrl = document.createElement('div');
         levelCtrl.className = 'level-controls';
-        levelCtrl.innerHTML = '<span class="level-heading">Level</span><button class="level-btn level-minus" aria-label="Decrease level">&minus;</button><span class="level-label"></span><button class="level-btn level-plus" aria-label="Increase level">+</button>';
-        slot.appendChild(levelCtrl);
+        levelCtrl.innerHTML = '<span class="level-heading">Level</span><button class="level-btn level-minus" aria-label="Decrease level"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/></svg></button><span class="level-label"></span><button class="level-btn level-plus" aria-label="Increase level"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/><line x1="7" y1="2" x2="7" y2="12"/></svg></button>';
+        card.appendChild(levelCtrl);
       }
       var lvl = info.startLevel || 1;
       levelCtrl.querySelector('.level-label').textContent = lvl;
@@ -147,8 +155,16 @@ function updatePlayerList() {
       card.classList.remove('join-pop');
       delete card.dataset.playerId;
       delete slot.dataset.playerId;
-      var levelCtrl = slot.querySelector('.level-controls');
+      var levelCtrl = card.querySelector('.level-controls');
       if (levelCtrl) levelCtrl.remove();
+      // Add placeholder level row so empty cards match filled card height
+      if (!card.querySelector('.level-placeholder')) {
+        var ph = document.createElement('div');
+        ph.className = 'level-controls level-placeholder';
+        ph.setAttribute('aria-hidden', 'true');
+        ph.innerHTML = '<span class="level-heading">Level</span><span class="level-btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/></svg></span><span class="level-label">1</span><span class="level-btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/><line x1="7" y1="2" x2="7" y2="12"/></svg></span>';
+        card.appendChild(ph);
+      }
     }
   }
 }

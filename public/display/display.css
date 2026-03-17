@@ -150,16 +150,20 @@ html, body {
 }
 
 #player-list {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, auto);
   gap: clamp(0.6rem, 1.2vw, 1.2rem);
   justify-content: center;
+  justify-items: center;
   margin-top: auto;
   min-height: clamp(50px, 8vh, 90px);
   animation: fadeIn 0.4s 0.3s ease-out both;
 }
 
 .player-card {
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(6px, 1vh, 10px);
   justify-content: center;
   padding: clamp(0.6rem, 1.2vh, 1rem) clamp(1.2rem, 2vw, 2.2rem);
   font-size: clamp(0.9rem, 2vh, 1.4rem);
@@ -171,6 +175,12 @@ html, body {
   border: 2px dashed var(--text-secondary);
   box-shadow: none;
   color: var(--text-secondary);
+}
+
+.player-card.empty .level-placeholder {
+  opacity: 0.45;
+  pointer-events: none;
+  border-top-color: var(--text-secondary);
 }
 
 @keyframes slotPopIn {
@@ -188,13 +198,16 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(0.3rem, 0.6vh, 0.5rem);
 }
 
 .level-controls {
   display: flex;
   align-items: center;
   gap: clamp(0.25rem, 0.5vw, 0.4rem);
+  padding-top: clamp(4px, 0.8vh, 8px);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  width: 100%;
+  justify-content: center;
 }
 
 .level-heading {
@@ -211,20 +224,19 @@ html, body {
   font-size: clamp(0.9rem, 2vh, 1.4rem);
   font-weight: 700;
   color: var(--text-primary);
-  min-width: 1.2em;
+  min-width: 2em;
   text-align: center;
 }
 
 .level-btn {
-  width: clamp(1.8em, 3.6vh, 2.8em);
-  height: clamp(1.8em, 3.6vh, 2.8em);
+  width: clamp(24px, 3.6vh, 36px);
+  height: clamp(24px, 3.6vh, 36px);
   border: none;
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
-  font-family: 'Orbitron', sans-serif;
-  font-size: clamp(0.8rem, 1.8vh, 1.2rem);
-  font-weight: 700;
+  font-size: 0;
+  padding: 0;
   cursor: pointer;
   display: flex;
   align-items: center;
