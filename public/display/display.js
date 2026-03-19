@@ -63,7 +63,8 @@ showCursor();
 // =====================================================================
 
 var urlParams = new URLSearchParams(window.location.search);
-if (urlParams.get('test') === '1' || urlParams.get('debug')) {
+var debugCount = parseInt(urlParams.get('debug'), 10);
+if (urlParams.get('test') === '1' || debugCount > 0) {
   window.__TEST__ = {
     addPlayers: function(playerList) {
       for (var i = 0; i < playerList.length; i++) {
@@ -271,7 +272,6 @@ if (bgCanvas) {
 }
 
 // --- Debug mode: ?debug=N auto-injects N players with game boards ---
-var debugCount = parseInt(urlParams.get('debug'), 10);
 if (debugCount > 0 && window.__TEST__) {
   var debugNames = ['Emma', 'Jake', 'Sofia', 'Liam', 'Mia', 'Noah', 'Ava', 'Leo'];
   var debugPlayers = [];
