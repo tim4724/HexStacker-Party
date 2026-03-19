@@ -303,7 +303,7 @@ function onLineClear(msg) {
   var isTetris = msg.lines === 4;
   animations.addLineClear(br.x, br.y, br.cellSize, msg.rows || [], isTetris, msg.isTSpin);
   if (msg.combo >= 2) {
-    animations.addCombo(br.x + br.boardWidth / 2, br.y + br.boardHeight / 2 - 30, msg.combo);
+    animations.addCombo(br.x + br.boardWidth / 2, br.y + br.boardHeight / 2 - br.cellSize, msg.combo, br.cellSize);
   }
 }
 
@@ -384,7 +384,7 @@ function onPlayerKO(msg) {
   var idx = playerOrder.indexOf(msg.playerId);
   if (idx < 0 || !boardRenderers[idx]) return;
   var br = boardRenderers[idx];
-  animations.addKO(br.x, br.y, br.boardWidth, br.boardHeight);
+  animations.addKO(br.x, br.y, br.boardWidth, br.boardHeight, br.cellSize);
 }
 
 function onGameEnd(msg) {

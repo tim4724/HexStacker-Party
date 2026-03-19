@@ -15,40 +15,52 @@ function calculateLayout() {
   var h = window.innerHeight;
   var padding = THEME.size.canvasPad;
   var totalCellsWide = GameConstants.BOARD_WIDTH + 3 + 3;
-  var totalCellsTall = GameConstants.VISIBLE_HEIGHT + 3.6;
+  var boardRows = GameConstants.VISIBLE_HEIGHT;
+  // Gaps scale with cellSize to stay proportional at all zoom levels
+  function nameGap(cs) { return cs * 0.6; }
+  function scoreGap(cs) { return cs * 0.7; }
+  var font = getDisplayFont();
+
+  function measureHeight(weight, size) {
+    ctx.font = weight + ' ' + size + 'px ' + font;
+    var m = ctx.measureText('Mg');
+    return m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+  }
+
+  function textHeight(cs) {
+    var nameSize = Math.max(THEME.font.minPx.name, cs * THEME.font.cellScale.name);
+    var scoreSize = Math.max(THEME.font.minPx.score, cs * THEME.font.cellScale.score);
+    var labelSize = Math.max(THEME.font.minPx.label, cs * THEME.font.cellScale.label);
+    return measureHeight(700, nameSize) + nameGap(cs)
+         + measureHeight(700, scoreSize) + measureHeight(500, labelSize) + scoreGap(cs);
+  }
 
   function cellSizeFor(cols, rows) {
     var aw = (w - padding * (cols + 1)) / cols;
     var ah = (h - padding * (rows + 1)) / rows;
-    return Math.floor(Math.min(aw / totalCellsWide, ah / totalCellsTall));
+    var cs = Math.floor(Math.min(aw / totalCellsWide, ah / boardRows));
+    while (cs > 1 && cs * boardRows + textHeight(cs) > ah) cs--;
+    return cs;
   }
 
-  var gridCols, gridRows;
+  var gridCols, gridRows, cellSize;
   if (n === 1) { gridCols = 1; gridRows = 1; }
   else if (n === 2) { gridCols = 2; gridRows = 1; }
   else if (n === 3) { gridCols = 3; gridRows = 1; }
   else if (n <= 4) {
-    if (cellSizeFor(4, 1) >= cellSizeFor(2, 2)) {
-      gridCols = 4; gridRows = 1;
-    } else {
-      gridCols = 2; gridRows = 2;
-    }
+    var cs4x1 = cellSizeFor(4, 1), cs2x2 = cellSizeFor(2, 2);
+    if (cs4x1 >= cs2x2) { gridCols = 4; gridRows = 1; cellSize = cs4x1; }
+    else { gridCols = 2; gridRows = 2; cellSize = cs2x2; }
   } else if (n <= 6) {
-    if (cellSizeFor(n, 1) >= cellSizeFor(3, 2)) {
-      gridCols = n; gridRows = 1;
-    } else {
-      gridCols = 3; gridRows = 2;
-    }
+    var csN = cellSizeFor(n, 1), cs3x2 = cellSizeFor(3, 2);
+    if (csN >= cs3x2) { gridCols = n; gridRows = 1; cellSize = csN; }
+    else { gridCols = 3; gridRows = 2; cellSize = cs3x2; }
   } else {
-    // 7-8 players: 4x2 grid
-    if (cellSizeFor(n, 1) >= cellSizeFor(4, 2)) {
-      gridCols = n; gridRows = 1;
-    } else {
-      gridCols = 4; gridRows = 2;
-    }
+    var csNw = cellSizeFor(n, 1), cs4x2 = cellSizeFor(4, 2);
+    if (csNw >= cs4x2) { gridCols = n; gridRows = 1; cellSize = csNw; }
+    else { gridCols = 4; gridRows = 2; cellSize = cs4x2; }
   }
-
-  var cellSize = cellSizeFor(gridCols, gridRows);
+  if (!cellSize) cellSize = cellSizeFor(gridCols, gridRows);
   var boardWidthPx = 10 * cellSize;
   var boardHeightPx = 20 * cellSize;
 
@@ -57,13 +69,17 @@ function calculateLayout() {
   animations = new Animations(ctx);
 
   var maxSlots = gridCols * gridRows;
+  var cellAreaW = (w - padding * (gridCols + 1)) / gridCols;
+  var cellAreaH = (h - padding * (gridRows + 1)) / gridRows;
+  var nameSize = Math.max(THEME.font.minPx.name, cellSize * THEME.font.cellScale.name);
+  var nameArea = measureHeight(700, nameSize) + nameGap(cellSize);
+  var totalContentH = boardHeightPx + textHeight(cellSize);
+
   for (var i = 0; i < n && i < maxSlots; i++) {
     var col = i % gridCols;
     var row = Math.floor(i / gridCols);
-    var cellAreaW = w / gridCols;
-    var cellAreaH = h / gridRows;
-    var boardX = cellAreaW * col + (cellAreaW - boardWidthPx) / 2;
-    var boardY = cellAreaH * row + (cellAreaH - boardHeightPx) / 2 + 10;
+    var boardX = padding + col * (cellAreaW + padding) + (cellAreaW - boardWidthPx) / 2;
+    var boardY = padding + row * (cellAreaH + padding) + (cellAreaH - totalContentH) / 2 + nameArea;
     var playerIndex = players.get(playerOrder[i])?.playerIndex ?? i;
     boardRenderers.push(new BoardRenderer(ctx, boardX, boardY, cellSize, playerIndex));
     uiRenderers.push(new UIRenderer(ctx, boardX, boardY, cellSize, boardWidthPx, boardHeightPx, playerIndex));
@@ -318,9 +334,10 @@ function drawTimer(elapsedMs) {
   var timeStr = String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
 
   var font = getDisplayFont();
+  var cs = (boardRenderers.length > 0 ? boardRenderers[0].cellSize : 30);
+  var timerSize = Math.max(THEME.font.minPx.timer, cs * THEME.font.cellScale.timer);
 
-  var btnH = Math.min(52, Math.max(36, window.innerHeight * 0.04));
-  var labelSize = Math.round(btnH * 0.6);
+  var labelSize = Math.round(timerSize);
   var digitAdvance = labelSize * 0.92;
   var colonAdvance = labelSize * 0.52;
   var advances = [];
@@ -331,8 +348,8 @@ function drawTimer(elapsedMs) {
     timerWidth += advance;
   }
   var startX = window.innerWidth / 2 - timerWidth / 2;
-  var btnTop = Math.min(20, Math.max(10, window.innerHeight * 0.015));
-  var y = btnTop + (btnH - labelSize) / 2;
+  var btnTop = timerSize * 0.6;
+  var y = btnTop;
 
   ctx.fillStyle = 'rgba(255, 255, 255, ' + THEME.opacity.label + ')';
   ctx.font = '700 ' + labelSize + 'px ' + font;

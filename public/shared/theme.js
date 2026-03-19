@@ -102,16 +102,16 @@ const THEME = Object.freeze({
 
   // ---- Border Radii (functions of cell/block size) ----
   radius: Object.freeze({
-    block: (size) => Math.min(3, size * 0.12),
-    mini:  (size) => Math.min(2, size * 0.1),
-    panel: (size) => Math.min(6, size * 0.2),
+    block: (size) => size * 0.12,
+    mini:  (size) => size * 0.1,
+    panel: (size) => size * 0.2,
   }),
 
-  // ---- Stroke Widths ----
+  // ---- Stroke Widths (× cellSize) ----
   stroke: Object.freeze({
-    grid:   0.5,
-    border: 1,
-    ghost:  2.5,
+    grid:   0.02,
+    border: 0.04,
+    ghost:  0.05,
   }),
 
   // ---- Animation Timing (ms) ----
@@ -122,7 +122,7 @@ const THEME = Object.freeze({
     ko:           1800,
   }),
 
-  // ---- Font Size Multipliers (× cellSize) ----
+  // ---- Font Size Multipliers (× cellSize) with minimum px floors ----
   font: Object.freeze({
     cellScale: Object.freeze({
       name:  0.55,
@@ -131,15 +131,20 @@ const THEME = Object.freeze({
       timer: 0.52,
       mini:  0.6,
     }),
+    minPx: Object.freeze({
+      name:  16,
+      label: 12,
+      score: 18,
+      timer: 14,
+    }),
   }),
 
   // ---- Sizing Constants ----
   size: Object.freeze({
     panelWidth:  4.5,   // cellSize multiplier for panel width
-    panelGapMin: 6,     // minimum panel gap px
-    panelGap:    0.25,  // cellSize multiplier for panel gap
+    panelGap:    0.25,  // panel-to-board gap (× cellSize)
     canvasPad:   5,     // canvas edge padding px
-    boardInset:  1,     // block inset from cell edge px
+    boardInset:  0.035, // block inset from cell edge (× cellSize)
   }),
 });
 

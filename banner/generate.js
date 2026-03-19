@@ -27,8 +27,8 @@ async function generate() {
   // --- Phase 1: Capture display with injected game state (exciting boards) ---
   console.log('Capturing display...');
   const displayContext = await browser.newContext({
-    viewport: { width: 1920, height: 810 },
-    deviceScaleFactor: 2,
+    viewport: { width: 1440, height: 608 },
+    deviceScaleFactor: 4,
   });
   const displayPage = await displayContext.newPage();
 
@@ -59,21 +59,6 @@ async function generate() {
   await displayPage.evaluate(() => {
     document.getElementById('game-toolbar').style.display = 'none';
 
-    const origDrawName = UIRenderer.prototype.drawPlayerName;
-    UIRenderer.prototype.drawPlayerName = function(ps) {
-      const saved = this.cellSize;
-      this.cellSize = saved * 1.6;
-      origDrawName.call(this, ps);
-      this.cellSize = saved;
-    };
-
-    const origDrawScore = UIRenderer.prototype.drawScorePanel;
-    UIRenderer.prototype.drawScorePanel = function(ps) {
-      const saved = this.cellSize;
-      this.cellSize = saved * 1.4;
-      origDrawScore.call(this, ps);
-      this.cellSize = saved;
-    };
   });
   await displayPage.waitForTimeout(300);
 
@@ -170,12 +155,12 @@ async function generate() {
       });
     }, controllerBase64s);
 
-    // Inject player colors from theme.js
+    // Inject player colors from theme.js (only first 4 for the 4 phones)
     await page.evaluate((colors) => {
       colors.forEach((color, i) => {
         document.getElementById(`phone-${i}`).style.setProperty('--color', color);
       });
-    }, PLAYER_COLORS);
+    }, PLAYER_COLORS.slice(0, NAMES.length));
 
     if (typeof options.phoneBottom === 'string') {
       await page.evaluate((phoneBottom) => {

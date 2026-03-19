@@ -78,7 +78,8 @@ class Animations {
           boardX + Math.random() * boardWidth,
           boardY + row * cellSize + Math.random() * cellSize,
           isTetris ? THEME.color.tetris : THEME.color.text.white,
-          400 + Math.random() * 400
+          400 + Math.random() * 400,
+          cellSize
         );
       }
     }
@@ -89,28 +90,29 @@ class Animations {
       const cx = boardX + 5 * cellSize;
       const cy = boardY + firstRow * cellSize;
       if (isTetris) {
-        this.addTextPopup(cx, cy, 'TETRIS!', THEME.color.tetris, true);
+        this.addTextPopup(cx, cy, 'TETRIS!', THEME.color.tetris, true, cellSize);
       } else if (rows.length === 3) {
-        this.addTextPopup(cx, cy, 'TRIPLE!', THEME.color.triple, true);
+        this.addTextPopup(cx, cy, 'TRIPLE!', THEME.color.triple, true, cellSize);
       } else if (rows.length === 2) {
-        this.addTextPopup(cx, cy, 'DOUBLE', THEME.color.text.white, false);
+        this.addTextPopup(cx, cy, 'DOUBLE', THEME.color.text.white, false, cellSize);
       }
       if (isTSpin) {
-        this.addTextPopup(cx, cy - cellSize, 'T-SPIN!', THEME.color.tSpin, true);
+        this.addTextPopup(cx, cy - cellSize, 'T-SPIN!', THEME.color.tSpin, true, cellSize);
       }
     }
   }
 
-  _addSparkle(x, y, color, duration) {
+  _addSparkle(x, y, color, duration, cellSize) {
     const vx = (Math.random() - 0.5) * 120;
     const vy = -Math.random() * 80 - 20;
+    const cs = cellSize ?? 30;
 
     this.active.push({
       type: 'sparkle',
       startTime: performance.now(),
       duration,
       x, y, vx, vy, color,
-      size: 1.5 + Math.random() * 2,
+      size: cs * (0.05 + Math.random() * 0.07),
       render(ctx, progress) {
         const t = progress * this.duration / 1000;
         const px = this.x + this.vx * t;
@@ -149,9 +151,10 @@ class Animations {
     });
   }
 
-  addTextPopup(x, y, text, color, hasGlow) {
+  addTextPopup(x, y, text, color, hasGlow, cellSize) {
     const duration = THEME.timing.textPopup;
     const font = getDisplayFont();
+    const cs = cellSize ?? 30;
 
     this.active.push({
       type: 'textPopup',
@@ -163,11 +166,12 @@ class Animations {
       color,
       hasGlow: hasGlow || false,
       font,
+      cs,
       render(ctx, progress) {
         // Ease out for smooth motion
         const ease = 1 - Math.pow(1 - progress, 3);
         const alpha = progress < 0.8 ? 1 : 1 - (progress - 0.8) / 0.2;
-        const drift = ease * 50;
+        const drift = ease * this.cs * 1.7;
         const scale = progress < 0.15 ? 0.5 + (progress / 0.15) * 0.7 : 1.2 - ease * 0.2;
 
         ctx.save();
@@ -177,11 +181,11 @@ class Animations {
 
         if (this.hasGlow) {
           ctx.shadowColor = this.color;
-          ctx.shadowBlur = 16;
+          ctx.shadowBlur = this.cs * 0.53;
         }
 
         ctx.fillStyle = this.color;
-        ctx.font = `900 22px ${this.font}`;
+        ctx.font = `900 ${this.cs * 0.73}px ${this.font}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(this.text, 0, 0);
@@ -190,7 +194,7 @@ class Animations {
         if (this.hasGlow) {
           ctx.shadowBlur = 0;
           ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-          ctx.fillText(this.text, 0, -1);
+          ctx.fillText(this.text, 0, -this.cs * 0.03);
         }
 
         ctx.restore();
@@ -198,7 +202,7 @@ class Animations {
     });
   }
 
-  addKO(boardX, boardY, boardWidth, boardHeight) {
+  addKO(boardX, boardY, boardWidth, boardHeight, cellSize) {
     const duration = THEME.timing.ko;
 
     // Red flash
@@ -231,14 +235,15 @@ class Animations {
         boardX + Math.random() * boardWidth,
         boardY + Math.random() * boardHeight,
         THEME.color.ko.text,
-        600 + Math.random() * 400
+        600 + Math.random() * 400,
+        cellSize
       );
     }
   }
 
-  addCombo(x, y, combo) {
+  addCombo(x, y, combo, cellSize) {
     if (combo >= 2) {
-      this.addTextPopup(x, y, `${combo} COMBO!`, THEME.color.combo, true);
+      this.addTextPopup(x, y, `${combo} COMBO!`, THEME.color.combo, true, cellSize);
     }
   }
 

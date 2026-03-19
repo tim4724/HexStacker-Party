@@ -35,7 +35,7 @@ class BoardRenderer {
     ctx.strokeStyle = rgb
       ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${THEME.opacity.muted})`
       : `rgba(255, 255, 255, ${THEME.opacity.subtle})`;
-    ctx.lineWidth = THEME.stroke.grid;
+    ctx.lineWidth = this.cellSize * THEME.stroke.grid;
     for (let r = 1; r < VISIBLE_ROWS; r++) {
       const py = this.y + r * this.cellSize;
       ctx.beginPath();
@@ -125,8 +125,10 @@ class BoardRenderer {
     ctx.strokeStyle = rgb
       ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${THEME.opacity.strong})`
       : `rgba(255, 255, 255, ${THEME.opacity.soft})`;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(this.x - 1, this.y - 1, this.boardWidth + 2, this.boardHeight + 2);
+    const bw = this.cellSize * THEME.stroke.border;
+    ctx.lineWidth = bw;
+    const half = bw / 2;
+    ctx.strokeRect(this.x - half, this.y - half, this.boardWidth + bw, this.boardHeight + bw);
   }
 
   drawBlock(col, row, color, isGarbage) {
@@ -134,7 +136,7 @@ class BoardRenderer {
     const x = this.x + col * this.cellSize;
     const y = this.y + row * this.cellSize;
     const size = this.cellSize;
-    const inset = THEME.size.boardInset;
+    const inset = size * THEME.size.boardInset;
     const r = THEME.radius.block(size);
 
     if (isGarbage) {
@@ -144,7 +146,7 @@ class BoardRenderer {
       ctx.fill();
       // Subtle noise texture
       ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.faint})`;
-      ctx.fillRect(x + inset + 1, y + inset + 1, size - inset * 2 - 2, 1);
+      ctx.fillRect(x + inset * 2, y + inset * 2, size - inset * 4, inset);
       return;
     }
 
@@ -164,15 +166,15 @@ class BoardRenderer {
 
     // Top highlight
     ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.highlight})`;
-    ctx.fillRect(inset + r, inset, size - inset * 2 - r * 2, Math.max(1.5, size * 0.08));
+    ctx.fillRect(inset + r, inset, size - inset * 2 - r * 2, size * 0.08);
 
     // Left highlight
     ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.muted})`;
-    ctx.fillRect(inset, inset + r, Math.max(1.5, size * 0.07), size - inset * 2 - r * 2);
+    ctx.fillRect(inset, inset + r, size * 0.07, size - inset * 2 - r * 2);
 
     // Bottom shadow
     ctx.fillStyle = `rgba(0, 0, 0, ${THEME.opacity.shadow})`;
-    ctx.fillRect(inset + r, size - inset - Math.max(1.5, size * 0.08), size - inset * 2 - r * 2, Math.max(1.5, size * 0.08));
+    ctx.fillRect(inset + r, size - inset - size * 0.08, size - inset * 2 - r * 2, size * 0.08);
 
     // Inner shine spot
     ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.subtle})`;
@@ -187,12 +189,13 @@ class BoardRenderer {
     const x = this.x + col * this.cellSize;
     const y = this.y + row * this.cellSize;
     const size = this.cellSize;
-    const inset = 1;
+    const inset = size * THEME.size.boardInset;
 
     // Dotted outline ghost
     ctx.strokeStyle = color;
-    ctx.lineWidth = THEME.stroke.ghost;
-    ctx.setLineDash([3, 3]);
+    ctx.lineWidth = size * THEME.stroke.ghost;
+    const dash = size * 0.07;
+    ctx.setLineDash([dash, dash]);
     ctx.strokeRect(x + inset, y + inset, size - inset * 2, size - inset * 2);
     ctx.setLineDash([]);
 

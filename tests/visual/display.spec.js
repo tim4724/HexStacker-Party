@@ -118,6 +118,7 @@ test.describe('Display', () => {
   });
 
   test('game screen - 8 players', async ({ page }) => {
+    await page.setViewportSize({ width: 2560, height: 1440 });
     await gotoDisplayTest(page);
     await injectPlayers(page, 8);
     await injectGameState(page, 8, {});
