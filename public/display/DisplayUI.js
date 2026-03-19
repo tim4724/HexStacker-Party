@@ -342,9 +342,9 @@ function drawTimer(elapsedMs) {
 
   var font = getDisplayFont();
   var cs = (boardRenderers.length > 0 ? boardRenderers[0].cellSize : 30);
-  var nameSize = Math.max(THEME.font.minPx.name, cs * THEME.font.cellScale.name);
+  var timerSize = Math.max(THEME.font.minPx.name, cs * THEME.font.cellScale.timer);
 
-  var labelSize = Math.round(nameSize);
+  var labelSize = Math.round(timerSize);
   var digitAdvance = labelSize * 0.92;
   var colonAdvance = labelSize * 0.52;
   var advances = [];
@@ -355,7 +355,7 @@ function drawTimer(elapsedMs) {
     timerWidth += advance;
   }
   var startX = window.innerWidth / 2 - timerWidth / 2;
-  var btnTop = nameSize * 0.6;
+  var btnTop = timerSize * 0.6;
   var y = btnTop;
 
   ctx.fillStyle = 'rgba(255, 255, 255, ' + THEME.opacity.label + ')';
