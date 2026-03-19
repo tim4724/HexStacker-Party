@@ -105,7 +105,7 @@ class Animations {
   _addSparkle(x, y, color, duration, cellSize) {
     const vx = (Math.random() - 0.5) * 120;
     const vy = -Math.random() * 80 - 20;
-    const cs = cellSize || 30;
+    const cs = cellSize ?? 30;
 
     this.active.push({
       type: 'sparkle',
@@ -154,7 +154,7 @@ class Animations {
   addTextPopup(x, y, text, color, hasGlow, cellSize) {
     const duration = THEME.timing.textPopup;
     const font = getDisplayFont();
-    const cs = cellSize || 30;
+    const cs = cellSize ?? 30;
 
     this.active.push({
       type: 'textPopup',
