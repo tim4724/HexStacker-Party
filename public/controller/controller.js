@@ -90,7 +90,6 @@ if (rejoinId) {
   clientId = rejoinId;
 } else {
   clientId = hadStoredId || generateClientId();
-  sessionStorage.setItem('clientId_' + roomCode, clientId);
 }
 
 // =====================================================================
@@ -104,6 +103,7 @@ function submitName() {
 
   playerName = name || null;
   if (name) localStorage.setItem('tetris_player_name', name);
+  sessionStorage.setItem('clientId_' + roomCode, clientId);
   nameJoinBtn.disabled = true;
   nameJoinBtn.textContent = 'CONNECTING...';
   nameInput.disabled = true;
