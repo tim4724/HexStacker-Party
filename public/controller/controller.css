@@ -712,11 +712,14 @@ html, body {
   filter: grayscale(0.5);
 }
 
-/* Dead state */
+/* Dead state — opacity on #touch-pad only so #ko-overlay stays visible */
 #game-screen.dead #touch-area {
+  pointer-events: none;
+}
+
+#game-screen.dead #touch-pad {
   opacity: 0.4;
   filter: grayscale(0.7);
-  pointer-events: none;
 }
 
 #game-screen.dead #game-top-bar {

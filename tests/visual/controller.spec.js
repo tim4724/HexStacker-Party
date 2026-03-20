@@ -86,8 +86,13 @@ test.describe('Controller', () => {
     await host.click('#start-btn');
     await waitForControllerGame(host);
     await host.evaluate(() => {
+      // Disconnect so server updates don't clear the injected KO state
+      if (typeof party !== 'undefined' && party) party.close();
       var ping = document.getElementById('ping-display');
       if (ping) ping.style.display = 'none';
+      // Hide reconnect overlay triggered by disconnect
+      var ro = document.getElementById('reconnect-overlay');
+      if (ro) ro.classList.add('hidden');
       document.getElementById('game-screen').classList.add('dead');
       var ko = document.createElement('div');
       ko.id = 'ko-overlay';
