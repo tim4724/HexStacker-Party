@@ -2,7 +2,6 @@
 const { defineConfig, devices } = require('@playwright/test');
 
 module.exports = defineConfig({
-  testDir: './tests/visual',
   fullyParallel: true,
   retries: 0,
   reporter: 'list',
@@ -22,11 +21,13 @@ module.exports = defineConfig({
   projects: [
     {
       name: 'display',
+      testDir: './tests/visual',
       testMatch: 'display.spec.js',
       use: { viewport: { width: 1280, height: 720 } },
     },
     {
       name: 'controller',
+      testDir: './tests/visual',
       testMatch: 'controller.spec.js',
       use: {
         viewport: devices['iPhone 14'].screen,
@@ -37,6 +38,11 @@ module.exports = defineConfig({
       expect: {
         toHaveScreenshot: { scale: 'device' },
       },
+    },
+    {
+      name: 'e2e',
+      testDir: './tests/e2e',
+      use: { viewport: { width: 1280, height: 720 } },
     },
   ],
 });
