@@ -160,18 +160,20 @@ function renderFrame(timestamp) {
         garbageDefenceEffects.delete(playerData.id);
         activeGarbageDefenceEffects = [];
       }
-      playerData.garbageIndicatorEffects = activeGarbageIndicatorEffects;
-      playerData.garbageDefenceEffects = activeGarbageDefenceEffects;
-      playerData.playerName = pInfo?.playerName || PLAYER_NAMES[j];
-      playerData.playerColor = pInfo?.playerColor || PLAYER_COLORS[j];
+      var enriched = Object.assign({}, playerData, {
+        garbageIndicatorEffects: activeGarbageIndicatorEffects,
+        garbageDefenceEffects: activeGarbageDefenceEffects,
+        playerName: pInfo?.playerName || PLAYER_NAMES[j],
+        playerColor: pInfo?.playerColor || PLAYER_COLORS[j]
+      });
 
-      boardRenderers[j].render(playerData);
-      uiRenderers[j].render(playerData, timestamp);
+      boardRenderers[j].render(enriched);
+      uiRenderers[j].render(enriched, timestamp);
 
       // Test-only: draw extra ghost pieces if set
       if (window.__TEST__ && window.__TEST__._extraGhosts && window.__TEST__._extraGhosts[j]) {
         var br = boardRenderers[j];
-        var ghostColorSet = GHOST_COLORS;
+        var ghostColorSet = br._styleTier === STYLE_TIERS.NEON_FLAT ? NEON_GHOST_COLORS : GHOST_COLORS;
         var extras = window.__TEST__._extraGhosts[j];
         for (var eg = 0; eg < extras.length; eg++) {
           var ghost = extras[eg];
@@ -181,7 +183,7 @@ function renderFrame(timestamp) {
             var gby = ghost.blocks[bl][1];
             var drawRow = ghost.ghostY + gby;
             var drawCol = ghost.x + gbx;
-            if (drawRow >= 0 && drawRow < 20 && drawCol >= 0 && drawCol < 10) {
+            if (drawRow >= 0 && drawRow < GameConstants.VISIBLE_HEIGHT && drawCol >= 0 && drawCol < GameConstants.BOARD_WIDTH) {
               br.drawGhostBlock(drawCol, drawRow, gc, ghost.typeId);
             }
           }

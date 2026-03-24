@@ -242,7 +242,7 @@ class UIRenderer {
         ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.muted})`;
         ctx.fillRect(bx + 1, by + 1, bw - 2, bh - 2);
       } else {
-        // Normal — solid rounded outline + translucent fill
+        // Normal / Neon — solid rounded outline + translucent fill
         ctx.strokeStyle = `rgba(255, 255, 255, ${THEME.opacity.label})`;
         ctx.lineWidth = 1;
         roundRect(ctx, bx + 0.5, by + 0.5, bw - 1, bh - 1, r);

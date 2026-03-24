@@ -242,7 +242,7 @@ class BoardRenderer {
       ctx.fillStyle = fillColor;
       ctx.fillRect(x + inset + 1, y + inset + 1, s - 2, s - 2);
     } else {
-      // Normal, Neon Flat, Wireframe — solid rounded outline + translucent fill
+      // Normal / Neon — solid rounded outline + translucent fill
       ctx.strokeStyle = color;
       ctx.lineWidth = 1;
       roundRect(ctx, x + inset + 0.5, y + inset + 0.5, s - 1, s - 1, r);
