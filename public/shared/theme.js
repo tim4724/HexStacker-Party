@@ -17,17 +17,12 @@ const PIECE_COLORS = {
   8: '#808080'     // garbage - gray
 };
 
-// Ghost piece colors — lightened with higher opacity for dark-background visibility.
-// Low-luminance hues (blue, purple, red) get extra boost.
-const GHOST_COLORS = {
-  1: 'rgba(80, 240, 240, 0.38)',   // I - cyan
-  2: 'rgba(140, 140, 255, 0.4)',   // J - blue  (lightened to compensate low luminance)
-  3: 'rgba(240, 180, 60, 0.4)',    // L - orange
-  4: 'rgba(240, 240, 80, 0.35)',   // O - yellow (highest luminance)
-  5: 'rgba(80, 240, 80, 0.35)',    // S - green
-  6: 'rgba(200, 120, 255, 0.4)',   // T - purple (lightened to compensate low luminance)
-  7: 'rgba(255, 80, 80, 0.45)'    // Z - red
-};
+// Ghost piece colors — computed from PIECE_COLORS via ghostColor() (CanvasUtils.js).
+// Populated at load time when ghostColor is available, otherwise empty.
+var GHOST_COLORS = {};
+if (typeof ghostColor === 'function') {
+  for (var _i = 1; _i <= 7; _i++) GHOST_COLORS[_i] = ghostColor(PIECE_COLORS[_i]);
+}
 
 // Player accent colors
 const PLAYER_COLORS = [
@@ -42,6 +37,33 @@ const PLAYER_COLORS = [
 ];
 
 const PLAYER_NAMES = ['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5', 'Player 6', 'Player 7', 'Player 8'];
+
+// Neon piece colors — brighter variants for visibility on dark background.
+// Falls back to PIECE_COLORS for entries not overridden.
+const NEON_PIECE_COLORS = Object.assign({}, PIECE_COLORS, {
+  2: '#4466FF',    // J - brighter blue
+  6: '#BB44FF',    // T - brighter purple
+  7: '#FF3333'     // Z - brighter red
+});
+
+// Neon ghost colors — computed from NEON_PIECE_COLORS
+var NEON_GHOST_COLORS = {};
+if (typeof ghostColor === 'function') {
+  for (var _n = 1; _n <= 7; _n++) NEON_GHOST_COLORS[_n] = ghostColor(NEON_PIECE_COLORS[_n]);
+}
+
+// Level-based style tiers
+const STYLE_TIERS = Object.freeze({
+  NORMAL: 'normal',         // Lv 1–5
+  SQUARE: 'square',         // Lv 6–10
+  NEON_FLAT: 'neonFlat'     // Lv 11+
+});
+
+function getStyleTier(level) {
+  if (level >= 11) return STYLE_TIERS.NEON_FLAT;
+  if (level >= 6)  return STYLE_TIERS.SQUARE;
+  return STYLE_TIERS.NORMAL;
+}
 
 // --- Theme tokens ---
 const THEME = Object.freeze({
@@ -144,11 +166,27 @@ const THEME = Object.freeze({
     panelWidth:  4.5,   // cellSize multiplier for panel width
     panelGap:    0.25,  // panel-to-board gap (× cellSize)
     canvasPad:   5,     // canvas edge padding px
-    blockGap:    0.02,  // half-gap between blocks (× cellSize)
+    blockGap:    0.03,  // half-gap between blocks (× cellSize)
   }),
 });
 
 // Export for both Node.js and browser
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { THEME, PIECE_COLORS, GHOST_COLORS, PLAYER_COLORS, PLAYER_NAMES };
+  // In Node.js, compute ghost colors inline (CanvasUtils not loaded as global)
+  var _gc = function(hex) {
+    var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!m) return 'rgba(255,255,255,0.3)';
+    var rv = parseInt(m[1],16), gv = parseInt(m[2],16), bv = parseInt(m[3],16);
+    var r = Math.min(255, Math.max(80, Math.round(rv + (255-rv)*0.3)));
+    var g = Math.min(255, Math.max(80, Math.round(gv + (255-gv)*0.3)));
+    var b = Math.min(255, Math.max(80, Math.round(bv + (255-bv)*0.3)));
+    var lum = (rv*0.299 + gv*0.587 + bv*0.114) / 255;
+    var a = (0.3 + (1-lum)*0.15).toFixed(2);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+  };
+  for (var _k = 1; _k <= 7; _k++) {
+    if (!GHOST_COLORS[_k]) GHOST_COLORS[_k] = _gc(PIECE_COLORS[_k]);
+    if (!NEON_GHOST_COLORS[_k]) NEON_GHOST_COLORS[_k] = _gc(NEON_PIECE_COLORS[_k]);
+  }
+  module.exports = { THEME, PIECE_COLORS, GHOST_COLORS, NEON_PIECE_COLORS, NEON_GHOST_COLORS, STYLE_TIERS, getStyleTier, PLAYER_COLORS, PLAYER_NAMES };
 }

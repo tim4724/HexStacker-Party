@@ -211,10 +211,166 @@ function buildResults(playerIds) {
   };
 }
 
+// Level overrides per style tier (for visual tests)
+const TIER_LEVELS = {
+  normal:   [3, 3],
+  square:   [8, 8],
+  neon:     [13, 13],
+};
+
+// Grid with all 7 piece types + garbage, realistically stacked (no floating pieces)
+// Every non-zero cell either sits on the bottom row or on another non-zero cell below it.
+function createAllColorsGrid() {
+  const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
+  // Fully supported: every non-zero cell at row R either is at row 19 or has
+  // a non-zero cell directly below at row R+1.
+  // Garbage gap at col 7 — no pieces placed above col 7.
+  // col:       0  1  2  3  4  5  6  7  8  9
+  grid[19] = [ 8, 8, 8, 8, 8, 8, 8, 0, 8, 8]; // garbage
+  grid[18] = [ 8, 8, 8, 8, 8, 8, 8, 0, 8, 8]; // garbage
+  grid[17] = [ 1, 1, 1, 1, 6, 5, 5, 0, 7, 7]; // I, T top, S bot, Z top
+  grid[16] = [ 4, 4, 2, 3, 6, 6, 5, 0, 0, 7]; // O bot, J top, L top, T base, S top, Z bot
+  grid[15] = [ 4, 4, 2, 2, 2, 3, 3, 0, 0, 0]; // O top, J base, L bot
+  grid[14] = [ 0, 0, 0, 0, 0, 0, 3, 0, 0, 0]; // L top
+  return grid;
+}
+
+// Build a game state with all 4 style tiers visible (4 players, one per tier)
+// Each board shows all 7 piece colors + garbage
+function buildStyleTierGameState(playerIds) {
+  const tierLevels = [3, 8, 13]; // Normal, Square, Neon
+  const tierLines  = [20, 70, 120, 170]; // lines matching those levels
+  const tierNames  = ['Normal', 'Square', 'Neon'];
+  const allColorsGrid = createAllColorsGrid();
+
+  return {
+    players: playerIds.map((id, index) => ({
+      id: id,
+      alive: true,
+      score: LIVE_SCORE[index] || LIVE_SCORE[0],
+      lines: tierLines[index] || tierLines[0],
+      level: tierLevels[index] || tierLevels[0],
+      grid: cloneGrid(allColorsGrid),
+      currentPiece: {
+        typeId: 6, x: 4, y: 3,
+        blocks: [[1, 0], [0, 1], [1, 1], [2, 1]]
+      },
+      ghostY: 11,
+      holdPiece: 'I',
+      nextPieces: ['J', 'L', 'O', 'S', 'Z'],
+      pendingGarbage: 2,
+      playerName: tierNames[index] || ('Player ' + (index + 1)),
+      playerColor: PLAYER_COLORS[index % PLAYER_COLORS.length]
+    })),
+    elapsed: 65000
+  };
+}
+
+// Build a state showing all 7 piece types with ghosts in each style tier.
+// 4 players (one per tier), each board has 7 active pieces at top + 7 ghosts below.
+// Uses a fake multi-piece layout (unrealistic but shows every ghost clearly).
+// Build a state where every player board shows all 7 pieces as solid blocks at the top
+// AND all 7 ghost outlines at the bottom, all at the same style tier.
+// Uses extraGhosts (rendered by BoardRenderer) for the 6 non-active ghost pieces.
+function buildAllPiecesGhostState(playerIds, tierLevel) {
+  const tierLevelMap = { 3: 'Normal', 8: 'Square', 13: 'Neon' };
+  const tierName = tierLevelMap[tierLevel] || 'Normal';
+
+  // All 7 pieces as solid blocks in rows 2-6
+  function createShowcaseGrid() {
+    const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
+    // I(1) horizontal
+    grid[2] = [0, 0, 0, 1, 1, 1, 1, 0, 0, 0];
+    // J(2) + O(4) + L(3)
+    grid[3] = [2, 0, 0, 4, 4, 0, 0, 0, 0, 3];
+    grid[4] = [2, 2, 2, 4, 4, 5, 5, 0, 3, 3];
+    // S(5) + T(6) + Z(7)
+    grid[5] = [0, 0, 6, 0, 5, 5, 7, 7, 3, 0];
+    grid[6] = [0, 6, 6, 6, 0, 0, 0, 7, 7, 0];
+    return grid;
+  }
+
+  // All 7 piece definitions for active + ghost placement
+  const allPieces = [
+    { typeId: 1, blocks: [[0,0],[1,0],[2,0],[3,0]] },  // I
+    { typeId: 2, blocks: [[0,0],[0,1],[1,1],[2,1]] },  // J
+    { typeId: 3, blocks: [[2,0],[0,1],[1,1],[2,1]] },  // L
+    { typeId: 4, blocks: [[0,0],[1,0],[0,1],[1,1]] },  // O
+    { typeId: 5, blocks: [[1,0],[2,0],[0,1],[1,1]] },  // S
+    { typeId: 6, blocks: [[1,0],[0,1],[1,1],[2,1]] },  // T
+    { typeId: 7, blocks: [[0,0],[1,0],[1,1],[2,1]] },  // Z
+  ];
+
+  // Ghost row positions — spread across rows 10-18, spaced by 2 rows per piece
+  // Active piece ghost at row 10, extra ghosts at rows 12, 14, 16, 18 etc.
+  // Place them at different x positions so they don't overlap
+  const ghostPositions = [
+    { x: 0, ghostY: 10 },  // I at cols 0-3
+    { x: 0, ghostY: 13 },  // J at cols 0-2
+    { x: 4, ghostY: 13 },  // L at cols 4-6
+    { x: 8, ghostY: 13 },  // O at cols 8-9
+    { x: 0, ghostY: 16 },  // S at cols 0-2
+    { x: 4, ghostY: 16 },  // T at cols 4-6
+    { x: 7, ghostY: 16 },  // Z at cols 7-9
+  ];
+
+  const pieceLabels = ['I', 'J', 'L', 'O', 'S', 'T', 'Z', 'I'];
+
+  const extraGhostsPerPlayer = [];
+
+  const players = playerIds.map((id, index) => {
+    const activeIdx = index % 7;
+    const activePos = ghostPositions[activeIdx];
+    const activeDef = allPieces[activeIdx];
+
+    // Build extra ghosts for the other 6 piece types
+    const extras = [];
+    for (let i = 0; i < 7; i++) {
+      if (i === activeIdx) continue;
+      extras.push({
+        typeId: allPieces[i].typeId,
+        x: ghostPositions[i].x,
+        ghostY: ghostPositions[i].ghostY,
+        blocks: allPieces[i].blocks.map(b => b.slice()),
+      });
+    }
+    extraGhostsPerPlayer.push(extras);
+
+    return {
+      id: id,
+      alive: true,
+      score: 0,
+      lines: (tierLevel - 1) * 10,
+      level: tierLevel,
+      grid: createShowcaseGrid(),
+      currentPiece: {
+        typeId: activeDef.typeId,
+        x: activePos.x,
+        y: 8,
+        blocks: activeDef.blocks.map(b => b.slice()),
+      },
+      ghostY: activePos.ghostY,
+      holdPiece: null,
+      nextPieces: [],
+      pendingGarbage: 0,
+      playerName: tierName + ' ' + pieceLabels[index % 8],
+      playerColor: PLAYER_COLORS[index % PLAYER_COLORS.length],
+    };
+  });
+
+  return {
+    state: { players, elapsed: 65000 },
+    extraGhostsPerPlayer,
+  };
+}
+
 module.exports = {
   PLAYER_COLORS,
+  TIER_LEVELS,
   buildPlayers,
   buildPlayerIds,
   buildGameState,
+  buildStyleTierGameState,
+  buildAllPiecesGhostState,
   buildResults,
 };

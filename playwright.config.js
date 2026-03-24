@@ -23,7 +23,7 @@ module.exports = defineConfig({
       name: 'display',
       testDir: './tests/visual',
       testMatch: 'display.spec.js',
-      use: { viewport: { width: 1280, height: 720 } },
+      use: { viewport: { width: 1920, height: 1080 } },
     },
     {
       name: 'controller',

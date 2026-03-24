@@ -56,7 +56,11 @@ function renderLoop(timestamp) {
     }
     // Update music speed
     if (music && music.playing && gameState.players && gameState.players.length > 0) {
-      var maxLevel = Math.max.apply(null, gameState.players.map(function(p) { return p.level || 1; }));
+      var maxLevel = 1;
+      for (var ml = 0; ml < gameState.players.length; ml++) {
+        var pl = gameState.players[ml].level || 1;
+        if (pl > maxLevel) maxLevel = pl;
+      }
       music.setSpeed(maxLevel);
     }
 
@@ -132,29 +136,57 @@ function renderFrame(timestamp) {
       }
 
       var pInfo = players.get(playerData.id);
-      var activeGarbageIndicatorEffects = (garbageIndicatorEffects.get(playerData.id) || [])
-        .filter(function(effect) { return timestamp - effect.startTime < effect.duration; });
-      if (activeGarbageIndicatorEffects.length > 0) {
-        garbageIndicatorEffects.set(playerData.id, activeGarbageIndicatorEffects);
-      } else {
+      var activeGarbageIndicatorEffects = garbageIndicatorEffects.get(playerData.id) || [];
+      var hasActiveIndicator = false;
+      for (var gi = 0; gi < activeGarbageIndicatorEffects.length; gi++) {
+        if (timestamp - activeGarbageIndicatorEffects[gi].startTime < activeGarbageIndicatorEffects[gi].duration) {
+          hasActiveIndicator = true;
+          break;
+        }
+      }
+      if (!hasActiveIndicator) {
         garbageIndicatorEffects.delete(playerData.id);
+        activeGarbageIndicatorEffects = [];
       }
-      var activeGarbageDefenceEffects = (garbageDefenceEffects.get(playerData.id) || [])
-        .filter(function(effect) { return timestamp - effect.startTime < effect.duration; });
-      if (activeGarbageDefenceEffects.length > 0) {
-        garbageDefenceEffects.set(playerData.id, activeGarbageDefenceEffects);
-      } else {
+      var activeGarbageDefenceEffects = garbageDefenceEffects.get(playerData.id) || [];
+      var hasActiveDefence = false;
+      for (var gd = 0; gd < activeGarbageDefenceEffects.length; gd++) {
+        if (timestamp - activeGarbageDefenceEffects[gd].startTime < activeGarbageDefenceEffects[gd].duration) {
+          hasActiveDefence = true;
+          break;
+        }
+      }
+      if (!hasActiveDefence) {
         garbageDefenceEffects.delete(playerData.id);
+        activeGarbageDefenceEffects = [];
       }
-      var enriched = Object.assign({}, playerData, {
-        garbageIndicatorEffects: activeGarbageIndicatorEffects,
-        garbageDefenceEffects: activeGarbageDefenceEffects,
-        playerName: pInfo?.playerName || PLAYER_NAMES[j],
-        playerColor: pInfo?.playerColor || PLAYER_COLORS[j]
-      });
+      playerData.garbageIndicatorEffects = activeGarbageIndicatorEffects;
+      playerData.garbageDefenceEffects = activeGarbageDefenceEffects;
+      playerData.playerName = pInfo?.playerName || PLAYER_NAMES[j];
+      playerData.playerColor = pInfo?.playerColor || PLAYER_COLORS[j];
 
-      boardRenderers[j].render(enriched);
-      uiRenderers[j].render(enriched, timestamp);
+      boardRenderers[j].render(playerData);
+      uiRenderers[j].render(playerData, timestamp);
+
+      // Test-only: draw extra ghost pieces if set
+      if (window.__TEST__ && window.__TEST__._extraGhosts && window.__TEST__._extraGhosts[j]) {
+        var br = boardRenderers[j];
+        var ghostColorSet = GHOST_COLORS;
+        var extras = window.__TEST__._extraGhosts[j];
+        for (var eg = 0; eg < extras.length; eg++) {
+          var ghost = extras[eg];
+          var gc = ghostColorSet[ghost.typeId] || 'rgba(255,255,255,0.12)';
+          for (var bl = 0; bl < ghost.blocks.length; bl++) {
+            var gbx = ghost.blocks[bl][0];
+            var gby = ghost.blocks[bl][1];
+            var drawRow = ghost.ghostY + gby;
+            var drawCol = ghost.x + gbx;
+            if (drawRow >= 0 && drawRow < 20 && drawCol >= 0 && drawCol < 10) {
+              br.drawGhostBlock(drawCol, drawRow, gc, ghost.typeId);
+            }
+          }
+        }
+      }
 
       // Draw QR overlay for disconnected players
       if (disconnectedQRs.has(playerData.id)) {
@@ -196,7 +228,7 @@ function renderFrame(timestamp) {
           ctx.restore();
         }
 
-        ctx.fillStyle = enriched.playerColor || 'rgba(0, 200, 255, 0.7)';
+        ctx.fillStyle = playerData.playerColor || 'rgba(0, 200, 255, 0.7)';
         ctx.font = '600 ' + labelSize + 'px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';

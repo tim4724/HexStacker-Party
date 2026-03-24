@@ -8,6 +8,8 @@ const {
   injectPause,
   injectPlayers,
   injectResults,
+  injectAllPiecesGhostState,
+  injectStyleTierGameState,
   stabilizeDisplayLobby,
   stopDisplayBackground,
   waitForFont,
@@ -188,6 +190,25 @@ test.describe('Display', () => {
     await page.waitForTimeout(150);
     await expect(page).toHaveScreenshot('09b-disconnected.png');
   });
+
+  test('game screen - all style tiers (3 players)', async ({ page }) => {
+    await gotoDisplayTest(page);
+    await injectPlayers(page, 3);
+    await injectStyleTierGameState(page, 3);
+    await page.waitForTimeout(150);
+    await expect(page).toHaveScreenshot('07c-game-style-tiers.png');
+  });
+
+  for (const [tierName, tierLevel] of [['normal', 3], ['square', 8], ['neon', 13]]) {
+    test(`game screen - all pieces + ghosts ${tierName}`, async ({ page }) => {
+      await page.setViewportSize({ width: 2560, height: 1440 });
+      await gotoDisplayTest(page);
+      await injectPlayers(page, 8);
+      await injectAllPiecesGhostState(page, 8, tierLevel);
+      await page.waitForTimeout(150);
+      await expect(page).toHaveScreenshot(`07d-pieces-${tierName}.png`);
+    });
+  }
 
   test('results screen - 1 player', async ({ page }) => {
     await gotoDisplayTest(page);

@@ -35,13 +35,22 @@ class UIRenderer {
     this.boardHeight = boardHeightPx;
     this.playerIndex = playerIndex;
     this.accentColor = PLAYER_COLORS[playerIndex] || PLAYER_COLORS[0];
+    this._accentRgb = hexToRgb(this.accentColor);
     this.panelWidth = cellSize * THEME.size.panelWidth;
     this.miniSize = cellSize * THEME.font.cellScale.mini;
     this.panelGap = cellSize * THEME.size.panelGap;
     this._miniGradients = new Map(); // cached per pieceType_size key
+    this._styleTier = STYLE_TIERS.NORMAL;
   }
 
   render(playerState, timestamp) {
+    // Update style tier from level
+    const newTier = getStyleTier(playerState.level || 1);
+    if (newTier !== this._styleTier) {
+      this._styleTier = newTier;
+      this._miniGradients.clear();
+    }
+
     // 1. Player name + accent stripe above board
     this.drawPlayerName(playerState);
 
@@ -180,21 +189,14 @@ class UIRenderer {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
 
-    // Score text with subtle glow
+    // Score text
     const scoreStr = String(playerState.score || 0).padStart(8, '0');
-    const rgb = hexToRgb(this.accentColor);
-    if (rgb) {
-      ctx.shadowColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)`;
-      ctx.shadowBlur = this.cellSize * 0.27;
-    }
     ctx.fillStyle = THEME.color.text.white;
     ctx.fillText(
       scoreStr,
       this.boardX + this.boardWidth / 2,
       panelY
     );
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
 
     // Lines count
     const smallSize = Math.max(THEME.font.minPx.label, this.cellSize * THEME.font.cellScale.label);
@@ -222,22 +224,33 @@ class UIRenderer {
     const meter = this.getGarbageMeterLayout();
     const rows = Math.min(pendingGarbage, meter.rows);
     const inset = meter.cellSize * THEME.size.blockGap;
+    const tier = this._styleTier;
+    const r = THEME.radius.block(meter.cellSize);
 
-    // Ghost-style blocks: outline + translucent fill (incoming but not yet applied)
     for (let i = 0; i < rows; i++) {
       const y = meter.y + this.boardHeight - (i + 1) * meter.cellSize;
       const bx = meter.x + inset;
       const by = y + inset;
       const bw = meter.cellSize - inset * 2;
       const bh = meter.cellSize - inset * 2;
-      ctx.strokeStyle = `rgba(255, 255, 255, ${THEME.opacity.label})`;
-      ctx.lineWidth = meter.cellSize * THEME.stroke.ghost;
-      const dash = meter.cellSize * 0.07;
-      ctx.setLineDash([dash, dash]);
-      ctx.strokeRect(bx, by, bw, bh);
-      ctx.setLineDash([]);
-      ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.muted})`;
-      ctx.fillRect(bx, by, bw, bh);
+
+      if (tier === STYLE_TIERS.SQUARE) {
+        // Square — solid thin border + translucent fill
+        ctx.strokeStyle = `rgba(255, 255, 255, ${THEME.opacity.label})`;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+        ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.muted})`;
+        ctx.fillRect(bx + 1, by + 1, bw - 2, bh - 2);
+      } else {
+        // Normal — solid rounded outline + translucent fill
+        ctx.strokeStyle = `rgba(255, 255, 255, ${THEME.opacity.label})`;
+        ctx.lineWidth = 1;
+        roundRect(ctx, bx + 0.5, by + 0.5, bw - 1, bh - 1, r);
+        ctx.stroke();
+        ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.muted})`;
+        roundRect(ctx, bx, by, bw, bh, r);
+        ctx.fill();
+      }
     }
   }
 
@@ -337,46 +350,66 @@ class UIRenderer {
 
     const bounds = MINI_BOUNDS[pieceType];
     const typeId = PIECE_TYPE_TO_ID[pieceType];
-    const color = PIECE_COLORS[typeId] || '#ffffff';
+    const tier = this._styleTier;
+    const isNeon = tier === STYLE_TIERS.NEON_FLAT;
+    const color = (isNeon ? NEON_PIECE_COLORS[typeId] : PIECE_COLORS[typeId]) || '#ffffff';
 
     // Center the piece within the given area
     const offsetX = centerX - (bounds.w * size) / 2;
     const offsetY = centerY - (bounds.h * size) / 2;
 
-    // Cache gradient per piece type + size (all blocks share the same color)
-    const gradKey = pieceType + '_' + size;
-    let grad = this._miniGradients.get(gradKey);
-    if (!grad) {
-      grad = ctx.createLinearGradient(0, 0, 0, size);
-      grad.addColorStop(0, color);
-      grad.addColorStop(1, darkenColor(color, 15));
-      this._miniGradients.set(gradKey, grad);
-    }
+    const inset = size * THEME.size.blockGap;
+    const s = size - inset * 2;
 
     for (const [bx, by] of blocks) {
       const dx = offsetX + (bx - bounds.minX) * size;
       const dy = offsetY + (by - bounds.minY) * size;
-      const inset = size * THEME.size.blockGap;
-      const r = THEME.radius.mini(size);
 
-      // Mini block with gradient (cached)
-      ctx.save();
-      ctx.translate(dx, dy);
-      ctx.fillStyle = grad;
-      roundRect(ctx, inset, inset, size - inset * 2, size - inset * 2, r);
-      ctx.fill();
-
-      // Top highlight
-      ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.highlight})`;
-      ctx.fillRect(inset + r, inset, size - inset * 2 - r * 2, size * 0.06);
-      ctx.restore();
+      if (tier === STYLE_TIERS.SQUARE) {
+        // Square mini — lighter border + flat fill
+        ctx.strokeStyle = lightenColor(color, 20);
+        ctx.lineWidth = 1;
+        ctx.strokeRect(dx + inset + 0.5, dy + inset + 0.5, s - 1, s - 1);
+        ctx.fillStyle = color;
+        ctx.fillRect(dx + inset + 1, dy + inset + 1, s - 2, s - 2);
+      } else if (tier === STYLE_TIERS.NEON_FLAT) {
+        // Neon flat mini — dark tinted fill + bright border
+        const cRgb = hexToRgb(color);
+        const r = THEME.radius.mini(size);
+        ctx.fillStyle = `rgba(${cRgb.r * 0.2 | 0}, ${cRgb.g * 0.2 | 0}, ${cRgb.b * 0.2 | 0}, 0.92)`;
+        roundRect(ctx, dx + inset, dy + inset, s, s, r);
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.2;
+        roundRect(ctx, dx + inset + 0.5, dy + inset + 0.5, s - 1, s - 1, r);
+        ctx.stroke();
+      } else {
+        // Normal mini — gradient + highlight
+        const r = THEME.radius.mini(size);
+        const gradKey = pieceType + '_' + size;
+        let grad = this._miniGradients.get(gradKey);
+        if (!grad) {
+          grad = ctx.createLinearGradient(0, 0, 0, size);
+          grad.addColorStop(0, color);
+          grad.addColorStop(1, darkenColor(color, 15));
+          this._miniGradients.set(gradKey, grad);
+        }
+        ctx.save();
+        ctx.translate(dx, dy);
+        ctx.fillStyle = grad;
+        roundRect(ctx, inset, inset, s, s, r);
+        ctx.fill();
+        ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.highlight})`;
+        ctx.fillRect(inset + r, inset, s - r * 2, size * 0.06);
+        ctx.restore();
+      }
     }
   }
 
   _drawPanel(x, y, w, h) {
     const ctx = this.ctx;
     const r = THEME.radius.panel(this.cellSize);
-    const rgb = hexToRgb(this.accentColor);
+    const rgb = this._accentRgb;
 
     // Dark background matching board
     ctx.fillStyle = THEME.color.bg.board;

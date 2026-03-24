@@ -1,6 +1,6 @@
 // @ts-check
 
-const { buildPlayers, buildPlayerIds, buildGameState, buildResults } = require('./fixtures');
+const { buildPlayers, buildPlayerIds, buildGameState, buildStyleTierGameState, buildAllPiecesGhostState, buildResults } = require('./fixtures');
 
 
 async function waitForFont(page) {
@@ -45,6 +45,23 @@ async function injectResults(page, playerCount) {
   await page.evaluate((r) => {
     window.__TEST__.injectResults(r);
   }, results);
+}
+
+async function injectStyleTierGameState(page, playerCount) {
+  const playerIds = buildPlayerIds(playerCount);
+  const state = buildStyleTierGameState(playerIds);
+  await page.evaluate((s) => {
+    window.__TEST__.injectGameState(s);
+  }, state);
+}
+
+async function injectAllPiecesGhostState(page, playerCount, tierLevel) {
+  const playerIds = buildPlayerIds(playerCount);
+  const result = buildAllPiecesGhostState(playerIds, tierLevel);
+  await page.evaluate(({ s, extraGhosts }) => {
+    window.__TEST__.setExtraGhosts(extraGhosts);
+    window.__TEST__.injectGameState(s);
+  }, { s: result.state, extraGhosts: result.extraGhostsPerPlayer });
 }
 
 async function injectPause(page) {
@@ -176,6 +193,8 @@ module.exports = {
   injectPause,
   injectPlayers,
   injectResults,
+  injectAllPiecesGhostState,
+  injectStyleTierGameState,
   joinController,
   stabilizeControllerUI,
   stabilizeDisplayLobby,

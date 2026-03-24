@@ -116,6 +116,13 @@ if (urlParams.get('test') === '1' || debugCount > 0) {
 
     injectCountdownGo: function() {
       onCountdownDisplay('GO');
+    },
+
+    setExtraGhosts: function(extraGhostsPerPlayer) {
+      // Store for renderFrame to draw after each board render.
+      // extraGhostsPerPlayer: array of arrays, one per player index.
+      // Each inner array: [{ typeId, x, ghostY, blocks }]
+      window.__TEST__._extraGhosts = extraGhostsPerPlayer;
     }
   };
 }
