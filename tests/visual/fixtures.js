@@ -239,7 +239,7 @@ function createAllColorsGrid() {
 // Each board shows all 7 piece colors + garbage
 function buildStyleTierGameState(playerIds) {
   const tierLevels = [3, 8, 13]; // Normal, Square, Neon
-  const tierLines  = [20, 70, 120, 170]; // lines matching those levels
+  const tierLines  = [20, 70, 120]; // lines matching those levels
   const tierNames  = ['Normal', 'Square', 'Neon'];
   const allColorsGrid = createAllColorsGrid();
 

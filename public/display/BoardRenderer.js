@@ -112,7 +112,6 @@ class BoardRenderer {
           const alpha = 0.3 + 0.2 * Math.sin(t * Math.PI);
           ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
           ctx.fillRect(this.x, this.y + row * this.cellSize, this.boardWidth, this.cellSize);
-          const rgb = this._accentRgb;
           if (rgb) {
             ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha * 0.3})`;
             ctx.fillRect(this.x, this.y + row * this.cellSize, this.boardWidth, this.cellSize);

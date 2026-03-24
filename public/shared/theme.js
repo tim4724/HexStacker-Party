@@ -18,10 +18,12 @@ const PIECE_COLORS = {
 };
 
 // Ghost piece colors — computed from PIECE_COLORS via ghostColor() (CanvasUtils.js).
-// Populated at load time when ghostColor is available, otherwise empty.
+// Requires CanvasUtils.js to be loaded first (see index.html script order).
 var GHOST_COLORS = {};
 if (typeof ghostColor === 'function') {
   for (var _i = 1; _i <= 7; _i++) GHOST_COLORS[_i] = ghostColor(PIECE_COLORS[_i]);
+} else if (typeof document !== 'undefined') {
+  console.warn('ghostColor() not available — CanvasUtils.js must load before theme.js');
 }
 
 // Player accent colors
@@ -172,7 +174,7 @@ const THEME = Object.freeze({
 
 // Export for both Node.js and browser
 if (typeof module !== 'undefined' && module.exports) {
-  // In Node.js, compute ghost colors inline (CanvasUtils not loaded as global)
+  // IMPORTANT: _gc must mirror ghostColor() in CanvasUtils.js — keep in sync!
   var _gc = function(hex) {
     var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     if (!m) return { outline: 'rgba(255,255,255,0.3)', fill: 'rgba(255,255,255,0.15)' };
