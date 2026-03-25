@@ -132,6 +132,8 @@ const server = http.createServer((req, res) => {
   // Map directory paths to index.html
   if (urlPath === '/') {
     urlPath = '/display/index.html';
+  } else if (urlPath === '/privacy') {
+    urlPath = '/privacy.html';
   } else if (urlPath.length > 1 && !urlPath.includes('.') && urlPath.split('/').filter(Boolean).length === 1) {
     // Single path segment with no file extension -> room code -> serve controller
     urlPath = '/controller/index.html';
