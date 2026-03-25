@@ -57,9 +57,11 @@ function connectAndCreateRoom() {
         onPeerLeft(msg.clientId);
         break;
       case 'error':
-        console.error('Party-Server error:', msg.message);
         if (msg.message === 'Room not found' || msg.message === 'Room is full') {
+          console.error('Party-Server error:', msg.message);
           resetToWelcome();
+        } else {
+          console.warn('Party-Server:', msg.message);
         }
         break;
     }
