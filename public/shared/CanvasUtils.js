@@ -19,19 +19,37 @@ function hexToRgb(hex) {
   return cached;
 }
 
+// Feature-detect native ctx.roundRect (Chrome 99+, Safari 15.4+, Firefox 112+).
+var _hasNativeRoundRect = false;
+if (typeof document !== 'undefined') {
+  try { _hasNativeRoundRect = typeof document.createElement('canvas').getContext('2d').roundRect === 'function'; } catch(e) {}
+} else if (typeof OffscreenCanvas !== 'undefined') {
+  try { _hasNativeRoundRect = typeof new OffscreenCanvas(1,1).getContext('2d').roundRect === 'function'; } catch(e) {}
+}
+
+// Add a rounded-rect sub-path (no beginPath — for compound paths / batching).
+var _addRoundRectSubPath = _hasNativeRoundRect
+  ? function(ctx, x, y, w, h, r) {
+      ctx.roundRect(x, y, w, h, Math.min(r, w / 2, h / 2));
+    }
+  : function(ctx, x, y, w, h, r) {
+      r = Math.min(r, w / 2, h / 2);
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    };
+
+// Begin a new path + add a rounded rect (replaces old roundRect).
 function roundRect(ctx, x, y, w, h, r) {
-  r = Math.min(r, w / 2, h / 2);
   ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
+  _addRoundRectSubPath(ctx, x, y, w, h, r);
 }
 
 var _lightenCache = new Map();
