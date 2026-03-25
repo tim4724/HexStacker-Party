@@ -141,6 +141,7 @@ const THEME = Object.freeze({
   // ---- Animation Timing (ms) ----
   timing: Object.freeze({
     lineClear:    600,
+    lockFlash:    200,
     garbageShake: 180,
     textPopup:    1200,
     ko:           1800,

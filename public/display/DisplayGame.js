@@ -237,6 +237,8 @@ function runGameLocally() {
         lastAliveState[event.playerId] = false;
         party.sendTo(event.playerId, { type: MSG.PLAYER_STATE, alive: false });
         party.sendTo(event.playerId, { type: MSG.GAME_OVER });
+      } else if (event.type === 'piece_lock') {
+        onPieceLock(event);
       } else if (event.type === 'garbage_cancelled') {
         onGarbageCancelled(event);
       } else if (event.type === 'garbage_sent') {
@@ -377,6 +379,17 @@ function onGarbageSent(msg) {
     rowStart: Math.max(0, 20 - msg.lines)
   });
   garbageIndicatorEffects.set(msg.toId, shifted);
+}
+
+function onPieceLock(msg) {
+  if (!animations || !boardRenderers.length) return;
+  var idx = playerOrder.indexOf(msg.playerId);
+  if (idx < 0 || !boardRenderers[idx]) return;
+  var br = boardRenderers[idx];
+  var isNeon = br._styleTier === STYLE_TIERS.NEON_FLAT;
+  var colors = isNeon ? NEON_PIECE_COLORS : PIECE_COLORS;
+  var pieceColor = colors[msg.typeId] || '#ffffff';
+  animations.addLockFlash(br.x, br.y, br.cellSize, msg.blocks, pieceColor);
 }
 
 function onPlayerKO(msg) {

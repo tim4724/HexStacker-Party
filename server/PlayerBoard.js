@@ -362,6 +362,17 @@ class PlayerBoard {
   }
 
   _lockAndProcess() {
+    // Capture locked block positions before lockPiece() clears currentPiece
+    var lockedBlocks = [];
+    var lockedTypeId = 0;
+    if (this.currentPiece) {
+      lockedTypeId = this.currentPiece.typeId;
+      var abs = this.currentPiece.getAbsoluteBlocks();
+      for (var i = 0; i < abs.length; i++) {
+        lockedBlocks.push([abs[i][0], abs[i][1] - BUFFER_ROWS]);
+      }
+    }
+
     this.lockPiece();
 
     const isTSpin = this.lastWasTSpin && this.lastWasRotation;
@@ -402,7 +413,9 @@ class PlayerBoard {
       isTSpin,
       isTSpinMini,
       scoreResult,
-      alive: this.alive
+      alive: this.alive,
+      lockedBlocks,
+      lockedTypeId
     };
   }
 

@@ -109,8 +109,16 @@ class Game {
         break;
       case 'hard_drop': {
         const result = board.hardDrop();
-        if (result && result.linesCleared > 0) {
-          this.handleLineClear(playerId, result);
+        if (result) {
+          this.callbacks.onEvent({
+            type: 'piece_lock',
+            playerId,
+            blocks: result.lockedBlocks,
+            typeId: result.lockedTypeId
+          });
+          if (result.linesCleared > 0) {
+            this.handleLineClear(playerId, result);
+          }
         }
         break;
       }
@@ -148,8 +156,16 @@ class Game {
       try {
         const result = board.tick(deltaMs);
 
-        if (result && result.linesCleared > 0) {
-          this.handleLineClear(id, result);
+        if (result) {
+          this.callbacks.onEvent({
+            type: 'piece_lock',
+            playerId: id,
+            blocks: result.lockedBlocks,
+            typeId: result.lockedTypeId
+          });
+          if (result.linesCleared > 0) {
+            this.handleLineClear(id, result);
+          }
         }
       } catch (err) {
         console.error('[game] Board tick error for', id, ':', err);
