@@ -219,8 +219,8 @@ function _stampPillow(c, size, inset, s, r, color) {
   // highlights to avoid looking blown out compared to bright colors (yellow, cyan).
   var rgb = hexToRgb(color);
   var lum = rgb ? (rgb.r * 0.299 + rgb.g * 0.587 + rgb.b * 0.114) / 255 : 0.5;
-  var hiAlpha = 0.12 + lum * 0.18;   // dark ~0.12, bright ~0.30
-  var edgeAlpha = 0.12 + lum * 0.22; // dark ~0.12, bright ~0.34
+  var hiAlpha = 0.14 + lum * 0.46;   // dark ~0.14, bright ~0.60
+  var edgeAlpha = 0.12 + lum * 0.38; // dark ~0.12, bright ~0.50
   var half = size / 2;
   var g = c.createRadialGradient(half * 0.9, half * 0.8, 0, half, half, size * 0.65);
   g.addColorStop(0, 'rgba(255, 255, 255, ' + hiAlpha.toFixed(2) + ')');
