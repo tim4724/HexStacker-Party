@@ -19,6 +19,8 @@ class BoardRenderer {
     this._styleTier = STYLE_TIERS.NORMAL;
   }
 
+  get styleTier() { return this._styleTier; }
+
   render(playerState) {
     const ctx = this.ctx;
 

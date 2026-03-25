@@ -386,7 +386,7 @@ function onPieceLock(msg) {
   var idx = playerOrder.indexOf(msg.playerId);
   if (idx < 0 || !boardRenderers[idx]) return;
   var br = boardRenderers[idx];
-  var isNeon = br._styleTier === STYLE_TIERS.NEON_FLAT;
+  var isNeon = br.styleTier === STYLE_TIERS.NEON_FLAT;
   var colors = isNeon ? NEON_PIECE_COLORS : PIECE_COLORS;
   var pieceColor = colors[msg.typeId] || '#ffffff';
   animations.addLockFlash(br.x, br.y, br.cellSize, msg.blocks, pieceColor);

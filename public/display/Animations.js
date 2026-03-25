@@ -142,7 +142,7 @@ class Animations {
 
     // Colored sparkles only at exposed bottom edges
     for (const [col, row] of blocks) {
-      if (row < 0 || row >= VISIBLE_ROWS) continue;
+      if (row < 0 || row >= GameConstants.VISIBLE_HEIGHT) continue;
       // Skip if another block from this piece is directly below
       if (occupied.has(col + ',' + (row + 1))) continue;
       for (let j = 0; j < 5; j++) {
