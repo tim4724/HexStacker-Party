@@ -39,7 +39,6 @@ class UIRenderer {
     this.panelWidth = cellSize * THEME.size.panelWidth;
     this.miniSize = cellSize * THEME.font.cellScale.mini;
     this.panelGap = cellSize * THEME.size.panelGap;
-    this._miniGradients = new Map(); // cached per pieceType_size key
     this._styleTier = STYLE_TIERS.NORMAL;
   }
 
@@ -48,7 +47,7 @@ class UIRenderer {
     const newTier = getStyleTier(playerState.level || 1);
     if (newTier !== this._styleTier) {
       this._styleTier = newTier;
-      this._miniGradients.clear();
+      clearSharedGradients();
     }
 
     // 1. Player name + accent stripe above board
@@ -234,23 +233,14 @@ class UIRenderer {
       const bw = meter.cellSize - inset * 2;
       const bh = meter.cellSize - inset * 2;
 
-      if (tier === STYLE_TIERS.SQUARE) {
-        // Square — solid thin border + translucent fill
-        ctx.strokeStyle = `rgba(255, 255, 255, ${THEME.opacity.label})`;
-        ctx.lineWidth = 1;
-        ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
-        ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.muted})`;
-        ctx.fillRect(bx + 1, by + 1, bw - 2, bh - 2);
-      } else {
-        // Normal / Neon — solid rounded outline + translucent fill
-        ctx.strokeStyle = `rgba(255, 255, 255, ${THEME.opacity.label})`;
-        ctx.lineWidth = 1;
-        roundRect(ctx, bx + 0.5, by + 0.5, bw - 1, bh - 1, r);
-        ctx.stroke();
-        ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.muted})`;
-        roundRect(ctx, bx, by, bw, bh, r);
-        ctx.fill();
-      }
+      // All tiers use rounded garbage meter cells
+      ctx.strokeStyle = `rgba(255, 255, 255, ${THEME.opacity.label})`;
+      ctx.lineWidth = 1;
+      roundRect(ctx, bx + 0.5, by + 0.5, bw - 1, bh - 1, r);
+      ctx.stroke();
+      ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.muted})`;
+      roundRect(ctx, bx, by, bw, bh, r);
+      ctx.fill();
     }
   }
 
@@ -280,12 +270,8 @@ class UIRenderer {
         ctx.save();
         ctx.globalAlpha = alpha;
         ctx.fillStyle = effect.color;
-        if (this._styleTier === STYLE_TIERS.SQUARE) {
-          ctx.fillRect(bx, by, bw, bh);
-        } else {
-          roundRect(ctx, bx, by, bw, bh, r);
-          ctx.fill();
-        }
+        roundRect(ctx, bx, by, bw, bh, r);
+        ctx.fill();
         ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
         ctx.fillRect(bx + inset, by + inset, bw - inset * 2, inset);
         ctx.restore();
@@ -318,12 +304,8 @@ class UIRenderer {
         ctx.save();
         ctx.globalAlpha = alpha;
         ctx.fillStyle = THEME.color.text.white;
-        if (this._styleTier === STYLE_TIERS.SQUARE) {
-          ctx.fillRect(bx, by, bw, bh);
-        } else {
-          roundRect(ctx, bx, by, bw, bh, r);
-          ctx.fill();
-        }
+        roundRect(ctx, bx, by, bw, bh, r);
+        ctx.fill();
         ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
         ctx.fillRect(bx + inset, by + inset, bw - inset * 2, inset);
         ctx.restore();
@@ -373,15 +355,26 @@ class UIRenderer {
       const dx = offsetX + (bx - bounds.minX) * size;
       const dy = offsetY + (by - bounds.minY) * size;
 
-      if (tier === STYLE_TIERS.SQUARE) {
-        // Square mini — lighter border + flat fill
-        const bw = Math.max(1, size * 0.06);
-        const half = bw / 2;
-        ctx.strokeStyle = lightenColor(color, 20);
-        ctx.lineWidth = bw;
-        ctx.strokeRect(dx + inset + half, dy + inset + half, s - bw, s - bw);
+      if (tier === STYLE_TIERS.PILLOW) {
+        // Pillow mini — solid fill + subtle radial highlight
+        const r = THEME.radius.mini(size);
         ctx.fillStyle = color;
-        ctx.fillRect(dx + inset + bw, dy + inset + bw, s - bw * 2, s - bw * 2);
+        roundRect(ctx, dx + inset, dy + inset, s, s, r);
+        ctx.fill();
+        const grad = getSharedGradient('pm_' + size, size, function(c, sz) {
+          var half = sz / 2;
+          var g = c.createRadialGradient(half * 0.9, half * 0.8, 0, half, half, sz * 0.65);
+          g.addColorStop(0, 'rgba(255, 255, 255, 0.2)');
+          g.addColorStop(0.6, 'rgba(255, 255, 255, 0)');
+          g.addColorStop(1, 'rgba(0, 0, 0, 0.15)');
+          return g;
+        });
+        ctx.save();
+        ctx.translate(dx, dy);
+        ctx.fillStyle = grad;
+        roundRect(ctx, inset, inset, s, s, r);
+        ctx.fill();
+        ctx.restore();
       } else if (tier === STYLE_TIERS.NEON_FLAT) {
         // Neon flat mini — dark tinted fill + bright border
         const cRgb = hexToRgb(color);
@@ -397,14 +390,12 @@ class UIRenderer {
       } else {
         // Normal mini — gradient + highlight
         const r = THEME.radius.mini(size);
-        const gradKey = pieceType + '_' + size;
-        let grad = this._miniGradients.get(gradKey);
-        if (!grad) {
-          grad = ctx.createLinearGradient(0, 0, 0, size);
-          grad.addColorStop(0, color);
-          grad.addColorStop(1, darkenColor(color, 15));
-          this._miniGradients.set(gradKey, grad);
-        }
+        const grad = getSharedGradient('mn_' + pieceType + '_' + size, size, function(c, sz) {
+          var g = c.createLinearGradient(0, 0, 0, sz);
+          g.addColorStop(0, color);
+          g.addColorStop(1, darkenColor(color, 15));
+          return g;
+        });
         ctx.save();
         ctx.translate(dx, dy);
         ctx.fillStyle = grad;

@@ -3,6 +3,24 @@
 const VISIBLE_ROWS = GameConstants.VISIBLE_HEIGHT;
 const COLS = GameConstants.BOARD_WIDTH;
 
+// Shared gradient cache across all BoardRenderer and UIRenderer instances.
+// Keyed by "tier_color_size" — gradients use local (0,0) coords via ctx.translate.
+var _sharedGradientCache = new Map();
+var _sharedGradientCtx = null; // set lazily from first BoardRenderer
+
+function getSharedGradient(key, size, createFn) {
+  let grad = _sharedGradientCache.get(key);
+  if (!grad) {
+    grad = createFn(_sharedGradientCtx, size);
+    _sharedGradientCache.set(key, grad);
+  }
+  return grad;
+}
+
+function clearSharedGradients() {
+  _sharedGradientCache.clear();
+}
+
 class BoardRenderer {
   constructor(ctx, x, y, cellSize, playerIndex) {
     this.ctx = ctx;
@@ -15,8 +33,8 @@ class BoardRenderer {
     this.boardWidth = COLS * cellSize;
     this.boardHeight = VISIBLE_ROWS * cellSize;
     this._bgGradient = null;
-    this._blockGradients = new Map(); // cached per color hex string
     this._styleTier = STYLE_TIERS.NORMAL;
+    if (!_sharedGradientCtx) _sharedGradientCtx = ctx;
   }
 
   get styleTier() { return this._styleTier; }
@@ -28,7 +46,7 @@ class BoardRenderer {
     const newTier = getStyleTier(playerState.level || 1);
     if (newTier !== this._styleTier) {
       this._styleTier = newTier;
-      this._blockGradients.clear();
+      clearSharedGradients();
     }
 
     const isNeon = this._styleTier === STYLE_TIERS.NEON_FLAT;
@@ -150,19 +168,15 @@ class BoardRenderer {
 
     if (isGarbage) {
       ctx.fillStyle = THEME.color.garbage;
-      if (tier === STYLE_TIERS.SQUARE) {
-        ctx.fillRect(x + inset, y + inset, s, s);
-      } else {
-        roundRect(ctx, x + inset, y + inset, s, s, r);
-        ctx.fill();
-      }
+      roundRect(ctx, x + inset, y + inset, s, s, r);
+      ctx.fill();
       ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.faint})`;
       ctx.fillRect(x + inset * 2, y + inset * 2, s - inset * 2, inset);
       return;
     }
 
-    if (tier === STYLE_TIERS.SQUARE) {
-      this._drawBlockSquare(x, y, size, inset, s, color);
+    if (tier === STYLE_TIERS.PILLOW) {
+      this._drawBlockPillow(x, y, size, inset, s, r, color);
     } else if (tier === STYLE_TIERS.NEON_FLAT) {
       this._drawBlockNeonFlat(x, y, size, inset, s, r, color);
     } else {
@@ -172,14 +186,12 @@ class BoardRenderer {
 
   _drawBlockNormal(x, y, size, inset, s, r, color) {
     const ctx = this.ctx;
-    // Gradient in (0,0)→(0,size) coords — requires ctx.translate(x,y) before drawing
-    let grad = this._blockGradients.get(color);
-    if (!grad) {
-      grad = ctx.createLinearGradient(0, 0, 0, size);
-      grad.addColorStop(0, lightenColor(color, 15));
-      grad.addColorStop(1, darkenColor(color, 10));
-      this._blockGradients.set(color, grad);
-    }
+    const grad = getSharedGradient('n_' + color + '_' + size, size, function(c, sz) {
+      var g = c.createLinearGradient(0, 0, 0, sz);
+      g.addColorStop(0, lightenColor(color, 15));
+      g.addColorStop(1, darkenColor(color, 10));
+      return g;
+    });
     ctx.save();
     ctx.translate(x, y);
     ctx.fillStyle = grad;
@@ -197,15 +209,44 @@ class BoardRenderer {
     ctx.restore();
   }
 
-  _drawBlockSquare(x, y, size, inset, s, color) {
+  _drawBlockPillow(x, y, size, inset, s, r, color) {
     const ctx = this.ctx;
-    const bw = Math.max(1, size * 0.06);
-    const half = bw / 2;
-    ctx.strokeStyle = lightenColor(color, 20);
-    ctx.lineWidth = bw;
-    ctx.strokeRect(x + inset + half, y + inset + half, s - bw, s - bw);
+    // Base fill
     ctx.fillStyle = color;
-    ctx.fillRect(x + inset + bw, y + inset + bw, s - bw * 2, s - bw * 2);
+    roundRect(ctx, x + inset, y + inset, s, s, r);
+    ctx.fill();
+
+    // Radial pillow highlight — cached in local (0,0) coords
+    const grad = getSharedGradient('p_' + color + '_' + size, size, function(c, sz) {
+      var half = sz / 2;
+      var g = c.createRadialGradient(half * 0.9, half * 0.8, 0, half, half, sz * 0.65);
+      g.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
+      g.addColorStop(0.6, 'rgba(255, 255, 255, 0.03)');
+      g.addColorStop(1, 'rgba(0, 0, 0, 0.2)');
+      return g;
+    });
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = grad;
+    roundRect(ctx, inset, inset, s, s, r);
+    ctx.fill();
+
+    // Top edge highlight
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = Math.max(0.5, size * 0.04);
+    ctx.beginPath();
+    ctx.moveTo(inset + r, inset + size * 0.015);
+    ctx.lineTo(inset + s - r, inset + size * 0.015);
+    ctx.stroke();
+
+    // Bottom edge shadow
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+    ctx.lineWidth = Math.max(0.5, size * 0.04);
+    ctx.beginPath();
+    ctx.moveTo(inset + r, inset + s - size * 0.015);
+    ctx.lineTo(inset + s - r, inset + s - size * 0.015);
+    ctx.stroke();
+    ctx.restore();
   }
 
   _drawBlockNeonFlat(x, y, size, inset, s, r, color) {
@@ -242,22 +283,14 @@ class BoardRenderer {
     const r = THEME.radius.block(size);
     const tier = this._styleTier;
 
-    if (tier === STYLE_TIERS.SQUARE) {
-      ctx.strokeStyle = color.outline;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x + inset + 0.5, y + inset + 0.5, s - 1, s - 1);
-      ctx.fillStyle = color.fill;
-      ctx.fillRect(x + inset + 1, y + inset + 1, s - 2, s - 2);
-    } else {
-      // Normal / Neon — solid rounded outline + translucent fill
-      ctx.strokeStyle = color.outline;
-      ctx.lineWidth = 1;
-      roundRect(ctx, x + inset + 0.5, y + inset + 0.5, s - 1, s - 1, r);
-      ctx.stroke();
-      ctx.fillStyle = color.fill;
-      roundRect(ctx, x + inset, y + inset, s, s, r);
-      ctx.fill();
-    }
+    // All tiers use rounded ghost blocks
+    ctx.strokeStyle = color.outline;
+    ctx.lineWidth = 1;
+    roundRect(ctx, x + inset + 0.5, y + inset + 0.5, s - 1, s - 1, r);
+    ctx.stroke();
+    ctx.fillStyle = color.fill;
+    roundRect(ctx, x + inset, y + inset, s, s, r);
+    ctx.fill();
   }
 }
 
