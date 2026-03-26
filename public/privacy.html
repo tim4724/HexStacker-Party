@@ -5,37 +5,105 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Privacy — Tetris Party</title>
   <link rel="icon" href="/favicon.ico" type="image/svg+xml">
+  <link rel="stylesheet" href="/shared/fonts/orbitron.css">
+  <link rel="stylesheet" href="/shared/theme.css">
   <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      background: #06060f;
-      color: #888;
-      font-family: ui-monospace, 'Cascadia Code', 'Courier New', monospace;
-      font-size: 14px;
-      line-height: 1.9;
-      max-width: 520px;
-      margin: 0 auto;
-      padding: 3rem 1.5rem;
+      background: var(--bg-primary);
+      color: var(--text-secondary);
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: clamp(16px, 2vw, 18px);
+      line-height: 1.8;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
-    h1 { color: #00ccff; font-size: 14px; font-weight: normal; margin-bottom: 2rem; }
-    dt { color: #bbb; margin-top: 1.2rem; }
-    dd { margin: 0.2rem 0 0 0; }
-    a { color: #00ccff; text-decoration: none; }
-    ::selection { background: #00ccff30; color: #ddd; }
-    .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #111; opacity: 0.4; }
+
+    .privacy-shell {
+      width: 100%;
+      max-width: 960px;
+      padding: clamp(2rem, 6vh, 4rem) 1.5rem clamp(2rem, 4vh, 3rem);
+      background:
+        radial-gradient(ellipse at 50% 0%, var(--glow-blue) 0%, transparent 50%);
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 5vw, 2.6rem);
+      margin-bottom: clamp(1.5rem, 4vh, 2.5rem);
+      animation: fadeDown 0.5s ease-out both;
+    }
+
+    dl {
+      animation: fadeUp 0.5s 0.15s ease-out both;
+    }
+
+    dt {
+      color: var(--text-primary);
+      font-weight: 600;
+      font-size: 15px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-top: 1.6rem;
+    }
+
+    dt:first-child {
+      margin-top: 0;
+    }
+
+    dd {
+      margin: 0.3rem 0 0 0;
+    }
+
+    a {
+      color: var(--accent-cyan);
+      text-decoration: none;
+      transition: filter var(--transition-fast);
+    }
+
+    a:hover {
+      filter: drop-shadow(0 0 6px rgba(0, 200, 255, 0.3));
+    }
+
+    ::selection {
+      background: rgba(0, 204, 255, 0.2);
+      color: var(--text-primary);
+    }
+
+    h1.gradient-title {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan), var(--accent-green));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .footer {
+      margin-top: 2.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      font-size: 14px;
+      opacity: var(--opacity-label);
+      animation: fadeUp 0.5s 0.3s ease-out both;
+    }
   </style>
 </head>
 <body>
-  <h1>// privacy policy</h1>
-  <dl>
-    <dt>data</dt>
-    <dd>IP addresses are processed by the reverse proxy to serve the site. They appear in temporary server logs and are not stored persistently or shared with third parties.</dd>
-    <dt>tracking</dt>
-    <dd>No cookies, analytics, or third-party services are used.</dd>
-    <dt>gameplay</dt>
-    <dd>Player names and inputs are relayed between players during a session and exist only in memory. Nothing is stored.</dd>
-    <dt>contact</dt>
-    <dd>Tim Vogel — <a href="https://github.com/tim4724/Tetris-Party">Github</a></dd>
-  </dl>
-  <p class="footer">last updated march 2026</p>
+  <div class="privacy-shell">
+    <h1 class="gradient-title">PRIVACY NOTICE</h1>
+    <dl>
+      <dt>data</dt>
+      <dd>IP addresses are processed by the reverse proxy to serve the site. They appear in temporary server logs and are not stored persistently or shared with third parties.</dd>
+      <dt>tracking</dt>
+      <dd>No cookies, analytics, or third-party services are used.</dd>
+      <dt>gameplay</dt>
+      <dd>Player names and inputs are relayed between players during a session and exist only in memory. Nothing is stored.</dd>
+      <dt>contact</dt>
+      <dd>Tim Vogel · <a href="https://github.com/tim4724/Tetris-Party">Github</a></dd>
+    </dl>
+    <p class="footer">last updated march 2026</p>
+  </div>
 </body>
 </html>
