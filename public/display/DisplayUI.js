@@ -238,40 +238,21 @@ function renderTetrisQR(canvas, qrMatrix) {
   qrCtx.fillStyle = THEME.color.text.white;
   qrCtx.fillRect(0, 0, totalPx, totalPx);
 
-  var color = THEME.color.bg.card;
   var inset = Math.max(0.5, cellPx * 0.03);
   var radius = Math.max(1, cellPx * 0.15);
 
+  qrCtx.fillStyle = THEME.color.bg.card;
   for (var row = 0; row < size; row++) {
     for (var col = 0; col < size; col++) {
       var idx = row * size + col;
-      var isDark = modules[idx] & 1;
-      if (!isDark) continue;
+      if (!(modules[idx] & 1)) continue;
 
-      var x = col * cellPx;
-      var y = row * cellPx;
-      var s = cellPx;
+      var x = col * cellPx + inset;
+      var y = row * cellPx + inset;
+      var s = cellPx - inset * 2;
 
-      var grad = qrCtx.createLinearGradient(x, y, x, y + s);
-      grad.addColorStop(0, lightenColor(color, 15));
-      grad.addColorStop(1, darkenColor(color, 10));
-
-      qrCtx.fillStyle = grad;
-      roundRect(qrCtx, x + inset, y + inset, s - inset * 2, s - inset * 2, radius);
+      roundRect(qrCtx, x, y, s, s, radius);
       qrCtx.fill();
-
-      qrCtx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-      qrCtx.fillRect(x + inset + radius, y + inset, s - inset * 2 - radius * 2, Math.max(1, s * 0.08));
-
-      qrCtx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-      qrCtx.fillRect(x + inset, y + inset + radius, Math.max(1, s * 0.07), s - inset * 2 - radius * 2);
-
-      qrCtx.fillStyle = 'rgba(0, 0, 0, 0.25)';
-      qrCtx.fillRect(x + inset + radius, y + s - inset - Math.max(1, s * 0.08), s - inset * 2 - radius * 2, Math.max(1, s * 0.08));
-
-      qrCtx.fillStyle = 'rgba(255, 255, 255, 0.12)';
-      var shineSize = s * 0.25;
-      qrCtx.fillRect(x + s * 0.25, y + s * 0.2, shineSize, shineSize * 0.5);
     }
   }
 }
