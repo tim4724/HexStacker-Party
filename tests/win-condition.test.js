@@ -46,7 +46,7 @@ describe('Game - win condition', () => {
     assert.strictEqual(p2.rank, 1, 'winner ranked 1st');
   });
 
-  test('both KO events emitted before onGameEnd when one player dies', () => {
+  test('KO event is emitted for the dying player and precedes onGameEnd', () => {
     const { game, events, gameEndCalls } = makeGame(['p1', 'p2']);
 
     game.boards.get('p1').alive = false;
