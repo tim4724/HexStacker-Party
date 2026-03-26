@@ -13,6 +13,7 @@
   /* Text */
   --text-primary: #e0e0ff;
   --text-secondary: rgba(240, 244, 255, 0.6);
+  --color-white: #ffffff;
   --text-cyan: rgba(0, 200, 255, 0.9);
 
   /* Accents */
@@ -58,7 +59,7 @@
   --opacity-overlay: 0.75;
 
   /* Transitions */
-  --transition-fast: 0.2s ease;
+  --transition-fast: 0.15s ease;
   --transition-normal: 0.3s ease;
 
   /* Animations */
@@ -66,6 +67,7 @@
   --anim-pulse: 2.5s ease-in-out infinite;
 
   /* Radii */
+  --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 12px;
