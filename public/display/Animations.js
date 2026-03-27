@@ -298,15 +298,6 @@ class Animations {
     }
   }
 
-  getShakeOffset() {
-    for (const anim of this.active) {
-      if (anim.type === 'shake') {
-        return { x: anim.offsetX || 0, y: anim.offsetY || 0 };
-      }
-    }
-    return { x: 0, y: 0 };
-  }
-
   getShakeOffsetForBoard(boardX, boardY) {
     for (const anim of this.active) {
       if (anim.type === 'shake' && anim.boardX === boardX && anim.boardY === boardY) {
