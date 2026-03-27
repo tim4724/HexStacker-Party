@@ -161,14 +161,14 @@ async function stabilizeControllerUI(page) {
   }, STABLE_URL);
 }
 
-const STABLE_URL = 'https://tetris.party/ABCD';
+const STABLE_URL = 'https://couch-games.com/ABCD';
 
 async function stabilizeDisplayLobby(page) {
   var response = await page.request.get('/api/qr?text=' + encodeURIComponent(STABLE_URL));
   var qrMatrix = await response.json();
   await page.evaluate(({ url, matrix }) => {
     document.getElementById('join-url').textContent = url;
-    renderTetrisQR(document.getElementById('qr-code'), matrix);
+    renderQR(document.getElementById('qr-code'), matrix);
   }, { url: STABLE_URL, matrix: qrMatrix });
   await page.waitForTimeout(50);
 }

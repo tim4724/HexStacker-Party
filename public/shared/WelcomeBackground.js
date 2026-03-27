@@ -1,10 +1,10 @@
 'use strict';
 
-// Falling ghost-tetromino background animation for the welcome screen.
-// Renders translucent tetromino silhouettes on a canvas behind the DOM overlay.
+// Falling ghost-piece background animation for the welcome screen.
+// Renders translucent piece silhouettes on a canvas behind the DOM overlay.
 
 class WelcomeBackground {
-  // Standard tetromino shapes (each rotation is a list of [row, col] filled cells)
+  // Piece shapes (each is a list of [row, col] filled cells)
   static SHAPES = {
     I: [[0,0],[0,1],[0,2],[0,3]],
     O: [[0,0],[0,1],[1,0],[1,1]],

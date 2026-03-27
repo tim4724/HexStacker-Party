@@ -83,7 +83,7 @@ describe('GarbageManager - processLineClear delivery', () => {
   });
 
   test('sends garbage to opponent with lowest stack', () => {
-    const result = gm.processLineClear('p1', 4, false, 0, false, (id) => {
+    const result = gm.processLineClear('p1', 4, (id) => {
       return id === 'p2' ? 5 : 10;
     });
     assert.strictEqual(result.sent > 0, true);
@@ -91,24 +91,107 @@ describe('GarbageManager - processLineClear delivery', () => {
   });
 
   test('garbage cancels incoming before sending', () => {
-    // Give p1 some pending garbage
     gm.queues.get('p1').push({ lines: 2, gapColumn: 0, senderId: 'p2', msLeft: 100 });
-    const result = gm.processLineClear('p1', 4, false, 0, false, () => 5);
+    const result = gm.processLineClear('p1', 4, () => 5);
     assert.strictEqual(result.cancelled, 2);
   });
 
   test('no garbage sent for 0 lines cleared', () => {
-    const result = gm.processLineClear('p1', 0, false, 0, false, () => 5);
+    const result = gm.processLineClear('p1', 0, () => 5);
     assert.deepStrictEqual(result, { sent: 0, cancelled: 0, deliveries: [] });
   });
 
-  test('tetris without back-to-back sends 4 garbage (not 5)', () => {
-    const result = gm.processLineClear('p1', 4, false, 0, false, () => 5);
+  test('quad sends 4 garbage', () => {
+    const result = gm.processLineClear('p1', 4, () => 5);
     assert.strictEqual(result.sent, 4);
   });
 
-  test('tetris with back-to-back sends 5 garbage', () => {
-    const result = gm.processLineClear('p1', 4, false, 0, true, () => 5);
-    assert.strictEqual(result.sent, 5);
+  test('single sends 0 garbage', () => {
+    const result = gm.processLineClear('p1', 1, () => 5);
+    assert.strictEqual(result.sent, 0);
+  });
+
+  test('double sends 1 garbage', () => {
+    const result = gm.processLineClear('p1', 2, () => 5);
+    assert.strictEqual(result.sent, 1);
+  });
+
+  test('triple sends 2 garbage', () => {
+    const result = gm.processLineClear('p1', 3, () => 5);
+    assert.strictEqual(result.sent, 2);
+  });
+});
+
+describe('GarbageManager - cancellation', () => {
+  let gm;
+
+  beforeEach(() => {
+    gm = new GarbageManager(() => 0.5);
+    gm.addPlayer('p1');
+    gm.addPlayer('p2');
+  });
+
+  test('incoming garbage is cancelled before sending remainder', () => {
+    gm.queues.get('p1').push({ lines: 1, gapColumn: 0, senderId: 'p2', msLeft: 100 });
+    const result = gm.processLineClear('p1', 4, () => 5);
+    assert.strictEqual(result.cancelled, 1);
+    assert.strictEqual(result.sent, 3);
+  });
+
+  test('partial cancellation: remaining garbage stays in queue', () => {
+    gm.queues.get('p1').push({ lines: 3, gapColumn: 0, senderId: 'p2', msLeft: 100 });
+    const result = gm.processLineClear('p1', 1, () => 5);
+    assert.strictEqual(result.cancelled, 1);
+    assert.strictEqual(result.sent, 0);
+    assert.strictEqual(gm.queues.get('p1')[0].lines, 2);
+  });
+
+  test('single clear cancels 1 incoming garbage line', () => {
+    gm.queues.get('p1').push({ lines: 2, gapColumn: 0, senderId: 'p2', msLeft: 100 });
+    const result = gm.processLineClear('p1', 1, () => 5);
+    assert.strictEqual(result.cancelled, 1);
+    assert.strictEqual(gm.queues.get('p1')[0].lines, 1);
+  });
+});
+
+describe('GarbageManager - target selection', () => {
+  test('garbage targets lowest stack when multiple opponents exist', () => {
+    const gm = new GarbageManager(() => 0.5);
+    gm.addPlayer('p1');
+    gm.addPlayer('p2');
+    gm.addPlayer('p3');
+    const result = gm.processLineClear('p1', 2, (id) => {
+      return id === 'p2' ? 12 : 3;
+    });
+    assert.strictEqual(result.deliveries[0].toId, 'p3');
+  });
+});
+
+describe('GarbageManager - defenseLines parameter', () => {
+  let gm;
+
+  beforeEach(() => {
+    gm = new GarbageManager(() => 0.5);
+    gm.addPlayer('p1');
+    gm.addPlayer('p2');
+  });
+
+  test('defenseLines limits queue cancellation independently of attack', () => {
+    gm.queues.get('p1').push({ lines: 4, gapColumn: 0, senderId: 'p2', msLeft: 100 });
+    const result = gm.processLineClear('p1', 4, () => 5, 2);
+    assert.strictEqual(result.cancelled, 2);
+    assert.strictEqual(gm.queues.get('p1')[0].lines, 2);
+  });
+
+  test('defenseLines=null falls back to linesCleared', () => {
+    gm.queues.get('p1').push({ lines: 4, gapColumn: 0, senderId: 'p2', msLeft: 100 });
+    const result = gm.processLineClear('p1', 4, () => 5, null);
+    assert.strictEqual(result.cancelled, 4);
+  });
+
+  test('defenseLines undefined falls back to linesCleared', () => {
+    gm.queues.get('p1').push({ lines: 4, gapColumn: 0, senderId: 'p2', msLeft: 100 });
+    const result = gm.processLineClear('p1', 4, () => 5);
+    assert.strictEqual(result.cancelled, 4);
   });
 });

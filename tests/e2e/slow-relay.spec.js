@@ -13,7 +13,7 @@ test.describe('Slow relay', () => {
     // Intercept WebSocket to the relay and delay the "created" response
     const DELAY_MS = 2000;
 
-    await page.routeWebSocket(/ws\.tetris\.party/, (ws) => {
+    await page.routeWebSocket(/ws\.couch-games\.com/, (ws) => {
       const server = ws.connectToServer();
 
       ws.onMessage((msg) => {

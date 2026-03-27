@@ -167,7 +167,7 @@ newGameBtn.addEventListener('click', function() {
     preCreatedRoom = null;
     applyRoomCreated(pre.roomCode, pre.joinUrl);
     if (pre.qrMatrix) {
-      requestAnimationFrame(function() { renderTetrisQR(qrCode, pre.qrMatrix); });
+      requestAnimationFrame(function() { renderQR(qrCode, pre.qrMatrix); });
     }
   } else {
     // Relay hasn't responded yet — show lobby so onRoomCreated
@@ -222,7 +222,7 @@ newGameResultsBtn.addEventListener('click', function() {
 if (muted) muteBtn.querySelector('.sound-waves').style.display = 'none';
 muteBtn.addEventListener('click', function() {
   muted = !muted;
-  localStorage.setItem('tetris_muted', muted ? '1' : '0');
+  localStorage.setItem('stacker_muted', muted ? '1' : '0');
   muteBtn.querySelector('.sound-waves').style.display = muted ? 'none' : '';
   if (music) {
     music.muted = muted;
@@ -291,31 +291,32 @@ if (debugCount > 0 && window.__TEST__) {
   window.__TEST__.addPlayers(debugPlayers);
 
   // Build game state with stacked boards
+  var VH = GameConstants.VISIBLE_HEIGHT;
   var debugGrids = [
-    function() { var g = []; for (var r = 0; r < 20; r++) g.push([0,0,0,0,0,0,0,0,0,0]);
-      g[14]=[0,0,0,0,0,1,0,0,0,0]; g[15]=[0,7,7,0,0,1,0,0,0,0];
-      g[16]=[2,0,7,7,0,1,0,0,0,3]; g[17]=[2,2,2,0,0,1,0,3,3,3];
-      g[18]=[8,8,8,8,0,8,8,8,8,8]; g[19]=[8,8,8,8,8,0,8,8,8,8]; return g; },
-    function() { var g = []; for (var r = 0; r < 20; r++) g.push([0,0,0,0,0,0,0,0,0,0]);
-      g[16]=[0,5,5,0,4,4,6,6,6,0]; g[17]=[5,5,0,0,4,4,0,6,0,0];
-      g[18]=[8,8,8,0,8,8,8,8,8,8]; g[19]=[8,8,0,8,8,8,8,8,8,8]; return g; },
-    function() { var g = []; for (var r = 0; r < 20; r++) g.push([0,0,0,0,0,0,0,0,0,0]);
-      g[15]=[0,0,0,0,0,0,0,0,7,0]; g[16]=[0,0,0,0,0,0,0,7,7,0];
-      g[17]=[1,1,1,1,0,0,0,7,0,0]; g[18]=[8,8,8,8,8,0,8,8,8,8]; g[19]=[8,8,8,0,8,8,8,8,8,8]; return g; },
-    function() { var g = []; for (var r = 0; r < 20; r++) g.push([0,0,0,0,0,0,0,0,0,0]);
-      g[15]=[0,5,0,0,0,0,3,3,0,0]; g[16]=[0,5,5,0,0,0,0,3,0,0]; g[17]=[0,0,5,0,0,0,0,3,0,0];
-      g[18]=[8,8,8,0,8,8,8,8,8,8]; g[19]=[8,0,8,8,8,8,8,8,8,8]; return g; },
-    function() { var g = []; for (var r = 0; r < 20; r++) g.push([0,0,0,0,0,0,0,0,0,0]);
-      g[16]=[0,0,0,0,0,6,6,6,2,0]; g[17]=[5,5,3,3,0,0,6,0,2,2];
-      g[18]=[8,8,8,8,0,8,8,8,8,8]; g[19]=[8,8,0,8,8,8,8,8,8,8]; return g; },
-    function() { var g = []; for (var r = 0; r < 20; r++) g.push([0,0,0,0,0,0,0,0,0,0]);
-      g[16]=[4,4,0,0,0,0,0,5,5,0]; g[17]=[4,4,0,0,0,0,5,5,0,0];
-      g[18]=[8,8,8,8,8,0,8,8,8,8]; g[19]=[8,0,8,8,8,8,8,8,8,8]; return g; },
-    function() { var g = []; for (var r = 0; r < 20; r++) g.push([0,0,0,0,0,0,0,0,0,0]);
-      g[16]=[0,0,0,0,0,0,0,3,0,0]; g[17]=[1,1,1,1,0,3,3,3,0,0];
-      g[18]=[8,8,8,0,8,8,8,8,8,8]; g[19]=[8,8,8,8,0,8,8,8,8,8]; return g; },
-    function() { var g = []; for (var r = 0; r < 20; r++) g.push([0,0,0,0,0,0,0,0,0,0]);
-      g[17]=[0,0,7,7,0,0,0,0,0,0]; g[18]=[8,8,0,7,7,8,8,8,0,8]; g[19]=[8,8,8,8,0,8,8,8,8,8]; return g; }
+    function() { var g = []; for (var r = 0; r < VH; r++) g.push([0,0,0,0,0,0,0,0,0,0]);
+      g[VH-6]=[0,0,0,0,0,1,0,0,0,0]; g[VH-5]=[0,7,7,0,0,1,0,0,0,0];
+      g[VH-4]=[2,0,7,7,0,1,0,0,0,3]; g[VH-3]=[2,2,2,0,0,1,0,3,3,3];
+      g[VH-2]=[8,8,8,8,0,8,8,8,8,8]; g[VH-1]=[8,8,8,8,8,0,8,8,8,8]; return g; },
+    function() { var g = []; for (var r = 0; r < VH; r++) g.push([0,0,0,0,0,0,0,0,0,0]);
+      g[VH-4]=[0,5,5,0,4,4,6,6,6,0]; g[VH-3]=[5,5,0,0,4,4,0,6,0,0];
+      g[VH-2]=[8,8,8,0,8,8,8,8,8,8]; g[VH-1]=[8,8,0,8,8,8,8,8,8,8]; return g; },
+    function() { var g = []; for (var r = 0; r < VH; r++) g.push([0,0,0,0,0,0,0,0,0,0]);
+      g[VH-5]=[0,0,0,0,0,0,0,0,7,0]; g[VH-4]=[0,0,0,0,0,0,0,7,7,0];
+      g[VH-3]=[1,1,1,1,0,0,0,7,0,0]; g[VH-2]=[8,8,8,8,8,0,8,8,8,8]; g[VH-1]=[8,8,8,0,8,8,8,8,8,8]; return g; },
+    function() { var g = []; for (var r = 0; r < VH; r++) g.push([0,0,0,0,0,0,0,0,0,0]);
+      g[VH-5]=[0,5,0,0,0,0,3,3,0,0]; g[VH-4]=[0,5,5,0,0,0,0,3,0,0]; g[VH-3]=[0,0,5,0,0,0,0,3,0,0];
+      g[VH-2]=[8,8,8,0,8,8,8,8,8,8]; g[VH-1]=[8,0,8,8,8,8,8,8,8,8]; return g; },
+    function() { var g = []; for (var r = 0; r < VH; r++) g.push([0,0,0,0,0,0,0,0,0,0]);
+      g[VH-4]=[0,0,0,0,0,6,6,6,2,0]; g[VH-3]=[5,5,3,3,0,0,6,0,2,2];
+      g[VH-2]=[8,8,8,8,0,8,8,8,8,8]; g[VH-1]=[8,8,0,8,8,8,8,8,8,8]; return g; },
+    function() { var g = []; for (var r = 0; r < VH; r++) g.push([0,0,0,0,0,0,0,0,0,0]);
+      g[VH-4]=[4,4,0,0,0,0,0,5,5,0]; g[VH-3]=[4,4,0,0,0,0,5,5,0,0];
+      g[VH-2]=[8,8,8,8,8,0,8,8,8,8]; g[VH-1]=[8,0,8,8,8,8,8,8,8,8]; return g; },
+    function() { var g = []; for (var r = 0; r < VH; r++) g.push([0,0,0,0,0,0,0,0,0,0]);
+      g[VH-4]=[0,0,0,0,0,0,0,3,0,0]; g[VH-3]=[1,1,1,1,0,3,3,3,0,0];
+      g[VH-2]=[8,8,8,0,8,8,8,8,8,8]; g[VH-1]=[8,8,8,8,0,8,8,8,8,8]; return g; },
+    function() { var g = []; for (var r = 0; r < VH; r++) g.push([0,0,0,0,0,0,0,0,0,0]);
+      g[VH-3]=[0,0,7,7,0,0,0,0,0,0]; g[VH-2]=[8,8,0,7,7,8,8,8,0,8]; g[VH-1]=[8,8,8,8,0,8,8,8,8,8]; return g; }
   ];
   var debugPieces = [
     { typeId: 6, x: 7, y: 2, blocks: [[1,0],[0,1],[1,1],[2,1]] },
@@ -333,7 +334,6 @@ if (debugCount > 0 && window.__TEST__) {
     ['I','T','Z','L','O'], ['T','J','O','S','Z'], ['Z','I','J','S','L'], ['L','O','T','I','S'],
     ['S','Z','T','J','I'], ['J','L','I','O','T'], ['O','S','L','Z','J'], ['T','I','Z','L','O']
   ];
-  var debugScores = [12450, 8320, 5100, 2800, 9700, 6200, 4300, 1500];
   var debugLines = [24, 16, 10, 5, 20, 12, 8, 3];
   var debugLevels = [3, 2, 2, 1, 3, 2, 1, 1];
 
@@ -343,7 +343,7 @@ if (debugCount > 0 && window.__TEST__) {
       id: debugPlayers[dj].id,
       playerName: debugPlayers[dj].name,
       grid: debugGrids[dj % debugGrids.length](),
-      score: debugScores[dj % debugScores.length],
+
       lines: debugLines[dj % debugLines.length],
       level: debugLevels[dj % debugLevels.length],
       alive: true,

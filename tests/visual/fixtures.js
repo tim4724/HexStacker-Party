@@ -3,7 +3,6 @@
 
 const { PLAYER_COLORS } = require('../../public/shared/theme.js');
 
-const LIVE_SCORE = [12450, 8320, 5100, 2800, 9700, 6200, 4300, 1500];
 const LIVE_LINES = [24, 16, 10, 5, 20, 12, 8, 3];
 const LIVE_LEVELS = [3, 2, 2, 1, 3, 2, 1, 1];
 const LIVE_HOLD = ['O', 'S', 'T', 'I', 'J', 'Z', 'L', 'S'];
@@ -44,9 +43,8 @@ const LIVE_PIECES = [
 
 // Ghost Y — computed to be the lowest valid row for each piece/grid combination.
 // Verified: no ghost block overlaps any occupied grid cell.
-const LIVE_GHOST_Y = [14, 14, 15, 16, 15, 16, 15, 16];
+const LIVE_GHOST_Y = [16, 16, 17, 18, 17, 18, 17, 18];
 
-const RESULT_SCORE = [24800, 18200, 12100, 5400, 20500, 14300, 9800, 3200];
 const RESULT_LINES = [48, 36, 24, 10, 40, 28, 18, 6];
 const RESULT_LEVELS = [5, 4, 3, 2, 5, 3, 2, 1];
 
@@ -54,94 +52,94 @@ const RESULT_LEVELS = [5, 4, 3, 2, 5, 3, 2, 1];
 // Each board uses a unique combination of pieces and layout for visual variety.
 
 function createGrid1() {
-  // Player 1 — tallest stack (highest score)
+  // Player 1 — tallest stack
   //   J(2) cols 0-2  |  Z(7) cols 1-3  |  I(1) vertical col 5  |  L(3) cols 7-9
-  const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
-  grid[14] = [0, 0, 0, 0, 0, 1, 0, 0, 0, 0];
-  grid[15] = [0, 7, 7, 0, 0, 1, 0, 0, 0, 0];
-  grid[16] = [2, 0, 7, 7, 0, 1, 0, 0, 0, 3];
-  grid[17] = [2, 2, 2, 0, 0, 1, 0, 3, 3, 3];
-  grid[18] = [8, 8, 8, 8, 0, 8, 8, 8, 8, 8];
-  grid[19] = [8, 8, 8, 8, 8, 0, 8, 8, 8, 8];
+  const grid = Array.from({ length: 22 }, () => Array(10).fill(0));
+  grid[16] = [0, 0, 0, 0, 0, 1, 0, 0, 0, 0];
+  grid[17] = [0, 7, 7, 0, 0, 1, 0, 0, 0, 0];
+  grid[18] = [2, 0, 7, 7, 0, 1, 0, 0, 0, 3];
+  grid[19] = [2, 2, 2, 0, 0, 1, 0, 3, 3, 3];
+  grid[20] = [8, 8, 8, 8, 0, 8, 8, 8, 8, 8];
+  grid[21] = [8, 8, 8, 8, 8, 0, 8, 8, 8, 8];
   return grid;
 }
 
 function createGrid2() {
   // Player 2 — medium stack
   //   S(5) cols 0-2  |  O(4) cols 4-5  |  T(6) cols 6-8
-  const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
-  grid[16] = [0, 5, 5, 0, 4, 4, 6, 6, 6, 0];
-  grid[17] = [5, 5, 0, 0, 4, 4, 0, 6, 0, 0];
-  grid[18] = [8, 8, 8, 0, 8, 8, 8, 8, 8, 8];
-  grid[19] = [8, 8, 0, 8, 8, 8, 8, 8, 8, 8];
+  const grid = Array.from({ length: 22 }, () => Array(10).fill(0));
+  grid[18] = [0, 5, 5, 0, 4, 4, 6, 6, 6, 0];
+  grid[19] = [5, 5, 0, 0, 4, 4, 0, 6, 0, 0];
+  grid[20] = [8, 8, 8, 0, 8, 8, 8, 8, 8, 8];
+  grid[21] = [8, 8, 0, 8, 8, 8, 8, 8, 8, 8];
   return grid;
 }
 
 function createGrid3() {
   // Player 3 — lighter stack
   //   I(1) horizontal cols 0-3  |  Z(7) cols 7-8
-  const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
-  grid[15] = [0, 0, 0, 0, 0, 0, 0, 0, 7, 0];
-  grid[16] = [0, 0, 0, 0, 0, 0, 0, 7, 7, 0];
-  grid[17] = [1, 1, 1, 1, 0, 0, 0, 7, 0, 0];
-  grid[18] = [8, 8, 8, 8, 8, 0, 8, 8, 8, 8];
-  grid[19] = [8, 8, 8, 0, 8, 8, 8, 8, 8, 8];
+  const grid = Array.from({ length: 22 }, () => Array(10).fill(0));
+  grid[17] = [0, 0, 0, 0, 0, 0, 0, 0, 7, 0];
+  grid[18] = [0, 0, 0, 0, 0, 0, 0, 7, 7, 0];
+  grid[19] = [1, 1, 1, 1, 0, 0, 0, 7, 0, 0];
+  grid[20] = [8, 8, 8, 8, 8, 0, 8, 8, 8, 8];
+  grid[21] = [8, 8, 8, 0, 8, 8, 8, 8, 8, 8];
   return grid;
 }
 
 function createGrid4() {
-  // Player 4 — sparsest stack (lowest score)
+  // Player 4 — sparsest stack
   //   S(5) cols 1-2  |  L(3) cols 6-7
-  const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
-  grid[15] = [0, 5, 0, 0, 0, 0, 3, 3, 0, 0];
-  grid[16] = [0, 5, 5, 0, 0, 0, 0, 3, 0, 0];
-  grid[17] = [0, 0, 5, 0, 0, 0, 0, 3, 0, 0];
-  grid[18] = [8, 8, 8, 0, 8, 8, 8, 8, 8, 8];
-  grid[19] = [8, 0, 8, 8, 8, 8, 8, 8, 8, 8];
+  const grid = Array.from({ length: 22 }, () => Array(10).fill(0));
+  grid[17] = [0, 5, 0, 0, 0, 0, 3, 3, 0, 0];
+  grid[18] = [0, 5, 5, 0, 0, 0, 0, 3, 0, 0];
+  grid[19] = [0, 0, 5, 0, 0, 0, 0, 3, 0, 0];
+  grid[20] = [8, 8, 8, 0, 8, 8, 8, 8, 8, 8];
+  grid[21] = [8, 0, 8, 8, 8, 8, 8, 8, 8, 8];
   return grid;
 }
 
 function createGrid5() {
   // Player 5 — medium-tall stack
   //   S(5) cols 0-1  |  L(3) cols 2-3  |  T(6) cols 5-7  |  J(2) cols 8-9
-  const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
-  grid[15] = [0, 0, 0, 0, 0, 0, 0, 0, 2, 0];
-  grid[16] = [0, 0, 0, 0, 0, 6, 6, 6, 2, 0];
-  grid[17] = [5, 5, 3, 3, 0, 0, 6, 0, 2, 2];
-  grid[18] = [8, 8, 8, 8, 0, 8, 8, 8, 8, 8];
-  grid[19] = [8, 8, 0, 8, 8, 8, 8, 8, 8, 8];
+  const grid = Array.from({ length: 22 }, () => Array(10).fill(0));
+  grid[17] = [0, 0, 0, 0, 0, 0, 0, 0, 2, 0];
+  grid[18] = [0, 0, 0, 0, 0, 6, 6, 6, 2, 0];
+  grid[19] = [5, 5, 3, 3, 0, 0, 6, 0, 2, 2];
+  grid[20] = [8, 8, 8, 8, 0, 8, 8, 8, 8, 8];
+  grid[21] = [8, 8, 0, 8, 8, 8, 8, 8, 8, 8];
   return grid;
 }
 
 function createGrid6() {
   // Player 6 — medium stack
   //   O(4) cols 0-1  |  S(5) cols 7-9
-  const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
-  grid[16] = [4, 4, 0, 0, 0, 0, 0, 5, 5, 0];
-  grid[17] = [4, 4, 0, 0, 0, 0, 5, 5, 0, 0];
-  grid[18] = [8, 8, 8, 8, 8, 0, 8, 8, 8, 8];
-  grid[19] = [8, 0, 8, 8, 8, 8, 8, 8, 8, 8];
+  const grid = Array.from({ length: 22 }, () => Array(10).fill(0));
+  grid[18] = [4, 4, 0, 0, 0, 0, 0, 5, 5, 0];
+  grid[19] = [4, 4, 0, 0, 0, 0, 5, 5, 0, 0];
+  grid[20] = [8, 8, 8, 8, 8, 0, 8, 8, 8, 8];
+  grid[21] = [8, 0, 8, 8, 8, 8, 8, 8, 8, 8];
   return grid;
 }
 
 function createGrid7() {
   // Player 7 — light stack
   //   L(3) cols 5-7  |  I(1) cols 0-3
-  const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
-  grid[16] = [0, 0, 0, 0, 0, 0, 0, 3, 0, 0];
-  grid[17] = [1, 1, 1, 1, 0, 3, 3, 3, 0, 0];
-  grid[18] = [8, 8, 8, 0, 8, 8, 8, 8, 8, 8];
-  grid[19] = [8, 8, 8, 8, 0, 8, 8, 8, 8, 8];
+  const grid = Array.from({ length: 22 }, () => Array(10).fill(0));
+  grid[18] = [0, 0, 0, 0, 0, 0, 0, 3, 0, 0];
+  grid[19] = [1, 1, 1, 1, 0, 3, 3, 3, 0, 0];
+  grid[20] = [8, 8, 8, 0, 8, 8, 8, 8, 8, 8];
+  grid[21] = [8, 8, 8, 8, 0, 8, 8, 8, 8, 8];
   return grid;
 }
 
 function createGrid8() {
   // Player 8 — sparsest stack
   //   Z(7) cols 2-4
-  const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
-  grid[17] = [0, 0, 7, 7, 0, 0, 0, 0, 0, 0];
-  grid[18] = [8, 8, 0, 7, 7, 8, 8, 8, 0, 8];
-  grid[19] = [8, 8, 8, 8, 0, 8, 8, 8, 8, 8];
+  const grid = Array.from({ length: 22 }, () => Array(10).fill(0));
+  grid[19] = [0, 0, 7, 7, 0, 0, 0, 0, 0, 0];
+  grid[20] = [8, 8, 0, 7, 7, 8, 8, 8, 0, 8];
+  grid[21] = [8, 8, 8, 8, 0, 8, 8, 8, 8, 8];
   return grid;
 }
 
@@ -177,7 +175,7 @@ function buildGameState(playerIds, options) {
     players: playerIds.map((id, index) => ({
       id: id,
       alive: allDead ? false : !deadIds.has(id),
-      score: LIVE_SCORE[index] || LIVE_SCORE[LIVE_SCORE.length - 1],
+
       lines: LIVE_LINES[index] || LIVE_LINES[LIVE_LINES.length - 1],
       level: LIVE_LEVELS[index] || LIVE_LEVELS[LIVE_LEVELS.length - 1],
       grid: cloneGrid((GRIDS[index] || GRIDS[GRIDS.length - 1])()),
@@ -204,7 +202,7 @@ function buildResults(playerIds) {
       playerId: id,
       playerName: 'Player ' + (index + 1),
       playerColor: PLAYER_COLORS[index % PLAYER_COLORS.length],
-      score: RESULT_SCORE[index] || RESULT_SCORE[RESULT_SCORE.length - 1],
+
       lines: RESULT_LINES[index] || RESULT_LINES[RESULT_LINES.length - 1],
       level: RESULT_LEVELS[index] || RESULT_LEVELS[RESULT_LEVELS.length - 1]
     }))
@@ -221,17 +219,17 @@ const TIER_LEVELS = {
 // Grid with all 7 piece types + garbage, realistically stacked (no floating pieces)
 // Every non-zero cell either sits on the bottom row or on another non-zero cell below it.
 function createAllColorsGrid() {
-  const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
-  // Fully supported: every non-zero cell at row R either is at row 19 or has
+  const grid = Array.from({ length: 22 }, () => Array(10).fill(0));
+  // Fully supported: every non-zero cell at row R either is at row 21 or has
   // a non-zero cell directly below at row R+1.
   // Garbage gap at col 7 — no pieces placed above col 7.
   // col:       0  1  2  3  4  5  6  7  8  9
-  grid[19] = [ 8, 8, 8, 8, 8, 8, 8, 0, 8, 8]; // garbage
-  grid[18] = [ 8, 8, 8, 8, 8, 8, 8, 0, 8, 8]; // garbage
-  grid[17] = [ 1, 1, 1, 1, 6, 5, 5, 0, 7, 7]; // I, T top, S bot, Z top
-  grid[16] = [ 4, 4, 2, 3, 6, 6, 5, 0, 0, 7]; // O bot, J top, L top, T base, S top, Z bot
-  grid[15] = [ 4, 4, 2, 2, 2, 3, 3, 0, 0, 0]; // O top, J base, L bot
-  grid[14] = [ 0, 0, 0, 0, 0, 0, 3, 0, 0, 0]; // L top
+  grid[21] = [ 8, 8, 8, 8, 8, 8, 8, 0, 8, 8]; // garbage
+  grid[20] = [ 8, 8, 8, 8, 8, 8, 8, 0, 8, 8]; // garbage
+  grid[19] = [ 1, 1, 1, 1, 6, 5, 5, 0, 7, 7]; // I, T top, S bot, Z top
+  grid[18] = [ 4, 4, 2, 3, 6, 6, 5, 0, 0, 7]; // O bot, J top, L top, T base, S top, Z bot
+  grid[17] = [ 4, 4, 2, 2, 2, 3, 3, 0, 0, 0]; // O top, J base, L bot
+  grid[16] = [ 0, 0, 0, 0, 0, 0, 3, 0, 0, 0]; // L top
   return grid;
 }
 
@@ -247,7 +245,7 @@ function buildStyleTierGameState(playerIds) {
     players: playerIds.map((id, index) => ({
       id: id,
       alive: true,
-      score: LIVE_SCORE[index] || LIVE_SCORE[0],
+
       lines: tierLines[index] || tierLines[0],
       level: tierLevels[index] || tierLevels[0],
       grid: cloneGrid(allColorsGrid),
@@ -255,7 +253,7 @@ function buildStyleTierGameState(playerIds) {
         typeId: 6, x: 4, y: 3,
         blocks: [[1, 0], [0, 1], [1, 1], [2, 1]]
       },
-      ghostY: 11,
+      ghostY: 13,
       holdPiece: 'I',
       nextPieces: ['J', 'L', 'O', 'S', 'Z'],
       pendingGarbage: 2,
@@ -278,7 +276,7 @@ function buildAllPiecesGhostState(playerIds, tierLevel) {
 
   // All 7 pieces as solid blocks in rows 2-6
   function createShowcaseGrid() {
-    const grid = Array.from({ length: 20 }, () => Array(10).fill(0));
+    const grid = Array.from({ length: 22 }, () => Array(10).fill(0));
     // I(1) horizontal
     grid[2] = [0, 0, 0, 1, 1, 1, 1, 0, 0, 0];
     // J(2) + O(4) + L(3)
@@ -305,13 +303,13 @@ function buildAllPiecesGhostState(playerIds, tierLevel) {
   // Active piece ghost at row 10, extra ghosts at rows 12, 14, 16, 18 etc.
   // Place them at different x positions so they don't overlap
   const ghostPositions = [
-    { x: 0, ghostY: 10 },  // I at cols 0-3
-    { x: 0, ghostY: 13 },  // J at cols 0-2
-    { x: 4, ghostY: 13 },  // L at cols 4-6
-    { x: 8, ghostY: 13 },  // O at cols 8-9
-    { x: 0, ghostY: 16 },  // S at cols 0-2
-    { x: 4, ghostY: 16 },  // T at cols 4-6
-    { x: 7, ghostY: 16 },  // Z at cols 7-9
+    { x: 0, ghostY: 12 },  // I at cols 0-3
+    { x: 0, ghostY: 15 },  // J at cols 0-2
+    { x: 4, ghostY: 15 },  // L at cols 4-6
+    { x: 8, ghostY: 15 },  // O at cols 8-9
+    { x: 0, ghostY: 18 },  // S at cols 0-2
+    { x: 4, ghostY: 18 },  // T at cols 4-6
+    { x: 7, ghostY: 18 },  // Z at cols 7-9
   ];
 
   const pieceLabels = ['I', 'J', 'L', 'O', 'S', 'T', 'Z', 'I'];
@@ -339,7 +337,7 @@ function buildAllPiecesGhostState(playerIds, tierLevel) {
     return {
       id: id,
       alive: true,
-      score: 0,
+
       lines: (tierLevel - 1) * 10,
       level: tierLevel,
       grid: createShowcaseGrid(),

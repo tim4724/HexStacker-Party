@@ -47,19 +47,19 @@ jobs:
         run: |
           set -euo pipefail
           SAFE_BRANCH=$(echo "$BRANCH_RAW" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9-]#-#g' | cut -c1-50 | sed 's/-*$//')
-          NS="tetris-${SAFE_BRANCH}"
-          HOST="${SAFE_BRANCH}.tetris-party.duckdns.org"
+          NS="cg-${SAFE_BRANCH}"
+          HOST="stacker-${SAFE_BRANCH}.couch-games.com"
 
           kubectl get ns "$NS" >/dev/null 2>&1 || kubectl create ns "$NS"
 
-          TLS_CRT=$(kubectl get secret tetris-party-wildcard-tls -n default -o jsonpath='{.data.tls\.crt}')
-          TLS_KEY=$(kubectl get secret tetris-party-wildcard-tls -n default -o jsonpath='{.data.tls\.key}')
+          TLS_CRT=$(kubectl get secret couch-games-wildcard-tls -n default -o jsonpath='{.data.tls\.crt}')
+          TLS_KEY=$(kubectl get secret couch-games-wildcard-tls -n default -o jsonpath='{.data.tls\.key}')
 
           cat <<EOS | kubectl apply -n "$NS" -f -
           apiVersion: v1
           kind: Secret
           metadata:
-            name: tetris-party-wildcard-tls
+            name: couch-games-wildcard-tls
           type: kubernetes.io/tls
           data:
             tls.crt: ${TLS_CRT}
@@ -70,20 +70,20 @@ jobs:
           apiVersion: apps/v1
           kind: Deployment
           metadata:
-            name: tetris
+            name: couch-games
           spec:
             revisionHistoryLimit: 3
             replicas: 1
             selector:
               matchLabels:
-                app: tetris
+                app: couch-games
             template:
               metadata:
                 labels:
-                  app: tetris
+                  app: couch-games
               spec:
                 containers:
-                  - name: tetris
+                  - name: couch-games
                     image: ${IMAGE}
                     env:
                       - name: PUBLIC_URL
@@ -99,10 +99,10 @@ jobs:
           apiVersion: v1
           kind: Service
           metadata:
-            name: tetris
+            name: couch-games
           spec:
             selector:
-              app: tetris
+              app: couch-games
             ports:
               - port: 4000
                 targetPort: 4000
@@ -119,7 +119,7 @@ jobs:
           apiVersion: traefik.io/v1alpha1
           kind: IngressRoute
           metadata:
-            name: tetris-https
+            name: cg-https
           spec:
             entryPoints:
               - websecure
@@ -127,15 +127,15 @@ jobs:
               - match: Host(\`${HOST}\`)
                 kind: Rule
                 services:
-                  - name: tetris
+                  - name: couch-games
                     port: 4000
             tls:
-              secretName: tetris-party-wildcard-tls
+              secretName: couch-games-wildcard-tls
           ---
           apiVersion: traefik.io/v1alpha1
           kind: IngressRoute
           metadata:
-            name: tetris-http
+            name: cg-http
           spec:
             entryPoints:
               - web
@@ -143,7 +143,7 @@ jobs:
               - match: Host(\`${HOST}\`)
                 kind: Rule
                 services:
-                  - name: tetris
+                  - name: couch-games
                     port: 4000
                 middlewares:
                   - name: redirect-to-https
@@ -154,7 +154,7 @@ jobs:
           BRANCH_RAW: ${{ github.ref_name }}
         run: |
           SAFE_BRANCH=$(echo "$BRANCH_RAW" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9-]#-#g' | cut -c1-50 | sed 's/-*$//')
-          HOST="${SAFE_BRANCH}.tetris-party.duckdns.org"
+          HOST="stacker-${SAFE_BRANCH}.couch-games.com"
           {
             echo "### Preview"
             echo "- URL: https://${HOST}"

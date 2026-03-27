@@ -216,17 +216,12 @@ class Game {
   handleLineClear(playerId, clearResult) {
     const board = this.boards.get(playerId);
     const lines = clearResult.linesCleared;
-    const isTSpin = clearResult.isTSpin || false;
-    const combo = (clearResult.scoreResult && clearResult.scoreResult.combo) || 0;
-    const backToBack = (clearResult.scoreResult && clearResult.scoreResult.backToBack) || false;
 
     this.callbacks.onEvent({
       type: 'line_clear',
       playerId,
       lines,
-      rows: clearResult.fullRows || [],
-      isTSpin,
-      combo
+      rows: clearResult.fullRows || []
     });
 
     // Cancel board-pending garbage first (already delivered, most urgent)
@@ -250,7 +245,7 @@ class Game {
       const b = this.boards.get(id);
       return b && b.alive ? b.getStackHeight() : -1;
     };
-    const result = this.garbageManager.processLineClear(playerId, lines, isTSpin, combo, backToBack, getStackHeight, defenseRemaining);
+    const result = this.garbageManager.processLineClear(playerId, lines, getStackHeight, defenseRemaining);
 
     const totalCancelled = boardCancelled + result.cancelled;
     if (totalCancelled > 0) {
@@ -295,20 +290,18 @@ class Game {
 
     for (const id of this.playerIds) {
       const board = this.boards.get(id);
-      const state = board.scoring ? board.scoring.getState() : {};
       results.push({
         playerId: id,
         alive: board.alive,
-        score: state.score || 0,
-        lines: state.lines || 0,
-        level: state.level || 0
+        lines: board.lines || 0,
+        level: board.getLevel ? board.getLevel() : 1
       });
     }
 
-    // Sort: alive first, then by score descending
+    // Sort: alive first, then by lines descending
     results.sort((a, b) => {
       if (a.alive !== b.alive) return b.alive ? 1 : -1;
-      return b.score - a.score;
+      return b.lines - a.lines;
     });
 
     results.forEach((r, i) => { r.rank = i + 1; });

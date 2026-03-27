@@ -233,7 +233,7 @@ function renderGameResults(results) {
 
     var stats = document.createElement('div');
     stats.className = 'result-stats';
-    stats.innerHTML = '<span>' + (r.score || 0).toLocaleString() + ' points</span><span>' + (r.lines || 0) + ' lines</span><span>Lv ' + (r.level || 1) + '</span>';
+    stats.innerHTML = '<span>' + (r.lines || 0) + ' lines</span><span>Level ' + (r.level || 1) + '</span>';
 
     info.appendChild(nameEl);
     info.appendChild(stats);

@@ -55,10 +55,7 @@ class UIRenderer {
     // 3. Next pieces panel (right of board)
     this.drawNextPanel(playerState);
 
-    // 4. Score display below board
-    this.drawScorePanel(playerState);
-
-    // 5. Garbage meter (right edge of board)
+    // 4. Garbage meter (left edge of board)
     if (playerState.pendingGarbage > 0) {
       this.drawGarbageMeter(playerState.pendingGarbage);
     }
@@ -92,14 +89,14 @@ class UIRenderer {
     ctx.textBaseline = 'bottom';
     ctx.fillText(name, this.boardX + this.cellSize * 0.07, nameY - this.cellSize * 0.07);
 
-    // Level badge on right side
-    if (playerState.level) {
-      const lvlSize = Math.max(THEME.font.minPx.label, this.cellSize * THEME.font.cellScale.label);
-      ctx.font = `700 ${lvlSize}px ${getDisplayFont()}`;
-      ctx.textAlign = 'right';
-      ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.label})`;
-      ctx.fillText(`Level ${playerState.level}`, this.boardX + this.boardWidth - this.cellSize * 0.07, nameY - this.cellSize * 0.07);
-    }
+    // Lines + level badge on right side
+    const lvlSize = Math.max(THEME.font.minPx.label, this.cellSize * THEME.font.cellScale.label);
+    ctx.font = `700 ${lvlSize}px ${getDisplayFont()}`;
+    ctx.textAlign = 'right';
+    ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.label})`;
+    const lines = playerState.lines || 0;
+    const level = playerState.level || 1;
+    ctx.fillText(`Lines ${lines}  Level ${level}`, this.boardX + this.boardWidth - this.cellSize * 0.07, nameY - this.cellSize * 0.07);
   }
 
   drawHoldPanel(playerState) {
@@ -153,13 +150,13 @@ class UIRenderer {
     ctx.letterSpacing = '0px';
 
     // Panel background
-    const nextCount = playerState.nextPieces ? Math.min(playerState.nextPieces.length, 5) : 0;
-    const boxHeight = pieceSpacing * Math.max(nextCount, 5);
+    const nextCount = playerState.nextPieces ? Math.min(playerState.nextPieces.length, 3) : 0;
+    const boxHeight = pieceSpacing * Math.max(nextCount, 3);
     this._drawPanel(panelX, startY, boxWidth, boxHeight);
 
     // Next pieces
     if (playerState.nextPieces) {
-      for (let i = 0; i < Math.min(playerState.nextPieces.length, 5); i++) {
+      for (let i = 0; i < Math.min(playerState.nextPieces.length, 3); i++) {
         const py = startY + i * pieceSpacing + pieceSpacing / 2;
         const alpha = i === 0 ? 1.0 : 0.7 - i * 0.06;
         ctx.globalAlpha = alpha;
@@ -174,43 +171,12 @@ class UIRenderer {
     }
   }
 
-  drawScorePanel(playerState) {
-    const ctx = this.ctx;
-    const panelY = this.boardY + this.boardHeight + this.cellSize * 0.45;
-    const scoreSize = Math.max(THEME.font.minPx.score, this.cellSize * THEME.font.cellScale.score);
-
-    // Score — large prominent number
-    ctx.font = `700 ${scoreSize}px ${getDisplayFont()}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-
-    // Score text
-    const scoreStr = String(playerState.score || 0).padStart(8, '0');
-    ctx.fillStyle = THEME.color.text.white;
-    ctx.fillText(
-      scoreStr,
-      this.boardX + this.boardWidth / 2,
-      panelY
-    );
-
-    // Lines count
-    const smallSize = Math.max(THEME.font.minPx.label, this.cellSize * THEME.font.cellScale.label);
-    ctx.font = `500 ${smallSize}px ${getDisplayFont()}`;
-    ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.label})`;
-    const statsY = panelY + scoreSize + this.cellSize * 0.15;
-    ctx.fillText(
-      `${playerState.lines || 0} LINES`,
-      this.boardX + this.boardWidth / 2,
-      statsY
-    );
-  }
-
   getGarbageMeterLayout() {
     return {
       x: this.boardX - this.cellSize * 1.07,
       y: this.boardY,
       cellSize: this.cellSize,
-      rows: 20
+      rows: GameConstants.VISIBLE_HEIGHT
     };
   }
 

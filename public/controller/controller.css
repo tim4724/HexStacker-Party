@@ -78,6 +78,7 @@ html, body {
   font-size: clamp(1.4rem, 7vw, 2.2rem);
   filter: drop-shadow(0 0 8px var(--glow-cyan));
   animation: fadeDown 0.5s ease-out both;
+  text-align: center;
 }
 
 .controller-shell__body {

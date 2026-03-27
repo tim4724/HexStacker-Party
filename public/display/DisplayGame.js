@@ -228,7 +228,7 @@ function runGameLocally() {
         if (p) {
           party.sendTo(event.playerId, {
             type: MSG.PLAYER_STATE,
-            score: p.score, level: p.level, lines: p.lines,
+            level: p.level, lines: p.lines,
             alive: p.alive, garbageIncoming: p.pendingGarbage || 0
           });
         }
@@ -302,11 +302,8 @@ function onLineClear(msg) {
   var idx = playerOrder.indexOf(msg.playerId);
   if (idx < 0 || !boardRenderers[idx]) return;
   var br = boardRenderers[idx];
-  var isTetris = msg.lines === 4;
-  animations.addLineClear(br.x, br.y, br.cellSize, msg.rows || [], isTetris, msg.isTSpin);
-  if (msg.combo >= 2) {
-    animations.addCombo(br.x + br.boardWidth / 2, br.y + br.boardHeight / 2 - br.cellSize, msg.combo, br.cellSize);
-  }
+  var isQuad = msg.lines === 4;
+  animations.addLineClear(br.x, br.y, br.cellSize, msg.rows || [], isQuad);
 }
 
 function onGarbageCancelled(msg) {
@@ -327,9 +324,9 @@ function onGarbageCancelled(msg) {
   var cancelledLines = Math.min(msg.lines, oldPending);
   if (cancelledLines > 0) {
     // Top-down coords (row 0 = top of board). The meter occupies
-    // rows (20 - oldPending) through 19. The meter shrinks from the top,
+    // rows (VISIBLE_HEIGHT - oldPending) through VISIBLE_HEIGHT-1. The meter shrinks from the top,
     // so flash the rows that disappear at the top of the old meter.
-    var rowStart = 20 - oldPending;
+    var rowStart = GameConstants.VISIBLE_HEIGHT - oldPending;
     var existing = garbageDefenceEffects.get(msg.playerId) || [];
     existing.push({
       startTime: performance.now(),
@@ -376,7 +373,7 @@ function onGarbageSent(msg) {
     maxAlpha: 0.94,
     color: attackerColor,
     lines: msg.lines,
-    rowStart: Math.max(0, 20 - msg.lines)
+    rowStart: Math.max(0, GameConstants.VISIBLE_HEIGHT - msg.lines)
   });
   garbageIndicatorEffects.set(msg.toId, shifted);
 }

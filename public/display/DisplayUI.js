@@ -19,7 +19,6 @@ function calculateLayout() {
   var boardRows = GameConstants.VISIBLE_HEIGHT;
   // Gaps scale with cellSize to stay proportional at all zoom levels
   function nameGap(cs) { return cs * 0.6; }
-  function scoreGap(cs) { return cs * 0.7; }
   var font = getDisplayFont();
 
   var _measureCache = {};
@@ -35,10 +34,7 @@ function calculateLayout() {
 
   function textHeight(cs) {
     var nameSize = Math.max(THEME.font.minPx.name, cs * THEME.font.cellScale.name);
-    var scoreSize = Math.max(THEME.font.minPx.score, cs * THEME.font.cellScale.score);
-    var labelSize = Math.max(THEME.font.minPx.label, cs * THEME.font.cellScale.label);
-    return measureHeight(700, nameSize) + nameGap(cs)
-         + measureHeight(700, scoreSize) + measureHeight(500, labelSize) + scoreGap(cs);
+    return measureHeight(700, nameSize) + nameGap(cs);
   }
 
   function cellSizeFor(cols, rows) {
@@ -67,8 +63,8 @@ function calculateLayout() {
     else { gridCols = 4; gridRows = 2; cellSize = cs4x2; }
   }
   if (!cellSize) cellSize = cellSizeFor(gridCols, gridRows);
-  var boardWidthPx = 10 * cellSize;
-  var boardHeightPx = 20 * cellSize;
+  var boardWidthPx = GameConstants.BOARD_WIDTH * cellSize;
+  var boardHeightPx = GameConstants.VISIBLE_HEIGHT * cellSize;
 
   boardRenderers = [];
   uiRenderers = [];
@@ -224,7 +220,7 @@ playerListEl.addEventListener('click', function(e) {
 });
 
 // --- QR Code Rendering ---
-function renderTetrisQR(canvas, qrMatrix) {
+function renderQR(canvas, qrMatrix) {
   if (!qrMatrix || !qrMatrix.modules) return;
   var size = qrMatrix.size;
   var modules = qrMatrix.modules;
@@ -308,7 +304,7 @@ function renderResults(results) {
 
     var stats = document.createElement('div');
     stats.className = 'result-stats';
-    stats.innerHTML = '<span>' + (res.score || 0).toLocaleString() + ' points</span><span>' + (res.lines || 0) + ' lines</span><span>Lv ' + (res.level || 1) + '</span>';
+    stats.innerHTML = '<span>' + (res.lines || 0) + ' lines</span><span>Level ' + (res.level || 1) + '</span>';
 
     info.appendChild(nameEl);
     info.appendChild(stats);

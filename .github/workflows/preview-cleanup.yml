@@ -27,5 +27,5 @@ jobs:
           set -euo pipefail
           BRANCH_RAW="${{ github.event.ref }}"
           SAFE_BRANCH=$(echo "$BRANCH_RAW" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9-]#-#g')
-          NS="tetris-${SAFE_BRANCH}"
+          NS="cg-${SAFE_BRANCH}"
           kubectl delete namespace "$NS" --ignore-not-found

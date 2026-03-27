@@ -8,7 +8,6 @@ var BOARD_WIDTH = constants.BOARD_WIDTH;
 var BOARD_HEIGHT = constants.BOARD_HEIGHT;
 var VISIBLE_HEIGHT = constants.VISIBLE_HEIGHT;
 var BUFFER_ROWS = constants.BUFFER_ROWS;
-var GRAVITY_TABLE = constants.GRAVITY_TABLE;
 var SOFT_DROP_MULTIPLIER = constants.SOFT_DROP_MULTIPLIER;
 var LOCK_DELAY_MS = constants.LOCK_DELAY_MS;
 var MAX_LOCK_RESETS = constants.MAX_LOCK_RESETS;
@@ -18,60 +17,7 @@ var MAX_DROPS_PER_TICK = constants.MAX_DROPS_PER_TICK;
 
 var Piece = ((typeof require !== 'undefined') ? require('./Piece') : window.GamePiece).Piece;
 var Randomizer = ((typeof require !== 'undefined') ? require('./Randomizer') : window.GameRandomizer).Randomizer;
-var Scoring = ((typeof require !== 'undefined') ? require('./Scoring') : window.GameScoring).Scoring;
-
-const NEXT_QUEUE_SIZE = 6;
-
-// Detect T-spin or T-spin mini using the 4-corner rule.
-function detectTSpin(grid, pieceType, pieceX, pieceY, rotation) {
-  if (pieceType !== 'T') return { isTSpin: false, isTSpinMini: false };
-
-  // Center of T piece in its local grid is at (1,1)
-  var cx = pieceX + 1;
-  var cy = pieceY + 1;
-
-  var corners = [
-    [cx - 1, cy - 1],
-    [cx + 1, cy - 1],
-    [cx - 1, cy + 1],
-    [cx + 1, cy + 1]
-  ];
-
-  var filledCorners = 0;
-  for (var i = 0; i < corners.length; i++) {
-    var col = corners[i][0];
-    var row = corners[i][1];
-    if (col < 0 || col >= BOARD_WIDTH || row < 0 || row >= BOARD_HEIGHT || grid[row][col] !== 0) {
-      filledCorners++;
-    }
-  }
-
-  if (filledCorners < 3) return { isTSpin: false, isTSpinMini: false };
-
-  // Front corners depend on rotation state
-  var frontCorners;
-  switch (rotation) {
-    case 0: frontCorners = [[cx - 1, cy - 1], [cx + 1, cy - 1]]; break;
-    case 1: frontCorners = [[cx + 1, cy - 1], [cx + 1, cy + 1]]; break;
-    case 2: frontCorners = [[cx + 1, cy + 1], [cx - 1, cy + 1]]; break;
-    case 3: frontCorners = [[cx - 1, cy + 1], [cx - 1, cy - 1]]; break;
-    default: return { isTSpin: false, isTSpinMini: false };
-  }
-
-  var frontFilled = 0;
-  for (var j = 0; j < frontCorners.length; j++) {
-    var fc = frontCorners[j][0];
-    var fr = frontCorners[j][1];
-    if (fc < 0 || fc >= BOARD_WIDTH || fr < 0 || fr >= BOARD_HEIGHT || grid[fr][fc] !== 0) {
-      frontFilled++;
-    }
-  }
-
-  return {
-    isTSpin: frontFilled === 2,
-    isTSpinMini: frontFilled < 2
-  };
-}
+const NEXT_QUEUE_SIZE = 4;
 
 class PlayerBoard {
   constructor(playerId, seed, startLevel) {
@@ -82,7 +28,8 @@ class PlayerBoard {
     this.holdPiece = null;
     this.holdUsed = false;
     this.nextPieces = [];
-    this.scoring = new Scoring(startLevel);
+    this.lines = 0;
+    this.startLevel = startLevel || 1;
     this.randomizer = new Randomizer(seed);
     this.alive = true;
     this.lockTimer = null;
@@ -91,9 +38,6 @@ class PlayerBoard {
     this.softDropping = false;
     this.softDropSpeed = SOFT_DROP_MULTIPLIER;
     this.pendingGarbage = [];
-    this.lastWasTSpin = false;
-    this.lastWasTSpinMini = false;
-    this.lastWasRotation = false;
 
     // Line clear animation state
     this.clearingRows = null;
@@ -116,7 +60,6 @@ class PlayerBoard {
     this.holdUsed = false;
     this.lockTimer = null;
     this.lockResets = 0;
-    this.lastWasRotation = false;
 
     // Check if spawn position is valid
     if (!this.isValidPosition(this.currentPiece)) {
@@ -151,7 +94,7 @@ class PlayerBoard {
     test.x -= 1;
     if (this.isValidPosition(test)) {
       this.currentPiece.x = test.x;
-      this.lastWasRotation = false;
+
       this._resetLockTimerIfOnSurface();
       return true;
     }
@@ -164,7 +107,7 @@ class PlayerBoard {
     test.x += 1;
     if (this.isValidPosition(test)) {
       this.currentPiece.x = test.x;
-      this.lastWasRotation = false;
+
       this._resetLockTimerIfOnSurface();
       return true;
     }
@@ -177,34 +120,22 @@ class PlayerBoard {
 
     const fromRotation = this.currentPiece.rotation;
     const toRotation = (fromRotation + 1) % 4;
-    const kicks = this.currentPiece.getWallKicks(fromRotation, toRotation);
+    const kicks = this.currentPiece.getWallKicks();
 
     for (const [dx, dy] of kicks) {
       const test = this.currentPiece.clone();
       test.rotation = toRotation;
       test.x += dx;
-      test.y -= dy; // SRS uses y-up, our grid is y-down
+      test.y -= dy; // kick offsets use y-up, our grid is y-down
       if (this.isValidPosition(test)) {
         this.currentPiece.rotation = toRotation;
         this.currentPiece.x = test.x;
         this.currentPiece.y = test.y;
-        this.lastWasRotation = true;
-        this._checkTSpin();
         this._resetLockTimerIfOnSurface();
         return true;
       }
     }
     return false;
-  }
-
-  _checkTSpin() {
-    var result = detectTSpin(
-      this.grid, this.currentPiece.type,
-      this.currentPiece.x, this.currentPiece.y,
-      this.currentPiece.rotation
-    );
-    this.lastWasTSpin = result.isTSpin;
-    this.lastWasTSpinMini = result.isTSpinMini;
   }
 
   _resetLockTimerIfOnSurface() {
@@ -243,20 +174,21 @@ class PlayerBoard {
     this.softDropSpeed = SOFT_DROP_MULTIPLIER;
   }
 
+  getLevel() {
+    return Math.floor(this.lines / 10) + this.startLevel;
+  }
+
   hardDrop() {
     if (!this.currentPiece || !this.alive) return null;
-    let cellsDropped = 0;
     while (true) {
       const test = this.currentPiece.clone();
       test.y += 1;
       if (this.isValidPosition(test)) {
         this.currentPiece.y = test.y;
-        cellsDropped++;
       } else {
         break;
       }
     }
-    this.scoring.addHardDrop(cellsDropped);
     return this._lockAndProcess();
   }
 
@@ -277,7 +209,6 @@ class PlayerBoard {
     this.holdUsed = true;
     this.lockTimer = null;
     this.lockResets = 0;
-    this.lastWasRotation = false;
 
     if (!this.isValidPosition(this.currentPiece)) {
       this.alive = false;
@@ -301,9 +232,8 @@ class PlayerBoard {
 
     if (!this.currentPiece) return null;
 
-    const level = this.scoring.getLevel();
-    const gravityIndex = Math.min(level - 1, GRAVITY_TABLE.length - 1);
-    let gravityFrames = GRAVITY_TABLE[gravityIndex];
+    const level = this.getLevel();
+    let gravityFrames = Math.max(2, Math.round(50 / (1 + Math.min(level, 15) * 0.45)));
 
     // Soft drop accelerates gravity
     if (this.softDropping) {
@@ -350,10 +280,6 @@ class PlayerBoard {
       this.gravityCounter = 0;
     }
 
-    if (softDropCells > 0) {
-      this.scoring.addSoftDrop(softDropCells);
-    }
-
     // Decrement and check lock timer
     if (this.lockTimer !== null) {
       this.lockTimer -= deltaMs;
@@ -382,9 +308,6 @@ class PlayerBoard {
 
     this.lockPiece();
 
-    const isTSpin = this.lastWasTSpin && this.lastWasRotation;
-    const isTSpinMini = this.lastWasTSpinMini && this.lastWasRotation;
-
     // Detect full rows
     const fullRows = [];
     for (let row = 0; row < BOARD_HEIGHT; row++) {
@@ -394,22 +317,15 @@ class PlayerBoard {
     }
 
     const linesCleared = fullRows.length;
-    let scoreResult = null;
 
     if (linesCleared > 0) {
-      // Calculate score immediately
-      scoreResult = this.scoring.addLineClear(linesCleared, isTSpin, isTSpinMini);
+      this.lines += linesCleared;
 
       // Start clearing animation - delay actual row removal
       this.clearingRows = fullRows;
       this.clearingTimer = LINE_CLEAR_DELAY_MS;
       this.currentPiece = null;
     } else {
-      // T-spin zero still scores points even with no lines cleared
-      if (isTSpin || isTSpinMini) {
-        scoreResult = this.scoring.addLineClear(0, isTSpin, isTSpinMini);
-      }
-      this.scoring.resetCombo();
       this._applyPendingGarbage();
       this.spawnPiece();
     }
@@ -417,9 +333,6 @@ class PlayerBoard {
     return {
       linesCleared,
       fullRows: fullRows.map(r => r - BUFFER_ROWS),
-      isTSpin,
-      isTSpinMini,
-      scoreResult,
       alive: this.alive,
       lockedBlocks,
       lockedTypeId
@@ -523,10 +436,9 @@ class PlayerBoard {
       } : null,
       ghostY: this.currentPiece ? this.getGhostY() - BUFFER_ROWS : null,
       holdPiece: this.holdPiece,
-      nextPieces: this.nextPieces.slice(0, 5),
-      score: this.scoring.score,
-      level: this.scoring.getLevel(),
-      lines: this.scoring.lines,
+      nextPieces: this.nextPieces.slice(0, 3),
+      level: this.getLevel(),
+      lines: this.lines,
       alive: this.alive,
       pendingGarbage: this.pendingGarbage.reduce((sum, g) => sum + g.lines, 0),
       clearingRows: this.clearingRows ? this.clearingRows.map(r => r - BUFFER_ROWS) : null
@@ -535,6 +447,5 @@ class PlayerBoard {
 }
 
 exports.PlayerBoard = PlayerBoard;
-exports.detectTSpin = detectTSpin;
 
 })(typeof module !== 'undefined' ? module.exports : (window.GamePlayerBoard = {}));

@@ -40,12 +40,12 @@ jobs:
           IMAGE="ghcr.io/${REPO}:${TAG}"
 
           echo "Deploying ${TAG} to production"
-          kubectl set image deployment/tetris \
-            tetris="${IMAGE}" -n default
-          kubectl set env deployment/tetris \
+          kubectl set image deployment/couch-games \
+            couch-games="${IMAGE}" -n default
+          kubectl set env deployment/couch-games \
             APP_ENV=production \
             GIT_SHA="${GIT_SHA}" -n default
-          kubectl rollout status deployment/tetris -n default --timeout=120s
+          kubectl rollout status deployment/couch-games -n default --timeout=120s
 
           {
             echo "### Production Deploy ${TAG}"

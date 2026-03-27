@@ -5,8 +5,6 @@
 
 var constants = (typeof require !== 'undefined') ? require('./constants') : window.GameConstants;
 var GARBAGE_TABLE = constants.GARBAGE_TABLE;
-var TSPIN_GARBAGE_MULTIPLIER = constants.TSPIN_GARBAGE_MULTIPLIER;
-var COMBO_GARBAGE = constants.COMBO_GARBAGE;
 var GARBAGE_DELAY_MS = constants.GARBAGE_DELAY_MS;
 
 class GarbageManager {
@@ -41,29 +39,12 @@ class GarbageManager {
     return ready;
   }
 
-  processLineClear(senderId, linesCleared, isTSpin, combo, backToBack, getStackHeight, defenseLines) {
+  processLineClear(senderId, linesCleared, getStackHeight, defenseLines) {
     if (linesCleared === 0) return { sent: 0, cancelled: 0, deliveries: [] };
 
-    // Calculate garbage lines to send (always based on original lines cleared)
-    let garbageLines = GARBAGE_TABLE[linesCleared] || 0;
+    const garbageLines = GARBAGE_TABLE[linesCleared] || 0;
 
-    // T-spin doubles garbage
-    if (isTSpin) {
-      garbageLines *= TSPIN_GARBAGE_MULTIPLIER;
-    }
-
-    // Combo bonus
-    if (combo >= 0) {
-      const comboIndex = Math.min(combo, COMBO_GARBAGE.length - 1);
-      garbageLines += COMBO_GARBAGE[comboIndex];
-    }
-
-    // Back-to-back bonus for tetris or t-spin
-    if (backToBack && (linesCleared === 4 || isTSpin)) {
-      garbageLines += 1;
-    }
-
-    // Cancel sender's incoming garbage (defenseLines may be reduced by board-pending cancellation)
+    // Cancel sender's incoming garbage
     const senderQueue = this.queues.get(senderId) || [];
     let defenseRemaining = defenseLines != null ? defenseLines : linesCleared;
     let cancelled = 0;
@@ -81,10 +62,8 @@ class GarbageManager {
       }
     }
 
-    // Remaining attack after cancellation absorbs some offensive power
+    // Send net attack to opponent with the lowest stack
     const netAttack = Math.max(0, garbageLines - cancelled);
-
-    // Send net attack to opponent with the lowest stack (strongest player)
     let sent = 0;
     const deliveries = [];
     if (netAttack > 0) {
