@@ -17,6 +17,7 @@ jobs:
   deploy:
     runs-on: [self-hosted, k8s]
     needs: build
+    environment: production
     steps:
       - name: Install kubectl
         uses: azure/setup-kubectl@v4

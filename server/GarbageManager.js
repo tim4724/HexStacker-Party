@@ -4,6 +4,7 @@
 (function(exports) {
 
 var constants = (typeof require !== 'undefined') ? require('./constants') : window.GameConstants;
+var BOARD_WIDTH = constants.BOARD_WIDTH;
 var GARBAGE_TABLE = constants.GARBAGE_TABLE;
 var GARBAGE_DELAY_MS = constants.GARBAGE_DELAY_MS;
 
@@ -103,7 +104,7 @@ class GarbageManager {
   }
 
   generateGapColumn() {
-    return Math.floor(this.rng() * 10);
+    return Math.floor(this.rng() * BOARD_WIDTH);
   }
 }
 

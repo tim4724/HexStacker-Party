@@ -23,6 +23,8 @@ jobs:
   deploy:
     runs-on: [self-hosted, k8s]
     needs: build
+    if: github.actor != 'dependabot[bot]'
+    environment: preview
     steps:
       - name: Checkout
         uses: actions/checkout@v4

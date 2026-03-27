@@ -22,7 +22,7 @@ const NEXT_QUEUE_SIZE = 4;
 class PlayerBoard {
   constructor(playerId, seed, startLevel) {
     this.playerId = playerId;
-    // 10 wide x 24 tall grid (0=empty, 1-7=piece type, 8=garbage)
+    // 10 wide x 26 tall grid (0=empty, 1-7=piece type, 8=garbage)
     this.grid = Array.from({ length: BOARD_HEIGHT }, () => new Array(BOARD_WIDTH).fill(0));
     this.currentPiece = null;
     this.holdPiece = null;
@@ -421,7 +421,7 @@ class PlayerBoard {
   }
 
   getState() {
-    // Return only visible rows (bottom 20 of the 24-row grid)
+    // Return only visible rows (bottom 22 of the 26-row grid)
     const visibleGrid = this.grid.slice(BUFFER_ROWS);
 
     return {

@@ -72,6 +72,7 @@ class Music {
 
   start() {
     this.init();
+    if (!this.ctx) return;
     if (this.ctx.state === 'suspended') {
       this.ctx.resume().catch(e => console.warn('AudioContext resume failed:', e));
     }
