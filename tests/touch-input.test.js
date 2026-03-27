@@ -95,15 +95,28 @@ describe('TouchInput gesture sessions', () => {
     assert.deepEqual(actions.map(entry => entry.action), [INPUT.RIGHT, INPUT.RIGHT]);
   });
 
-  test('horizontal movement and soft drop can coexist in one touch session', () => {
+  test('soft drop started before horizontal movement continues during it', () => {
     touchInput._onPointerDown(pointerEvent({ clientX: 0, clientY: 0, timeStamp: 0 }));
+    // Vertical dominates first → soft drop activates
     touchInput._onPointerMove(pointerEvent({ clientX: 60, clientY: 90, timeStamp: 120 }));
+    // Then horizontal catches up → ratchet fires, soft drop continues
     touchInput._onPointerMove(pointerEvent({ clientX: 120, clientY: 120, timeStamp: 220 }));
 
-    // soft_drop emits once on start (interval handles repeats asynchronously)
     assert.deepEqual(actions.map(entry => entry.action), [
       'soft_drop',
       INPUT.RIGHT,
+      INPUT.RIGHT,
+    ]);
+  });
+
+  test('horizontal movement first prevents soft drop from activating', () => {
+    touchInput._onPointerDown(pointerEvent({ clientX: 0, clientY: 0, timeStamp: 0 }));
+    // Horizontal ratchet fires first (dx=60 > 48, dy=10 small)
+    touchInput._onPointerMove(pointerEvent({ clientX: 60, clientY: 10, timeStamp: 80 }));
+    // Then finger drifts down past dead zone — soft drop should NOT activate
+    touchInput._onPointerMove(pointerEvent({ clientX: 60, clientY: 100, timeStamp: 300 }));
+
+    assert.deepEqual(actions.map(entry => entry.action), [
       INPUT.RIGHT,
     ]);
   });

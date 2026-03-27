@@ -11,7 +11,7 @@ class TouchInput {
     this.TAP_MAX_DISTANCE = 15;
     this.TAP_MAX_DURATION = 300;
     this.FLICK_VELOCITY_THRESHOLD = 0.8;
-    this.SOFT_DROP_DEAD_ZONE = 72;
+    this.SOFT_DROP_DEAD_ZONE = 96;
     this.SOFT_DROP_MIN_SPEED = 3;
     this.SOFT_DROP_MAX_SPEED = 10;
     this.SOFT_DROP_MAX_DIST = 200;
@@ -32,6 +32,7 @@ class TouchInput {
     this.isDragging = false;
     this.isSoftDropping = false;
     this.hasSoftDropped = false;
+    this.hasMovedHorizontally = false;
     this._softDropIntervalId = null;
     this._lastDyFromStart = 0;
 
@@ -78,6 +79,7 @@ class TouchInput {
     this.isDragging = false;
     this.isSoftDropping = false;
     this.hasSoftDropped = false;
+    this.hasMovedHorizontally = false;
     this._lastDyFromStart = 0;
     this._stopSoftDropInterval();
     this.posBuffer = [];
@@ -229,6 +231,7 @@ class TouchInput {
       }
       this._haptic(10);
       this.anchorX += steps * this.RATCHET_THRESHOLD;
+      this.hasMovedHorizontally = true;
     }
 
     const { vx, vy } = this._getVelocity();
@@ -238,7 +241,7 @@ class TouchInput {
     this._lastDyFromStart = dyFromStart;
 
     if (dyFromStart > this.SOFT_DROP_DEAD_ZONE && !freshFlingCandidate) {
-      if (!this.isSoftDropping) {
+      if (!this.isSoftDropping && !this.hasMovedHorizontally) {
         this.isSoftDropping = true;
         this.hasSoftDropped = true;
         this._haptic(15);
