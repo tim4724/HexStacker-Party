@@ -14,6 +14,7 @@ var MAX_LOCK_RESETS = constants.MAX_LOCK_RESETS;
 var GARBAGE_CELL = constants.GARBAGE_CELL;
 var LINE_CLEAR_DELAY_MS = constants.LINE_CLEAR_DELAY_MS;
 var MAX_DROPS_PER_TICK = constants.MAX_DROPS_PER_TICK;
+var MAX_SPEED_LEVEL = constants.MAX_SPEED_LEVEL;
 
 var Piece = ((typeof require !== 'undefined') ? require('./Piece') : window.GamePiece).Piece;
 var Randomizer = ((typeof require !== 'undefined') ? require('./Randomizer') : window.GameRandomizer).Randomizer;
@@ -230,7 +231,7 @@ class PlayerBoard {
     if (!this.currentPiece) return null;
 
     const level = this.getLevel();
-    let gravityFrames = Math.max(2, Math.round(50 / (1 + Math.min(level, 15) * 0.45)));
+    let gravityFrames = Math.max(2, Math.round(50 / (1 + Math.min(level, MAX_SPEED_LEVEL) * 0.45)));
 
     // Soft drop accelerates gravity
     if (this.softDropping) {

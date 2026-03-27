@@ -88,8 +88,9 @@ class Music {
 
     if (this.buffer) {
       this._startSource();
+    } else if (!this._loaded) {
+      this._loadTrack();
     }
-    // else: _loadTrack will call _startSource when ready
   }
 
   stop() {
@@ -143,8 +144,8 @@ class Music {
   }
 
   setSpeed(level) {
-    // Playback rate: 0.95 at level 1, ramps to 1.35 at level 15, caps there
-    const clamped = Math.min(level, 15);
+    const maxLevel = GameConstants.MAX_SPEED_LEVEL;
+    const clamped = Math.min(level, maxLevel);
     this._rate = 0.95 + (clamped - 1) * (0.4 / 14);
     if (this.source) {
       this.source.playbackRate.setTargetAtTime(this._rate, this.ctx.currentTime, 0.1);

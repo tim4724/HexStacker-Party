@@ -8,6 +8,7 @@ const BOARD_HEIGHT = 26; // 22 visible + 4 buffer
 const VISIBLE_HEIGHT = 22;
 const BUFFER_ROWS = 4;
 
+const MAX_SPEED_LEVEL = 15;    // Gravity and music speed cap at this level
 const SOFT_DROP_MULTIPLIER = 20;
 const LOCK_DELAY_MS = 500;
 const MAX_LOCK_RESETS = 10;
@@ -46,6 +47,7 @@ exports.BOARD_WIDTH = BOARD_WIDTH;
 exports.BOARD_HEIGHT = BOARD_HEIGHT;
 exports.VISIBLE_HEIGHT = VISIBLE_HEIGHT;
 exports.BUFFER_ROWS = BUFFER_ROWS;
+exports.MAX_SPEED_LEVEL = MAX_SPEED_LEVEL;
 exports.SOFT_DROP_MULTIPLIER = SOFT_DROP_MULTIPLIER;
 exports.LOCK_DELAY_MS = LOCK_DELAY_MS;
 exports.MAX_LOCK_RESETS = MAX_LOCK_RESETS;
