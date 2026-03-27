@@ -38,7 +38,7 @@ describe('GarbageManager - defenseLines parameter', () => {
     gm.queues.get('p1').push({ lines: 4, gapColumn: 0, senderId: 'p2', msLeft: 5 });
 
     // Clear 4 lines (attack = 4) but only 1 defenseLines remaining
-    const result = gm.processLineClear('p1', 4, false, -1, false, () => 5, 1);
+    const result = gm.processLineClear('p1', 4, () => 5, 1);
 
     assert.strictEqual(result.cancelled, 1, 'only 1 line cancelled from queue');
     assert.strictEqual(gm.queues.get('p1')[0].lines, 3, '3 lines remain in queue');
@@ -50,7 +50,7 @@ describe('GarbageManager - defenseLines parameter', () => {
     gm.queues.get('p1').push({ lines: 2, gapColumn: 0, senderId: 'p2', msLeft: 5 });
 
     // Clear 4 lines but 0 defenseLines (board-pending already absorbed all defense)
-    const result = gm.processLineClear('p1', 4, false, -1, false, () => 5, 0);
+    const result = gm.processLineClear('p1', 4, () => 5, 0);
 
     assert.strictEqual(result.cancelled, 0, 'no queue cancellation');
     assert.strictEqual(gm.queues.get('p1')[0].lines, 2, 'queue unchanged');
@@ -60,7 +60,7 @@ describe('GarbageManager - defenseLines parameter', () => {
   test('defenseLines=null falls back to linesCleared', () => {
     gm.queues.get('p1').push({ lines: 2, gapColumn: 0, senderId: 'p2', msLeft: 5 });
 
-    const result = gm.processLineClear('p1', 4, false, -1, false, () => 5, null);
+    const result = gm.processLineClear('p1', 4, () => 5, null);
 
     assert.strictEqual(result.cancelled, 2, 'cancels using linesCleared as defense');
   });
@@ -68,7 +68,7 @@ describe('GarbageManager - defenseLines parameter', () => {
   test('defenseLines undefined falls back to linesCleared', () => {
     gm.queues.get('p1').push({ lines: 2, gapColumn: 0, senderId: 'p2', msLeft: 5 });
 
-    const result = gm.processLineClear('p1', 4, false, -1, false, () => 5);
+    const result = gm.processLineClear('p1', 4, () => 5);
 
     assert.strictEqual(result.cancelled, 2, 'cancels using linesCleared as defense');
   });
@@ -94,8 +94,7 @@ describe('Game - board-pending garbage cancellation', () => {
     // Simulate a 4-line clear
     game.handleLineClear('p1', {
       linesCleared: 4,
-      fullRows: [20, 21, 22, 23],
-      scoreResult: { combo: -1, backToBack: false }
+      fullRows: [22, 23, 24, 25],
     });
 
     const cancelled = events.find(e => e.type === 'garbage_cancelled');
@@ -123,8 +122,7 @@ describe('Game - board-pending garbage cancellation', () => {
     // Clear 4 lines: should cancel all 3 board-pending, then 1 from manager
     game.handleLineClear('p1', {
       linesCleared: 4,
-      fullRows: [20, 21, 22, 23],
-      scoreResult: { combo: -1, backToBack: false }
+      fullRows: [22, 23, 24, 25],
     });
 
     assert.strictEqual(board.pendingGarbage.length, 0, 'board pending fully cancelled');
@@ -143,8 +141,7 @@ describe('Game - board-pending garbage cancellation', () => {
 
     game.handleLineClear('p1', {
       linesCleared: 1,
-      fullRows: [23],
-      scoreResult: { combo: -1, backToBack: false }
+      fullRows: [25],
     });
 
     assert.strictEqual(board.pendingGarbage[0].lines, 3, '3 lines remain on board');
@@ -159,13 +156,12 @@ describe('Game - board-pending garbage cancellation', () => {
     // No pending garbage anywhere
     game.handleLineClear('p1', {
       linesCleared: 4,
-      fullRows: [20, 21, 22, 23],
-      scoreResult: { combo: -1, backToBack: false }
+      fullRows: [22, 23, 24, 25],
     });
 
     const sent = events.find(e => e.type === 'garbage_sent');
     assert.ok(sent, 'garbage_sent event should fire');
-    assert.strictEqual(sent.lines, 4, 'full tetris attack sent');
+    assert.strictEqual(sent.lines, 4, 'full quad attack sent');
 
     const cancelled = events.find(e => e.type === 'garbage_cancelled');
     assert.strictEqual(cancelled, undefined, 'no cancellation event');
@@ -183,8 +179,7 @@ describe('Game - board-pending garbage cancellation', () => {
     // Clear 3 lines: cancels entries [1, 1, partial 2→1]
     game.handleLineClear('p1', {
       linesCleared: 3,
-      fullRows: [21, 22, 23],
-      scoreResult: { combo: -1, backToBack: false }
+      fullRows: [23, 24, 25],
     });
 
     assert.strictEqual(board.pendingGarbage.length, 1, 'one entry remains');
@@ -203,7 +198,7 @@ describe('Game - garbage delivery during line clear animation', () => {
     board.spawnPiece();
 
     // Put board into clearing state with plenty of time remaining
-    board.clearingRows = [20, 21];
+    board.clearingRows = [22, 23];
     board.clearingTimer = 999999;
 
     // Queue garbage that expires this tick (msLeft <= LOGIC_TICK_MS)

@@ -104,13 +104,13 @@ if (rejoinId) {
 // Name Input
 // =====================================================================
 
-var savedName = localStorage.getItem('tetris_player_name') || '';
+var savedName = localStorage.getItem('stacker_player_name') || '';
 
 function submitName() {
   var name = nameInput.value.trim();
 
   playerName = name || null;
-  if (name) localStorage.setItem('tetris_player_name', name);
+  if (name) localStorage.setItem('stacker_player_name', name);
   sessionStorage.setItem('clientId_' + roomCode, clientId);
   nameJoinBtn.disabled = true;
   nameJoinBtn.textContent = 'CONNECTING...';
@@ -142,7 +142,7 @@ document.addEventListener('pointerdown', function onFirstPointer() {
 // Mute
 // =====================================================================
 
-ControllerAudio.setMuted(localStorage.getItem('tetris_muted') === '1');
+ControllerAudio.setMuted(localStorage.getItem('stacker_muted') === '1');
 if (ControllerAudio.isMuted()) {
   muteBtn.classList.add('muted');
   muteBtn.querySelector('.sound-waves').style.display = 'none';
@@ -151,7 +151,7 @@ if (ControllerAudio.isMuted()) {
 muteBtn.addEventListener('click', function () {
   vibrate(10);
   ControllerAudio.setMuted(!ControllerAudio.isMuted());
-  localStorage.setItem('tetris_muted', ControllerAudio.isMuted() ? '1' : '0');
+  localStorage.setItem('stacker_muted', ControllerAudio.isMuted() ? '1' : '0');
   muteBtn.classList.toggle('muted', ControllerAudio.isMuted());
   muteBtn.querySelector('.sound-waves').style.display = ControllerAudio.isMuted() ? 'none' : '';
 });

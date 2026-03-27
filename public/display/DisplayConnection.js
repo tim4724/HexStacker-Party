@@ -129,7 +129,7 @@ function applyRoomCreated(partyRoomCode, newJoinUrl) {
 
   // Fetch QR from HTTP server
   fetchQR(joinUrl, function(qrMatrix) {
-    requestAnimationFrame(function() { renderTetrisQR(qrCode, qrMatrix); });
+    requestAnimationFrame(function() { renderQR(qrCode, qrMatrix); });
   });
 }
 
@@ -195,7 +195,7 @@ function onDisplayRejoined(partyRoomCode, clients) {
     showScreen(SCREEN.LOBBY);
     updateStartButton();
     fetchQR(joinUrl, function(qrMatrix) {
-      requestAnimationFrame(function() { renderTetrisQR(qrCode, qrMatrix); });
+      requestAnimationFrame(function() { renderQR(qrCode, qrMatrix); });
     });
   }
 }
@@ -396,9 +396,9 @@ function showDisconnectQR(clientId) {
   fetchQR(rejoinUrl, function(qrMatrix) {
     if (!players.has(clientId)) return;
     var offscreen = document.createElement('canvas');
-    renderTetrisQR(offscreen, qrMatrix);
+    renderQR(offscreen, qrMatrix);
     disconnectedQRs.set(clientId, offscreen);
   });
 }
 
-// renderTetrisQR() lives in DisplayUI.js (rendering helper)
+// renderQR() lives in DisplayUI.js (rendering helper)

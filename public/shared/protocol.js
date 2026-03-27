@@ -1,7 +1,7 @@
 'use strict';
 
 // Party-Server relay URL
-var RELAY_URL = 'wss://ws.tetris.party';
+var RELAY_URL = 'wss://ws.couch-games.com';
 
 // Message types for game communication (inside Party-Server data field)
 var MSG = {

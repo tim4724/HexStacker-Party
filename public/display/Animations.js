@@ -6,11 +6,11 @@ class Animations {
     this.active = [];
   }
 
-  addLineClear(boardX, boardY, cellSize, rows, isTetris, isTSpin) {
+  addLineClear(boardX, boardY, cellSize, rows, isQuad) {
     if (!Array.isArray(rows) || rows.length === 0) return;
 
     const duration = THEME.timing.lineClear;
-    const boardWidth = 10 * cellSize;
+    const boardWidth = GameConstants.BOARD_WIDTH * cellSize;
 
     // Main line clear effect
     this.active.push({
@@ -21,10 +21,10 @@ class Animations {
       boardY,
       cellSize,
       rows,
-      isTetris,
-      isTSpin,
+      isQuad,
       boardWidth,
       render(ctx, progress) {
+        const quadRgb = this.isQuad ? hexToRgb(THEME.color.quad) : null;
         for (const row of this.rows) {
           if (row < 0) continue;
           const ry = this.boardY + row * this.cellSize;
@@ -37,8 +37,8 @@ class Animations {
             const sweepWidth = flashProgress * this.boardWidth;
             const sweepX = this.boardX + (this.boardWidth - sweepWidth) / 2;
 
-            ctx.fillStyle = this.isTetris
-              ? `rgba(0, 240, 240, ${flashAlpha})`
+            ctx.fillStyle = quadRgb
+              ? `rgba(${quadRgb.r}, ${quadRgb.g}, ${quadRgb.b}, ${flashAlpha})`
               : `rgba(255, 255, 255, ${flashAlpha})`;
             ctx.fillRect(sweepX, ry, sweepWidth, rh);
           } else {
@@ -52,8 +52,8 @@ class Animations {
             for (let s = 0; s < stripeCount; s++) {
               const stripeAlpha = alpha * Math.max(0, 1 - (fadeProgress + s * 0.08));
               if (stripeAlpha <= 0) continue;
-              const color = this.isTetris
-                ? `rgba(0, 240, 240, ${stripeAlpha})`
+              const color = quadRgb
+                ? `rgba(${quadRgb.r}, ${quadRgb.g}, ${quadRgb.b}, ${stripeAlpha})`
                 : `rgba(255, 255, 255, ${stripeAlpha})`;
               ctx.fillStyle = color;
               // Stagger horizontal dissolve per stripe
@@ -72,12 +72,12 @@ class Animations {
     // Sparkle particles for each cleared row
     for (const row of rows) {
       if (row < 0) continue;
-      const particleCount = isTetris ? 16 : 8;
+      const particleCount = isQuad ? 16 : 8;
       for (let i = 0; i < particleCount; i++) {
         this._addSparkle(
           boardX + Math.random() * boardWidth,
           boardY + row * cellSize + Math.random() * cellSize,
-          isTetris ? THEME.color.tetris : THEME.color.text.white,
+          isQuad ? THEME.color.quad : THEME.color.text.white,
           400 + Math.random() * 400,
           cellSize
         );
@@ -89,15 +89,12 @@ class Animations {
     if (firstRow != null) {
       const cx = boardX + 5 * cellSize;
       const cy = boardY + firstRow * cellSize;
-      if (isTetris) {
-        this.addTextPopup(cx, cy, 'TETRIS!', THEME.color.tetris, true, cellSize);
+      if (isQuad) {
+        this.addTextPopup(cx, cy, 'QUAD!', THEME.color.quad, true, cellSize);
       } else if (rows.length === 3) {
         this.addTextPopup(cx, cy, 'TRIPLE!', THEME.color.triple, true, cellSize);
       } else if (rows.length === 2) {
         this.addTextPopup(cx, cy, 'DOUBLE', THEME.color.text.white, false, cellSize);
-      }
-      if (isTSpin) {
-        this.addTextPopup(cx, cy - cellSize, 'T-SPIN!', THEME.color.tSpin, true, cellSize);
       }
     }
   }
@@ -270,12 +267,6 @@ class Animations {
     }
   }
 
-  addCombo(x, y, combo, cellSize) {
-    if (combo >= 2) {
-      this.addTextPopup(x, y, `${combo} COMBO!`, THEME.color.combo, true, cellSize);
-    }
-  }
-
   /**
    * Update animation state. Pass the RAF timestamp for consistent timing.
    * @param {number} timestamp - DOMHighResTimeStamp from requestAnimationFrame
@@ -305,15 +296,6 @@ class Animations {
         anim.render(ctx, progress);
       }
     }
-  }
-
-  getShakeOffset() {
-    for (const anim of this.active) {
-      if (anim.type === 'shake') {
-        return { x: anim.offsetX || 0, y: anim.offsetY || 0 };
-      }
-    }
-    return { x: 0, y: 0 };
   }
 
   getShakeOffsetForBoard(boardX, boardY) {

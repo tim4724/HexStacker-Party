@@ -6,7 +6,7 @@
 var constants = (typeof require !== 'undefined') ? require('./constants') : window.GameConstants;
 var PIECE_TYPE_TO_ID = constants.PIECE_TYPE_TO_ID;
 
-// SRS rotation states for all 7 tetrominoes
+// Rotation states for all 7 piece types
 // Each piece type maps to 4 rotation states (0-3)
 // Each state is an array of [col, row] block positions
 const PIECES = {
@@ -54,31 +54,11 @@ const PIECES = {
   ]
 };
 
-// SRS wall kick data for J, L, S, T, Z pieces
-// Key format: "fromRotation>toRotation"
-// Each entry is an array of 5 [dx, dy] offsets to test
-const WALL_KICKS = {
-  '0>1': [[ 0, 0], [-1, 0], [-1,-1], [ 0, 2], [-1, 2]],
-  '1>0': [[ 0, 0], [ 1, 0], [ 1, 1], [ 0,-2], [ 1,-2]],
-  '1>2': [[ 0, 0], [ 1, 0], [ 1, 1], [ 0,-2], [ 1,-2]],
-  '2>1': [[ 0, 0], [-1, 0], [-1,-1], [ 0, 2], [-1, 2]],
-  '2>3': [[ 0, 0], [ 1, 0], [ 1,-1], [ 0, 2], [ 1, 2]],
-  '3>2': [[ 0, 0], [-1, 0], [-1, 1], [ 0,-2], [-1,-2]],
-  '3>0': [[ 0, 0], [-1, 0], [-1, 1], [ 0,-2], [-1,-2]],
-  '0>3': [[ 0, 0], [ 1, 0], [ 1,-1], [ 0, 2], [ 1, 2]]
-};
-
-// SRS wall kick data for I piece (different offsets)
-const I_WALL_KICKS = {
-  '0>1': [[ 0, 0], [-2, 0], [ 1, 0], [-2, 1], [ 1,-2]],
-  '1>0': [[ 0, 0], [ 2, 0], [-1, 0], [ 2,-1], [-1, 2]],
-  '1>2': [[ 0, 0], [-1, 0], [ 2, 0], [-1,-2], [ 2, 1]],
-  '2>1': [[ 0, 0], [ 1, 0], [-2, 0], [ 1, 2], [-2,-1]],
-  '2>3': [[ 0, 0], [ 2, 0], [-1, 0], [ 2,-1], [-1, 2]],
-  '3>2': [[ 0, 0], [-2, 0], [ 1, 0], [-2, 1], [ 1,-2]],
-  '3>0': [[ 0, 0], [ 1, 0], [-2, 0], [ 1, 2], [-2,-1]],
-  '0>3': [[ 0, 0], [-1, 0], [ 2, 0], [-1,-2], [ 2, 1]]
-};
+// Wall kick offsets — try nearby positions when rotation collides.
+// Standard pieces try ±1 horizontally, then up 1-2 (floor kick), then down 1.
+// I piece uses wider ±2 horizontal shifts since it spans 4 cells.
+const STANDARD_KICKS = [[0,0], [-1,0], [1,0], [0,1], [0,2], [0,-1]];
+const I_KICKS = [[0,0], [-2,0], [2,0], [-1,0], [1,0], [0,1], [0,2], [0,-1]];
 
 class Piece {
   constructor(type) {
@@ -106,18 +86,14 @@ class Piece {
     return p;
   }
 
-  getWallKicks(fromRotation, toRotation) {
-    const key = `${fromRotation}>${toRotation}`;
-    if (this.type === 'I') {
-      return I_WALL_KICKS[key] || [];
-    }
-    return WALL_KICKS[key] || [];
+  getWallKicks() {
+    return this.type === 'I' ? I_KICKS : STANDARD_KICKS;
   }
 }
 
 exports.PIECES = PIECES;
-exports.WALL_KICKS = WALL_KICKS;
-exports.I_WALL_KICKS = I_WALL_KICKS;
+exports.STANDARD_KICKS = STANDARD_KICKS;
+exports.I_KICKS = I_KICKS;
 exports.Piece = Piece;
 
 })(typeof module !== 'undefined' ? module.exports : (window.GamePiece = {}));

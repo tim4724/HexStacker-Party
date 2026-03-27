@@ -2,7 +2,7 @@
 
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
-const { PIECES, WALL_KICKS, I_WALL_KICKS, Piece } = require('../server/Piece');
+const { PIECES, STANDARD_KICKS, I_KICKS, Piece } = require('../server/Piece');
 
 const PIECE_TYPES = ['I', 'J', 'L', 'O', 'S', 'T', 'Z'];
 
@@ -42,50 +42,31 @@ describe('Piece - rotation states', () => {
   });
 });
 
-describe('Piece - wall kick tables', () => {
-  const standardTransitions = ['0>1', '1>0', '1>2', '2>1', '2>3', '3>2', '3>0', '0>3'];
-
-  test('standard wall kick table has all 8 rotation transitions', () => {
-    for (const key of standardTransitions) {
-      assert.ok(WALL_KICKS[key], `WALL_KICKS should have entry for ${key}`);
-    }
+describe('Piece - wall kicks', () => {
+  test('standard kicks include no-shift as first entry', () => {
+    assert.deepStrictEqual(STANDARD_KICKS[0], [0, 0]);
   });
 
-  test('I piece wall kick table has all 8 rotation transitions', () => {
-    for (const key of standardTransitions) {
-      assert.ok(I_WALL_KICKS[key], `I_WALL_KICKS should have entry for ${key}`);
-    }
+  test('I kicks include no-shift as first entry', () => {
+    assert.deepStrictEqual(I_KICKS[0], [0, 0]);
   });
 
-  test('each standard wall kick entry has 5 offsets', () => {
-    for (const key of standardTransitions) {
-      assert.strictEqual(
-        WALL_KICKS[key].length, 5,
-        `WALL_KICKS[${key}] should have 5 offsets`
-      );
-    }
+  test('I kicks include wide shifts for edge rotation', () => {
+    const hasLeft2 = I_KICKS.some(([dx]) => dx === -2);
+    const hasRight2 = I_KICKS.some(([dx]) => dx === 2);
+    assert.ok(hasLeft2, 'I kicks should include left-2 shift');
+    assert.ok(hasRight2, 'I kicks should include right-2 shift');
   });
 
-  test('each I piece wall kick entry has 5 offsets', () => {
-    for (const key of standardTransitions) {
-      assert.strictEqual(
-        I_WALL_KICKS[key].length, 5,
-        `I_WALL_KICKS[${key}] should have 5 offsets`
-      );
-    }
-  });
-
-  test('Piece.getWallKicks returns I_WALL_KICKS for I piece', () => {
+  test('getWallKicks returns I_KICKS for I piece', () => {
     const piece = new Piece('I');
-    const kicks = piece.getWallKicks(0, 1);
-    assert.deepStrictEqual(kicks, I_WALL_KICKS['0>1']);
+    assert.deepStrictEqual(piece.getWallKicks(), I_KICKS);
   });
 
-  test('Piece.getWallKicks returns WALL_KICKS for non-I pieces', () => {
+  test('getWallKicks returns STANDARD_KICKS for non-I pieces', () => {
     for (const type of ['J', 'L', 'S', 'T', 'Z']) {
       const piece = new Piece(type);
-      const kicks = piece.getWallKicks(0, 1);
-      assert.deepStrictEqual(kicks, WALL_KICKS['0>1'], `${type} should use standard wall kicks`);
+      assert.deepStrictEqual(piece.getWallKicks(), STANDARD_KICKS, `${type} should use standard kicks`);
     }
   });
 });

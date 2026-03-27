@@ -24,7 +24,6 @@ const ENGINE_FILES = new Set([
   'Piece.js',
   'PlayerBoard.js',
   'Randomizer.js',
-  'Scoring.js',
 ]);
 
 // --- MIME types ---
@@ -38,7 +37,8 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
   '.woff': 'font/woff',
-  '.woff2': 'font/woff2'
+  '.woff2': 'font/woff2',
+  '.mp3': 'audio/mpeg'
 };
 
 function sendJson(res, statusCode, payload) {
@@ -166,7 +166,7 @@ const server = http.createServer((req, res) => {
     }
 
     if (ext === '.html') {
-      headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' wss://ws.tetris.party; img-src 'self' data:";
+      headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' wss://ws.couch-games.com; img-src 'self' data:";
     }
 
     res.writeHead(200, headers);
@@ -190,7 +190,7 @@ function getLocalIP() {
 // --- Start server ---
 server.listen(PORT, () => {
   const localIP = getLocalIP();
-  console.log(`Tetris server running on http://localhost:${PORT}`);
+  console.log(`Stacker Party server running on http://localhost:${PORT}`);
   console.log(`Local network: http://${localIP}:${PORT}`);
   console.log(`Display: http://localhost:${PORT}/`);
 });

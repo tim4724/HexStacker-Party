@@ -1,7 +1,7 @@
 {
-  "name": "tetris-party",
-  "version": "1.7.0",
-  "description": "Browser-based multiplayer Tetris with phone controllers",
+  "name": "couch-games",
+  "version": "2.0.0",
+  "description": "Browser-based multiplayer stacker with phone controllers",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",

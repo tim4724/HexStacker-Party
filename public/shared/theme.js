@@ -4,16 +4,16 @@
 // Design Tokens — single source of truth for the visual layer
 // ============================================================
 
-// --- Tetromino colors (index matches PIECE_TYPE_TO_ID: 1=I … 7=Z) ---
+// --- Piece colors (index matches PIECE_TYPE_TO_ID: 1=I … 7=Z) ---
 const PIECE_COLORS = {
   0: '#000000',    // empty
-  1: '#00F0F0',    // I - cyan
-  2: '#0000F0',    // J - blue
-  3: '#F0A000',    // L - orange
-  4: '#F0F000',    // O - yellow
-  5: '#00F000',    // S - green
-  6: '#A000F0',    // T - purple
-  7: '#F00000',    // Z - red
+  1: '#EE4444',    // I - red
+  2: '#00CED1',    // J - teal
+  3: '#FFD700',    // L - gold
+  4: '#7FFF00',    // O - lime
+  5: '#9B59F0',    // S - violet
+  6: '#FF1493',    // T - hot pink
+  7: '#FF8C00',    // Z - amber
   8: '#808080'     // garbage - gray
 };
 
@@ -43,9 +43,9 @@ const PLAYER_NAMES = ['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5'
 // Neon piece colors — brighter variants for visibility on dark background.
 // Falls back to PIECE_COLORS for entries not overridden.
 const NEON_PIECE_COLORS = Object.assign({}, PIECE_COLORS, {
-  2: '#4466FF',    // J - brighter blue
-  6: '#BB44FF',    // T - brighter purple
-  7: '#FF3333'     // Z - brighter red
+  2: '#33E8EC',    // J - brighter teal
+  5: '#B580FF',    // S - brighter violet
+  7: '#FFB340'     // Z - brighter amber
 });
 
 // Neon ghost colors — computed from NEON_PIECE_COLORS
@@ -73,10 +73,10 @@ const THEME = Object.freeze({
   // ---- Colors ----
   color: Object.freeze({
     bg: Object.freeze({
-      primary:   '#06060f',
-      board:     '#080810',
-      secondary: '#0c0c1a',
-      card:      '#12122a',
+      primary:   '#0a0a0f',
+      board:     '#0c0c12',
+      secondary: '#12121c',
+      card:      '#1a1a2a',
     }),
     text: Object.freeze({
       primary: '#e0e0ff',
@@ -90,11 +90,6 @@ const THEME = Object.freeze({
     }),
     danger:  '#ff4444',
     garbage: '#3a3a4e',
-    medal: Object.freeze({
-      gold:   '#ffd700',
-      silver: '#c0c0c0',
-      bronze: '#cd7f32',
-    }),
     ko: Object.freeze({
       text: '#ff4444',
       glow: 'rgba(255, 50, 50, 0.6)',
@@ -103,10 +98,8 @@ const THEME = Object.freeze({
       greenText: '#003d1f',
     }),
     // Animation-specific named colors
-    tetris:  '#00ffff',
-    triple:  '#ffaa00',
-    combo:   '#ffe66d',
-    tSpin:   '#a000f0',
+    quad:    '#ee4444',
+    triple:  '#ffd700',
   }),
 
   // ---- Opacities ----
@@ -151,14 +144,12 @@ const THEME = Object.freeze({
     cellScale: Object.freeze({
       name:  0.55,
       label: 0.38,
-      score: 0.7,
       timer: 0.52,
       mini:  0.6,
     }),
     minPx: Object.freeze({
       name:  16,
       label: 12,
-      score: 18,
       timer: 14,
     }),
   }),

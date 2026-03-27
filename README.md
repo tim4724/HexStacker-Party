@@ -1,14 +1,14 @@
-# Tetris Party
+# Stacker Party
 
-![Tetris Party gameplay banner](banner/readme-header.png)
+![Stacker Party gameplay banner](banner/readme-header.png)
 
-Browser-based multiplayer Tetris where phones become controllers and a shared screen shows the action.
+Browser-based multiplayer stacker where phones become controllers and a shared screen shows the action.
 
-**Play now at [tetris.party](https://tetris.party)**
+**Play now at [couch-games.com](https://couch-games.com)**
 
 ## Overview
 
-Tetris Party supports 1 to 8 players on a single shared display. One browser window acts as the game screen (TV, monitor, or laptop), while each player joins by scanning a QR code with their phone. The phone becomes a touch-based controller with gesture input and haptic feedback. The display client runs the authoritative game engine, communicating with controllers through a lightweight WebSocket relay.
+Stacker Party supports 1 to 8 players on a single shared display. One browser window acts as the game screen (TV, monitor, or laptop), while each player joins by scanning a QR code with their phone. The phone becomes a touch-based controller with gesture input and haptic feedback. The display client runs the authoritative game engine, communicating with controllers through a lightweight WebSocket relay.
 
 ## Architecture
 
@@ -28,8 +28,8 @@ The display browser runs the game engine and renders all player boards. Controll
 - QR code join – scan and play, no app install
 - Touch gesture controls with haptic feedback
 - Competitive mode with garbage lines
-- SRS rotation with wall kicks and T-spin detection
-- 7-bag randomizer, back-to-back bonus scoring
+- Rotation with wall kicks
+- 7-bag randomizer
 
 ## Quick Start
 
@@ -69,7 +69,7 @@ banner/      # GitHub banner/preview image generator (Playwright)
 
 ## Configuration
 
-The display and controllers connect to a [Party-Sockets](https://github.com/tim4724/Party-Sockets) WebSocket relay for message forwarding. The relay URL is set in `public/shared/protocol.js` (default: `wss://ws.tetris.party`). If you run your own relay, update this value and the CSP `connect-src` directive in `server/index.js`.
+The display and controllers connect to a [Party-Sockets](https://github.com/tim4724/Party-Sockets) WebSocket relay for message forwarding. The relay URL is set in `public/shared/protocol.js`. If you run your own relay, update this value and the CSP `connect-src` directive in `server/index.js`.
 
 | Environment Variable | Default | Description |
 |---|---|---|
@@ -92,14 +92,6 @@ npm run test:visual:update
 ```
 
 Unit tests use Node.js's built-in `node:test` runner with `node:assert/strict` — no test framework dependency. Visual tests use Playwright against a live server on port 4100.
-
-## Docker
-
-```bash
-docker compose up
-```
-
-The app is available at `http://localhost:4000`. Production is at [tetris.party](https://tetris.party).
 
 ## Tech Stack
 

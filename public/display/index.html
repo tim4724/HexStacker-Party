@@ -3,29 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tetris Party</title>
-  <meta name="description" content="Multiplayer Tetris — play on your TV, control with your phone.">
-  <meta property="og:title" content="Tetris Party">
-  <meta property="og:description" content="Multiplayer Tetris — play on your TV, control with your phone.">
-  <meta property="og:image" content="https://tetris.party/social-preview.png">
+  <title>Stacker Party</title>
+  <meta name="description" content="Multiplayer stacker — play on your TV, control with your phone.">
+  <meta property="og:title" content="Stacker Party">
+  <meta property="og:description" content="Multiplayer stacker — play on your TV, control with your phone.">
+  <meta property="og:image" content="https://couch-games.com/social-preview.png">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Tetris Party">
-  <meta name="twitter:description" content="Multiplayer Tetris — play on your TV, control with your phone.">
-  <meta name="twitter:image" content="https://tetris.party/social-preview.png">
+  <meta name="twitter:title" content="Stacker Party">
+  <meta name="twitter:description" content="Multiplayer stacker — play on your TV, control with your phone.">
+  <meta name="twitter:image" content="https://couch-games.com/social-preview.png">
   <link rel="stylesheet" href="/shared/fonts/orbitron.css">
-  <link rel="icon" href="/favicon.ico" type="image/svg+xml">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/shared/theme.css">
   <link rel="stylesheet" href="/shared/results.css">
   <link rel="stylesheet" href="/display/display.css">
 </head>
 <body>
-  <!-- Shared falling tetromino background (visible on welcome + lobby) -->
+  <!-- Shared falling piece background (visible on welcome + lobby) -->
   <canvas id="bg-canvas"></canvas>
 
   <!-- Mobile screen hint -->
   <div id="mobile-hint">
-    <h1 class="gradient-title">TETRIS PARTY</h1>
+    <h1 class="gradient-title">STACKER PARTY</h1>
     <div id="mobile-hint-body">
       <p id="mobile-hint-heading">Open on a Larger Screen</p>
       <p id="mobile-hint-detail">This display is designed for TVs and computers. Use your phone as a controller instead.</p>
@@ -35,21 +35,22 @@
 
   <!-- Welcome screen: unlocks audio via user gesture -->
   <div id="welcome-screen" class="screen">
-    <h1 class="gradient-title">TETRIS PARTY</h1>
+    <h1 class="gradient-title">STACKER PARTY</h1>
     <button id="new-game-btn" class="btn btn-primary">START NEW GAME</button>
     <div id="welcome-footer">
       <div class="footer-row">
-        <a id="github-link" href="https://github.com/tim4724/Tetris-Party" target="_blank" rel="noopener">GitHub</a>
+        <a id="github-link" href="https://github.com/tim4724/Stacker-Party" target="_blank" rel="noopener">GitHub</a>
         <span class="footer-dot">&middot;</span>
         <a href="/privacy">Privacy</a>
       </div>
+      <div class="footer-row"><a href="https://opengameart.org/content/lunar-joyride-8-bit" target="_blank" rel="noopener">Music by FoxSynergy (CC BY 3.0)</a></div>
       <span id="version-label"></span>
     </div>
   </div>
 
   <!-- Lobby screen: QR code + player list + start button -->
   <div id="lobby-screen" class="screen hidden">
-    <h1 class="gradient-title">TETRIS PARTY</h1>
+    <h1 class="gradient-title">STACKER PARTY</h1>
     <div id="qr-container">
       <canvas id="qr-code"></canvas>
       <p id="qr-label">Scan to join</p>
@@ -99,7 +100,7 @@
   <script src="/engine/constants.js"></script>
   <script src="/engine/Piece.js"></script>
   <script src="/engine/Randomizer.js"></script>
-  <script src="/engine/Scoring.js"></script>
+
   <script src="/engine/GarbageManager.js"></script>
   <script src="/engine/PlayerBoard.js"></script>
   <script src="/engine/Game.js"></script>

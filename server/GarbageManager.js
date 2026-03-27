@@ -4,9 +4,8 @@
 (function(exports) {
 
 var constants = (typeof require !== 'undefined') ? require('./constants') : window.GameConstants;
+var BOARD_WIDTH = constants.BOARD_WIDTH;
 var GARBAGE_TABLE = constants.GARBAGE_TABLE;
-var TSPIN_GARBAGE_MULTIPLIER = constants.TSPIN_GARBAGE_MULTIPLIER;
-var COMBO_GARBAGE = constants.COMBO_GARBAGE;
 var GARBAGE_DELAY_MS = constants.GARBAGE_DELAY_MS;
 
 class GarbageManager {
@@ -30,40 +29,26 @@ class GarbageManager {
   tick(deltaMs) {
     const ready = [];
     for (const [playerId, queue] of this.queues) {
-      for (let i = queue.length - 1; i >= 0; i--) {
+      let writeIdx = 0;
+      for (let i = 0; i < queue.length; i++) {
         queue[i].msLeft -= deltaMs;
         if (queue[i].msLeft <= 0) {
-          const g = queue.splice(i, 1)[0];
-          ready.push({ playerId, lines: g.lines, gapColumn: g.gapColumn, senderId: g.senderId });
+          ready.push({ playerId, lines: queue[i].lines, gapColumn: queue[i].gapColumn, senderId: queue[i].senderId });
+        } else {
+          queue[writeIdx++] = queue[i];
         }
       }
+      queue.length = writeIdx;
     }
     return ready;
   }
 
-  processLineClear(senderId, linesCleared, isTSpin, combo, backToBack, getStackHeight, defenseLines) {
+  processLineClear(senderId, linesCleared, getStackHeight, defenseLines) {
     if (linesCleared === 0) return { sent: 0, cancelled: 0, deliveries: [] };
 
-    // Calculate garbage lines to send (always based on original lines cleared)
-    let garbageLines = GARBAGE_TABLE[linesCleared] || 0;
+    const garbageLines = GARBAGE_TABLE[linesCleared] || 0;
 
-    // T-spin doubles garbage
-    if (isTSpin) {
-      garbageLines *= TSPIN_GARBAGE_MULTIPLIER;
-    }
-
-    // Combo bonus
-    if (combo >= 0) {
-      const comboIndex = Math.min(combo, COMBO_GARBAGE.length - 1);
-      garbageLines += COMBO_GARBAGE[comboIndex];
-    }
-
-    // Back-to-back bonus for tetris or t-spin
-    if (backToBack && (linesCleared === 4 || isTSpin)) {
-      garbageLines += 1;
-    }
-
-    // Cancel sender's incoming garbage (defenseLines may be reduced by board-pending cancellation)
+    // Cancel sender's incoming garbage
     const senderQueue = this.queues.get(senderId) || [];
     let defenseRemaining = defenseLines != null ? defenseLines : linesCleared;
     let cancelled = 0;
@@ -81,10 +66,8 @@ class GarbageManager {
       }
     }
 
-    // Remaining attack after cancellation absorbs some offensive power
+    // Send net attack to opponent with the lowest stack
     const netAttack = Math.max(0, garbageLines - cancelled);
-
-    // Send net attack to opponent with the lowest stack (strongest player)
     let sent = 0;
     const deliveries = [];
     if (netAttack > 0) {
@@ -108,6 +91,7 @@ class GarbageManager {
     for (const [playerId] of this.queues) {
       if (playerId === senderId) continue;
       const height = getStackHeight ? getStackHeight(playerId) : 0;
+      if (height < 0) continue; // dead player
       if (height < bestHeight) {
         bestHeight = height;
         bestId = playerId;
@@ -124,7 +108,7 @@ class GarbageManager {
   }
 
   generateGapColumn() {
-    return Math.floor(this.rng() * 10);
+    return Math.floor(this.rng() * BOARD_WIDTH);
   }
 }
 

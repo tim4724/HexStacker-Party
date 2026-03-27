@@ -7,7 +7,6 @@ const assert = require('node:assert/strict');
 const GameConstants = require('../server/constants.js');
 const GamePiece = require('../server/Piece.js');
 const GameRandomizer = require('../server/Randomizer.js');
-const GameScoring = require('../server/Scoring.js');
 const GameGarbageManager = require('../server/GarbageManager.js');
 const GamePlayerBoard = require('../server/PlayerBoard.js');
 const GameEngine = require('../server/Game.js');
@@ -33,12 +32,6 @@ describe('Migration - module loading', () => {
     const r = new GameRandomizer.Randomizer(42);
     const piece = r.next();
     assert.ok(GameConstants.PIECE_TYPES.includes(piece));
-  });
-
-  test('Scoring class is accessible', () => {
-    assert.ok(GameScoring.Scoring);
-    const s = new GameScoring.Scoring();
-    assert.equal(s.score, 0);
   });
 
   test('GarbageManager class is accessible', () => {
@@ -181,7 +174,7 @@ describe('Migration - serialization round-trip', () => {
 
     assert.equal(parsed.alive, true);
     assert.ok(Array.isArray(parsed.grid));
-    assert.equal(parsed.grid.length, 20);
+    assert.equal(parsed.grid.length, 22);
     assert.ok(parsed.currentPiece);
     assert.ok(Array.isArray(parsed.nextPieces));
   });

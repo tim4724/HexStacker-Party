@@ -4,7 +4,7 @@ const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const { PlayerBoard } = require('../server/PlayerBoard');
 const { Game } = require('../server/Game');
-const { BOARD_HEIGHT, BUFFER_ROWS, LOGIC_TICK_MS, MAX_DROPS_PER_TICK, GRAVITY_TABLE } = require('../server/constants');
+const { BOARD_HEIGHT, BUFFER_ROWS, LOGIC_TICK_MS, MAX_DROPS_PER_TICK } = require('../server/constants');
 
 // Helpers
 
@@ -37,7 +37,7 @@ describe('Slow hardware — large deltaMs', () => {
 
     // 200ms at 60fps = 12 frames; at level 1 gravity=48 frames/drop, so <1 drop expected.
     // But at high level, gravity is fast — cap should prevent teleporting.
-    board.scoring._level = 29; // force max speed (gravity = 1 frame/drop)
+    board.lines = 290; // force high level for fast gravity
     game.update(200);
 
     const endY = board.currentPiece ? board.currentPiece.y : BOARD_HEIGHT;
@@ -49,7 +49,7 @@ describe('Slow hardware — large deltaMs', () => {
   test('game update with 50ms cap (render loop behavior) processes correctly', () => {
     const { game } = makeGame(1);
     const board = game.boards.get('p0');
-    board.scoring._level = 20; // gravity = 2 frames/drop
+    board.lines = 190; // force high level for fast gravity
 
     // Simulate what the render loop does: cap deltaMs at 50
     for (let i = 0; i < 10; i++) {
@@ -120,7 +120,7 @@ describe('Slow hardware — large deltaMs', () => {
   test('multiple slow frames do not cause piece to skip rows', () => {
     const { game } = makeGame(1);
     const board = game.boards.get('p0');
-    board.scoring._level = 15; // gravity = 4 frames/drop
+    board.lines = 140; // force high level for fast gravity
 
     const positions = [];
     for (let i = 0; i < 20; i++) {
@@ -158,7 +158,7 @@ describe('Slow hardware — large deltaMs', () => {
   test('sustained low FPS (10fps) game engine stays stable', () => {
     const { game } = makeGame(1, 99);
     const board = game.boards.get('p0');
-    board.scoring._level = 29; // max speed — gravity = 1 frame/drop
+    board.lines = 290; // force high level for fast gravity
 
     // Simulate 30 seconds at 10fps (capped to 50ms like render loop)
     let errors = 0;

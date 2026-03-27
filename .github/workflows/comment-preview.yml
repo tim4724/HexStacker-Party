@@ -15,7 +15,7 @@ jobs:
           script: |
             const branch = context.payload.pull_request.head.ref;
             const safeBranch = branch.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-            const previewUrl = `https://${safeBranch}.tetris-party.duckdns.org`;
+            const previewUrl = `https://stacker-${safeBranch}.couch-games.com`;
             const commentBody = `${previewUrl}`;
 
             const { data: comments } = await github.rest.issues.listComments({
