@@ -59,6 +59,7 @@ class Music {
     source.buffer = this.buffer;
     source.loop = true;
     source.playbackRate.value = this._rate;
+    source.detune.value = -Math.log2(this._rate) * 1200;
     source.connect(this.masterGain);
     source.start(0);
     this.source = source;
@@ -147,6 +148,7 @@ class Music {
     this._rate = 0.95 + (clamped - 1) * (0.4 / 14);
     if (this.source) {
       this.source.playbackRate.setTargetAtTime(this._rate, this.ctx.currentTime, 0.1);
+      this.source.detune.setTargetAtTime(-Math.log2(this._rate) * 1200, this.ctx.currentTime, 0.1);
     }
   }
 }
