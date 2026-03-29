@@ -9,6 +9,14 @@
 
 var airconsole = new AirConsole({ orientation: AirConsole.ORIENTATION_PORTRAIT });
 
+// Capture early onReady — the SDK may fire it before our adapter is wired up.
+var _acEarlyReadyCode = undefined;
+var _acEarlyReady = false;
+airconsole.onReady = function(code) {
+  _acEarlyReady = true;
+  _acEarlyReadyCode = code;
+};
+
 // controller.js reads roomCode from location.pathname. In AirConsole the URL
 // is /controller.html which would be parsed as roomCode="controller.html".
 // Replace the path with a fake room code so the main init block executes
@@ -22,14 +30,11 @@ clientId = 'ac_controller';
 sessionStorage.setItem('clientId_airconsole', clientId);
 
 // Replace PartyConnection with a factory that returns AirConsoleAdapter.
-// connect() calls `new PartyConnection(...)`, sets callbacks, then calls
-// party.connect(). By replacing the constructor, we let the original
-// function body run unchanged.
 PartyConnection = function() {
   return new AirConsoleAdapter(airconsole, { role: 'controller' });
 };
 
-// Wrap connect() to inject AirConsole nickname and guard against re-connects
+// Wrap connect() to inject AirConsole nickname and replay early onReady
 var _originalConnect = connect;
 var _acOnReadyWrapped = false;
 connect = function() {
@@ -44,9 +49,9 @@ connect = function() {
       if (nickname) playerName = nickname;
       if (_adapterOnReady) _adapterOnReady.call(airconsole, code);
     };
-    // If AirConsole was already ready, trigger now
-    if (party && party._acReady && !party._ready) {
-      party._fireReady();
+    // Replay early onReady if the SDK fired before the adapter was wired
+    if (_acEarlyReady) {
+      airconsole.onReady(_acEarlyReadyCode);
     }
   }
 };
