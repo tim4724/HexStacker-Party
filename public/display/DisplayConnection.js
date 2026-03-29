@@ -202,7 +202,16 @@ function onDisplayRejoined(partyRoomCode, clients) {
 
 function onPeerJoined(clientId) {
   if (players.has(clientId)) return;
-  if (roomState !== ROOM_STATE.LOBBY) return;
+  if (roomState !== ROOM_STATE.LOBBY) {
+    // In AirConsole mode, new players can join at any time via the platform.
+    // Return to lobby so they can participate in the next round.
+    if (typeof _isAirConsole !== 'undefined' && _isAirConsole) {
+      returnToLobby();
+      // returnToLobby transitions to LOBBY — fall through to add the player
+    } else {
+      return;
+    }
+  }
   if (players.size >= GameConstants.MAX_PLAYERS) return;
 
   var index = nextAvailableSlot();
