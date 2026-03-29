@@ -21,16 +21,21 @@ airconsole.onReady = function(code) {
 };
 
 // controller.js reads roomCode from location.pathname. In AirConsole the URL
-// is /controller.html which would be parsed as roomCode="controller.html".
-// Replace the path with a fake room code so the main init block executes
-// and sessionStorage keys align.
-history.replaceState(null, '', '/airconsole' + location.search + location.hash);
+// is /controller.html which gets parsed as roomCode="controller.html".
+// We can't use history.replaceState because it breaks AirConsole's SDK
+// location matching (isDeviceInSameLocation_ compares URLs).
+// Instead, pre-set roomCode and override showRoomGone to be a no-op.
+// controller.js will overwrite roomCode with "controller.html" — that's fine,
+// we just need to ensure the if(roomCode) block executes.
+showRoomGone = function() {};
 
 // Pre-set clientId (adapter maps real AirConsole device IDs at message time)
 clientId = 'ac_controller';
 
-// Force hadStoredId so controller.js auto-connects on load (skips name screen)
-sessionStorage.setItem('clientId_airconsole', clientId);
+// Force hadStoredId so controller.js auto-connects on load (skips name screen).
+// Use the roomCode that controller.js will parse: "controller.html"
+var _acRoomCode = location.pathname.split('/').filter(Boolean)[0] || 'airconsole';
+sessionStorage.setItem('clientId_' + _acRoomCode, clientId);
 
 // Replace PartyConnection with a factory that returns AirConsoleAdapter.
 PartyConnection = function() {
