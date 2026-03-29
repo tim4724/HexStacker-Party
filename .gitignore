@@ -8,3 +8,4 @@ test-results/
 progress.md
 public/preview-settle.*
 build/
+.dev-certs/

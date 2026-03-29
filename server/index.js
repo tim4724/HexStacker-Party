@@ -216,3 +216,24 @@ server.listen(PORT, () => {
   console.log(`Local network: http://${localIP}:${PORT}`);
   console.log(`Display: http://localhost:${PORT}/`);
 });
+
+// --- Optional HTTPS server for AirConsole local development ---
+const HTTPS_PORT = parseInt(process.env.HTTPS_PORT, 10) || 0;
+if (HTTPS_PORT) {
+  const https = require('https');
+  const certDir = path.join(__dirname, '..', '.dev-certs');
+  try {
+    const httpsServer = https.createServer({
+      key: fs.readFileSync(path.join(certDir, 'key.pem')),
+      cert: fs.readFileSync(path.join(certDir, 'cert.pem')),
+    }, server._events.request);
+    httpsServer.listen(HTTPS_PORT, () => {
+      const localIP = getLocalIP();
+      console.log(`HTTPS server: https://localhost:${HTTPS_PORT}`);
+      console.log(`HTTPS LAN:    https://${localIP}:${HTTPS_PORT}`);
+      console.log(`AirConsole:   https://www.airconsole.com/#https://${localIP}:${HTTPS_PORT}/`);
+    });
+  } catch (err) {
+    console.log('HTTPS disabled — generate certs with: openssl req -x509 -newkey rsa:2048 -keyout .dev-certs/key.pem -out .dev-certs/cert.pem -days 365 -nodes -subj /CN=localhost');
+  }
+}
