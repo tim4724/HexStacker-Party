@@ -124,9 +124,11 @@ function onHello(fromId, msg) {
     startLevel: 1
   });
 
-  broadcastLobbyUpdate();
-  updatePlayerList();
-  updateStartButton();
+  if (roomState === ROOM_STATE.LOBBY) {
+    broadcastLobbyUpdate();
+    updatePlayerList();
+    updateStartButton();
+  }
 }
 
 function onInput(fromId, msg) {

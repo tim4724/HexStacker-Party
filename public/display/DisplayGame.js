@@ -38,6 +38,8 @@ function startNewGame() {
   paused = false;
   lastResults = null;
   lastAliveState = {};
+  // Rebuild playerOrder to include late joiners from the previous game
+  playerOrder = Array.from(players.keys());
   setRoomState(ROOM_STATE.COUNTDOWN);
   acquireWakeLock();
 
