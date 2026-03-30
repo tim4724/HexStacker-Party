@@ -279,14 +279,14 @@ function onPeerLeft(clientId) {
 
 function onPeerLeftAirConsole(clientId) {
   if (roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN) {
-    // In game — show disconnect overlay before removing player (showDisconnectQR
-    // checks players.has() in its callback, so must be called first).
-    // In AirConsole mode fetchQR is a no-op, so disconnectedQRs gets null
-    // which renders "DISCONNECTED" text instead of a QR code.
+    // In game — keep player in the Map so reconnection is seamless
+    // (onPeerJoined returns early for known players, then onHello
+    // sends WELCOME with current game state). Just show disconnect overlay.
     showDisconnectQR(clientId);
+    return;
   }
 
-  // Remove player
+  // Remove player (lobby or results)
   players.delete(clientId);
   playerOrder = playerOrder.filter(function(id) { return id !== clientId; });
   garbageIndicatorEffects.delete(clientId);

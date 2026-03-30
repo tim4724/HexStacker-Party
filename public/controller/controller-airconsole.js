@@ -37,9 +37,9 @@ clientId = 'ac_controller';
 // Force hadStoredId so controller.js auto-connects on load (skips name screen).
 // controller.js parses location.pathname to get roomCode (e.g. "controller.html")
 // and checks sessionStorage['clientId_' + roomCode]. We pre-set that key here.
-// Coupling: depends on controller.html filename and controller.js line ~89 parsing logic.
-var _acRoomCode = location.pathname.split('/').filter(Boolean)[0] || 'airconsole';
-sessionStorage.setItem('clientId_' + _acRoomCode, clientId);
+// Must match the filename — controller.js parses location.pathname to derive
+// the sessionStorage key 'clientId_controller.html' (see controller.js ~line 89).
+sessionStorage.setItem('clientId_controller.html', clientId);
 
 // Replace PartyConnection with a factory that returns AirConsoleAdapter.
 PartyConnection = function() {
@@ -73,6 +73,17 @@ connect = function() {
 // Using inline style (not .hidden class) so that classList.remove('hidden')
 // in ControllerConnection.js can't accidentally re-show it.
 reconnectOverlay.style.display = 'none';
+
+// Prevent controller.js's visibilitychange handler from destroying the adapter.
+// In standalone mode it reconnects via Party-Server on tab return. In AirConsole
+// mode the SDK manages the connection — tearing down and recreating the adapter
+// would break because onReady only fires once per session.
+document.addEventListener('visibilitychange', function(e) {
+  if (document.visibilityState === 'visible' && party && party.connected) {
+    e.stopImmediatePropagation();
+    startPing(); // restart pings in case stopPing was called elsewhere
+  }
+}, true);
 
 // Override startPing to remove the pong timeout logic — in AirConsole mode,
 // we don't want to stop pinging on timeout since AirConsole handles reconnection.
