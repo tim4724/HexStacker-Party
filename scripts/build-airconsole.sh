@@ -41,6 +41,11 @@ done
 cp "$BUILD_DIR/display/screen.html" "$BUILD_DIR/screen.html"
 cp "$BUILD_DIR/controller/controller.html" "$BUILD_DIR/controller.html"
 
+# Inject version into display-airconsole.js (replaces __AC_VERSION__ placeholder)
+APP_VERSION=$(node -e "console.log(require('$PROJECT_DIR/package.json').version)")
+sed -i '' "s/__AC_VERSION__/$APP_VERSION/" "$BUILD_DIR/display/display-airconsole.js"
+echo "Injected version: $APP_VERSION"
+
 # Remove standalone-only entry points and duplicate AirConsole HTML from subdirs
 rm -f "$BUILD_DIR/display/index.html"
 rm -f "$BUILD_DIR/controller/index.html"

@@ -75,12 +75,18 @@ startGame = function() {
 // so setting it to LOBBY ensures the room is applied immediately.
 currentScreen = SCREEN.LOBBY;
 
-// Populate lobby version label (separate from welcome screen's #version-label)
+// Populate lobby version label. Build script replaces __AC_VERSION__
+// with the actual version. Falls back to /api/version for local dev.
 var _lobbyVersionLabel = document.getElementById('lobby-version-label');
 if (_lobbyVersionLabel) {
-  fetch('/api/version').then(function(r) { return r.json(); }).then(function(data) {
-    _lobbyVersionLabel.textContent = data.version || '';
-  }).catch(function() {});
+  var _acVersion = '__AC_VERSION__';
+  if (_acVersion.indexOf('__') !== 0) {
+    _lobbyVersionLabel.textContent = _acVersion;
+  } else {
+    fetch('/api/version').then(function(r) { return r.json(); }).then(function(data) {
+      _lobbyVersionLabel.textContent = data.version || '';
+    }).catch(function() {});
+  }
 }
 
 // Intercept showScreen(WELCOME) — in AirConsole there's no welcome screen.
