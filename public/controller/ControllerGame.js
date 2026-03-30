@@ -61,8 +61,10 @@ function onWelcome(data) {
   if (data.roomState === 'playing' || data.roomState === 'countdown') {
     // Late joiner (not in active game) — display omits alive field
     if (data.alive === undefined) {
+      showLobbyUI();
+      startBtn.classList.add('hidden');
+      startBtn.disabled = true;
       setWaitingActionMessage('Game in progress. Please wait for New Game.');
-      showScreen('lobby');
       return;
     }
 
