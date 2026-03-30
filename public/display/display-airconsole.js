@@ -75,6 +75,14 @@ startGame = function() {
 // so setting it to LOBBY ensures the room is applied immediately.
 currentScreen = SCREEN.LOBBY;
 
+// Populate lobby version label (separate from welcome screen's #version-label)
+var _lobbyVersionLabel = document.getElementById('lobby-version-label');
+if (_lobbyVersionLabel) {
+  fetch('/api/version').then(function(r) { return r.json(); }).then(function(data) {
+    _lobbyVersionLabel.textContent = data.version || '';
+  }).catch(function() {});
+}
+
 // Intercept showScreen(WELCOME) — in AirConsole there's no welcome screen.
 // display.js defines resetToWelcome() which shows WELCOME; we redirect to LOBBY.
 var _originalShowScreen = showScreen;

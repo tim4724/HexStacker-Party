@@ -205,7 +205,7 @@ test.describe('Display', () => {
       document.querySelectorAll('.player-card.empty').forEach(function(el) { el.style.display = 'none'; });
     });
     await stopDisplayBackground(page);
-    await expect(page).toHaveScreenshot('10a-airconsole-lobby.png', {
+    await expect(page).toHaveScreenshot('11a-airconsole-lobby.png', {
       maxDiffPixelRatio: 0,
     });
   });
@@ -219,7 +219,7 @@ test.describe('Display', () => {
       disconnectedQRs.set('player1', null);
     });
     await page.waitForTimeout(150);
-    await expect(page).toHaveScreenshot('10b-airconsole-disconnected.png');
+    await expect(page).toHaveScreenshot('11b-airconsole-disconnected.png');
   });
 
   test('game screen - all style tiers (3 players)', async ({ page }) => {
