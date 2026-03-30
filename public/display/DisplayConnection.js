@@ -172,16 +172,20 @@ function onDisplayRejoined(partyRoomCode, clients) {
   for (const entry of players) {
     const id = entry[0];
     const info = entry[1];
+    var isLateJoiner = (roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN)
+      && lastAliveState[id] == null;
     var welcomeMsg = {
       type: MSG.WELCOME,
       playerName: info.playerName,
       playerColor: info.playerColor,
       playerCount: players.size,
       roomState: roomState,
-      startLevel: info.startLevel || 1,
-      alive: lastAliveState[id] != null ? lastAliveState[id] : true,
-      paused: paused
+      startLevel: info.startLevel || 1
     };
+    if (!isLateJoiner) {
+      welcomeMsg.alive = lastAliveState[id] != null ? lastAliveState[id] : true;
+      welcomeMsg.paused = paused;
+    }
     // lastResults is { elapsed, results: [...] } — send the results array
     if (roomState === ROOM_STATE.RESULTS && lastResults) {
       welcomeMsg.results = lastResults.results;
