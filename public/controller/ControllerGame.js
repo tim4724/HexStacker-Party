@@ -178,16 +178,22 @@ function onGameResumed() {
 // =====================================================================
 
 var gameoverButtonsReady = false;
+var gameoverButtonsTimer = null;
 
 function renderGameResults(results) {
   resultsList.innerHTML = '';
-  gameoverButtons.classList.add('hidden');
+  gameoverButtons.classList.remove('hidden');
+  gameoverButtons.style.visibility = 'hidden';
+  gameoverButtons.style.pointerEvents = 'none';
   gameoverStatus.textContent = '';
   gameoverButtonsReady = false;
-  setTimeout(function() {
-    gameoverButtons.classList.remove('hidden');
+  clearTimeout(gameoverButtonsTimer);
+  gameoverButtonsTimer = setTimeout(function() {
+    gameoverButtonsTimer = null;
+    gameoverButtons.style.visibility = '';
+    gameoverButtons.style.pointerEvents = '';
     gameoverButtonsReady = true;
-  }, 1500);
+  }, 2000);
 
   var winnerColor = 'rgba(255, 215, 0, 0.06)';
   if (results && results.length) {
