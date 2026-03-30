@@ -35,6 +35,24 @@ describe('Display: onHello during non-LOBBY states', () => {
     return name || 'P' + (index + 1);
   }
 
+  // Minimal onPeerJoined extracted from DisplayConnection.js
+  function onPeerJoined(clientId) {
+    if (players.has(clientId)) return;
+    var index = nextAvailableSlot();
+    if (index < 0) return;
+    var color = PLAYER_COLORS[index % PLAYER_COLORS.length];
+    players.set(clientId, {
+      playerName: 'P' + (index + 1),
+      playerColor: color,
+      playerIndex: index,
+      startLevel: 1,
+      lastPingTime: Date.now()
+    });
+    if (roomState === ROOM_STATE.LOBBY) {
+      playerOrder.push(clientId);
+    }
+  }
+
   // Minimal onHello extracted from DisplayInput.js
   function onHello(fromId, msg) {
     var name = typeof msg.name === 'string' ? msg.name.trim().slice(0, 16) : '';
@@ -44,16 +62,21 @@ describe('Display: onHello during non-LOBBY states', () => {
       if (name) existing.playerName = sanitizePlayerName(name, existing.playerIndex);
       updatePlayerListCalled = true;
 
+      var isLateJoiner = (roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN)
+        && lastAliveState[fromId] == null;
+
       var welcomeMsg = {
         type: MSG.WELCOME,
         playerName: existing.playerName,
         playerColor: existing.playerColor,
         playerCount: players.size,
         roomState: roomState,
-        startLevel: existing.startLevel || 1,
-        alive: lastAliveState[fromId] != null ? lastAliveState[fromId] : true,
-        paused: paused
+        startLevel: existing.startLevel || 1
       };
+      if (!isLateJoiner) {
+        welcomeMsg.alive = lastAliveState[fromId] != null ? lastAliveState[fromId] : true;
+        welcomeMsg.paused = paused;
+      }
       party.sendTo(fromId, welcomeMsg);
       broadcastCalled = true;
       return;
@@ -75,7 +98,9 @@ describe('Display: onHello during non-LOBBY states', () => {
       startLevel: 1,
       lastPingTime: Date.now()
     });
-    playerOrder.push(fromId);
+    if (roomState === ROOM_STATE.LOBBY) {
+      playerOrder.push(fromId);
+    }
 
     party.sendTo(fromId, {
       type: MSG.WELCOME,
@@ -132,6 +157,21 @@ describe('Display: onHello during non-LOBBY states', () => {
     assert.strictEqual(sentMessages[0].msg.type, MSG.WELCOME);
     assert.strictEqual(sentMessages[0].msg.roomState, ROOM_STATE.PLAYING);
     assert.strictEqual(players.has('player3'), true);
+  });
+
+  test('late joiner via onPeerJoined then onHello omits alive field', () => {
+    // Production flow: relay fires peer_joined before controller sends HELLO
+    roomState = ROOM_STATE.PLAYING;
+    onPeerJoined('player4');
+    assert.strictEqual(players.has('player4'), true);
+    assert.strictEqual(playerOrder.indexOf('player4'), -1, 'late joiner should not be in playerOrder');
+
+    onHello('player4', { type: MSG.HELLO, name: 'Dave' });
+    assert.strictEqual(sentMessages.length, 1);
+    assert.strictEqual(sentMessages[0].msg.type, MSG.WELCOME);
+    assert.strictEqual(sentMessages[0].msg.roomState, ROOM_STATE.PLAYING);
+    assert.strictEqual(sentMessages[0].msg.alive, undefined, 'alive should be omitted for late joiners');
+    assert.strictEqual(sentMessages[0].msg.paused, undefined, 'paused should be omitted for late joiners');
   });
 
   test('existing player reconnecting during COUNTDOWN gets WELCOME', () => {

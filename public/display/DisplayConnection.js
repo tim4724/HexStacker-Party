@@ -213,9 +213,11 @@ function onPeerJoined(clientId) {
     startLevel: 1,
     lastPingTime: Date.now()
   });
-  playerOrder.push(clientId);
 
+  // Only add to playerOrder in lobby — late joiners wait for next game.
+  // playerOrder is snapshotted at game start by runGameLocally().
   if (roomState === ROOM_STATE.LOBBY) {
+    playerOrder.push(clientId);
     updatePlayerList();
     updateStartButton();
   }

@@ -68,6 +68,11 @@ function onHello(fromId, msg) {
     if (name) existing.playerName = sanitizePlayerName(name, existing.playerIndex);
     updatePlayerList();
 
+    // Late joiner: registered via onPeerJoined during active game but never
+    // participated. Omit alive/paused so controller shows waiting screen.
+    var isLateJoiner = (roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN)
+      && lastAliveState[fromId] == null;
+
     // Send welcome with current state
     var welcomeMsg = {
       type: MSG.WELCOME,
@@ -75,16 +80,18 @@ function onHello(fromId, msg) {
       playerColor: existing.playerColor,
       playerCount: players.size,
       roomState: roomState,
-      startLevel: existing.startLevel || 1,
-      alive: lastAliveState[fromId] != null ? lastAliveState[fromId] : true,
-      paused: paused
+      startLevel: existing.startLevel || 1
     };
+    if (!isLateJoiner) {
+      welcomeMsg.alive = lastAliveState[fromId] != null ? lastAliveState[fromId] : true;
+      welcomeMsg.paused = paused;
+    }
     if (roomState === ROOM_STATE.RESULTS && lastResults) {
       welcomeMsg.results = lastResults.results;
     }
     party.sendTo(fromId, welcomeMsg);
 
-    broadcastLobbyUpdate();
+    if (roomState === ROOM_STATE.LOBBY) broadcastLobbyUpdate();
     return;
   }
 
@@ -104,7 +111,9 @@ function onHello(fromId, msg) {
     startLevel: 1,
     lastPingTime: Date.now()
   });
-  playerOrder.push(fromId);
+  if (roomState === ROOM_STATE.LOBBY) {
+    playerOrder.push(fromId);
+  }
 
   party.sendTo(fromId, {
     type: MSG.WELCOME,
