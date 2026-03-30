@@ -118,9 +118,9 @@ class AirConsoleAdapter {
   sendTo(to, data) {
     if (to === 'display') {
       if (this.role === 'display') {
-        // Synchronous self-echo for heartbeat compatibility.
-        // Callers must not call sendTo('display') from within an onMessage handler.
-        if (this.onMessage) this.onMessage('display', data);
+        // Async self-echo for heartbeat compatibility.
+        var self = this;
+        setTimeout(function() { if (self.onMessage) self.onMessage('display', data); }, 0);
         return;
       }
       this.airconsole.message(AirConsole.SCREEN, data);

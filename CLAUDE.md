@@ -17,3 +17,6 @@ npm run test:visual:update   # Update snapshots after UI changes
 - Engine modules (`server/*.js`) use UMD — must work in both Node.js and browser
 - CSP headers in `server/index.js` — update when adding external resources
 - Relay URL configured in `public/shared/protocol.js`
+- AirConsole HTML files must stay in sync with their standalone counterparts:
+  - `public/display/screen.html` ↔ `public/display/index.html`
+  - `public/controller/controller.html` ↔ `public/controller/index.html`

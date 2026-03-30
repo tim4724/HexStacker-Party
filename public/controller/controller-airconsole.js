@@ -70,6 +70,8 @@ connect = function() {
 
 // Keep ping/pong running for RTT measurement (ping display), but prevent
 // the reconnect overlay from ever showing — AirConsole handles connectivity UI.
+// Using inline style (not .hidden class) so that classList.remove('hidden')
+// in ControllerConnection.js can't accidentally re-show it.
 reconnectOverlay.style.display = 'none';
 
 // AirConsole status overlay: show "Loading..." until lobby, show errors.
