@@ -31,16 +31,16 @@ function handleControllerMessage(fromId, msg) {
         startGame();
         break;
       case MSG.PLAY_AGAIN:
-        playAgain();
+        if (playerOrder.indexOf(fromId) >= 0) playAgain();
         break;
       case MSG.RETURN_TO_LOBBY:
-        returnToLobby();
+        if (playerOrder.indexOf(fromId) >= 0) returnToLobby();
         break;
       case MSG.PAUSE_GAME:
-        pauseGame();
+        if (playerOrder.indexOf(fromId) >= 0) pauseGame();
         break;
       case MSG.RESUME_GAME:
-        resumeGame();
+        if (playerOrder.indexOf(fromId) >= 0) resumeGame();
         break;
       case MSG.SET_LEVEL:
         onSetLevel(fromId, msg);
@@ -159,7 +159,6 @@ function onSoftDrop(fromId, speed) {
 }
 
 function onSetLevel(fromId, msg) {
-  if (roomState !== ROOM_STATE.LOBBY) return;
   var player = players.get(fromId);
   if (!player) return;
   var level = parseInt(msg.level, 10);

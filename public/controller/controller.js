@@ -243,7 +243,7 @@ document.addEventListener('visibilitychange', function () {
   // trigger reconnection automatically.
   if (party && party.connected) {
     startPing();
-  } else if (!party) {
+  } else {
     connect();
   }
 });
