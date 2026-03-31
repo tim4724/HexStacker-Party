@@ -54,6 +54,7 @@ function handleMessage(data) {
       case MSG.GAME_OVER:
         break;
       case MSG.GAME_END:
+        waitingForNextGame = false;
         onGameEnd(data);
         break;
       case MSG.GAME_PAUSED:

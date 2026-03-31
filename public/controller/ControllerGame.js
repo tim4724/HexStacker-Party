@@ -189,14 +189,14 @@ var gameoverButtonsTimer = null;
 function renderGameResults(results) {
   resultsList.innerHTML = '';
   gameoverButtons.classList.remove('hidden');
-  gameoverButtons.style.visibility = 'hidden';
+  gameoverButtons.style.opacity = '0';
   gameoverButtons.style.pointerEvents = 'none';
   gameoverStatus.textContent = '';
   gameoverButtonsReady = false;
   clearTimeout(gameoverButtonsTimer);
   gameoverButtonsTimer = setTimeout(function() {
     gameoverButtonsTimer = null;
-    gameoverButtons.style.visibility = '';
+    gameoverButtons.style.opacity = '';
     gameoverButtons.style.pointerEvents = '';
     gameoverButtonsReady = true;
   }, 2000);
