@@ -115,14 +115,18 @@ function onHello(fromId, msg) {
     playerOrder.push(fromId);
   }
 
-  party.sendTo(fromId, {
+  var welcomeMsg = {
     type: MSG.WELCOME,
     playerName: playerName,
     playerColor: color,
     playerCount: players.size,
     roomState: roomState,
     startLevel: 1
-  });
+  };
+  if (roomState === ROOM_STATE.RESULTS && lastResults) {
+    welcomeMsg.results = lastResults.results;
+  }
+  party.sendTo(fromId, welcomeMsg);
 
   if (roomState === ROOM_STATE.LOBBY) {
     broadcastLobbyUpdate();
