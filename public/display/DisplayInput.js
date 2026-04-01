@@ -46,7 +46,7 @@ function handleControllerMessage(fromId, msg) {
         onSetLevel(fromId, msg);
         break;
       case MSG.LEAVE:
-        removePlayer(fromId, true);
+        removePlayer(fromId);
         break;
       case MSG.PING:
         party.sendTo(fromId, { type: MSG.PONG, t: msg.t });
