@@ -30,6 +30,7 @@ function startGame() {
 
 function playAgain() {
   if (roomState !== ROOM_STATE.RESULTS) return;
+  if (players.size < 1) return;
   startNewGame();
 }
 

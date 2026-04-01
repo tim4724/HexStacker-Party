@@ -170,16 +170,6 @@ function onSetLevel(fromId, msg) {
   }
 }
 
-function removePlayer(clientId, immediate) {
-  if (!players.has(clientId)) return;
-
-  if (roomState === ROOM_STATE.LOBBY) {
-    if (immediate) {
-      removeLobbyPlayer(clientId);
-    } else {
-      onPeerLeft(clientId);
-    }
-  } else {
-    onPeerLeft(clientId);
-  }
+function removePlayer(clientId) {
+  onPeerLeft(clientId);
 }
