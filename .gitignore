@@ -8,3 +8,5 @@ test-results/
 progress.md
 public/preview-settle.*
 public/artwork
+build/
+.dev-certs/

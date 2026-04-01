@@ -133,6 +133,13 @@ const server = http.createServer((req, res) => {
     urlPath = '/favicon.svg';
   }
 
+  // AirConsole entry points at root
+  if (urlPath === '/screen.html') {
+    urlPath = '/display/screen.html';
+  } else if (urlPath === '/controller.html') {
+    urlPath = '/controller/controller.html';
+  }
+
   // Map directory paths to index.html
   if (urlPath === '/') {
     urlPath = '/display/index.html';
@@ -170,7 +177,21 @@ const server = http.createServer((req, res) => {
     }
 
     if (ext === '.html') {
-      headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' wss://ws.couch-games.com; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'";
+      const isAirConsole = urlPath === '/display/screen.html' || urlPath === '/controller/controller.html';
+      if (isAirConsole) {
+        headers['Content-Security-Policy'] = [
+          "default-src 'self'",
+          "script-src 'self' https://www.airconsole.com",
+          "style-src 'self' 'unsafe-inline'",
+          "font-src 'self'",
+          "connect-src 'self' https://www.airconsole.com wss://*.airconsole.com",
+          "img-src 'self' data: https://www.airconsole.com",
+          "object-src 'none'",
+          "frame-ancestors https://www.airconsole.com" + (APP_ENV !== 'production' ? " http://http.airconsole.com" : ""),
+        ].join('; ');
+      } else {
+        headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' wss://ws.couch-games.com; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'";
+      }
     }
 
     res.writeHead(200, headers);
