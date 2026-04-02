@@ -225,6 +225,7 @@ function stopDisplayGame() {
     clearTimeout(entry[1]);
   }
   softDropTimers.clear();
+  lastHardDropTime.clear();
   garbageDefenceEffects.clear();
   clearCountdownTimers();
 }
