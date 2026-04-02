@@ -13,7 +13,7 @@ jobs:
   build:
     uses: ./.github/workflows/docker-publish.yml
     with:
-      platforms: linux/amd64
+      platforms: ${{ github.ref_name == 'main' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
     secrets: inherit
     permissions:
       contents: read
@@ -27,10 +27,10 @@ jobs:
     environment: preview
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install kubectl
-        uses: azure/setup-kubectl@v4
+        uses: azure/setup-kubectl@v5
         with:
           version: v1.30.0
 
@@ -50,7 +50,12 @@ jobs:
           set -euo pipefail
           SAFE_BRANCH=$(echo "$BRANCH_RAW" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9-]#-#g' | cut -c1-50 | sed 's/-*$//')
           NS="cg-${SAFE_BRANCH}"
-          HOST="stacker-${SAFE_BRANCH}.couch-games.com"
+
+          if [ "$BRANCH_RAW" = "main" ]; then
+            HOST="main.couch-games.com"
+          else
+            HOST="stacker-${SAFE_BRANCH}.couch-games.com"
+          fi
 
           kubectl get ns "$NS" >/dev/null 2>&1 || kubectl create ns "$NS"
 
@@ -156,7 +161,11 @@ jobs:
           BRANCH_RAW: ${{ github.ref_name }}
         run: |
           SAFE_BRANCH=$(echo "$BRANCH_RAW" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9-]#-#g' | cut -c1-50 | sed 's/-*$//')
-          HOST="stacker-${SAFE_BRANCH}.couch-games.com"
+          if [ "$BRANCH_RAW" = "main" ]; then
+            HOST="main.couch-games.com"
+          else
+            HOST="stacker-${SAFE_BRANCH}.couch-games.com"
+          fi
           {
             echo "### Preview"
             echo "- URL: https://${HOST}"
