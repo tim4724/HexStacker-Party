@@ -23,7 +23,7 @@ function calculateLayout() {
   var boardCols = isHex ? HexConstants.HEX_COLS : GameConstants.BOARD_WIDTH;
   var hexRows = HexConstants.HEX_VISIBLE_ROWS;
   var boardRows = isHex
-    ? Math.sqrt(3) * (hexRows + 0.5) * boardCols / (1.5 * boardCols + 0.5)
+    ? HexConstants.computeHexGeometry(boardCols, hexRows, 1).boardHeight
     : GameConstants.VISIBLE_HEIGHT;
   var totalCellsWide = boardCols + 3 + 3;
   // Gaps scale with cellSize to stay proportional at all zoom levels
@@ -74,14 +74,9 @@ function calculateLayout() {
   if (!cellSize) cellSize = cellSizeFor(gridCols, gridRows);
   var boardWidthPx, boardHeightPx;
   if (isHex) {
-    // Flat-top hex: colW = 1.5*hexS, hexH = sqrt(3)*hexS
-    var hexSw = boardCols * cellSize / (1.5 * boardCols + 0.5);
-    var hexSh = boardRows * cellSize / (Math.sqrt(3) * (hexRows + 0.5));
-    var hexS = Math.min(hexSw, hexSh);
-    var hexH = Math.sqrt(3) * hexS;
-    var hexColW = 1.5 * hexS;
-    boardWidthPx = hexColW * (boardCols - 1) + 2 * hexS;
-    boardHeightPx = hexH * (hexRows - 1) + hexH + hexH * 0.5;
+    var geo = HexConstants.computeHexGeometry(boardCols, hexRows, cellSize);
+    boardWidthPx = geo.boardWidth;
+    boardHeightPx = geo.boardHeight;
   } else {
     boardWidthPx = boardCols * cellSize;
     boardHeightPx = boardRows * cellSize;

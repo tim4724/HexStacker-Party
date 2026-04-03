@@ -6,6 +6,8 @@ const { chromium } = require('playwright');
 const path = require('path');
 // fixtures no longer needed — banner uses its own buildBannerGameState()
 const { PLAYER_COLORS } = require('../public/shared/theme.js');
+const { HexPiece } = require('../server/HexPiece.js');
+const { HEX_COLS, HEX_VISIBLE_ROWS } = require('../server/HexConstants.js');
 
 const NAMES = ['Emma', 'Jake', 'Sofia', 'Liam'];
 const BANNER_DIR = __dirname;
@@ -122,6 +124,129 @@ function buildBannerGameState() {
   };
 }
 
+// --- Hex banner state ---
+function hexBannerGrid1() {
+  // Emma — Neon (level 13), busier board. Height ~9
+  const grid = Array.from({ length: HEX_VISIBLE_ROWS }, () => Array(HEX_COLS).fill(0));
+  grid[12] = [0,0,0,0,5,0,0,0,0,0,0];
+  grid[13] = [0,0,0,5,5,0,0,0,7,0,0];
+  grid[14] = [0,0,3,3,5,0,0,7,7,0,0];
+  grid[15] = [0,0,3,4,4,0,0,7,6,6,0];
+  grid[16] = [0,3,1,4,4,0,6,6,2,2,0];
+  grid[17] = [0,1,1,1,2,2,6,3,3,2,0];
+  grid[18] = [0,5,5,7,7,2,4,4,3,3,0];
+  grid[19] = [0,5,7,7,1,1,1,4,6,6,0];
+  grid[20] = [0,4,4,3,3,1,2,2,6,5,5];
+  return grid;
+}
+
+function hexBannerGrid2() {
+  // Jake — Pillow (level 8), moderate board. Height ~7
+  const grid = Array.from({ length: HEX_VISIBLE_ROWS }, () => Array(HEX_COLS).fill(0));
+  grid[14] = [0,0,0,0,0,0,0,3,3,0,0];
+  grid[15] = [0,0,0,0,0,0,3,3,7,0,0];
+  grid[16] = [0,0,0,0,5,5,6,6,7,7,0];
+  grid[17] = [0,0,0,5,5,1,1,6,7,4,0];
+  grid[18] = [0,0,2,2,4,4,1,1,2,4,4];
+  grid[19] = [0,7,7,2,4,4,3,3,2,2,6];
+  grid[20] = [0,7,5,5,1,1,3,6,6,5,6];
+  return grid;
+}
+
+function hexBannerGrid3() {
+  // Sofia — Pillow (level 6), lighter board. Height ~5
+  const grid = Array.from({ length: HEX_VISIBLE_ROWS }, () => Array(HEX_COLS).fill(0));
+  grid[16] = [0,0,0,0,0,4,4,0,0,0,0];
+  grid[17] = [0,0,0,6,6,4,7,7,0,0,0];
+  grid[18] = [0,0,2,2,6,6,3,7,7,0,0];
+  grid[19] = [0,5,5,2,1,1,3,3,4,4,0];
+  grid[20] = [0,5,3,3,7,1,1,6,6,4,0];
+  return grid;
+}
+
+function hexBannerGrid4() {
+  // Liam — Normal (level 4), with garbage. Height ~7
+  const grid = Array.from({ length: HEX_VISIBLE_ROWS }, () => Array(HEX_COLS).fill(0));
+  grid[14] = [0,0,0,0,0,0,2,0,0,0,0];
+  grid[15] = [0,0,0,0,0,2,2,0,0,0,0];
+  grid[16] = [0,0,0,0,7,7,2,5,0,0,0];
+  grid[17] = [0,0,4,4,7,3,3,5,5,0,0];
+  grid[18] = [0,6,6,4,3,3,1,1,5,0,0];
+  grid[19] = [9,9,6,9,9,9,9,1,1,9,9];
+  grid[20] = [9,9,9,9,9,9,9,9,9,0,9];
+  return grid;
+}
+
+const HEX_BANNER_GRIDS = [hexBannerGrid1, hexBannerGrid2, hexBannerGrid3, hexBannerGrid4];
+const HEX_BANNER_LEVELS = [13, 8, 6, 4];
+const HEX_BANNER_LINES = [115, 60, 35, 18];
+const HEX_BANNER_PIECE_TYPES = ['T', 'I4', 'S', 'F'];
+const HEX_BANNER_HOLD = ['Fm', 'L', 'Tp', 'S'];
+const HEX_BANNER_NEXT = [
+  ['L', 'Fm', 'I4', 'Tp', 'S'],
+  ['T', 'F', 'S', 'L', 'Fm'],
+  ['I4', 'Tp', 'F', 'T', 'L'],
+  ['Fm', 'T', 'L', 'I4', 'Tp'],
+];
+
+function buildHexBannerGameState() {
+  return {
+    players: NAMES.map((name, i) => {
+      const pieceType = HEX_BANNER_PIECE_TYPES[i];
+      const piece = new HexPiece(pieceType);
+      piece.anchorCol = 5;
+      piece.anchorRow = 2;
+      const blocks = piece.getAbsoluteBlocks();
+
+      const ghostPiece = piece.clone();
+      // Drop ghost to just above the pile
+      const grid = HEX_BANNER_GRIDS[i]();
+      let ghostRow = piece.anchorRow;
+      ghostPiece.anchorRow = ghostRow;
+      // Simple drop: increment until a block collides
+      outer: for (let r = piece.anchorRow; r < HEX_VISIBLE_ROWS; r++) {
+        ghostPiece.anchorRow = r;
+        const gb = ghostPiece.getAbsoluteBlocks();
+        for (const [c, rr] of gb) {
+          if (rr >= HEX_VISIBLE_ROWS || (rr >= 0 && c >= 0 && c < HEX_COLS && grid[rr][c] !== 0)) {
+            ghostPiece.anchorRow = r - 1;
+            break outer;
+          }
+        }
+      }
+      const ghostBlocks = ghostPiece.getAbsoluteBlocks();
+
+      return {
+        id: `player${i + 1}`,
+        alive: true,
+        lines: HEX_BANNER_LINES[i],
+        level: HEX_BANNER_LEVELS[i],
+        grid: grid,
+        currentPiece: {
+          type: pieceType,
+          typeId: piece.typeId,
+          anchorCol: piece.anchorCol,
+          anchorRow: piece.anchorRow,
+          cells: piece.cells,
+          blocks: blocks,
+        },
+        ghost: {
+          anchorCol: ghostPiece.anchorCol,
+          anchorRow: ghostPiece.anchorRow,
+          blocks: ghostBlocks,
+        },
+        holdPiece: HEX_BANNER_HOLD[i],
+        nextPieces: HEX_BANNER_NEXT[i].slice(),
+        pendingGarbage: i === 2 ? 3 : i === 1 ? 2 : 0,
+        playerName: name,
+        playerColor: PLAYER_COLORS[i % PLAYER_COLORS.length],
+        clearingCells: null,
+      };
+    }),
+    elapsed: 185000,
+  };
+}
+
 const SOCIAL_WIDTH = 1280;
 const SOCIAL_HEIGHT = 640;
 const HEADER_WIDTH = 1280;
@@ -173,7 +298,38 @@ async function generate() {
   await displayPage.waitForTimeout(300);
 
   const displayBase64 = (await displayPage.screenshot()).toString('base64');
-  console.log('  Display captured');
+  console.log('  Display captured (square)');
+
+  // --- Phase 1b: Capture hex display ---
+  console.log('Capturing hex display...');
+  const hexContext = await browser.newContext({
+    viewport: { width: 1440, height: 608 },
+    deviceScaleFactor: 4,
+  });
+  const hexPage = await hexContext.newPage();
+  await hexPage.goto(`${BASE_URL}/?test=1`, { timeout: 5000 });
+  await waitForFont(hexPage);
+
+  // Inject players
+  const hexPlayers = NAMES.map((name, i) => ({ id: `player${i + 1}`, name }));
+  await hexPage.evaluate((p) => window.__TEST__.addPlayers(p), hexPlayers);
+
+  // Build hex state and inject
+  const hexGameState = buildHexBannerGameState();
+  await hexPage.evaluate((s) => {
+    window.__TEST__.setGameMode('hex');
+    window.__TEST__.injectGameState(s);
+    startRenderLoop();
+  }, hexGameState);
+
+  // Hide toolbar
+  await hexPage.evaluate(() => {
+    document.getElementById('game-toolbar').style.display = 'none';
+  });
+  await hexPage.waitForTimeout(300);
+
+  const hexDisplayBase64 = (await hexPage.screenshot()).toString('base64');
+  console.log('  Display captured (hex)');
 
   // --- Phase 2: Capture real controllers via Party-Server ---
   console.log('Capturing controllers...');
@@ -245,18 +401,20 @@ async function generate() {
   console.log('Generating banners...');
 
   async function renderBanner(width, height, outputName, options = {}) {
+    const template = options.template || 'banner.html';
     const ctx = await browser.newContext({
       viewport: { width, height },
       deviceScaleFactor: 2,
     });
     const page = await ctx.newPage();
-    await page.goto(`file://${path.resolve(BANNER_DIR, 'banner.html')}`);
+    await page.goto(`file://${path.resolve(BANNER_DIR, template)}`);
     await page.waitForTimeout(200);
 
-    // Inject display screenshot
-    await page.evaluate((b64) => {
-      document.getElementById('display-img').src = `data:image/png;base64,${b64}`;
-    }, displayBase64);
+    // Inject display screenshots (square + hex)
+    await page.evaluate(({ square, hex }) => {
+      document.getElementById('display-img').src = `data:image/png;base64,${square}`;
+      document.getElementById('display-hex-img').src = `data:image/png;base64,${hex}`;
+    }, { square: displayBase64, hex: hexDisplayBase64 });
 
     // Inject controller screenshots
     await page.evaluate((ctrls) => {
@@ -302,6 +460,23 @@ async function generate() {
     phoneHeight: '255px',
     clipHeight: HEADER_HEIGHT
   });
+
+  // --- Phase 3b: Render variations for comparison ---
+  const variations = [
+    { template: 'banner-v1-glow.html', output: 'variation-1-glow.png' },
+    { template: 'banner-v2-pills.html', output: 'variation-2-pills.png' },
+    { template: 'banner-v3-frost.html', output: 'variation-3-frost.png' },
+    { template: 'banner-v4-diagonal-labels.html', output: 'variation-4-diagonal-labels.png' },
+  ];
+  console.log('Generating variations...');
+  for (const v of variations) {
+    await renderBanner(SOCIAL_WIDTH, SOCIAL_HEIGHT, v.output, {
+      template: v.template,
+      phoneBottom: '18px',
+      phoneHeight: '255px',
+      clipHeight: HEADER_HEIGHT,
+    });
+  }
 
   // --- Phase 4: Name banner (title + falling pieces, no screenshots needed) ---
   console.log('Generating name banner...');

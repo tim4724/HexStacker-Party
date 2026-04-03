@@ -68,7 +68,9 @@ class HexPiece {
   }
 
   clone() {
-    var p = new HexPiece(this.type);
+    var p = Object.create(HexPiece.prototype);
+    p.type = this.type;
+    p.typeId = this.typeId;
     p.cells = this.cells.map(function(c) { return { q: c.q, r: c.r }; });
     p.anchorCol = this.anchorCol;
     p.anchorRow = this.anchorRow;

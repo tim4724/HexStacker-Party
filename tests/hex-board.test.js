@@ -490,7 +490,7 @@ describe('HexPlayerBoard - zigzag line clears', () => {
     }
     b.spawnPiece();
     var result = b.hardDrop();
-    // Only zigzag-down should clear (lower priority), zigzag-up skipped due to shared cells
+    // Only zigzag-down should clear (lower on board wins), zigzag-up skipped due to shared cells
     assert.equal(result.linesCleared, 1, 'only lower zigzag clears');
   });
 
@@ -523,6 +523,53 @@ describe('HexPlayerBoard - zigzag line clears', () => {
     assert.equal(b.grid[16][3], 5);
     // Row 10 should still be empty (no fall-through)
     assert.equal(b.grid[10][3], 0);
+  });
+
+  it('two zigzag clears in same column shift correctly', () => {
+    var b = new HexPlayerBoard('p1', 42, 1);
+    // Fill two non-overlapping zigzag-down rows (24 and 22)
+    for (var c = 0; c < HEX_COLS; c++) {
+      b.grid[HEX_TOTAL_ROWS - 1][c] = 1;  // row 24
+      b.grid[HEX_TOTAL_ROWS - 3][c] = 2;  // row 22
+    }
+    // Put a marker block at row 20, col 3
+    b.grid[HEX_TOTAL_ROWS - 5][3] = 7;
+
+    b.clearingCells = [];
+    for (var c2 = 0; c2 < HEX_COLS; c2++) {
+      b.clearingCells.push([c2, HEX_TOTAL_ROWS - 1]);  // row 24
+      b.clearingCells.push([c2, HEX_TOTAL_ROWS - 3]);  // row 22
+    }
+    b.clearingTimer = 0;
+    b._finishClearLines();
+
+    // Each column lost 2 cells, so marker at row 20 should shift down by 2 to row 22
+    assert.equal(b.grid[HEX_TOTAL_ROWS - 3][3], 7, 'marker shifted down by 2');
+    // Original positions should be empty
+    assert.equal(b.grid[HEX_TOTAL_ROWS - 5][3], 0, 'original marker position empty');
+  });
+
+  it('zigzag-down wins tie-break over zigzag-up at same row', () => {
+    // Test the shared findClearableZigzags directly to verify tie-breaking
+    var { findClearableZigzags } = require('../server/HexConstants');
+    // Build a small test grid: 11 cols, 5 rows
+    var grid = Array.from({ length: 5 }, function() { return new Array(HEX_COLS).fill(0); });
+    // Fill zigzag-down at row 4 (all cells at row 4)
+    for (var c = 0; c < HEX_COLS; c++) grid[4][c] = 1;
+    // Fill zigzag-up at row 4 (even@4, odd@3) — shares even-col cells with above
+    for (var c2 = 0; c2 < HEX_COLS; c2++) {
+      var r = (c2 & 1) ? 3 : 4;
+      grid[r][c2] = 2;
+    }
+    var result = findClearableZigzags(HEX_COLS, 5, function(col, row) {
+      return grid[row][col] !== 0;
+    }, null);
+    assert.equal(result.linesCleared, 1, 'only one zigzag clears');
+    // All cleared cells should be at row 4 (zigzag-down wins tie-break)
+    for (var key in result.clearCells) {
+      var row = parseInt(key.split(',')[1]);
+      assert.equal(row, 4, 'cleared cell at row 4 (zigzag-down)');
+    }
   });
 
   it('no cascade after gravity', () => {

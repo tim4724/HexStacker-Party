@@ -53,15 +53,11 @@ class HexUIRenderer {
     this.panelGap = cellSize * THEME.size.panelGap;
     this._styleTier = STYLE_TIERS.NORMAL;
 
-    // Hex geometry (same as HexBoardRenderer) for outline-based overlays
-    var boardCols = HexConstants.HEX_COLS;
-    var visRows = HexConstants.HEX_VISIBLE_ROWS;
-    var boardRows = Math.sqrt(3) * (visRows + 0.5) * boardCols / (1.5 * boardCols + 0.5);
-    var sw = boardCols * cellSize / (1.5 * boardCols + 0.5);
-    var sh = boardRows * cellSize / (Math.sqrt(3) * (visRows + 0.5));
-    this._hexSize = Math.min(sw, sh);
-    this._hexH = Math.sqrt(3) * this._hexSize;
-    this._colW = 1.5 * this._hexSize;
+    // Hex geometry (shared with HexBoardRenderer and DisplayUI)
+    var geo = HexConstants.computeHexGeometry(HexConstants.HEX_COLS, HexConstants.HEX_VISIBLE_ROWS, cellSize);
+    this._hexSize = geo.hexSize;
+    this._hexH = geo.hexH;
+    this._colW = geo.colW;
   }
 
   render(playerState, timestamp) {
@@ -70,6 +66,8 @@ class HexUIRenderer {
     this.drawHoldPanel(playerState);
     this.drawNextPanel(playerState);
     if (playerState.pendingGarbage > 0) this.drawGarbageMeter(playerState.pendingGarbage);
+    if (playerState.garbageIndicatorEffects) this.drawGarbageIndicatorEffects(playerState.garbageIndicatorEffects, timestamp);
+    if (playerState.garbageDefenceEffects) this.drawGarbageDefenceEffects(playerState.garbageDefenceEffects, timestamp);
     if (playerState.alive === false) this.drawKOOverlay();
   }
 
@@ -169,116 +167,88 @@ class HexUIRenderer {
   }
 
   drawGarbageMeter(pendingGarbage) {
-    var ctx = this.ctx;
     var hs = this._hexSize;
-    var hexH = this._hexH;
-    var colW = 1.5 * hs;
-    var sCell = hs * (1 - THEME.size.blockGap * 2); // match board cell size
-    // Two columns zigzagging like the board: even col + odd col (shifted down hexH/2)
-    var evenX = this.boardX - colW - hs * 0.4;
-    var oddX = evenX + colW;
+    var sCell = hs * (1 - THEME.size.blockGap * 2);
     var maxLines = HexConstants.HEX_VISIBLE_ROWS;
     var lines = Math.min(pendingGarbage, maxLines);
-    var totalCells = lines * 2; // 1 garbage row = 2 hex cells (one zigzag pair)
 
-    // Fill from bottom: each garbage row draws 2 hexes (even + odd)
-    for (var i = 0; i < totalCells; i++) {
-      var isOdd = i & 1;
-      var row = HexConstants.HEX_VISIBLE_ROWS - 1 - Math.floor(i / 2);
-      var cx = isOdd ? oddX : evenX;
-      var cy = this.boardY + hexH * (row + 0.5 * isOdd) + hexH / 2;
-
-      ctx.beginPath();
-      for (var v = 0; v < 6; v++) {
-        var a = Math.PI / 3 * v;
-        var hx = cx + sCell * Math.cos(a);
-        var hy = cy + sCell * Math.sin(a);
-        v === 0 ? ctx.moveTo(hx, hy) : ctx.lineTo(hx, hy);
+    for (var row = 0; row < lines; row++) {
+      for (var cell = 0; cell < 2; cell++) {
+        var pos = this._getMeterPos(row, cell);
+        this._drawMeterHex(pos.x, pos.y, sCell, '#808080', null);
       }
-      ctx.closePath();
-      ctx.fillStyle = '#808080';
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
     }
+  }
+
+  // Helper: draw a hex at a meter cell position
+  _drawMeterHex(cx, cy, sCell, fill, alpha) {
+    var ctx = this.ctx;
+    if (alpha != null) ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    for (var v = 0; v < 6; v++) {
+      var a = Math.PI / 3 * v;
+      var hx = cx + sCell * Math.cos(a);
+      var hy = cy + sCell * Math.sin(a);
+      v === 0 ? ctx.moveTo(hx, hy) : ctx.lineTo(hx, hy);
+    }
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+    if (alpha != null) ctx.globalAlpha = 1.0;
+  }
+
+  // Get meter hex center for a given garbage row index and cell index (0 or 1)
+  _getMeterPos(garbageRow, cell) {
+    var hs = this._hexSize;
+    var hexH = this._hexH;
+    var colW = this._colW;
+    var evenX = this.boardX - colW - hs * 0.4;
+    var oddX = evenX + colW;
+    var row = HexConstants.HEX_VISIBLE_ROWS - 1 - garbageRow;
+    return {
+      x: cell ? oddX : evenX,
+      y: this.boardY + hexH * (row + 0.5 * cell) + hexH / 2
+    };
+  }
+
+  _drawGarbageEffects(effects, timestamp, getColor) {
+    if (!Array.isArray(effects) || effects.length === 0) return;
+    var hs = this._hexSize;
+    var sCell = hs * (1 - THEME.size.blockGap * 2);
+    var now = timestamp || performance.now();
+
+    for (var ei = 0; ei < effects.length; ei++) {
+      var effect = effects[ei];
+      var elapsed = now - effect.startTime;
+      if (elapsed < 0 || elapsed >= effect.duration) continue;
+      var alpha = (1 - elapsed / effect.duration) * (effect.maxAlpha || 0.9);
+      var color = getColor(effect);
+
+      for (var row = effect.rowStart; row < effect.rowStart + effect.lines; row++) {
+        if (row < 0 || row >= HexConstants.HEX_VISIBLE_ROWS) continue;
+        for (var cell = 0; cell < 2; cell++) {
+          var pos = this._getMeterPos(row, cell);
+          this._drawMeterHex(pos.x, pos.y, sCell, color, alpha);
+        }
+      }
+    }
+  }
+
+  drawGarbageIndicatorEffects(effects, timestamp) {
+    this._drawGarbageEffects(effects, timestamp, function(e) { return e.color; });
+  }
+
+  drawGarbageDefenceEffects(effects, timestamp) {
+    this._drawGarbageEffects(effects, timestamp, function() { return THEME.color.text.white; });
   }
 
   // Trace the hex board outline as a closed path (matching the zigzag walls)
   _boardOutlinePath() {
-    var ctx = this.ctx;
-    var hs = this._hexSize;
-    var hexH = this._hexH;
-    var colW = this._colW;
-    var bx = this.boardX;
-    var by = this.boardY;
-    var lastRow = HexConstants.HEX_VISIBLE_ROWS - 1;
-    var lastCol = HexConstants.HEX_COLS - 1;
-
-    function hc(col, row) {
-      return {
-        x: bx + colW * col + hs,
-        y: by + hexH * (row + 0.5 * (col & 1)) + hexH / 2
-      };
-    }
-    function hv(cx, cy, i) {
-      var a = Math.PI / 3 * i;
-      return { x: cx + hs * Math.cos(a), y: cy + hs * Math.sin(a) };
-    }
-
-    ctx.beginPath();
-    // Top border: left-to-right across row 0
-    var p0 = hc(0, 0);
-    var v = hv(p0.x, p0.y, 4);
-    ctx.moveTo(v.x, v.y);
-    for (var c = 0; c <= lastCol; c++) {
-      var pt = hc(c, 0);
-      v = hv(pt.x, pt.y, 5);
-      ctx.lineTo(v.x, v.y);
-      if (c < lastCol) {
-        if (c % 2 === 0) {
-          v = hv(pt.x, pt.y, 0);
-          ctx.lineTo(v.x, v.y);
-        } else {
-          var pn = hc(c + 1, 0);
-          v = hv(pn.x, pn.y, 4);
-          ctx.lineTo(v.x, v.y);
-        }
-      }
-    }
-    // Right wall: top-to-bottom along last col
-    for (var r = 0; r <= lastRow; r++) {
-      var pr = hc(lastCol, r);
-      v = hv(pr.x, pr.y, 0);
-      ctx.lineTo(v.x, v.y);
-      v = hv(pr.x, pr.y, 1);
-      ctx.lineTo(v.x, v.y);
-    }
-    // Bottom border: right-to-left across last row
-    for (var c2 = lastCol; c2 >= 0; c2--) {
-      var pb = hc(c2, lastRow);
-      v = hv(pb.x, pb.y, 2);
-      ctx.lineTo(v.x, v.y);
-      if (c2 > 0) {
-        if (c2 % 2 === 0) {
-          var pp = hc(c2 - 1, lastRow);
-          v = hv(pp.x, pp.y, 1);
-          ctx.lineTo(v.x, v.y);
-        } else {
-          v = hv(pb.x, pb.y, 3);
-          ctx.lineTo(v.x, v.y);
-        }
-      }
-    }
-    // Left wall: bottom-to-top along col 0
-    for (var r2 = lastRow; r2 >= 0; r2--) {
-      var pl = hc(0, r2);
-      v = hv(pl.x, pl.y, 3);
-      ctx.lineTo(v.x, v.y);
-      v = hv(pl.x, pl.y, 4);
-      ctx.lineTo(v.x, v.y);
-    }
-    ctx.closePath();
+    HexConstants.traceHexOutline(
+      this.ctx, this.boardX, this.boardY,
+      this._hexSize, this._hexH, this._colW,
+      HexConstants.HEX_COLS, HexConstants.HEX_VISIBLE_ROWS
+    );
   }
 
   drawDisconnectedOverlay(qrImg, playerColor) {

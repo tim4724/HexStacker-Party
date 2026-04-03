@@ -359,7 +359,8 @@ function onGarbageCancelled(msg) {
     // Top-down coords (row 0 = top of board). The meter occupies
     // rows (VISIBLE_HEIGHT - oldPending) through VISIBLE_HEIGHT-1. The meter shrinks from the top,
     // so flash the rows that disappear at the top of the old meter.
-    var rowStart = GameConstants.VISIBLE_HEIGHT - oldPending;
+    var visHeight = gameMode === 'hex' ? HexConstants.HEX_VISIBLE_ROWS : GameConstants.VISIBLE_HEIGHT;
+    var rowStart = visHeight - oldPending;
     var existing = garbageDefenceEffects.get(msg.playerId) || [];
     existing.push({
       startTime: performance.now(),
@@ -406,7 +407,7 @@ function onGarbageSent(msg) {
     maxAlpha: 0.94,
     color: attackerColor,
     lines: msg.lines,
-    rowStart: Math.max(0, GameConstants.VISIBLE_HEIGHT - msg.lines)
+    rowStart: Math.max(0, (gameMode === 'hex' ? HexConstants.HEX_VISIBLE_ROWS : GameConstants.VISIBLE_HEIGHT) - msg.lines)
   });
   garbageIndicatorEffects.set(msg.toId, shifted);
 }

@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
       overflow: hidden;
@@ -16,7 +17,6 @@
       overflow: hidden;
     }
 
-    /* Display fills full width — two images with diagonal split */
     .display-img {
       position: absolute;
       top: 0;
@@ -24,17 +24,15 @@
       width: 100%;
     }
 
-    /* Square mode: left side with diagonal cut */
     .display-square {
       clip-path: polygon(0 0, 55% 0, 45% 100%, 0 100%);
     }
 
-    /* Hex mode: right side with diagonal cut */
     .display-hex {
       clip-path: polygon(55% 0, 100% 0, 100% 100%, 45% 100%);
     }
 
-    /* Diagonal divider — SVG line matching the clip-path seam */
+    /* Variation 1: Glow divider + corner pill labels */
     .diagonal-divider {
       position: absolute;
       top: 0;
@@ -45,7 +43,30 @@
       z-index: 5;
     }
 
-    /* Bottom fade for phone contrast */
+    /* Corner labels */
+    .mode-label {
+      position: absolute;
+      top: 10px;
+      padding: 4px 14px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.9);
+      background: rgba(0,0,0,0.55);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 4px;
+      z-index: 6;
+      backdrop-filter: blur(4px);
+    }
+    .mode-label.left {
+      left: 10px;
+    }
+    .mode-label.right {
+      right: 10px;
+    }
+
     .overlay-gradient {
       position: absolute;
       inset: 0;
@@ -54,7 +75,6 @@
       pointer-events: none;
     }
 
-    /* Phone mockup — modern edge-to-edge style */
     .phone {
       position: absolute;
       bottom: var(--phone-bottom, -18px);
@@ -71,7 +91,6 @@
       z-index: 10;
     }
 
-    /* Dynamic Island */
     .phone::before {
       content: '';
       position: absolute;
@@ -85,14 +104,13 @@
       z-index: 2;
     }
 
-    /* Screen — edge-to-edge */
     .phone-screen {
       width: 100%;
       height: 100%;
       border-radius: 15px;
       overflow: hidden;
       background: #080810;
-      padding-top: 14px; /* Safe area below Dynamic Island */
+      padding-top: 14px;
     }
 
     .controller-img {
@@ -108,8 +126,19 @@
     <img class="display-img display-square" id="display-img" alt="">
     <img class="display-img display-hex" id="display-hex-img" alt="">
     <svg class="diagonal-divider" viewBox="0 0 1280 640" preserveAspectRatio="none">
-      <line x1="55%" y1="0" x2="45%" y2="100%" stroke="rgba(255,255,255,0.45)" stroke-width="3"/>
+      <defs>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="4" result="blur"/>
+          <feMerge>
+            <feMergeNode in="blur"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+      </defs>
+      <line x1="55%" y1="0" x2="45%" y2="100%" stroke="rgba(255,255,255,0.6)" stroke-width="2.5" filter="url(#glow)"/>
     </svg>
+    <div class="mode-label left">Classic</div>
+    <div class="mode-label right">Hex</div>
     <div class="overlay-gradient"></div>
 
     <div class="phone" id="phone-0" style="--phone-left: 16%">

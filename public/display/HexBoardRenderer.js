@@ -19,18 +19,14 @@ class HexBoardRenderer {
     this._accentRgb = hexToRgb(this.accentColor);
     this._styleTier = STYLE_TIERS.NORMAL;
 
-    // Flat-top: width = 2*hexSize, height = sqrt(3)*hexSize
-    // colSpacing = 1.5*hexSize, rowSpacing = sqrt(3)*hexSize
-    // Match the hexSize the layout (DisplayUI) computes so board fills allocated space
-    var boardCols = HEX_COLS_N;
-    var boardRows = Math.sqrt(3) * (HEX_VIS_ROWS + 0.5) * boardCols / (1.5 * boardCols + 0.5);
-    var hexSw = boardCols * cellSize / (1.5 * boardCols + 0.5);
-    var hexSh = boardRows * cellSize / (Math.sqrt(3) * (HEX_VIS_ROWS + 0.5));
-    this.hexSize = Math.min(hexSw, hexSh);
-    this.hexH = Math.sqrt(3) * this.hexSize;
-    this.colW = 1.5 * this.hexSize;
-    this.boardWidth = this.colW * (boardCols - 1) + 2 * this.hexSize;
-    this.boardHeight = this.hexH * (HEX_VIS_ROWS - 1) + this.hexH + this.hexH * 0.5;
+    var geo = HexConstants.computeHexGeometry(HEX_COLS_N, HEX_VIS_ROWS, cellSize);
+    this.hexSize = geo.hexSize;
+    this.hexH = geo.hexH;
+    this.colW = geo.colW;
+    this.boardWidth = geo.boardWidth;
+    this.boardHeight = geo.boardHeight;
+    this._prevGhostKey = null;
+    this._cachedPreviewCells = [];
   }
 
   get styleTier() { return this._styleTier; }
@@ -192,7 +188,7 @@ class HexBoardRenderer {
           var pos = this._hexCenter(c, r);
           var cellVal = playerState.grid[r][c];
           if (cellVal > 0) {
-            this._drawFilledHex(pos.x, pos.y, sCell, colors[cellVal] || '#808080');
+            this._drawFilledHex(pos.x, pos.y, sCell, colors[cellVal]);
           } else {
             this._drawHex(pos.x, pos.y, sCell, THEME.color.bg.board, null);
             if (rgb) this._drawHex(pos.x, pos.y, sCell, 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + THEME.opacity.tint + ')', null);
@@ -203,7 +199,7 @@ class HexBoardRenderer {
     }
 
     // Ghost piece
-    if (playerState.ghost && playerState.alive !== false) {
+    if (playerState.ghost && playerState.currentPiece && playerState.alive !== false) {
       var ghost = playerState.ghost;
       var gc = ghostColors[playerState.currentPiece.typeId] || { outline: 'rgba(255,255,255,0.12)', fill: 'rgba(255,255,255,0.06)' };
       if (ghost.blocks) {
@@ -217,34 +213,49 @@ class HexBoardRenderer {
       }
     }
 
-    // Zigzag clear preview: uses shared findClearableZigzags from HexConstants
-    if (playerState.ghost && playerState.grid && playerState.alive !== false) {
+    // Zigzag clear preview: cached — only recompute when ghost position changes
+    if (playerState.ghost && playerState.currentPiece && playerState.grid && playerState.alive !== false) {
       var ghostBlocks = playerState.ghost.blocks;
       if (ghostBlocks) {
-        var ghostSet = {};
-        for (var gi2 = 0; gi2 < ghostBlocks.length; gi2++) {
-          ghostSet[ghostBlocks[gi2][0] + ',' + ghostBlocks[gi2][1]] = true;
+        // Build a cache key from ghost block positions
+        var ghostKey = '';
+        for (var gk = 0; gk < ghostBlocks.length; gk++) {
+          ghostKey += ghostBlocks[gk][0] + ',' + ghostBlocks[gk][1] + ';';
         }
 
-        var gridRows = playerState.grid.length;
-        var grid = playerState.grid;
-        var result = HexConstants.findClearableZigzags(
-          HEX_COLS_N, gridRows,
-          function(col, row) { return grid[row][col] > 0 || ghostSet[col + ',' + row]; },
-          function(col, row) { return grid[row][col] === 0 && ghostSet[col + ',' + row]; }
-        );
-        var previewCells = result.clearCells;
+        if (ghostKey !== this._prevGhostKey) {
+          this._prevGhostKey = ghostKey;
+          var ghostSet = {};
+          for (var gi2 = 0; gi2 < ghostBlocks.length; gi2++) {
+            ghostSet[ghostBlocks[gi2][0] + ',' + ghostBlocks[gi2][1]] = true;
+          }
+          var gridRows = playerState.grid.length;
+          var grid = playerState.grid;
+          var result = HexConstants.findClearableZigzags(
+            HEX_COLS_N, gridRows,
+            function(col, row) { return grid[row][col] > 0 || ghostSet[col + ',' + row]; },
+            function(col, row) { return grid[row][col] === 0 && ghostSet[col + ',' + row]; }
+          );
+          // Convert string-keyed clearCells to array for rendering
+          this._cachedPreviewCells = [];
+          for (var key in result.clearCells) {
+            var parts = key.split(',');
+            this._cachedPreviewCells.push([parseInt(parts[0]), parseInt(parts[1])]);
+          }
+        }
 
-        // Draw preview highlights
-        for (var key in previewCells) {
-          var parts = key.split(',');
-          var hc = parseInt(parts[0]), hr = parseInt(parts[1]);
-          if (hr >= 0 && hr < HEX_VIS_ROWS) {
-            var hp = this._hexCenter(hc, hr);
-            this._drawHex(hp.x, hp.y, hs - 0.5, 'rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.4)');
+        // Draw cached preview highlights
+        for (var pi = 0; pi < this._cachedPreviewCells.length; pi++) {
+          var pc = this._cachedPreviewCells[pi];
+          if (pc[1] >= 0 && pc[1] < HEX_VIS_ROWS) {
+            var hp = this._hexCenter(pc[0], pc[1]);
+            this._drawHex(hp.x, hp.y, hs, 'rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.4)');
           }
         }
       }
+    } else {
+      this._prevGhostKey = null;
+      this._cachedPreviewCells = [];
     }
 
     // Current piece
@@ -252,8 +263,8 @@ class HexBoardRenderer {
       var piece = playerState.currentPiece;
       var pieceColor = colors[piece.typeId] || '#ffffff';
       if (piece.blocks) {
-        for (var pi = 0; pi < piece.blocks.length; pi++) {
-          var pb = piece.blocks[pi];
+        for (var pbi = 0; pbi < piece.blocks.length; pbi++) {
+          var pb = piece.blocks[pbi];
           if (pb[1] >= 0 && pb[1] < HEX_VIS_ROWS) {
             var pp = this._hexCenter(pb[0], pb[1]);
             this._drawFilledHex(pp.x, pp.y, sCell, pieceColor);
@@ -280,85 +291,12 @@ class HexBoardRenderer {
 
   _drawWalls() {
     var ctx = this.ctx;
-    var hs = this.hexSize;
     var rgb = this._accentRgb;
     ctx.strokeStyle = rgb
       ? 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + THEME.opacity.strong + ')'
       : 'rgba(255,255,255,' + THEME.opacity.soft + ')';
     ctx.lineWidth = this.cellSize * THEME.stroke.border;
-
-    var self = this;
-    function hv(cx, cy, i) {
-      var a = Math.PI / 3 * i;
-      return { x: cx + hs * Math.cos(a), y: cy + hs * Math.sin(a) };
-    }
-
-    var lastRow = HEX_VIS_ROWS - 1;
-    var lastCol = HEX_COLS_N - 1;
-
-    // Left wall: v4→v3→v2 per row of col 0 (v2 of row r = v4 of row r+1)
-    ctx.beginPath();
-    var fl = self._hexCenter(0, 0);
-    ctx.moveTo(hv(fl.x, fl.y, 4).x, hv(fl.x, fl.y, 4).y);
-    for (var row = 0; row <= lastRow; row++) {
-      var p = self._hexCenter(0, row);
-      ctx.lineTo(hv(p.x, p.y, 3).x, hv(p.x, p.y, 3).y);
-      ctx.lineTo(hv(p.x, p.y, 2).x, hv(p.x, p.y, 2).y);
-    }
-    ctx.stroke();
-
-    // Right wall: v5→v0→v1 per row of last col (v1 of row r = v5 of row r+1)
-    ctx.beginPath();
-    var fr = self._hexCenter(lastCol, 0);
-    ctx.moveTo(hv(fr.x, fr.y, 5).x, hv(fr.x, fr.y, 5).y);
-    for (var r2 = 0; r2 <= lastRow; r2++) {
-      var p2 = self._hexCenter(lastCol, r2);
-      ctx.lineTo(hv(p2.x, p2.y, 0).x, hv(p2.x, p2.y, 0).y);
-      ctx.lineTo(hv(p2.x, p2.y, 1).x, hv(p2.x, p2.y, 1).y);
-    }
-    ctx.stroke();
-
-    // Top border: zigzag across row 0 following outer hex contour
-    // Even cols sit higher, odd cols shifted down by hexH/2
-    // Path: v4(0)→v5(0)→[v0(0)=v4(1)]→v5(1)→[v3(2)→v4(2)]→v5(2)→...
-    ctx.beginPath();
-    var pt0 = self._hexCenter(0, 0);
-    ctx.moveTo(hv(pt0.x, pt0.y, 4).x, hv(pt0.x, pt0.y, 4).y);
-    for (var c = 0; c < HEX_COLS_N; c++) {
-      var pt = self._hexCenter(c, 0);
-      ctx.lineTo(hv(pt.x, pt.y, 5).x, hv(pt.x, pt.y, 5).y);
-      if (c < lastCol) {
-        if (c % 2 === 0) {
-          // Even→odd: go down-right. v0 of even c = v4 of odd c+1
-          ctx.lineTo(hv(pt.x, pt.y, 0).x, hv(pt.x, pt.y, 0).y);
-        } else {
-          // Odd→even: go up-right. v5 of odd = v3 of even c+1, then up to v4
-          var pn = self._hexCenter(c + 1, 0);
-          ctx.lineTo(hv(pn.x, pn.y, 4).x, hv(pn.x, pn.y, 4).y);
-        }
-      }
-    }
-    ctx.stroke();
-
-    // Bottom border: zigzag across last row following outer hex contour
-    // Path: v2(0)→v1(0)→[v3(1)→v2(1)]→v1(1)→[v0(1)=v2(2)]→v1(2)→...
-    ctx.beginPath();
-    var pb0 = self._hexCenter(0, lastRow);
-    ctx.moveTo(hv(pb0.x, pb0.y, 2).x, hv(pb0.x, pb0.y, 2).y);
-    for (var c2 = 0; c2 < HEX_COLS_N; c2++) {
-      var pb = self._hexCenter(c2, lastRow);
-      ctx.lineTo(hv(pb.x, pb.y, 1).x, hv(pb.x, pb.y, 1).y);
-      if (c2 < lastCol) {
-        if (c2 % 2 === 0) {
-          // Even→odd: go down-right. v1 of even = v3 of odd, then down to v2
-          var pbn = self._hexCenter(c2 + 1, lastRow);
-          ctx.lineTo(hv(pbn.x, pbn.y, 2).x, hv(pbn.x, pbn.y, 2).y);
-        } else {
-          // Odd→even: go up-right. v0 of odd c = v2 of even c+1
-          ctx.lineTo(hv(pb.x, pb.y, 0).x, hv(pb.x, pb.y, 0).y);
-        }
-      }
-    }
+    HexConstants.traceHexOutline(ctx, this.x, this.y, this.hexSize, this.hexH, this.colW, HEX_COLS_N, HEX_VIS_ROWS);
     ctx.stroke();
   }
 }
