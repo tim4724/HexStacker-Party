@@ -32,7 +32,32 @@ jobs:
           prompt: |
             /code-review --comment
 
+      - name: Check for stale bot review threads
+        id: stale-check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          count=$(gh api graphql -f query='
+            query($owner:String!,$repo:String!,$pr:Int!) {
+              repository(owner:$owner,name:$repo) {
+                pullRequest(number:$pr) {
+                  reviewThreads(first:100) {
+                    nodes { isResolved comments(first:1) { nodes { author { login } } } }
+                  }
+                }
+              }
+            }' -f owner="${{ github.repository_owner }}" \
+               -f repo="${{ github.event.repository.name }}" \
+               -F pr=${{ github.event.pull_request.number }} \
+            --jq '[.data.repository.pullRequest.reviewThreads.nodes[]
+                   | select(.isResolved==false)
+                   | select(.comments.nodes[0].author.login=="claude[bot]")]
+                   | length')
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "Found $count unresolved bot threads"
+
       - name: Resolve stale bot review threads
+        if: steps.stale-check.outputs.count != '0'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
