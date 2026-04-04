@@ -142,5 +142,9 @@
   AirConsole.prototype.setOrientation = function() {};
   AirConsole.prototype.vibrate = function() {};
 
+  // Test helpers — trigger SDK lifecycle events
+  AirConsole.prototype.triggerPause = function() { if (this.onPause) this.onPause(); };
+  AirConsole.prototype.triggerResume = function() { if (this.onResume) this.onResume(); };
+
   window.AirConsole = AirConsole;
 })();
