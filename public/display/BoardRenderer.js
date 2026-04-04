@@ -135,7 +135,7 @@ class BoardRenderer {
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(this.x, this.y + row * this.cellSize, this.boardWidth, this.cellSize);
           if (this._accentRgbStr) {
-            ctx.globalAlpha = alpha * THEME.opacity.tint;
+            ctx.globalAlpha = alpha * 0.3;
             ctx.fillStyle = this._accentRgbStr;
             ctx.fillRect(this.x, this.y + row * this.cellSize, this.boardWidth, this.cellSize);
           }
