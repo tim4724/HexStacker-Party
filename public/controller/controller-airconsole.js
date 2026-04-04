@@ -81,7 +81,6 @@ showScreen = function(name) {
 };
 
 // Override showErrorState to show errors in our overlay instead of the hidden name screen
-var _origShowErrorState = showErrorState;
 showErrorState = function(heading, detail) {
   if (_acStatusOverlay) {
     _acStatusOverlay.textContent = detail || heading || 'Error';
