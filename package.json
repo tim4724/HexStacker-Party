@@ -4,8 +4,8 @@
   "description": "Browser-based multiplayer stacker with phone controllers",
   "main": "server/index.js",
   "scripts": {
-    "start": "node server/index.js",
-    "dev": "node --watch server/index.js",
+    "start": "node scripts/generate-airconsole-html.js && node server/index.js",
+    "dev": "node scripts/generate-airconsole-html.js && node --watch server/index.js",
     "test": "node --test tests/*.test.js",
     "test:visual": "npx playwright test --project=display --project=controller",
     "test:visual:update": "npx playwright test --project=display --project=controller --update-snapshots",
