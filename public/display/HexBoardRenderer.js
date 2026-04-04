@@ -192,7 +192,7 @@ class HexBoardRenderer {
           } else {
             this._drawHex(pos.x, pos.y, sCell, THEME.color.bg.board, null);
             if (rgb) this._drawHex(pos.x, pos.y, sCell, 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + THEME.opacity.tint + ')', null);
-            this._drawHex(pos.x, pos.y, sCell, null, rgb ? 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + THEME.opacity.muted + ')' : 'rgba(255,255,255,0.06)');
+            this._drawHex(pos.x, pos.y, sCell, null, rgb ? 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + THEME.opacity.grid + ')' : 'rgba(255,255,255,' + THEME.opacity.grid + ')');
           }
         }
       }

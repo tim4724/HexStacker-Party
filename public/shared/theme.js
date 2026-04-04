@@ -108,7 +108,8 @@ const THEME = Object.freeze({
     faint:     0.04,  // noise textures, barely-there tints
     tint:      0.06,  // player color surface tints
     subtle:    0.08,  // ghost fills, inner shines, scanlines
-    muted:     0.10,  // grid lines, dot patterns
+    muted:     0.10,  // dot patterns
+    grid:      0.14,  // grid lines
     soft:      0.15,  // borders, soft accents
     highlight: 0.22,  // block top highlight
     shadow:    0.25,  // block bottom shadow
@@ -127,7 +128,7 @@ const THEME = Object.freeze({
 
   // ---- Stroke Widths (× cellSize) ----
   stroke: Object.freeze({
-    grid:   0.02,
+    grid:   0.03,
     border: 0.04,
     ghost:  0.05,
   }),

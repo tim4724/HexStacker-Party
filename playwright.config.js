@@ -9,6 +9,9 @@ module.exports = defineConfig({
     baseURL: 'http://localhost:4100',
     actionTimeout: 5000,
   },
+  expect: {
+    toHaveScreenshot: { maxDiffPixelRatio: 0 },
+  },
   webServer: {
     command: 'node server/index.js',
     env: {
@@ -42,7 +45,7 @@ module.exports = defineConfig({
         hasTouch: true,
       },
       expect: {
-        toHaveScreenshot: { scale: 'device' },
+        toHaveScreenshot: { maxDiffPixelRatio: 0, scale: 'device' },
       },
     },
     {
