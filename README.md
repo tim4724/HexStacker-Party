@@ -85,6 +85,9 @@ The display and controllers connect to a [Party-Sockets](https://github.com/tim4
 # Unit tests
 npm test
 
+# E2E lifecycle tests
+npm run test:e2e
+
 # Visual snapshot tests
 npm run test:visual
 
@@ -92,7 +95,7 @@ npm run test:visual
 npm run test:visual:update
 ```
 
-Unit tests use Node.js's built-in `node:test` runner with `node:assert/strict` — no test framework dependency. Visual tests use Playwright against a live server on port 4100.
+Unit tests use Node.js's built-in `node:test` runner with `node:assert/strict` — no test framework dependency. E2E and visual tests use Playwright against a live server on port 4100.
 
 ## Tech Stack
 
