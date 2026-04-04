@@ -146,6 +146,7 @@ function performDisconnect() {
 function showRoomGone() {
   if (roomCode) sessionStorage.removeItem('clientId_' + roomCode);
   gameCancelled = true;
+  if (party) party.close();
   nameForm.classList.add('hidden');
   nameJoinBtn.classList.add('hidden');
   nameStatusText.textContent = '';
