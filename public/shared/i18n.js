@@ -406,8 +406,10 @@ function t(key, params) {
   if (val === undefined) return key;
 
   // Plural selection: value is { one: '...', other: '...' } and params.count is provided
-  if (typeof val === 'object' && params && params.count !== undefined) {
-    var cat = _pluralRules ? _pluralRules.select(params.count) : (params.count === 1 ? 'one' : 'other');
+  if (typeof val === 'object') {
+    var cat = (params && params.count !== undefined && _pluralRules)
+      ? _pluralRules.select(params.count)
+      : (params && params.count === 1 ? 'one' : 'other');
     val = val[cat] || val.other || '';
   }
 

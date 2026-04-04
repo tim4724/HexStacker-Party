@@ -57,6 +57,12 @@ describe('i18n', function () {
       assert.equal(t('start_n_players', { count: 1 }), 'START (1 player)');
       assert.equal(t('start_n_players', { count: 3 }), 'START (3 players)');
     });
+
+    it('returns "other" form when plural key called without params', function () {
+      var result = t('n_lines');
+      assert.equal(typeof result, 'string');
+      assert.ok(!result.includes('[object'), 'should not return [object Object]');
+    });
   });
 
   describe('setLocale / getLocale', function () {
@@ -187,6 +193,8 @@ describe('i18n', function () {
       'room_not_found', 'scan_qr_to_join', 'game_in_progress',
       'n_lines', 'level_n', 'player', 'level_heading',
       'enter_name', 'touchpad', 'privacy', 'hex_lines_level',
+      'swipe', 'tap', 'flick', 'gesture_move', 'gesture_rotate',
+      'gesture_drop', 'gesture_hold',
       '_ordinal'
     ];
 
