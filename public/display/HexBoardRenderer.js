@@ -82,7 +82,7 @@ class HexBoardRenderer {
 
     var sCell = hs * (1 - THEME.size.blockGap * 2);
 
-    // Grid cells — split into three passes to batch canvas state changes:
+    // Grid cells — split into two passes to batch canvas state changes:
     // Pass 1: fill empty cells (bg + tint), draw filled cells via stamp
     // Pass 2: stroke grid lines for empty cells (single compound path)
     if (playerState.grid) {

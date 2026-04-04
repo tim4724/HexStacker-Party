@@ -6,6 +6,7 @@
 // =====================================================================
 
 var lastThrottled = null;
+var lastMusicLevel = 0;
 
 function startRenderLoop() {
   if (rafId != null) return;
@@ -54,14 +55,17 @@ function renderLoop(timestamp) {
     if (gameState.players && boardRenderers.length !== gameState.players.length) {
       calculateLayout();
     }
-    // Update music speed
+    // Update music speed (only when max level changes)
     if (music && music.playing && gameState.players && gameState.players.length > 0) {
       var maxLevel = 1;
       for (var ml = 0; ml < gameState.players.length; ml++) {
         var pl = gameState.players[ml].level || 1;
         if (pl > maxLevel) maxLevel = pl;
       }
-      music.setSpeed(maxLevel);
+      if (maxLevel !== lastMusicLevel) {
+        lastMusicLevel = maxLevel;
+        music.setSpeed(maxLevel);
+      }
     }
 
     prevFrameTime = timestamp;
