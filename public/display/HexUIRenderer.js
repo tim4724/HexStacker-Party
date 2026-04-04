@@ -278,7 +278,7 @@ class HexUIRenderer {
     ctx.fillStyle = playerColor || 'rgba(0, 200, 255, 0.7)';
     ctx.font = '600 ' + labelSize + 'px ' + getDisplayFont();
     ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.letterSpacing = '0.1em';
-    ctx.fillText(t('scan_to_rejoin'), bx + bw / 2, groupY + outerSize + labelGap, bw);
+    ctx.fillText(t('scan_to_rejoin'), bx + bw / 2, groupY + outerSize + labelGap, bw * 0.9);
     ctx.letterSpacing = '0px';
   }
 
