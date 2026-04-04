@@ -26,12 +26,17 @@ airconsole.onReady = function(code) {
 airconsole.onPause = function() {
   console.log('[AirConsole] onPause — connection unstable');
   if (roomState !== ROOM_STATE.PLAYING && roomState !== ROOM_STATE.COUNTDOWN) return;
+  if (paused) return;
+  paused = true;
+  autoPaused = true;
+  if (roomState === ROOM_STATE.COUNTDOWN) clearCountdownTimers();
   if (displayGame) displayGame.pause();
+  if (music) music.pause();
 };
 
 airconsole.onResume = function() {
   console.log('[AirConsole] onResume — connection restored');
-  if (displayGame) displayGame.resume();
+  if (autoPaused) { autoPaused = false; resumeGame(); }
 };
 
 // Replace PartyConnection with a factory that returns AirConsoleAdapter.
