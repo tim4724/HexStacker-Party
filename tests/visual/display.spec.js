@@ -88,7 +88,6 @@ test.describe('Display', () => {
         { typeId: 1, x: 6, y: 2, blocks: [[0, 1], [1, 1], [2, 1], [3, 1]] }
       ]
     });
-    await page.waitForTimeout(150);
     await expect(page).toHaveScreenshot('05-game-1p.png');
   });
 
@@ -101,7 +100,6 @@ test.describe('Display', () => {
         { typeId: 2, x: 7, y: 3, blocks: [[0, 0], [0, 1], [1, 1], [2, 1]] }
       ]
     });
-    await page.waitForTimeout(150);
     await expect(page).toHaveScreenshot('06-game-2p.png');
   });
 
@@ -116,7 +114,6 @@ test.describe('Display', () => {
         { typeId: 6, x: 3, y: 3, blocks: [[1, 0], [0, 1], [1, 1], [2, 1]] }
       ]
     });
-    await page.waitForTimeout(150);
     await expect(page).toHaveScreenshot('07-game-4p.png');
   });
 
@@ -125,7 +122,6 @@ test.describe('Display', () => {
     await gotoDisplayTest(page);
     await injectPlayers(page, 8);
     await injectGameState(page, 8, {});
-    await page.waitForTimeout(150);
     await expect(page).toHaveScreenshot('07b-game-8p.png');
   });
 
@@ -136,7 +132,7 @@ test.describe('Display', () => {
     await page.evaluate(() => {
       window.__TEST__.injectKO('player2');
     });
-    await page.waitForTimeout(150);
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     await expect(page).toHaveScreenshot('08-game-ko.png');
   });
 
@@ -146,7 +142,7 @@ test.describe('Display', () => {
     await injectGameState(page, 1, {});
     await injectPause(page);
     await page.waitForSelector('#pause-overlay:not(.hidden)');
-    await page.waitForTimeout(150);
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     await expect(page).toHaveScreenshot('09-pause.png');
   });
 
@@ -160,7 +156,7 @@ test.describe('Display', () => {
       document.getElementById('reconnect-status').textContent = 'Attempt 1 of 5';
       document.getElementById('reconnect-btn').classList.add('hidden');
     });
-    await page.waitForTimeout(150);
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     await expect(page).toHaveScreenshot('09a-reconnect.png');
   });
 
@@ -174,7 +170,7 @@ test.describe('Display', () => {
       document.getElementById('reconnect-status').textContent = '';
       document.getElementById('reconnect-btn').classList.remove('hidden');
     });
-    await page.waitForTimeout(150);
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     await expect(page).toHaveScreenshot('09b-disconnected.png');
   });
 
@@ -182,7 +178,6 @@ test.describe('Display', () => {
     await gotoDisplayTest(page);
     await injectPlayers(page, 3);
     await injectStyleTierGameState(page, 3);
-    await page.waitForTimeout(150);
     await expect(page).toHaveScreenshot('07c-game-style-tiers.png');
   });
 
@@ -192,7 +187,6 @@ test.describe('Display', () => {
       await gotoDisplayTest(page);
       await injectPlayers(page, 8);
       await injectAllPiecesGhostState(page, 8, tierLevel);
-      await page.waitForTimeout(150);
       await expect(page).toHaveScreenshot(`07d-pieces-${tierName}.png`);
     });
   }
