@@ -8,6 +8,12 @@ async function waitForFont(page) {
   await page.waitForTimeout(100);
 }
 
+// Wait for the game screen to be visible and the render loop to draw a frame.
+async function waitForGameRender(page) {
+  await page.waitForSelector('#game-screen:not(.hidden)');
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+}
+
 async function stopDisplayBackground(page) {
   await page.evaluate(() => {
     if (typeof welcomeBg !== 'undefined' && welcomeBg) {
@@ -37,6 +43,7 @@ async function injectGameState(page, playerCount, options) {
   await page.evaluate((s) => {
     window.__TEST__.injectGameState(s);
   }, state);
+  await waitForGameRender(page);
 }
 
 async function injectResults(page, playerCount) {
@@ -53,6 +60,7 @@ async function injectStyleTierGameState(page, playerCount) {
   await page.evaluate((s) => {
     window.__TEST__.injectGameState(s);
   }, state);
+  await waitForGameRender(page);
 }
 
 async function injectAllPiecesGhostState(page, playerCount, tierLevel) {
@@ -62,6 +70,7 @@ async function injectAllPiecesGhostState(page, playerCount, tierLevel) {
     window.__TEST__.setExtraGhosts(extraGhosts);
     window.__TEST__.injectGameState(s);
   }, { s: result.state, extraGhosts: result.extraGhostsPerPlayer });
+  await waitForGameRender(page);
 }
 
 async function injectPause(page) {
@@ -207,6 +216,7 @@ module.exports = {
   waitForControllerGame,
   waitForControllerResults,
   waitForDisplayGame,
+  waitForGameRender,
   waitForDisplayPlayers,
   waitForDisplayResults,
   waitForFont,
