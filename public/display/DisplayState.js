@@ -86,7 +86,8 @@ var suppressPopstate = false;
 var preCreatedRoom = null;  // { roomCode, joinUrl, qrMatrix }
 
 // Mute
-var muted = localStorage.getItem('stacker_muted') === '1';
+var muted = false;
+try { muted = localStorage.getItem('stacker_muted') === '1'; } catch (e) { /* iframe sandbox */ }
 
 // Render loop RAF handle (for stop/start)
 var rafId = null;

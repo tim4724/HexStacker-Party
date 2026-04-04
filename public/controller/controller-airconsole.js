@@ -37,7 +37,7 @@ clientId = 'ac_controller';
 // Force hadStoredId so controller.js auto-connects on load (skips name screen).
 // controller.js parses location.pathname to get roomCode and checks
 // sessionStorage['clientId_' + roomCode]. We pre-set that key here.
-sessionStorage.setItem('clientId_' + (location.pathname.split('/').filter(Boolean)[0] || 'controller.html'), clientId);
+try { sessionStorage.setItem('clientId_' + (location.pathname.split('/').filter(Boolean)[0] || 'controller.html'), clientId); } catch (e) { /* iframe sandbox */ }
 
 // Replace PartyConnection with a factory that returns AirConsoleAdapter.
 PartyConnection = function() {

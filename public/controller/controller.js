@@ -99,7 +99,8 @@ if (!roomCode) {
 } else {
 
 // Check for stored clientId BEFORE generating a new one (used for auto-reconnect)
-var hadStoredId = sessionStorage.getItem('clientId_' + roomCode);
+var hadStoredId = null;
+try { hadStoredId = sessionStorage.getItem('clientId_' + roomCode); } catch (e) { /* iframe sandbox */ }
 
 if (rejoinId) {
   clientId = rejoinId;
@@ -111,14 +112,15 @@ if (rejoinId) {
 // Name Input
 // =====================================================================
 
-var savedName = localStorage.getItem('stacker_player_name') || '';
+var savedName = '';
+try { savedName = localStorage.getItem('stacker_player_name') || ''; } catch (e) { /* iframe sandbox */ }
 
 function submitName() {
   var name = nameInput.value.trim();
 
   playerName = name || null;
-  if (name) localStorage.setItem('stacker_player_name', name);
-  sessionStorage.setItem('clientId_' + roomCode, clientId);
+  try { if (name) localStorage.setItem('stacker_player_name', name); } catch (e) { /* iframe sandbox */ }
+  try { sessionStorage.setItem('clientId_' + roomCode, clientId); } catch (e) { /* iframe sandbox */ }
   nameJoinBtn.disabled = true;
   nameJoinBtn.textContent = t('connecting');
   nameInput.disabled = true;
@@ -149,7 +151,7 @@ document.addEventListener('pointerdown', function onFirstPointer() {
 // Mute
 // =====================================================================
 
-ControllerAudio.setMuted(localStorage.getItem('stacker_muted') === '1');
+try { ControllerAudio.setMuted(localStorage.getItem('stacker_muted') === '1'); } catch (e) { /* iframe sandbox */ }
 if (ControllerAudio.isMuted()) {
   muteBtn.classList.add('muted');
   muteBtn.querySelector('.sound-waves').style.display = 'none';
@@ -158,7 +160,7 @@ if (ControllerAudio.isMuted()) {
 muteBtn.addEventListener('click', function () {
   vibrate(10);
   ControllerAudio.setMuted(!ControllerAudio.isMuted());
-  localStorage.setItem('stacker_muted', ControllerAudio.isMuted() ? '1' : '0');
+  try { localStorage.setItem('stacker_muted', ControllerAudio.isMuted() ? '1' : '0'); } catch (e) { /* iframe sandbox */ }
   muteBtn.classList.toggle('muted', ControllerAudio.isMuted());
   muteBtn.querySelector('.sound-waves').style.display = ControllerAudio.isMuted() ? 'none' : '';
 });

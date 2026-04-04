@@ -150,7 +150,8 @@ function updateModeUI(mode) {
 }
 
 // Restore from localStorage
-var savedMode = localStorage.getItem('stacker_game_mode');
+var savedMode = null;
+try { savedMode = localStorage.getItem('stacker_game_mode'); } catch (e) { /* iframe sandbox */ }
 if (savedMode === 'hex' || savedMode === 'classic') {
   gameMode = savedMode;
   updateModeUI(gameMode);
@@ -172,7 +173,7 @@ function setGameMode(mode) {
   updateModeUI(mode);
   setFavicon(mode);
   if (welcomeBg) welcomeBg.setMode(mode);
-  localStorage.setItem('stacker_game_mode', mode);
+  try { localStorage.setItem('stacker_game_mode', mode); } catch (e) { /* iframe sandbox */ }
   if (party && roomState === ROOM_STATE.LOBBY) broadcastLobbyUpdate();
 }
 
@@ -195,7 +196,7 @@ newGameResultsBtn.addEventListener('click', function() {
 if (muted) muteBtn.querySelector('.sound-waves').style.display = 'none';
 muteBtn.addEventListener('click', function() {
   muted = !muted;
-  localStorage.setItem('stacker_muted', muted ? '1' : '0');
+  try { localStorage.setItem('stacker_muted', muted ? '1' : '0'); } catch (e) { /* iframe sandbox */ }
   muteBtn.querySelector('.sound-waves').style.display = muted ? 'none' : '';
   if (music) {
     music.muted = muted;

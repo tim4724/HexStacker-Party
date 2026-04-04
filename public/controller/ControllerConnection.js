@@ -144,7 +144,7 @@ function performDisconnect() {
 }
 
 function showRoomGone() {
-  if (roomCode) sessionStorage.removeItem('clientId_' + roomCode);
+  try { if (roomCode) sessionStorage.removeItem('clientId_' + roomCode); } catch (e) { /* iframe sandbox */ }
   gameCancelled = true;
   if (party) party.close();
   nameForm.classList.add('hidden');
@@ -158,7 +158,7 @@ function showRoomGone() {
 }
 
 function showErrorState(heading, detail) {
-  sessionStorage.removeItem('clientId_' + roomCode);
+  try { sessionStorage.removeItem('clientId_' + roomCode); } catch (e) { /* iframe sandbox */ }
   gameCancelled = true;
   stopPing();
 
