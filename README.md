@@ -27,6 +27,7 @@ The display browser runs the game engine and renders all player boards. Controll
 - 1–8 players on one screen
 - QR code join – scan and play, no app install
 - Touch gesture controls with haptic feedback
+- Two game modes: **Square** (standard stacker) and **Hex** (flat-top hexagonal grid)
 - Competitive mode with garbage lines
 - Rotation with wall kicks
 - 7-bag randomizer
