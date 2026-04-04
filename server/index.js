@@ -170,7 +170,7 @@ const server = http.createServer((req, res) => {
     }
 
     if (ext === '.html') {
-      headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' wss://ws.couch-games.com; img-src 'self' data:";
+      headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' wss://ws.couch-games.com; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'";
     }
 
     res.writeHead(200, headers);

@@ -185,6 +185,7 @@ class PlayerBoard extends BaseBoard {
 
   _finishClearLines() {
     if (!this.clearingRows) return;
+    this.gridVersion++;
 
     // Remove the clearing rows from the grid
     for (let i = this.clearingRows.length - 1; i >= 0; i--) {
@@ -202,16 +203,6 @@ class PlayerBoard extends BaseBoard {
     this.spawnPiece();
   }
 
-  lockPiece() {
-    if (!this.currentPiece) return;
-    const blocks = this.currentPiece.getAbsoluteBlocks();
-    for (const [col, row] of blocks) {
-      if (row >= 0 && row < BOARD_HEIGHT && col >= 0 && col < BOARD_WIDTH) {
-        this.grid[row][col] = this.currentPiece.typeId;
-      }
-    }
-  }
-
   applyGarbage(lines, gapColumn) {
     // Remove rows from top to make room
     this.grid.splice(0, lines);
@@ -221,16 +212,7 @@ class PlayerBoard extends BaseBoard {
       row[gapColumn] = 0;
       this.grid.push(row);
     }
-  }
-
-  isValidPosition(piece) {
-    const blocks = piece.getAbsoluteBlocks();
-    for (const [col, row] of blocks) {
-      if (col < 0 || col >= BOARD_WIDTH) return false;
-      if (row < 0 || row >= BOARD_HEIGHT) return false;
-      if (this.grid[row][col] !== 0) return false;
-    }
-    return true;
+    this.gridVersion++;
   }
 
   getGhostY() {
@@ -265,7 +247,8 @@ class PlayerBoard extends BaseBoard {
       lines: this.lines,
       alive: this.alive,
       pendingGarbage: this.pendingGarbage.reduce((sum, g) => sum + g.lines, 0),
-      clearingRows: this.clearingRows ? this.clearingRows.map(r => r - BUFFER_ROWS) : null
+      clearingRows: this.clearingRows ? this.clearingRows.map(r => r - BUFFER_ROWS) : null,
+      gridVersion: this.gridVersion
     };
   }
 }

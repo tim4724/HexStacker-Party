@@ -48,6 +48,7 @@ class BaseBoard {
     this.softDropSpeed = SOFT_DROP_MULTIPLIER;
     this.pendingGarbage = [];
     this.clearingTimer = null;
+    this.gridVersion = 0;   // bumped on lock/clear/garbage for dirty tracking
 
     // Subclasses must call this._fillNextQueue() in their own constructor
     // (after setting up any subclass-specific state).
@@ -86,9 +87,27 @@ class BaseBoard {
     throw new Error('BaseBoard._preDropToVisible() must be overridden');
   }
 
-  /** Check if piece position is valid on the grid. */
   isValidPosition(piece) {
-    throw new Error('BaseBoard.isValidPosition() must be overridden');
+    const blocks = piece.getAbsoluteBlocks();
+    for (let i = 0; i < blocks.length; i++) {
+      const col = blocks[i][0], row = blocks[i][1];
+      if (col < 0 || col >= this.cols) return false;
+      if (row < 0 || row >= this.totalRows) return false;
+      if (this.grid[row][col] !== 0) return false;
+    }
+    return true;
+  }
+
+  lockPiece() {
+    if (!this.currentPiece) return;
+    const blocks = this.currentPiece.getAbsoluteBlocks();
+    for (let i = 0; i < blocks.length; i++) {
+      const col = blocks[i][0], row = blocks[i][1];
+      if (row >= 0 && row < this.totalRows && col >= 0 && col < this.cols) {
+        this.grid[row][col] = this.currentPiece.typeId;
+      }
+    }
+    this.gridVersion++;
   }
 
   /** Lock and process (clear lines, spawn next). Returns result object. */

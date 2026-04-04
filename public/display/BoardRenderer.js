@@ -22,6 +22,12 @@ class BoardRenderer {
     this._gridStroke = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${THEME.opacity.grid})` : `rgba(255, 255, 255, ${THEME.opacity.grid})`;
     this._borderStroke = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${THEME.opacity.strong})` : `rgba(255, 255, 255, ${THEME.opacity.soft})`;
     this._accentRgbStr = rgb ? `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})` : null;
+
+    // Grid cache: offscreen canvas for locked blocks (redrawn only when gridVersion changes)
+    this._gridCache = null;
+    this._gridCacheCtx = null;
+    this._cachedGridVersion = -1;
+    this._cachedGridTier = null;
   }
 
   get styleTier() { return this._styleTier; }
@@ -61,15 +67,17 @@ class BoardRenderer {
     }
     ctx.stroke();
 
-    // 3. Placed blocks from grid
+    // 3. Placed blocks from grid (cached to offscreen canvas)
     if (playerState.grid) {
-      for (let r = 0; r < playerState.grid.length; r++) {
-        for (let c = 0; c < playerState.grid[r].length; c++) {
-          const cellVal = playerState.grid[r][c];
-          if (cellVal > 0) {
-            this.drawBlock(c, r, colors[cellVal], cellVal === 8);
-          }
-        }
+      const gv = playerState.gridVersion;
+      if (gv !== this._cachedGridVersion || newTier !== this._cachedGridTier) {
+        this._renderGridToCache(playerState.grid, colors);
+        this._cachedGridVersion = gv;
+        this._cachedGridTier = newTier;
+      }
+      if (this._gridCache) {
+        ctx.drawImage(this._gridCache, 0, 0, this._gridCache.width, this._gridCache.height,
+          this.x, this.y, Math.ceil(this.boardWidth), Math.ceil(this.boardHeight));
       }
     }
 
@@ -146,6 +154,38 @@ class BoardRenderer {
 
     // 7. Board border
     this._drawBoardBorder();
+  }
+
+  _renderGridToCache(grid, colors) {
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.ceil(this.boardWidth);
+    const h = Math.ceil(this.boardHeight);
+    const pw = Math.ceil(w * dpr);
+    const ph = Math.ceil(h * dpr);
+    if (!this._gridCache || this._gridCache.width !== pw || this._gridCache.height !== ph) {
+      if (typeof OffscreenCanvas !== 'undefined') {
+        this._gridCache = new OffscreenCanvas(pw, ph);
+      } else {
+        this._gridCache = document.createElement('canvas');
+        this._gridCache.width = pw;
+        this._gridCache.height = ph;
+      }
+      this._gridCacheCtx = this._gridCache.getContext('2d');
+    }
+    const gc = this._gridCacheCtx;
+    gc.setTransform(dpr, 0, 0, dpr, 0, 0);
+    gc.clearRect(0, 0, w, h);
+    for (let r = 0; r < grid.length; r++) {
+      for (let c = 0; c < grid[r].length; c++) {
+        const cellVal = grid[r][c];
+        if (cellVal > 0) {
+          const stamp = cellVal === 8
+            ? getGarbageStamp(this.cellSize)
+            : getBlockStamp(this._styleTier, colors[cellVal], this.cellSize);
+          gc.drawImage(stamp, c * this.cellSize, r * this.cellSize);
+        }
+      }
+    }
   }
 
   _drawBoardBorder() {

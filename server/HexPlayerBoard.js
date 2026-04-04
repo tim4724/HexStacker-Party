@@ -199,6 +199,7 @@ class HexPlayerBoard extends BaseBoard {
 
   _finishClearLines() {
     if (!this.clearingCells) return;
+    this.gridVersion++;
 
     // Build set of cleared positions per column, sorted top-to-bottom
     const clearedByCol = {};
@@ -235,16 +236,6 @@ class HexPlayerBoard extends BaseBoard {
     this.spawnPiece();
   }
 
-  lockPiece() {
-    if (!this.currentPiece) return;
-    const blocks = this.currentPiece.getAbsoluteBlocks();
-    for (const [col, row] of blocks) {
-      if (row >= 0 && row < HEX_TOTAL_ROWS && col >= 0 && col < HEX_COLS) {
-        this.grid[row][col] = this.currentPiece.typeId;
-      }
-    }
-  }
-
   // ===================== GARBAGE =====================
   applyGarbage(lines, gapColumn) {
     lines = Math.min(lines, HEX_TOTAL_ROWS);
@@ -254,19 +245,10 @@ class HexPlayerBoard extends BaseBoard {
       row[gapColumn % HEX_COLS] = 0;
       this.grid.push(row);
     }
+    this.gridVersion++;
   }
 
   // ===================== QUERIES =====================
-  isValidPosition(piece) {
-    const blocks = piece.getAbsoluteBlocks();
-    for (const [col, row] of blocks) {
-      if (col < 0 || col >= HEX_COLS) return false;
-      if (row < 0 || row >= HEX_TOTAL_ROWS) return false;
-      if (this.grid[row][col] !== 0) return false;
-    }
-    return true;
-  }
-
   getGhostY() {
     if (!this.currentPiece) return 0;
     const ghost = this._ghostOf(this.currentPiece);
@@ -300,7 +282,8 @@ class HexPlayerBoard extends BaseBoard {
       pendingGarbage: this.pendingGarbage.reduce((sum, g) => sum + g.lines, 0),
       clearingCells: this.clearingCells ? this.clearingCells
         .map(c => [c[0], c[1] - HEX_BUFFER_ROWS])
-        .filter(c => c[1] >= 0) : null
+        .filter(c => c[1] >= 0) : null,
+      gridVersion: this.gridVersion
     };
   }
 }

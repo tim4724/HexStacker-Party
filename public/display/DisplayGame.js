@@ -232,6 +232,7 @@ function stopDisplayGame() {
 
 function runGameLocally() {
   stopDisplayGame();
+  lastMusicLevel = 0;
 
   var Game = window.GameEngine.Game;
   // Sort by slot index so game engine order matches board positions
