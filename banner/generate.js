@@ -87,7 +87,7 @@ const BANNER_NEXT = [
   ['S', 'I', 'T', 'Z', 'O'],
 ];
 const BANNER_PIECES = [
-  // Emma: T-piece ·T·/TTT at x=5, ghostY=12
+  // Emma: T-piece ·T·/TTT at x=5, ghostY=13
   { typeId: 6, x: 5, y: 2, blocks: [[1,0],[0,1],[1,1],[2,1]] },
   // Jake: Z-piece ZZ·/·ZZ at x=2, ghostY=14
   { typeId: 7, x: 2, y: 2, blocks: [[0,0],[1,0],[1,1],[2,1]] },
@@ -96,7 +96,7 @@ const BANNER_PIECES = [
   // Liam: L-piece ··L/LLL at x=6, ghostY=13
   { typeId: 3, x: 6, y: 2, blocks: [[2,0],[0,1],[1,1],[2,1]] },
 ];
-const BANNER_GHOST_Y = [12, 14, 16, 13];
+const BANNER_GHOST_Y = [13, 14, 16, 13];
 
 function buildBannerGameState() {
   return {
@@ -401,13 +401,12 @@ async function generate() {
   console.log('Generating banners...');
 
   async function renderBanner(width, height, outputName, options = {}) {
-    const template = options.template || 'banner.html';
     const ctx = await browser.newContext({
       viewport: { width, height },
       deviceScaleFactor: 2,
     });
     const page = await ctx.newPage();
-    await page.goto(`file://${path.resolve(BANNER_DIR, template)}`);
+    await page.goto(`file://${path.resolve(BANNER_DIR, 'banner.html')}`);
     await page.waitForTimeout(200);
 
     // Inject display screenshots (square + hex)
@@ -460,23 +459,6 @@ async function generate() {
     phoneHeight: '255px',
     clipHeight: HEADER_HEIGHT
   });
-
-  // --- Phase 3b: Render variations for comparison ---
-  const variations = [
-    { template: 'banner-v1-glow.html', output: 'variation-1-glow.png' },
-    { template: 'banner-v2-pills.html', output: 'variation-2-pills.png' },
-    { template: 'banner-v3-frost.html', output: 'variation-3-frost.png' },
-    { template: 'banner-v4-diagonal-labels.html', output: 'variation-4-diagonal-labels.png' },
-  ];
-  console.log('Generating variations...');
-  for (const v of variations) {
-    await renderBanner(SOCIAL_WIDTH, SOCIAL_HEIGHT, v.output, {
-      template: v.template,
-      phoneBottom: '18px',
-      phoneHeight: '255px',
-      clipHeight: HEADER_HEIGHT,
-    });
-  }
 
   // --- Phase 4: Name banner (title + falling pieces, no screenshots needed) ---
   console.log('Generating name banner...');
