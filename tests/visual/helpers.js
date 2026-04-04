@@ -94,7 +94,7 @@ async function gotoDisplayTest(page) {
 async function createRoom(page) {
   // Display page needs a desktop viewport even when running in the controller project
   await page.setViewportSize({ width: 1280, height: 720 });
-  await page.goto('/', { waitUntil: 'networkidle' });
+  await page.goto('/?test=1', { waitUntil: 'networkidle' });
   await waitForFont(page);
   const continueAnyway = page.locator('#mobile-hint button');
   if (await continueAnyway.isVisible()) {
@@ -116,7 +116,7 @@ async function createRoom(page) {
 
 async function joinController(context, roomCode, name) {
   const page = await context.newPage();
-  await page.goto(`/${roomCode}`);
+  await page.goto(`/${roomCode}?test=1`);
   await waitForFont(page);
   await page.fill('#name-input', name);
   await page.click('#name-join-btn');

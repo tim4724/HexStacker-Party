@@ -320,7 +320,7 @@ fetch('/api/version').then(function(r) { return r.json(); }).then(function(data)
 }).catch(function() {});
 
 var bgCanvas = document.getElementById('bg-canvas');
-if (bgCanvas) {
+if (bgCanvas && urlParams.get('test') !== '1') {
   welcomeBg = new WelcomeBackground(bgCanvas);
   if (gameMode !== 'classic') welcomeBg.setMode(gameMode);
   welcomeBg.resize(window.innerWidth, window.innerHeight);

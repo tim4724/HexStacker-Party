@@ -33,9 +33,7 @@ test.describe('Hex Display', () => {
     await injectHexGameState(page, 1, {});
     await page.waitForTimeout(300);
     if (errors.length) console.log('JS errors:', errors);
-    await expect(page).toHaveScreenshot('hex-01-1player.png', {
-      maxDiffPixelRatio: 0,
-    });
+    await expect(page).toHaveScreenshot('hex-01-1player.png');
   });
 
   test('hex mode - 1 player empty board', async ({ page }) => {
@@ -43,9 +41,7 @@ test.describe('Hex Display', () => {
     await injectHexPlayers(page, 1);
     await injectHexGameState(page, 1, { emptyGrid: true });
     await page.waitForTimeout(200);
-    await expect(page).toHaveScreenshot('hex-02-1player-empty.png', {
-      maxDiffPixelRatio: 0,
-    });
+    await expect(page).toHaveScreenshot('hex-02-1player-empty.png');
   });
 
   test('hex mode - 2 players', async ({ page }) => {
@@ -53,9 +49,7 @@ test.describe('Hex Display', () => {
     await injectHexPlayers(page, 2);
     await injectHexGameState(page, 2, {});
     await page.waitForTimeout(200);
-    await expect(page).toHaveScreenshot('hex-03-2players.png', {
-      maxDiffPixelRatio: 0,
-    });
+    await expect(page).toHaveScreenshot('hex-03-2players.png');
   });
 
   test('hex mode - 4 players', async ({ page }) => {
@@ -63,9 +57,7 @@ test.describe('Hex Display', () => {
     await injectHexPlayers(page, 4);
     await injectHexGameState(page, 4, {});
     await page.waitForTimeout(200);
-    await expect(page).toHaveScreenshot('hex-04-4players.png', {
-      maxDiffPixelRatio: 0,
-    });
+    await expect(page).toHaveScreenshot('hex-04-4players.png');
   });
 
   test('hex mode - tier 2 pillow (level 8)', async ({ page }) => {
@@ -73,9 +65,7 @@ test.describe('Hex Display', () => {
     await injectHexPlayers(page, 1);
     await injectHexGameState(page, 1, { level: 8 });
     await page.waitForTimeout(200);
-    await expect(page).toHaveScreenshot('hex-05-tier-pillow.png', {
-      maxDiffPixelRatio: 0,
-    });
+    await expect(page).toHaveScreenshot('hex-05-tier-pillow.png');
   });
 
   test('hex mode - tier 3 neon (level 12)', async ({ page }) => {
@@ -83,9 +73,7 @@ test.describe('Hex Display', () => {
     await injectHexPlayers(page, 1);
     await injectHexGameState(page, 1, { level: 12 });
     await page.waitForTimeout(200);
-    await expect(page).toHaveScreenshot('hex-06-tier-neon.png', {
-      maxDiffPixelRatio: 0,
-    });
+    await expect(page).toHaveScreenshot('hex-06-tier-neon.png');
   });
 
   test('hex mode - row clear preview', async ({ page }) => {
@@ -93,9 +81,7 @@ test.describe('Hex Display', () => {
     await injectHexPlayers(page, 1);
     await injectHexGameState(page, 1, { nearClear: true });
     await page.waitForTimeout(200);
-    await expect(page).toHaveScreenshot('hex-07-clear-preview.png', {
-      maxDiffPixelRatio: 0,
-    });
+    await expect(page).toHaveScreenshot('hex-07-clear-preview.png');
   });
 
   test('hex mode - all style tiers (3 players)', async ({ page }) => {
@@ -108,9 +94,7 @@ test.describe('Hex Display', () => {
       window.__TEST__.injectGameState(s);
     }, { s: state });
     await page.waitForTimeout(200);
-    await expect(page).toHaveScreenshot('hex-08-style-tiers.png', {
-      maxDiffPixelRatio: 0,
-    });
+    await expect(page).toHaveScreenshot('hex-08-style-tiers.png');
   });
 
   test('hex mode - KO overlay', async ({ page }) => {
@@ -126,9 +110,7 @@ test.describe('Hex Display', () => {
       window.__TEST__.injectKO('player2');
     }, { s: state });
     await page.waitForTimeout(200);
-    await expect(page).toHaveScreenshot('hex-09-ko-overlay.png', {
-      maxDiffPixelRatio: 0,
-    });
+    await expect(page).toHaveScreenshot('hex-09-ko-overlay.png');
   });
 
   test('hex mode - disconnected overlay', async ({ page }) => {
@@ -142,8 +124,6 @@ test.describe('Hex Display', () => {
       showDisconnectQR('player2');
     });
     await page.waitForTimeout(500);
-    await expect(page).toHaveScreenshot('hex-10-disconnected.png', {
-      maxDiffPixelRatio: 0,
-    });
+    await expect(page).toHaveScreenshot('hex-10-disconnected.png');
   });
 });

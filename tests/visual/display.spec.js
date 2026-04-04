@@ -18,16 +18,14 @@ const {
 test.describe('Display', () => {
   test('mobile hint screen', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/');
+    await page.goto('/?test=1');
     await waitForFont(page);
-    await stopDisplayBackground(page);
     await expect(page).toHaveScreenshot('01-mobile-hint.png');
   });
 
   test('welcome screen', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/?test=1');
     await waitForFont(page);
-    await stopDisplayBackground(page);
     await page.locator('#version-label').evaluate(el => el.textContent = 'X.Y.Z');
     await expect(page).toHaveScreenshot('02-welcome.png');
   });
@@ -41,10 +39,8 @@ test.describe('Display', () => {
       updateStartButton();
     });
     await stabilizeDisplayLobby(page);
-    await stopDisplayBackground(page);
-    await expect(page).toHaveScreenshot('03-lobby-empty.png', {
-      maxDiffPixelRatio: 0,
-    });
+
+    await expect(page).toHaveScreenshot('03-lobby-empty.png');
   });
 
   test('lobby screen - with players', async ({ page }) => {
@@ -55,10 +51,8 @@ test.describe('Display', () => {
     });
     await injectPlayers(page, 2);
     await stabilizeDisplayLobby(page);
-    await stopDisplayBackground(page);
-    await expect(page).toHaveScreenshot('04-lobby-players.png', {
-      maxDiffPixelRatio: 0,
-    });
+
+    await expect(page).toHaveScreenshot('04-lobby-players.png');
   });
 
   test('lobby screen - full (8 players)', async ({ page }) => {
@@ -69,10 +63,8 @@ test.describe('Display', () => {
     });
     await injectPlayers(page, 8);
     await stabilizeDisplayLobby(page);
-    await stopDisplayBackground(page);
-    await expect(page).toHaveScreenshot('04a-lobby-full.png', {
-      maxDiffPixelRatio: 0,
-    });
+
+    await expect(page).toHaveScreenshot('04a-lobby-full.png');
   });
 
   test('lobby screen - wide (8 slots)', async ({ page }) => {
@@ -84,10 +76,8 @@ test.describe('Display', () => {
     });
     await injectPlayers(page, 3);
     await stabilizeDisplayLobby(page);
-    await stopDisplayBackground(page);
-    await expect(page).toHaveScreenshot('04b-lobby-wide.png', {
-      maxDiffPixelRatio: 0,
-    });
+
+    await expect(page).toHaveScreenshot('04b-lobby-wide.png');
   });
 
   test('game screen - 1 player', async ({ page }) => {

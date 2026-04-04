@@ -41,8 +41,8 @@ class BoardRenderer {
 
     // 2. Grid lines (batched into single stroke)
     ctx.strokeStyle = rgb
-      ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${THEME.opacity.muted})`
-      : `rgba(255, 255, 255, ${THEME.opacity.subtle})`;
+      ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${THEME.opacity.grid})`
+      : `rgba(255, 255, 255, ${THEME.opacity.grid})`;
     ctx.lineWidth = this.cellSize * THEME.stroke.grid;
     ctx.beginPath();
     for (let r = 1; r < VISIBLE_ROWS; r++) {

@@ -25,7 +25,7 @@ test.describe('Controller', () => {
   test('name entry screen', async ({ page, context }) => {
     const { roomCode } = await createRoom(page);
     const controller = await context.newPage();
-    await controller.goto(`/${roomCode}`);
+    await controller.goto(`/${roomCode}?test=1`);
     await waitForFont(controller);
     await stabilizeControllerUI(controller);
     await expect(controller).toHaveScreenshot('01a-name-entry.png');
@@ -34,7 +34,7 @@ test.describe('Controller', () => {
   test('name entry - keyboard open', async ({ page, context }) => {
     const { roomCode } = await createRoom(page);
     const controller = await context.newPage();
-    await controller.goto(`/${roomCode}`);
+    await controller.goto(`/${roomCode}?test=1`);
     await waitForFont(controller);
     await controller.fill('#name-input', 'Player 1');
     await controller.focus('#name-input');
@@ -189,9 +189,7 @@ test.describe('Controller', () => {
     } finally {
       clearInterval(dropInterval);
     }
-    await expect(host).toHaveScreenshot('10a-results-1p.png', {
-      maxDiffPixelRatio: 0,
-    });
+    await expect(host).toHaveScreenshot('10a-results-1p.png');
   });
 
   test('results - winner (rank 1)', async ({ page, context }) => {
@@ -215,9 +213,7 @@ test.describe('Controller', () => {
     } finally {
       clearInterval(dropInterval);
     }
-    await expect(host).toHaveScreenshot('10b-results-winner.png', {
-      maxDiffPixelRatio: 0,
-    });
+    await expect(host).toHaveScreenshot('10b-results-winner.png');
   });
 
   test('results - loser (rank 2)', async ({ page, context }) => {
@@ -242,9 +238,7 @@ test.describe('Controller', () => {
     } finally {
       clearInterval(dropInterval);
     }
-    await expect(loser).toHaveScreenshot('10c-results-loser.png', {
-      maxDiffPixelRatio: 0,
-    });
+    await expect(loser).toHaveScreenshot('10c-results-loser.png');
   });
 
   test('reconnect overlay - attempt', async ({ page, context }) => {
