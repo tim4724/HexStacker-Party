@@ -309,11 +309,7 @@ test.describe.serial('AirConsole Integration', () => {
 
     await s.screenFrame.waitForFunction(() => players.size >= 1, null, { timeout: 10000 });
 
-    await s.ctrlPage.evaluate(() => {
-      var channel = new BroadcastChannel('__airconsole_mock__');
-      channel.postMessage({ _ac_type: 'disconnect', deviceId: window.__AC_DEVICE_ID });
-      channel.close();
-    });
+    await s.ctrlPage.evaluate(() => window.airconsole.triggerDisconnect());
 
     await s.screenFrame.waitForFunction(() => {
       return document.querySelectorAll('#player-list .player-card:not(.empty)').length === 0;
