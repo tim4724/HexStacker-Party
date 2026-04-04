@@ -67,6 +67,10 @@ var LOCALES = {
     touchpad: 'Touchpad',
     privacy: 'Privacy',
 
+    // Credits
+    stacked_by: 'Stacked by Tim',
+    music_by: 'Music by FoxSynergy',
+
     // Hex
     hex_lines_level: 'Lines {lines}  Level {level}',
 
@@ -85,7 +89,7 @@ var LOCALES = {
 
   de: {
     hold: 'HOLD', next: 'NEXT', level: 'LEVEL', lines: 'REIHEN',
-    ko: 'K.O.', go: 'LOS', scan_to_rejoin: 'SCAN ZUM BEITRETEN',
+    ko: 'K.O.', go: 'LOS', scan_to_rejoin: 'SCANNEN ZUM WIEDERBEITRETEN',
     quad: 'QUAD!', triple: 'TRIPLE!', double: 'DOUBLE',
     scan_to_join: 'Zum Beitreten scannen', square: 'SQUARE', hex: 'HEX',
     new_badge: 'NEU', waiting_for_players: 'Warte auf Spieler...',
@@ -99,20 +103,21 @@ var LOCALES = {
     reconnecting: 'VERBINDE NEU...', disconnected: 'GETRENNT',
     connecting: 'VERBINDE...', connection_lost: 'Verbindung verloren...',
     attempt_n_of_m: 'Versuch {attempt} von {max}',
-    display_reconnecting: 'Display verbindet neu...',
+    display_reconnecting: 'Display verbindet sich neu...',
     bad_connection: 'Schlechte Verbindung',
     paused: 'PAUSIERT', open_larger_screen: 'Auf größerem Bildschirm öffnen',
-    mobile_hint_detail: 'Dieses Display ist für Fernseher und Computer. Benutze dein Handy als Controller.',
+    mobile_hint_detail: 'Dieses Display ist für Fernseher und Computer. Benutze dein Smartphone als Controller.',
     room_not_found: 'Raum nicht gefunden',
     scan_qr_to_join: 'QR-Code scannen zum Beitreten',
     game_in_progress: 'Spiel läuft. Bitte auf neues Spiel warten.',
     n_lines: { one: '{count} Reihe', other: '{count} Reihen' },
     level_n: 'Level {level}', player: 'Spieler', level_heading: 'Level',
     enter_name: 'Name eingeben...', touchpad: 'Touchpad', privacy: 'Datenschutz',
+    stacked_by: 'Entwickelt von Tim', music_by: 'Musik von FoxSynergy',
     hex_lines_level: 'Reihen {lines}  Level {level}',
-    swipe: 'Wischen', tap: 'Tippen', flick: 'Schnipsen',
+    swipe: 'Wischen', tap: 'Tippen', flick: 'Streichen',
     gesture_move: 'Bewegen', gesture_rotate: 'Drehen',
-    gesture_drop: 'Fallen', gesture_hold: 'Halten',
+    gesture_drop: 'Ablegen', gesture_hold: 'Halten',
     _ordinal: '{n}.'
   },
 
@@ -146,7 +151,8 @@ var LOCALES = {
     hex_lines_level: 'Lignes {lines}  Niveau {level}',
     swipe: 'Glisser', tap: 'Appuyer', flick: 'Lancer',
     gesture_move: 'déplacer', gesture_rotate: 'tourner',
-    gesture_drop: 'poser', gesture_hold: 'garder',
+    stacked_by: 'Créé par Tim', music_by: 'Musique par FoxSynergy',
+    gesture_drop: 'poser', gesture_hold: 'réserver',
     _ordinal: { one: '{n}er', other: '{n}e' }
   },
 
@@ -162,7 +168,7 @@ var LOCALES = {
     new_game: 'Novo jogo', new_game_upper: 'NOVO JOGO',
     continue_btn: 'Continuar', continue_upper: 'CONTINUAR',
     continue_anyway: 'CONTINUAR MESMO ASSIM',
-    reconnect: 'RECONECTAR', rejoin: 'VOLTAR', join: 'ENTRAR',
+    reconnect: 'RECONECTAR', rejoin: 'REENTRAR', join: 'ENTRAR',
     reconnecting: 'RECONECTANDO', disconnected: 'DESCONECTADO',
     connecting: 'CONECTANDO...', connection_lost: 'Conexão perdida...',
     attempt_n_of_m: 'Tentativa {attempt} de {max}',
@@ -177,10 +183,11 @@ var LOCALES = {
     level_n: 'Nível {level}', player: 'Jogador', level_heading: 'Nível',
     enter_name: 'Digite o nome...', touchpad: 'Touchpad',
     privacy: 'Privacidade',
+    stacked_by: 'Criado por Tim', music_by: 'Música por FoxSynergy',
     hex_lines_level: 'Linhas {lines}  Nível {level}',
     swipe: 'Deslizar', tap: 'Tocar', flick: 'Lançar',
     gesture_move: 'mover', gesture_rotate: 'girar',
-    gesture_drop: 'soltar', gesture_hold: 'guardar',
+    gesture_drop: 'soltar', gesture_hold: 'segurar',
     _ordinal: '{n}º'
   },
 
@@ -195,7 +202,7 @@ var LOCALES = {
     play_again: 'Jugar de nuevo', play_again_upper: 'JUGAR DE NUEVO',
     new_game: 'Nueva partida', new_game_upper: 'NUEVA PARTIDA',
     continue_btn: 'Continuar', continue_upper: 'CONTINUAR',
-    continue_anyway: 'CONTINUAR DE TODOS MODOS',
+    continue_anyway: 'CONTINUAR DE TODAS FORMAS',
     reconnect: 'RECONECTAR', rejoin: 'VOLVER', join: 'UNIRSE',
     reconnecting: 'RECONECTANDO', disconnected: 'DESCONECTADO',
     connecting: 'CONECTANDO...', connection_lost: 'Conexión perdida...',
@@ -214,6 +221,7 @@ var LOCALES = {
     hex_lines_level: 'Líneas {lines}  Nivel {level}',
     swipe: 'Deslizar', tap: 'Tocar', flick: 'Lanzar',
     gesture_move: 'mover', gesture_rotate: 'girar',
+    stacked_by: 'Creado por Tim', music_by: 'Música por FoxSynergy',
     gesture_drop: 'soltar', gesture_hold: 'guardar',
     _ordinal: '{n}º'
   },
@@ -247,6 +255,7 @@ var LOCALES = {
     hex_lines_level: '行数 {lines}  等级 {level}',
     swipe: '滑动', tap: '点按', flick: '快划',
     gesture_move: '移动', gesture_rotate: '旋转',
+    stacked_by: '开发者 Tim', music_by: '音乐 FoxSynergy',
     gesture_drop: '落下', gesture_hold: '暂存',
     _ordinal: '第{n}'
   },
@@ -281,6 +290,7 @@ var LOCALES = {
     hex_lines_level: 'ライン {lines}  レベル {level}',
     swipe: 'スワイプ', tap: 'タップ', flick: 'フリック',
     gesture_move: '移動', gesture_rotate: '回転',
+    stacked_by: '開発者 Tim', music_by: '音楽 FoxSynergy',
     gesture_drop: 'ドロップ', gesture_hold: 'ホールド',
     _ordinal: '{n}位'
   },
@@ -314,12 +324,13 @@ var LOCALES = {
     hex_lines_level: '라인 {lines}  레벨 {level}',
     swipe: '스와이프', tap: '탭', flick: '플릭',
     gesture_move: '이동', gesture_rotate: '회전',
+    stacked_by: '개발자 Tim', music_by: '음악 FoxSynergy',
     gesture_drop: '드롭', gesture_hold: '홀드',
     _ordinal: '{n}위'
   },
 
   ru: {
-    hold: 'ХОЛД', next: 'СЛЕД.', level: 'УРОВЕНЬ', lines: 'ЛИНИИ',
+    hold: 'ХОЛД', next: 'ДАЛЕЕ', level: 'УРОВЕНЬ', lines: 'ЛИНИИ',
     ko: 'K.O.', go: 'СТАРТ', scan_to_rejoin: 'СКАН ДЛЯ ВОЗВРАТА',
     quad: 'КВАД!', triple: 'ТРИПЛ!', double: 'ДАБЛ',
     scan_to_join: 'Сканируйте для входа', square: 'КВАДРАТ', hex: 'ГЕКС',
@@ -333,7 +344,7 @@ var LOCALES = {
     new_game: 'Новая игра', new_game_upper: 'НОВАЯ ИГРА',
     continue_btn: 'Продолжить', continue_upper: 'ПРОДОЛЖИТЬ',
     continue_anyway: 'ПРОДОЛЖИТЬ ВСЁ РАВНО',
-    reconnect: 'ПЕРЕПОДКЛЮЧИТЬ', rejoin: 'ВОЙТИ', join: 'ВОЙТИ',
+    reconnect: 'ПЕРЕПОДКЛЮЧИТЬ', rejoin: 'ВЕРНУТЬСЯ', join: 'ВОЙТИ',
     reconnecting: 'ПЕРЕПОДКЛЮЧЕНИЕ', disconnected: 'ОТКЛЮЧЕНО',
     connecting: 'ПОДКЛЮЧЕНИЕ...', connection_lost: 'Соединение потеряно...',
     attempt_n_of_m: 'Попытка {attempt} из {max}',
@@ -354,6 +365,7 @@ var LOCALES = {
     hex_lines_level: 'Линии {lines}  Уровень {level}',
     swipe: 'Свайп', tap: 'Нажатие', flick: 'Смахивание',
     gesture_move: 'двигать', gesture_rotate: 'вращать',
+    stacked_by: 'Разработано Tim', music_by: 'Музыка FoxSynergy',
     gesture_drop: 'бросить', gesture_hold: 'держать',
     _ordinal: '{n}-й'
   }

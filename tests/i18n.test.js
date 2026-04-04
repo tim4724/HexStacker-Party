@@ -192,7 +192,8 @@ describe('i18n', function () {
       'paused', 'open_larger_screen', 'mobile_hint_detail',
       'room_not_found', 'scan_qr_to_join', 'game_in_progress',
       'n_lines', 'level_n', 'player', 'level_heading',
-      'enter_name', 'touchpad', 'privacy', 'hex_lines_level',
+      'enter_name', 'touchpad', 'privacy',
+      'stacked_by', 'music_by', 'hex_lines_level',
       'swipe', 'tap', 'flick', 'gesture_move', 'gesture_rotate',
       'gesture_drop', 'gesture_hold',
       '_ordinal'
