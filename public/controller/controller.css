@@ -328,6 +328,7 @@ html, body {
   padding: 14px 36px 12px;
   font-size: clamp(1.1rem, 5vw, 1.5rem);
   min-width: min(70vw, 280px);
+  margin: 0 24px;
 }
 
 #level-selector {
@@ -776,13 +777,18 @@ html, body {
 
 #pause-buttons {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
+  width: min(100%, 380px);
+  padding: 0 24px;
+  box-sizing: border-box;
 }
 
 #pause-continue-btn,
 #pause-newgame-btn,
 #reconnect-rejoin-btn {
-  min-width: min(12rem, 45vw);
+  flex: 1 1 min(12rem, 45vw);
   padding: 14px 16px;
   font-size: 0.9rem;
   letter-spacing: 0.1em;
