@@ -115,7 +115,7 @@ var LOCALES = {
     enter_name: 'Name eingeben...', touchpad: 'Touchpad', privacy: 'Datenschutz',
     stacked_by: 'Entwickelt von Tim', music_by: 'Musik von FoxSynergy',
     hex_lines_level: 'Reihen {lines}  Level {level}',
-    swipe: 'Wischen', tap: 'Tippen', flick: 'Streichen',
+    swipe: 'Wischen', tap: 'Tippen', flick: 'Schnippen',
     gesture_move: 'Bewegen', gesture_rotate: 'Drehen',
     gesture_drop: 'Ablegen', gesture_hold: 'Halten',
     _ordinal: '{n}.'
