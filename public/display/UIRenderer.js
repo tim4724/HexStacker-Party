@@ -55,6 +55,9 @@ class UIRenderer {
     // 3. Next pieces panel (right of board)
     this.drawNextPanel(playerState);
 
+    // 3b. Level and lines below next panel
+    this.drawLevelLines(playerState);
+
     // 4. Garbage meter (left edge of board)
     if (playerState.pendingGarbage > 0) {
       this.drawGarbageMeter(playerState.pendingGarbage);
@@ -89,14 +92,7 @@ class UIRenderer {
     ctx.textBaseline = 'bottom';
     ctx.fillText(name, this.boardX + this.cellSize * 0.07, nameY - this.cellSize * 0.07);
 
-    // Lines + level badge on right side
-    const lvlSize = Math.max(THEME.font.minPx.label, this.cellSize * THEME.font.cellScale.label);
-    ctx.font = `700 ${lvlSize}px ${getDisplayFont()}`;
-    ctx.textAlign = 'right';
-    ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.label})`;
-    const lines = playerState.lines || 0;
-    const level = playerState.level || 1;
-    ctx.fillText(`Lines ${lines}  Level ${level}`, this.boardX + this.boardWidth - this.cellSize * 0.07, nameY - this.cellSize * 0.07);
+    // Lines + level drawn below the next panel (see drawLevelLines)
   }
 
   drawHoldPanel(playerState) {
@@ -169,6 +165,49 @@ class UIRenderer {
         ctx.globalAlpha = 1.0;
       }
     }
+  }
+
+  drawLevelLines(playerState) {
+    const ctx = this.ctx;
+    const panelX = this.boardX + this.boardWidth + this.panelGap;
+    const panelY = this.boardY;
+    const labelSize = Math.max(THEME.font.minPx.label, this.cellSize * THEME.font.cellScale.label);
+    const boxWidth = this.miniSize * THEME.size.panelWidth;
+    const pieceSpacing = this.miniSize * 3;
+    const startY = panelY + labelSize + this.cellSize * 0.2;
+    const nextCount = playerState.nextPieces ? Math.min(playerState.nextPieces.length, 3) : 0;
+    const boxHeight = pieceSpacing * Math.max(nextCount, 3);
+    const belowNextY = startY + boxHeight + this.cellSize * 0.5;
+
+    const lines = playerState.lines || 0;
+    const level = playerState.level || 1;
+    const lvlSize = Math.max(THEME.font.minPx.label, this.cellSize * THEME.font.cellScale.label);
+    const valueSize = Math.max(THEME.font.minPx.label, this.cellSize * THEME.font.cellScale.label * 1.3);
+    const rowHeight = lvlSize + valueSize + this.cellSize * 0.4;
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+
+    // Level row
+    ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.label})`;
+    ctx.letterSpacing = '0.15em';
+    ctx.font = `700 ${lvlSize}px ${getDisplayFont()}`;
+    ctx.fillText('LEVEL', panelX, belowNextY);
+    ctx.letterSpacing = '0px';
+    ctx.fillStyle = THEME.color.text.white;
+    ctx.font = `700 ${valueSize}px ${getDisplayFont()}`;
+    ctx.fillText(`${level}`, panelX, belowNextY + lvlSize + this.cellSize * 0.1);
+
+    // Lines row
+    const linesY = belowNextY + rowHeight;
+    ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.label})`;
+    ctx.letterSpacing = '0.15em';
+    ctx.font = `700 ${lvlSize}px ${getDisplayFont()}`;
+    ctx.fillText('LINES', panelX, linesY);
+    ctx.letterSpacing = '0px';
+    ctx.fillStyle = THEME.color.text.white;
+    ctx.font = `700 ${valueSize}px ${getDisplayFont()}`;
+    ctx.fillText(`${lines}`, panelX, linesY + lvlSize + this.cellSize * 0.1);
   }
 
   getGarbageMeterLayout() {
