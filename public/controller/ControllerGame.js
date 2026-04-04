@@ -84,6 +84,7 @@ function onWelcome(data) {
 
     gameScreen.classList.remove('dead');
     gameScreen.classList.remove('paused');
+    gameScreen.classList.remove('countdown');
     gameScreen.style.setProperty('--player-color', playerColor);
     removeKoOverlay();
     if (data.paused) {
