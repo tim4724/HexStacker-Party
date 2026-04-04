@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stacker Party — Cover Art Builder</title>
+<style>
+@font-face{font-family:'Orbitron';font-style:normal;font-weight:100 900;font-display:block;src:url('/shared/fonts/Orbitron.woff2') format('woff2')}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Orbitron', sans-serif;
+  background: #0a0a1a;
+  color: #ccc;
+  display: flex;
+  min-height: 100vh;
+}
+
+.layout {
+  display: flex;
+  gap: 24px;
+  padding: 24px;
+  width: 100%;
+  align-items: flex-start;
+}
+
+/* Preview */
+.preview-wrap {
+  flex-shrink: 0;
+  position: sticky;
+  top: 24px;
+}
+.preview-wrap h2 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #666;
+  margin-bottom: 8px;
+}
+#preview {
+  width: 512px;
+  height: 512px;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1a0533, #0d1b4a);
+  outline: 1px solid #FF1493;
+}
+
+/* Title inside preview */
+.title-wrap {
+  position: absolute;
+  z-index: 20;
+  text-align: center;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  background: linear-gradient(135deg, #4444ff, #00ccff, #00ff88);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.15;
+  filter: drop-shadow(0 0 28px rgba(0,200,255,.4)) drop-shadow(0 3px 6px rgba(0,0,0,.7));
+  white-space: nowrap;
+  pointer-events: none;
+}
+.title-wrap .word-stacker { display: block; }
+.title-wrap .word-party { display: block; }
+
+/* Vignette */
+.vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 18;
+}
+
+/* Pieces layer */
+.pieces-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+.block {
+  position: absolute;
+  border-radius: 5px;
+  transition: left 0.4s ease, top 0.4s ease, width 0.3s ease, height 0.3s ease, transform 0.4s ease, opacity 0.3s ease;
+}
+.hex-cell {
+  position: absolute;
+  transition: left 0.4s ease, top 0.4s ease, opacity 0.3s ease;
+}
+
+/* Controls panel */
+.controls {
+  flex: 1;
+  min-width: 280px;
+  max-width: 360px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding-right: 8px;
+}
+.controls::-webkit-scrollbar { width: 6px; }
+.controls::-webkit-scrollbar-track { background: transparent; }
+.controls::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+.section {
+  margin-bottom: 20px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  padding: 14px;
+}
+.section h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #00ccff;
+  margin-bottom: 12px;
+}
+.field {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.field label {
+  font-size: 11px;
+  color: #888;
+  min-width: 100px;
+  flex-shrink: 0;
+}
+.field input[type="range"] {
+  flex: 1;
+  accent-color: #00ccff;
+}
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1;
+}
+.swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: border-color .15s, transform .1s;
+}
+.swatch:hover { transform: scale(1.15); }
+.swatch.active { border-color: #fff; }
+.field select {
+  flex: 1;
+  background: #1a1a2e;
+  color: #ccc;
+  border: 1px solid #333;
+  padding: 4px 8px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+}
+.field input[type="checkbox"] {
+  accent-color: #00ccff;
+}
+.field .val {
+  font-size: 10px;
+  color: #555;
+  min-width: 36px;
+  text-align: right;
+}
+
+.btn-toggle {
+  background: rgba(0,204,255,.15);
+  border: 1px solid rgba(0,204,255,.3);
+  color: #00ccff;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.btn-toggle:hover { background: rgba(0,204,255,.25); }
+.btn-toggle:active { transform: scale(.95); }
+.btn-export {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, #4444ff, #00ccff);
+  color: #fff;
+  border: none;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity .2s;
+}
+.btn-export:hover { opacity: .85; }
+.export-note {
+  font-size: 10px;
+  color: #555;
+  margin-top: 6px;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <div class="preview-wrap">
+    <h2>Preview (512 x 512)</h2>
+    <div id="preview">
+      <canvas id="piecesCanvas" width="1024" height="1024" style="position:absolute;inset:0;width:512px;height:512px;z-index:2"></canvas>
+      <div class="pieces-layer" id="piecesLayer" style="display:none"></div>
+      <div class="title-wrap" id="titleWrap">
+        <span class="word-stacker">STACKER</span>
+        <span class="word-party">PARTY</span>
+      </div>
+      <div class="vignette" id="vignette"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <!-- Background -->
+    <div class="section">
+      <h3>Background</h3>
+      <div class="field">
+        <label>Type</label>
+        <select id="bgType">
+          <option value="linear">Linear gradient</option>
+          <option value="radial" selected>Radial gradient</option>
+          <option value="solid">Solid</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Color 1</label>
+        <div class="swatches" id="bgColor1Swatches"></div>
+        <input type="hidden" id="bgColor1" value="#0a2342">
+      </div>
+      <div class="field">
+        <label>Color 2</label>
+        <div class="swatches" id="bgColor2Swatches"></div>
+        <input type="hidden" id="bgColor2" value="#06060f">
+      </div>
+      <div class="field">
+        <label>Angle</label>
+        <input type="range" id="bgAngle" min="0" max="360" value="159">
+        <span class="val" id="bgAngleVal">159</span>
+      </div>
+    </div>
+
+    <!-- Title -->
+    <div class="section">
+      <h3>Title</h3>
+      <div class="field">
+        <label>Font size</label>
+        <input type="range" id="titleSize" min="60" max="120" value="75">
+        <span class="val" id="titleSizeVal">75</span>
+      </div>
+      <div class="field">
+        <label>Vertical pos</label>
+        <input type="range" id="titleY" min="20" max="80" value="50">
+        <span class="val" id="titleYVal">50%</span>
+      </div>
+      <div class="field">
+        <label>Letter spacing</label>
+        <input type="range" id="titleSpacing" min="0" max="30" value="13">
+        <span class="val" id="titleSpacingVal">13</span>
+      </div>
+      <div class="field">
+        <label>Glow intensity</label>
+        <input type="range" id="titleGlow" min="0" max="50" value="5">
+        <span class="val" id="titleGlowVal">5</span>
+      </div>
+      <div class="field">
+        <label>Glow color</label>
+        <div class="swatches" id="titleGlowSwatches"></div>
+        <input type="hidden" id="titleGlowColor" value="#00c8ff">
+      </div>
+    </div>
+
+    <!-- Vignette -->
+    <div class="section">
+      <h3>Vignette</h3>
+      <div class="field">
+        <label>Strength</label>
+        <input type="range" id="vigStrength" min="0" max="100" value="54">
+        <span class="val" id="vigStrengthVal">54%</span>
+      </div>
+      <div class="field">
+        <label>Size</label>
+        <input type="range" id="vigSize" min="50" max="100" value="100">
+        <span class="val" id="vigSizeVal">100%</span>
+      </div>
+    </div>
+
+    <!-- Pieces -->
+    <div class="section">
+      <h3>Pieces</h3>
+      <div class="field">
+        <label>Style</label>
+        <select id="blockStyle">
+          <option value="normal" selected>Normal (Lv 1-5)</option>
+          <option value="pillow">Pillow (Lv 6-10)</option>
+          <option value="neonFlat">Neon (Lv 11+)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Show pieces</label>
+        <input type="checkbox" id="showPieces" checked>
+      </div>
+      <div class="field">
+        <label>Opacity</label>
+        <input type="range" id="pieceOpacity" min="0" max="100" value="100">
+        <span class="val" id="pieceOpacityVal">100%</span>
+      </div>
+      <div class="field">
+        <label>Glow</label>
+        <input type="range" id="pieceGlow" min="0" max="40" value="16">
+        <span class="val" id="pieceGlowVal">16</span>
+      </div>
+      <div class="field">
+        <label>Size</label>
+        <input type="range" id="pieceSize" min="30" max="70" value="46">
+        <span class="val" id="pieceSizeVal">46</span>
+      </div>
+    </div>
+
+    <!-- Piece Arrangement -->
+    <div class="section">
+      <h3>Arrangement</h3>
+      <div class="field">
+        <label id="layoutLabel">Top/Bottom 3+3</label>
+        <button class="btn-toggle" id="prevLayout">&larr;</button>
+        <button class="btn-toggle" id="nextLayout">&rarr;</button>
+        <input type="hidden" id="layoutPreset" value="tb3a">
+      </div>
+    </div>
+
+    <!-- Export -->
+    <div class="section">
+      <h3>Export</h3>
+      <button class="btn-export" id="exportBtn">Export 1024x1024</button>
+      <p class="export-note">Opens preview in a new window for saving.<br>Or right-click the preview and "Save image as..."</p>
+    </div>
+  </div>
+</div>
+
+<script src="/engine/constants.js"></script>
+<script src="/engine/HexConstants.js"></script>
+<script src="/shared/CanvasUtils.js"></script>
+<script src="/shared/theme.js"></script>
+<script src="/display/HexBoardRenderer.js"></script>
+<script src="/artwork/builder.js">
+</script>
+</body>
+</html>
