@@ -84,9 +84,9 @@ var LOCALES = {
   },
 
   de: {
-    hold: 'HALTEN', next: 'NÄCHSTE', level: 'LEVEL', lines: 'REIHEN',
-    ko: 'K.O.', go: 'LOS', scan_to_rejoin: 'ZUM BEITRETEN SCANNEN',
-    quad: 'VIERFACH!', triple: 'DREIFACH!', double: 'DOPPELT',
+    hold: 'HOLD', next: 'NEXT', level: 'LEVEL', lines: 'REIHEN',
+    ko: 'K.O.', go: 'LOS', scan_to_rejoin: 'SCAN ZUM BEITRETEN',
+    quad: 'QUAD!', triple: 'TRIPLE!', double: 'DOUBLE',
     scan_to_join: 'Zum Beitreten scannen', square: 'QUADRAT', hex: 'HEX',
     new_badge: 'NEU', waiting_for_players: 'Warte auf Spieler...',
     start_n_players: { one: 'START ({count} Spieler)', other: 'START ({count} Spieler)' },
@@ -96,7 +96,7 @@ var LOCALES = {
     continue_btn: 'Weiter', continue_upper: 'WEITER',
     continue_anyway: 'TROTZDEM FORTFAHREN',
     reconnect: 'NEU VERBINDEN', rejoin: 'BEITRETEN', join: 'BEITRETEN',
-    reconnecting: 'NEUVERBINDUNG', disconnected: 'GETRENNT',
+    reconnecting: 'VERBINDE NEU...', disconnected: 'GETRENNT',
     connecting: 'VERBINDE...', connection_lost: 'Verbindung verloren...',
     attempt_n_of_m: 'Versuch {attempt} von {max}',
     display_reconnecting: 'Display verbindet neu...',
@@ -117,11 +117,11 @@ var LOCALES = {
   },
 
   fr: {
-    hold: 'GARDE', next: 'SUIVANT', level: 'NIVEAU', lines: 'LIGNES',
+    hold: 'HOLD', next: 'SUIVANT', level: 'NIVEAU', lines: 'LIGNES',
     ko: 'K.O.', go: 'GO', scan_to_rejoin: 'SCANNER POUR REJOINDRE',
-    quad: 'QUADRUPLE !', triple: 'TRIPLE !', double: 'DOUBLE',
+    quad: 'QUAD !', triple: 'TRIPLE !', double: 'DOUBLE',
     scan_to_join: 'Scanner pour rejoindre', square: 'CARRÉ', hex: 'HEX',
-    new_badge: 'NOUVEAU', waiting_for_players: 'En attente de joueurs...',
+    new_badge: 'NEW', waiting_for_players: 'En attente de joueurs...',
     start_n_players: { one: 'LANCER ({count} joueur)', other: 'LANCER ({count} joueurs)' },
     start: 'LANCER', start_new_game: 'NOUVELLE PARTIE',
     play_again: 'Rejouer', play_again_upper: 'REJOUER',
@@ -151,9 +151,9 @@ var LOCALES = {
   },
 
   pt: {
-    hold: 'RESERVA', next: 'PRÓXIMA', level: 'NÍVEL', lines: 'LINHAS',
+    hold: 'HOLD', next: 'NEXT', level: 'NÍVEL', lines: 'LINHAS',
     ko: 'K.O.', go: 'VAI', scan_to_rejoin: 'ESCANEIE PARA VOLTAR',
-    quad: 'QUÁDRUPLO!', triple: 'TRIPLO!', double: 'DUPLO',
+    quad: 'QUAD!', triple: 'TRIPLE!', double: 'DOUBLE',
     scan_to_join: 'Escaneie para entrar', square: 'QUADRADO', hex: 'HEX',
     new_badge: 'NOVO', waiting_for_players: 'Aguardando jogadores...',
     start_n_players: { one: 'INICIAR ({count} jogador)', other: 'INICIAR ({count} jogadores)' },
@@ -185,9 +185,9 @@ var LOCALES = {
   },
 
   es: {
-    hold: 'RESERVA', next: 'SIGUIENTE', level: 'NIVEL', lines: 'LÍNEAS',
+    hold: 'HOLD', next: 'NEXT', level: 'NIVEL', lines: 'LÍNEAS',
     ko: 'K.O.', go: '¡YA!', scan_to_rejoin: 'ESCANEA PARA VOLVER',
-    quad: '¡CUÁDRUPLE!', triple: '¡TRIPLE!', double: 'DOBLE',
+    quad: '¡QUAD!', triple: '¡TRIPLE!', double: 'DOUBLE',
     scan_to_join: 'Escanea para unirte', square: 'CUADRADO', hex: 'HEX',
     new_badge: 'NUEVO', waiting_for_players: 'Esperando jugadores...',
     start_n_players: { one: 'INICIAR ({count} jugador)', other: 'INICIAR ({count} jugadores)' },
@@ -253,7 +253,7 @@ var LOCALES = {
 
   ja: {
     hold: 'ホールド', next: 'ネクスト', level: 'レベル', lines: 'ライン',
-    ko: 'K.O.', go: 'スタート', scan_to_rejoin: 'スキャンして再参加',
+    ko: 'K.O.', go: 'GO', scan_to_rejoin: 'スキャンで再参加',
     quad: '4ライン!', triple: '3ライン!', double: '2ライン',
     scan_to_join: 'スキャンして参加', square: 'スクエア', hex: 'ヘックス',
     new_badge: 'NEW', waiting_for_players: 'プレイヤーを待っています...',
@@ -287,7 +287,7 @@ var LOCALES = {
 
   ko: {
     hold: '홀드', next: '다음', level: '레벨', lines: '라인',
-    ko: 'K.O.', go: '시작', scan_to_rejoin: '스캔하여 재참가',
+    ko: 'K.O.', go: 'GO', scan_to_rejoin: '스캔하여 재참가',
     quad: '4줄!', triple: '3줄!', double: '2줄',
     scan_to_join: '스캔하여 참가', square: '사각', hex: '헥스',
     new_badge: 'NEW', waiting_for_players: '플레이어를 기다리는 중...',
@@ -319,11 +319,11 @@ var LOCALES = {
   },
 
   ru: {
-    hold: 'ЗАПАС', next: 'СЛЕД.', level: 'УРОВЕНЬ', lines: 'ЛИНИИ',
-    ko: 'K.O.', go: 'СТАРТ', scan_to_rejoin: 'СКАНИРУЙТЕ ДЛЯ ВХОДА',
+    hold: 'HOLD', next: 'СЛЕД.', level: 'УРОВЕНЬ', lines: 'ЛИНИИ',
+    ko: 'K.O.', go: 'СТАРТ', scan_to_rejoin: 'СКАН ДЛЯ ВОЗВРАТА',
     quad: 'КВАД!', triple: 'ТРИПЛ!', double: 'ДАБЛ',
     scan_to_join: 'Сканируйте для входа', square: 'КВАДРАТ', hex: 'ГЕКС',
-    new_badge: 'НОВОЕ', waiting_for_players: 'Ожидание игроков...',
+    new_badge: 'NEW', waiting_for_players: 'Ожидание игроков...',
     start_n_players: {
       one: 'СТАРТ ({count} игрок)', few: 'СТАРТ ({count} игрока)',
       many: 'СТАРТ ({count} игроков)', other: 'СТАРТ ({count} игроков)'
@@ -354,7 +354,7 @@ var LOCALES = {
     hex_lines_level: 'Линии {lines}  Уровень {level}',
     swipe: 'Свайп', tap: 'Нажатие', flick: 'Смахивание',
     gesture_move: 'двигать', gesture_rotate: 'вращать',
-    gesture_drop: 'бросить', gesture_hold: 'запасти',
+    gesture_drop: 'бросить', gesture_hold: 'держать',
     _ordinal: '{n}-й'
   }
 };

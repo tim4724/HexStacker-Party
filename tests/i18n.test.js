@@ -73,14 +73,14 @@ describe('i18n', function () {
     it('switches to German', function () {
       setLocale('de');
       assert.equal(getLocale(), 'de');
-      assert.equal(t('hold'), 'HALTEN');
+      assert.equal(t('hold'), 'HOLD');
       assert.equal(t('go'), 'LOS');
     });
 
     it('handles locale with region code', function () {
       setLocale('fr-CA');
       assert.equal(getLocale(), 'fr');
-      assert.equal(t('hold'), 'GARDE');
+      assert.equal(t('hold'), 'HOLD');
     });
 
     it('falls back to en for unknown locale', function () {
