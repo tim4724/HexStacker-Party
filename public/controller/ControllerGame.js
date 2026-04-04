@@ -30,7 +30,7 @@ function showLobbyUI() {
   clearTimeout(gameoverButtonsTimer);
   gameoverButtonsReady = false;
   playerIdentity.style.setProperty('--player-color', playerColor);
-  playerIdentityName.textContent = playerName || 'Player';
+  playerIdentityName.textContent = playerName || t('player');
   updateLevelDisplay();
 
   startBtn.classList.remove('hidden');
@@ -44,7 +44,7 @@ function showLobbyUI() {
 }
 
 function updateStartButton() {
-  startBtn.textContent = 'START (' + playerCount + (playerCount === 1 ? ' player)' : ' players)');
+  startBtn.textContent = t('start_n_players', { count: playerCount });
 }
 
 function setWaitingActionMessage(message) {
@@ -67,7 +67,7 @@ function onWelcome(data) {
   clearTimeout(disconnectedTimer);
   reconnectOverlay.classList.add('hidden');
 
-  playerName = data.playerName || playerName || 'Player';
+  playerName = data.playerName || playerName || t('player');
   playerNameEl.textContent = playerName;
   if (data.startLevel != null) startLevel = data.startLevel;
 
@@ -80,7 +80,7 @@ function onWelcome(data) {
       showLobbyUI();
       startBtn.classList.add('hidden');
       startBtn.disabled = true;
-      setWaitingActionMessage('Game in progress. Please wait for New Game.');
+      setWaitingActionMessage(t('game_in_progress'));
       return;
     }
 
@@ -245,7 +245,7 @@ function renderGameResults(results) {
     if (!solo) {
       var rankEl = document.createElement('span');
       rankEl.className = 'result-rank';
-      rankEl.textContent = r.rank <= 3 ? ['', '1st', '2nd', '3rd'][r.rank] : r.rank + 'th';
+      rankEl.textContent = tOrdinal(r.rank);
       row.appendChild(rankEl);
     }
 
@@ -254,12 +254,12 @@ function renderGameResults(results) {
 
     var nameEl = document.createElement('span');
     nameEl.className = 'result-name';
-    nameEl.textContent = r.playerName || 'Player';
+    nameEl.textContent = r.playerName || t('player');
     nameEl.style.color = pColor;
 
     var stats = document.createElement('div');
     stats.className = 'result-stats';
-    stats.innerHTML = '<span>' + (r.lines || 0) + ' lines</span><span>Level ' + (r.level || 1) + '</span>';
+    stats.innerHTML = '<span>' + t('n_lines', { count: r.lines || 0 }) + '</span><span>' + t('level_n', { level: r.level || 1 }) + '</span>';
 
     info.appendChild(nameEl);
     info.appendChild(stats);
@@ -276,7 +276,7 @@ function showKoOverlay() {
   removeKoOverlay();
   var ko = document.createElement('div');
   ko.id = 'ko-overlay';
-  ko.textContent = 'KO';
+  ko.textContent = t('ko');
   touchArea.appendChild(ko);
 }
 

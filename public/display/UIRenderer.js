@@ -109,7 +109,7 @@ class UIRenderer {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.letterSpacing = '0.15em';
-    ctx.fillText('HOLD', panelX + boxSize / 2, panelY);
+    ctx.fillText(t('hold'), panelX + boxSize / 2, panelY, boxSize);
     ctx.letterSpacing = '0px';
 
     // Panel background with rounded rect
@@ -142,7 +142,7 @@ class UIRenderer {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.letterSpacing = '0.15em';
-    ctx.fillText('NEXT', panelX + boxWidth / 2, panelY);
+    ctx.fillText(t('next'), panelX + boxWidth / 2, panelY, boxWidth);
     ctx.letterSpacing = '0px';
 
     // Panel background
@@ -192,7 +192,7 @@ class UIRenderer {
     ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.label})`;
     ctx.letterSpacing = '0.15em';
     ctx.font = `700 ${lvlSize}px ${getDisplayFont()}`;
-    ctx.fillText('LEVEL', panelX, belowNextY);
+    ctx.fillText(t('level'), panelX, belowNextY);
     ctx.letterSpacing = '0px';
     ctx.fillStyle = THEME.color.text.white;
     ctx.font = `700 ${valueSize}px ${getDisplayFont()}`;
@@ -203,7 +203,7 @@ class UIRenderer {
     ctx.fillStyle = `rgba(255, 255, 255, ${THEME.opacity.label})`;
     ctx.letterSpacing = '0.15em';
     ctx.font = `700 ${lvlSize}px ${getDisplayFont()}`;
-    ctx.fillText('LINES', panelX, linesY);
+    ctx.fillText(t('lines'), panelX, linesY);
     ctx.letterSpacing = '0px';
     ctx.fillStyle = THEME.color.text.white;
     ctx.font = `700 ${valueSize}px ${getDisplayFont()}`;
@@ -331,7 +331,7 @@ class UIRenderer {
     ctx.textBaseline = 'middle';
     ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
     ctx.fillText(
-      'KO',
+      t('ko'),
       this.boardX + this.boardWidth / 2,
       this.boardY + this.boardHeight / 2
     );
@@ -377,7 +377,7 @@ class UIRenderer {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.letterSpacing = '0.1em';
-    ctx.fillText('SCAN TO REJOIN', bx + bw / 2, groupY + outerSize + labelGap);
+    ctx.fillText(t('scan_to_rejoin'), bx + bw / 2, groupY + outerSize + labelGap, bw * 0.9);
     ctx.letterSpacing = '0px';
   }
 

@@ -120,7 +120,7 @@ function submitName() {
   if (name) localStorage.setItem('stacker_player_name', name);
   sessionStorage.setItem('clientId_' + roomCode, clientId);
   nameJoinBtn.disabled = true;
-  nameJoinBtn.textContent = 'CONNECTING...';
+  nameJoinBtn.textContent = t('connecting');
   nameInput.disabled = true;
   nameStatusText.textContent = '';
   nameStatusDetail.textContent = '';
@@ -184,8 +184,8 @@ pauseNewGameBtn.addEventListener('click', function () {
 
 reconnectRejoinBtn.addEventListener('click', function () {
   vibrate(10);
-  reconnectHeading.textContent = 'RECONNECTING';
-  reconnectStatus.textContent = 'Connecting...';
+  reconnectHeading.textContent = t('reconnecting');
+  reconnectStatus.textContent = t('connecting');
   reconnectRejoinBtn.classList.add('hidden');
   connect();
 });
@@ -273,7 +273,7 @@ if (hadStoredId || rejoinId) {
   playerName = savedName || null;
   nameInput.value = savedName;
   nameJoinBtn.disabled = true;
-  nameJoinBtn.textContent = 'CONNECTING...';
+  nameJoinBtn.textContent = t('connecting');
   nameInput.disabled = true;
   nameStatusText.textContent = '';
   nameStatusDetail.textContent = '';

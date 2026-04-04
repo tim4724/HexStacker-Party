@@ -131,7 +131,7 @@ function updatePlayerList() {
     var ph = document.createElement('div');
     ph.className = 'level-controls level-placeholder';
     ph.setAttribute('aria-hidden', 'true');
-    ph.innerHTML = '<span class="level-heading">Level</span><span class="level-btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/></svg></span><span class="level-label">1</span><span class="level-btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/><line x1="7" y1="2" x2="7" y2="12"/></svg></span>';
+    ph.innerHTML = '<span class="level-heading">' + t('level_heading') + '</span><span class="level-btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/></svg></span><span class="level-label">1</span><span class="level-btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/><line x1="7" y1="2" x2="7" y2="12"/></svg></span>';
     card.appendChild(ph);
     slot.appendChild(card);
     playerListEl.appendChild(slot);
@@ -167,7 +167,7 @@ function updatePlayerList() {
     if (info) {
       var color = info.playerColor || PLAYER_COLORS[info.playerIndex] || '#fff';
       card.style.setProperty('--player-color', color);
-      nameEl.textContent = info.playerName || PLAYER_NAMES[info.playerIndex] || 'Player';
+      nameEl.textContent = info.playerName || PLAYER_NAMES[info.playerIndex] || t('player');
       card.classList.remove('empty');
       card.dataset.playerId = playerId;
       slot.dataset.playerId = playerId;
@@ -184,7 +184,7 @@ function updatePlayerList() {
       if (!levelCtrl) {
         levelCtrl = document.createElement('div');
         levelCtrl.className = 'level-controls';
-        levelCtrl.innerHTML = '<span class="level-heading">Level</span><button class="level-btn level-minus" aria-label="Decrease level"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/></svg></button><span class="level-label"></span><button class="level-btn level-plus" aria-label="Increase level"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/><line x1="7" y1="2" x2="7" y2="12"/></svg></button>';
+        levelCtrl.innerHTML = '<span class="level-heading">' + t('level_heading') + '</span><button class="level-btn level-minus" aria-label="Decrease level"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/></svg></button><span class="level-label"></span><button class="level-btn level-plus" aria-label="Increase level"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/><line x1="7" y1="2" x2="7" y2="12"/></svg></button>';
         card.appendChild(levelCtrl);
       }
       var lvl = info.startLevel || 1;
@@ -205,7 +205,7 @@ function updatePlayerList() {
         var ph = document.createElement('div');
         ph.className = 'level-controls level-placeholder';
         ph.setAttribute('aria-hidden', 'true');
-        ph.innerHTML = '<span class="level-heading">Level</span><span class="level-btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/></svg></span><span class="level-label">1</span><span class="level-btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/><line x1="7" y1="2" x2="7" y2="12"/></svg></span>';
+        ph.innerHTML = '<span class="level-heading">' + t('level_heading') + '</span><span class="level-btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/></svg></span><span class="level-label">1</span><span class="level-btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/><line x1="7" y1="2" x2="7" y2="12"/></svg></span>';
         card.appendChild(ph);
       }
     }
@@ -216,8 +216,8 @@ function updateStartButton() {
   var hasPlayers = players.size > 0;
   startBtn.disabled = !hasPlayers;
   startBtn.textContent = hasPlayers
-    ? 'START (' + players.size + ' player' + (players.size > 1 ? 's' : '') + ')'
-    : 'Waiting for players...';
+    ? t('start_n_players', { count: players.size })
+    : t('waiting_for_players');
 }
 
 // Delegated click handler for level +/- buttons on display player cards
@@ -308,7 +308,7 @@ function renderResults(results) {
     if (!solo) {
       var rank = document.createElement('span');
       rank.className = 'result-rank';
-      rank.textContent = res.rank <= 3 ? ['', '1st', '2nd', '3rd'][res.rank] : res.rank + 'th';
+      rank.textContent = tOrdinal(res.rank);
       row.appendChild(rank);
     }
 
@@ -318,14 +318,14 @@ function renderResults(results) {
     var nameEl = document.createElement('span');
     nameEl.className = 'result-name';
     var pInfo = players.get(res.playerId);
-    nameEl.textContent = res.playerName || pInfo?.playerName || 'Player';
+    nameEl.textContent = res.playerName || pInfo?.playerName || t('player');
     if (pInfo) {
       nameEl.style.color = pInfo.playerColor || PLAYER_COLORS[pInfo.playerIndex];
     }
 
     var stats = document.createElement('div');
     stats.className = 'result-stats';
-    stats.innerHTML = '<span>' + (res.lines || 0) + ' lines</span><span>Level ' + (res.level || 1) + '</span>';
+    stats.innerHTML = '<span>' + t('n_lines', { count: res.lines || 0 }) + '</span><span>' + t('level_n', { level: res.level || 1 }) + '</span>';
 
     info.appendChild(nameEl);
     info.appendChild(stats);

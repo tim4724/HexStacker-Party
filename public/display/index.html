@@ -27,23 +27,23 @@
   <div id="mobile-hint">
     <h1 class="gradient-title">STACKER PARTY</h1>
     <div id="mobile-hint-body">
-      <p id="mobile-hint-heading">Open on a Larger Screen</p>
-      <p id="mobile-hint-detail">This display is designed for TVs and computers. Use your phone as a controller instead.</p>
+      <p id="mobile-hint-heading" data-i18n="open_larger_screen">Open on a Larger Screen</p>
+      <p id="mobile-hint-detail" data-i18n="mobile_hint_detail">This display is designed for TVs and computers. Use your phone as a controller instead.</p>
     </div>
-    <button id="mobile-hint-btn" class="btn btn-secondary">CONTINUE ANYWAY</button>
+    <button id="mobile-hint-btn" class="btn btn-secondary" data-i18n="continue_anyway">CONTINUE ANYWAY</button>
   </div>
 
   <!-- Welcome screen: unlocks audio via user gesture -->
   <div id="welcome-screen" class="screen">
     <h1 class="gradient-title">STACKER PARTY</h1>
-    <button id="new-game-btn" class="btn btn-primary">START NEW GAME</button>
+    <button id="new-game-btn" class="btn btn-primary" data-i18n="start_new_game">START NEW GAME</button>
     <div id="welcome-footer">
       <div class="footer-row">
-        <a id="github-link" href="https://github.com/tim4724/Stacker-Party" target="_blank" rel="noopener">Stacked by Tim</a>
+        <a id="github-link" href="https://github.com/tim4724/Stacker-Party" target="_blank" rel="noopener" data-i18n="stacked_by">Stacked by Tim</a>
         <span class="footer-dot">&middot;</span>
-        <a href="https://opengameart.org/content/lunar-joyride-8-bit" target="_blank" rel="noopener">Music by FoxSynergy</a>
+        <a href="https://opengameart.org/content/lunar-joyride-8-bit" target="_blank" rel="noopener" data-i18n="music_by">Music by FoxSynergy</a>
         <span class="footer-dot">&middot;</span>
-        <a href="/privacy">Privacy</a>
+        <a href="/privacy" data-i18n="privacy">Privacy</a>
       </div>
       <span id="version-label"></span>
     </div>
@@ -54,22 +54,22 @@
     <h1 class="gradient-title">STACKER PARTY</h1>
     <div id="qr-container">
       <canvas id="qr-code"></canvas>
-      <p id="qr-label">Scan to join</p>
+      <p id="qr-label" data-i18n="scan_to_join">Scan to join</p>
       <p id="join-url"></p>
     </div>
     <div id="mode-selector">
       <button class="mode-option selected" data-mode="classic">
         <span class="mode-icon mode-icon--classic"></span>
-        SQUARE
+        <span data-i18n="square">SQUARE</span>
       </button>
       <button class="mode-option" data-mode="hex">
         <span class="mode-icon mode-icon--hex"></span>
-        HEX
-        <span class="badge-new">NEW</span>
+        <span data-i18n="hex">HEX</span>
+        <span class="badge-new" data-i18n="new_badge">NEW</span>
       </button>
     </div>
     <div id="player-list"></div>
-    <button id="start-btn" class="btn btn-primary" disabled>Waiting for players...</button>
+    <button id="start-btn" class="btn btn-primary" disabled data-i18n="waiting_for_players">Waiting for players...</button>
   </div>
 
   <div id="game-toolbar" class="hidden">
@@ -86,26 +86,26 @@
 
   <!-- Pause overlay -->
   <div id="pause-overlay" class="game-overlay hidden">
-    <h1>PAUSED</h1>
+    <h1 data-i18n="paused">PAUSED</h1>
     <div id="pause-buttons">
-      <button id="pause-continue-btn" class="btn btn-primary">Continue</button>
-      <button id="pause-newgame-btn" class="btn btn-secondary">New Game</button>
+      <button id="pause-continue-btn" class="btn btn-primary" data-i18n="continue_btn">Continue</button>
+      <button id="pause-newgame-btn" class="btn btn-secondary" data-i18n="new_game">New Game</button>
     </div>
   </div>
 
   <!-- Reconnect overlay -->
   <div id="reconnect-overlay" class="game-overlay hidden">
-    <h1 id="reconnect-heading">RECONNECTING</h1>
-    <p id="reconnect-status" class="game-overlay__status">Connection lost...</p>
-    <button id="reconnect-btn" class="btn btn-primary hidden">RECONNECT</button>
+    <h1 id="reconnect-heading" data-i18n="reconnecting">RECONNECTING</h1>
+    <p id="reconnect-status" class="game-overlay__status" data-i18n="connection_lost">Connection lost...</p>
+    <button id="reconnect-btn" class="btn btn-primary hidden" data-i18n="reconnect">RECONNECT</button>
   </div>
 
   <!-- Results overlay (shown on top of game screen) -->
   <div id="results-screen" class="screen hidden">
     <div id="results-list"></div>
     <div id="results-buttons">
-      <button id="play-again-btn" class="btn btn-primary">Play Again</button>
-      <button id="new-game-results-btn" class="btn btn-secondary">New Game</button>
+      <button id="play-again-btn" class="btn btn-primary" data-i18n="play_again">Play Again</button>
+      <button id="new-game-results-btn" class="btn btn-secondary" data-i18n="new_game">New Game</button>
     </div>
   </div>
 
@@ -122,6 +122,8 @@
   <script src="/engine/Game.js"></script>
   <script src="/shared/PartyConnection.js"></script>
   <script src="/shared/protocol.js"></script>
+  <script src="/shared/i18n.js"></script>
+  <script src="/shared/i18n-fallback.js"></script>
   <script src="/shared/CanvasUtils.js"></script>
   <script src="/shared/theme.js"></script>
   <script src="/shared/WelcomeBackground.js"></script>

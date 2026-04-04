@@ -30,12 +30,12 @@ function connectAndCreateRoom() {
     }
 
     reconnectOverlay.classList.remove('hidden');
-    if (attempt === 1) reconnectHeading.textContent = 'RECONNECTING';
-    reconnectStatus.textContent = 'Attempt ' + Math.min(attempt, maxAttempts) + ' of ' + maxAttempts;
+    if (attempt === 1) reconnectHeading.textContent = t('reconnecting');
+    reconnectStatus.textContent = t('attempt_n_of_m', { attempt: Math.min(attempt, maxAttempts), max: maxAttempts });
     reconnectBtn.classList.add('hidden');
     if (attempt > maxAttempts) {
       disconnectedTimer = setTimeout(function () {
-        reconnectHeading.textContent = 'DISCONNECTED';
+        reconnectHeading.textContent = t('disconnected');
         reconnectStatus.textContent = '';
         reconnectBtn.classList.remove('hidden');
       }, 1000);
@@ -330,7 +330,7 @@ function startLivenessCheck() {
       // attempt text that onClose sets on subsequent ticks
       if (reconnectOverlay.classList.contains('hidden')) {
         reconnectOverlay.classList.remove('hidden');
-        reconnectHeading.textContent = 'RECONNECTING';
+        reconnectHeading.textContent = t('reconnecting');
         reconnectStatus.textContent = '';
         reconnectBtn.classList.add('hidden');
       }

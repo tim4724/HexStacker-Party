@@ -88,7 +88,7 @@ class HexUIRenderer {
     ctx.fillStyle = 'rgba(255, 255, 255, ' + THEME.opacity.label + ')';
     var lines = playerState.lines || 0;
     var level = playerState.level || 1;
-    ctx.fillText('Lines ' + lines + '  Level ' + level, this.boardX + this.boardWidth - this.cellSize * 0.07, nameY - this.cellSize * 0.07);
+    ctx.fillText(t('hex_lines_level', { lines: lines, level: level }), this.boardX + this.boardWidth - this.cellSize * 0.07, nameY - this.cellSize * 0.07);
   }
 
   _drawPanel(x, y, w, h) {
@@ -123,7 +123,7 @@ class HexUIRenderer {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.letterSpacing = '0.15em';
-    ctx.fillText('HOLD', panelX + boxSize / 2, panelY);
+    ctx.fillText(t('hold'), panelX + boxSize / 2, panelY, boxSize);
     ctx.letterSpacing = '0px';
 
     var boxY = panelY + labelSize + this.cellSize * 0.2;
@@ -148,7 +148,7 @@ class HexUIRenderer {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.letterSpacing = '0.15em';
-    ctx.fillText('NEXT', panelX + boxWidth / 2, panelY);
+    ctx.fillText(t('next'), panelX + boxWidth / 2, panelY, boxWidth);
     ctx.letterSpacing = '0px';
 
     var nextCount = playerState.nextPieces ? Math.min(playerState.nextPieces.length, 3) : 0;
@@ -278,7 +278,7 @@ class HexUIRenderer {
     ctx.fillStyle = playerColor || 'rgba(0, 200, 255, 0.7)';
     ctx.font = '600 ' + labelSize + 'px ' + getDisplayFont();
     ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.letterSpacing = '0.1em';
-    ctx.fillText('SCAN TO REJOIN', bx + bw / 2, groupY + outerSize + labelGap);
+    ctx.fillText(t('scan_to_rejoin'), bx + bw / 2, groupY + outerSize + labelGap, bw * 0.9);
     ctx.letterSpacing = '0px';
   }
 
@@ -292,7 +292,7 @@ class HexUIRenderer {
     ctx.font = '900 ' + fontSize + 'px ' + getDisplayFont();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('KO', this.boardX + this.boardWidth / 2, this.boardY + this.boardHeight / 2);
+    ctx.fillText(t('ko'), this.boardX + this.boardWidth / 2, this.boardY + this.boardHeight / 2);
   }
 
   // Draw a flat-top hex mini piece in hold/next panels

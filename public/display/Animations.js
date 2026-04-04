@@ -90,11 +90,11 @@ class Animations {
       const cx = boardX + 5 * cellSize;
       const cy = boardY + firstRow * cellSize;
       if (isQuad) {
-        this.addTextPopup(cx, cy, 'QUAD!', THEME.color.quad, true, cellSize);
+        this.addTextPopup(cx, cy, t('quad'), THEME.color.quad, true, cellSize);
       } else if (rows.length === 3) {
-        this.addTextPopup(cx, cy, 'TRIPLE!', THEME.color.triple, true, cellSize);
+        this.addTextPopup(cx, cy, t('triple'), THEME.color.triple, true, cellSize);
       } else if (rows.length === 2) {
-        this.addTextPopup(cx, cy, 'DOUBLE', THEME.color.text.white, false, cellSize);
+        this.addTextPopup(cx, cy, t('double'), THEME.color.text.white, false, cellSize);
       }
     }
   }
@@ -216,11 +216,11 @@ class Animations {
     if (firstCell) {
       var pos = hexCenter(Math.floor(HexConstants.HEX_COLS / 2), firstCell[1]);
       if (isQuad) {
-        this.addTextPopup(pos.x, pos.y, 'QUAD!', THEME.color.quad, true, br.cellSize);
+        this.addTextPopup(pos.x, pos.y, t('quad'), THEME.color.quad, true, br.cellSize);
       } else if (isTriple) {
-        this.addTextPopup(pos.x, pos.y, 'TRIPLE!', THEME.color.triple, true, br.cellSize);
+        this.addTextPopup(pos.x, pos.y, t('triple'), THEME.color.triple, true, br.cellSize);
       } else if (linesCleared === 2) {
-        this.addTextPopup(pos.x, pos.y, 'DOUBLE', THEME.color.text.white, false, br.cellSize);
+        this.addTextPopup(pos.x, pos.y, t('double'), THEME.color.text.white, false, br.cellSize);
       }
     }
 

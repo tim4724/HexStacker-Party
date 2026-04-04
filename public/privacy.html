@@ -93,19 +93,21 @@
 </head>
 <body>
   <div class="privacy-shell">
-    <h1 class="gradient-title">PRIVACY NOTICE</h1>
+    <h1 class="gradient-title" data-i18n="privacy_title">PRIVACY NOTICE</h1>
     <dl>
-      <dt>data</dt>
-      <dd>IP addresses are processed by the reverse proxy to serve the site. They appear in temporary server logs and are not stored persistently or shared with third parties.</dd>
-      <dt>tracking</dt>
-      <dd>No cookies, analytics, or third-party services are used.</dd>
-      <dt>gameplay</dt>
-      <dd>Player names and inputs are relayed between players during a session and exist only in memory. Nothing is stored.</dd>
-      <dt>contact</dt>
+      <dt data-i18n="privacy_data">data</dt>
+      <dd data-i18n="privacy_data_detail">IP addresses are processed by the web server and the WebSocket relay to serve the site and enable multiplayer communication. They appear in temporary server logs and are not stored persistently or shared with third parties. Processing is based on legitimate interest in operating the service (Art. 6(1)(f) GDPR).</dd>
+      <dt data-i18n="privacy_tracking">tracking</dt>
+      <dd data-i18n="privacy_tracking_detail">No cookies, analytics, or third-party services are used.</dd>
+      <dt data-i18n="privacy_gameplay">gameplay</dt>
+      <dd data-i18n="privacy_gameplay_detail">Player names and inputs are relayed between players during a session and exist only in memory. Nothing is stored.</dd>
+      <dt data-i18n="privacy_contact">contact</dt>
       <dd>Tim Vogel</dd>
       <dd><a href="mailto:info@couch-games.com">info@couch-games.com</a></dd>
     </dl>
-    <p class="footer">last updated march 2026</p>
+    <p class="footer" data-i18n="privacy_updated">last updated march 2026</p>
   </div>
+  <script src="/shared/i18n.js"></script>
+  <script src="/shared/i18n-fallback.js"></script>
 </body>
 </html>

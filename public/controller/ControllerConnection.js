@@ -27,8 +27,8 @@ function connect() {
       if (msg.clientId === 'display') {
         if (currentScreen === 'game') {
           reconnectOverlay.classList.remove('hidden');
-          reconnectHeading.textContent = 'RECONNECTING';
-          reconnectStatus.textContent = 'Display reconnecting...';
+          reconnectHeading.textContent = t('reconnecting');
+          reconnectStatus.textContent = t('display_reconnecting');
           reconnectRejoinBtn.classList.add('hidden');
         }
       }
@@ -50,12 +50,12 @@ function connect() {
     clearTimeout(disconnectedTimer);
 
     reconnectOverlay.classList.remove('hidden');
-    if (attempt === 1) reconnectHeading.textContent = 'RECONNECTING';
-    reconnectStatus.textContent = 'Attempt ' + Math.min(attempt, maxAttempts) + ' of ' + maxAttempts;
+    if (attempt === 1) reconnectHeading.textContent = t('reconnecting');
+    reconnectStatus.textContent = t('attempt_n_of_m', { attempt: Math.min(attempt, maxAttempts), max: maxAttempts });
     reconnectRejoinBtn.classList.add('hidden');
     if (attempt > maxAttempts) {
       disconnectedTimer = setTimeout(function () {
-        reconnectHeading.textContent = 'DISCONNECTED';
+        reconnectHeading.textContent = t('disconnected');
         reconnectStatus.textContent = '';
         reconnectRejoinBtn.classList.remove('hidden');
       }, 500);
@@ -90,7 +90,7 @@ function updatePingDisplay(ms) {
   if (!pingDisplay) return;
   pingDisplay.classList.remove('ping-good', 'ping-ok', 'ping-bad');
   if (ms < 0) {
-    pingDisplay.textContent = 'Bad Connection';
+    pingDisplay.textContent = t('bad_connection');
     pingDisplay.classList.add('ping-bad');
   } else {
     pingDisplay.textContent = ms + ' ms';
@@ -133,7 +133,7 @@ function performDisconnect() {
   gameCancelled = false;
   nameInput.value = playerName || '';
   nameJoinBtn.disabled = false;
-  nameJoinBtn.textContent = 'JOIN';
+  nameJoinBtn.textContent = t('join');
   nameInput.disabled = false;
   nameStatusText.textContent = '';
   nameStatusDetail.textContent = '';
@@ -150,8 +150,8 @@ function showRoomGone() {
   nameJoinBtn.classList.add('hidden');
   nameStatusText.textContent = '';
   nameStatusDetail.textContent = '';
-  roomGoneHeading.textContent = 'Room Not Found';
-  roomGoneDetail.textContent = 'Scan Game QR code to join';
+  roomGoneHeading.textContent = t('room_not_found');
+  roomGoneDetail.textContent = t('scan_qr_to_join');
   roomGoneMessage.classList.remove('hidden');
   showScreen('name');
 }
@@ -162,7 +162,7 @@ function showErrorState(heading, detail) {
   stopPing();
 
   nameJoinBtn.disabled = false;
-  nameJoinBtn.textContent = 'JOIN';
+  nameJoinBtn.textContent = t('join');
   nameInput.disabled = false;
   roomGoneMessage.classList.add('hidden');
 

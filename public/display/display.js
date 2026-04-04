@@ -305,8 +305,8 @@ reconnectBtn.addEventListener('click', function() {
   clearTimeout(disconnectedTimer);
   party.resetReconnectCount();
   reconnectBtn.classList.add('hidden');
-  reconnectHeading.textContent = 'RECONNECTING';
-  reconnectStatus.textContent = 'Connecting...';
+  reconnectHeading.textContent = t('reconnecting');
+  reconnectStatus.textContent = t('connecting');
   party.reconnectNow();
 });
 
