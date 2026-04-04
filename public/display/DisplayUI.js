@@ -247,16 +247,13 @@ function renderQR(canvas, qrMatrix) {
   var modules = qrMatrix.modules;
 
   var dpr = window.devicePixelRatio || 1;
-  var cssSize = canvas.parentElement
-    ? Math.min(canvas.parentElement.clientWidth, canvas.parentElement.clientHeight, 380)
-    : 380;
+  var rect = canvas.getBoundingClientRect();
+  var cssSize = Math.min(rect.width, rect.height) || 180;
   var cellPx = Math.floor((cssSize * dpr) / size);
   var totalPx = cellPx * size;
 
   canvas.width = totalPx;
   canvas.height = totalPx;
-  canvas.style.width = (totalPx / dpr) + 'px';
-  canvas.style.height = (totalPx / dpr) + 'px';
 
   var qrCtx = canvas.getContext('2d');
   qrCtx.clearRect(0, 0, totalPx, totalPx);
