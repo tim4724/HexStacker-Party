@@ -1,5 +1,7 @@
 'use strict';
 
+var _SQRT3 = Math.sqrt(3);
+
 // Falling ghost-piece background animation for the welcome screen.
 // Renders translucent piece silhouettes on a canvas behind the DOM overlay.
 // Supports both classic (square blocks) and hex (hexagonal cells) modes.
@@ -206,6 +208,7 @@ class WelcomeBackground {
       drift,
       opacity,
       color,
+      rgbaStr: this._rgba(color, opacity),
       x: 0,
       y: 0,
     };
@@ -232,6 +235,7 @@ class WelcomeBackground {
       drift: 0,
       opacity,
       color,
+      rgbaStr: this._rgba(color, opacity),
       x: 0,
       y: 0,
     };
@@ -274,7 +278,7 @@ class WelcomeBackground {
         continue;
       }
 
-      ctx.fillStyle = this._rgba(p.color, p.opacity);
+      ctx.fillStyle = p.rgbaStr;
 
       if (p.hex) {
         this._drawHexPiece(ctx, p);
@@ -300,22 +304,13 @@ class WelcomeBackground {
     for (const [q, r] of p.cells) {
       // Axial to pixel (flat-top hex)
       const cx = p.x + size * 1.5 * q;
-      const cy = p.y + size * Math.sqrt(3) * (r + q / 2);
+      const cy = p.y + size * _SQRT3 * (r + q / 2);
       this._drawHexagon(ctx, cx, cy, size * 0.92);
     }
   }
 
   _drawHexagon(ctx, cx, cy, size) {
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      // Flat-top: start at 0°, step 60°
-      const angle = Math.PI / 3 * i;
-      const hx = cx + size * Math.cos(angle);
-      const hy = cy + size * Math.sin(angle);
-      if (i === 0) ctx.moveTo(hx, hy);
-      else ctx.lineTo(hx, hy);
-    }
-    ctx.closePath();
+    hexPath(ctx, cx, cy, size);
     ctx.fill();
   }
 
