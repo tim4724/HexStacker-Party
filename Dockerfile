@@ -12,6 +12,8 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY package.json ./
 COPY server/ ./server/
 COPY public/ ./public/
+COPY scripts/generate-airconsole-html.js ./scripts/
+RUN node scripts/generate-airconsole-html.js
 USER nodejs
 EXPOSE 4000
 ENV NODE_ENV=production PORT=4000
