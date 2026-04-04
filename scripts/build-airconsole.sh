@@ -13,13 +13,8 @@ ZIP_FILE="$PROJECT_DIR/build/airconsole.zip"
 
 echo "Building AirConsole package..."
 
-# Verify AirConsole SDK version is in sync between screen and controller
-SCREEN_SDK=$(grep -o 'airconsole-[0-9.]*\.js' "$PROJECT_DIR/public/display/screen.html")
-CTRL_SDK=$(grep -o 'airconsole-[0-9.]*\.js' "$PROJECT_DIR/public/controller/controller.html")
-if [ "$SCREEN_SDK" != "$CTRL_SDK" ]; then
-  echo "ERROR: AirConsole SDK version mismatch: screen=$SCREEN_SDK controller=$CTRL_SDK"
-  exit 1
-fi
+# Generate AirConsole HTML from canonical index.html files
+node "$SCRIPT_DIR/generate-airconsole-html.js"
 
 # Clean previous build
 rm -rf "$BUILD_DIR"
@@ -29,7 +24,8 @@ mkdir -p "$BUILD_DIR"
 cp -r "$PROJECT_DIR/public/shared" "$BUILD_DIR/shared"
 cp -r "$PROJECT_DIR/public/display" "$BUILD_DIR/display"
 cp -r "$PROJECT_DIR/public/controller" "$BUILD_DIR/controller"
-cp "$PROJECT_DIR/public/favicon.svg" "$BUILD_DIR/" 2>/dev/null || true
+cp "$PROJECT_DIR/public/favicon-classic.svg" "$BUILD_DIR/favicon-classic.svg" 2>/dev/null || true
+cp "$PROJECT_DIR/public/favicon-hex.svg" "$BUILD_DIR/favicon-hex.svg" 2>/dev/null || true
 
 # Copy engine modules (from server/ to engine/ for browser access)
 mkdir -p "$BUILD_DIR/engine"

@@ -13,7 +13,7 @@ module.exports = defineConfig({
     toHaveScreenshot: { maxDiffPixelRatio: 0 },
   },
   webServer: {
-    command: 'node server/index.js',
+    command: 'node scripts/generate-airconsole-html.js && node server/index.js',
     env: {
       ...process.env,
       PORT: '4100',

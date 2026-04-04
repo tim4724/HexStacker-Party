@@ -10,3 +10,5 @@ public/preview-settle.*
 public/artwork
 build/
 .dev-certs/
+public/display/screen.html
+public/controller/controller.html

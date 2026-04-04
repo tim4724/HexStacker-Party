@@ -832,3 +832,18 @@ html, body {
   opacity: 0.5;
   filter: saturate(0.3);
 }
+
+/* --- AirConsole overrides --- */
+body.airconsole #name-screen { display: none !important; }
+body.airconsole #lobby-join-url { display: none !important; }
+body.airconsole #lobby-back-btn { display: none !important; }
+
+#ac-status-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  display: none; align-items: center; justify-content: center;
+  z-index: 9999; color: rgba(255,255,255,0.6);
+  font: 600 16px var(--font-display, sans-serif);
+  pointer-events: none;
+}
+body.airconsole #ac-status-overlay { display: flex; }
+body.airconsole #ac-status-overlay.hidden { display: none; }

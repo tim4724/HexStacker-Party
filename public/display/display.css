@@ -644,3 +644,13 @@ html, body {
 @media (max-width: 568px) and (orientation: landscape) {
   #mobile-hint { display: flex; }
 }
+
+/* --- AirConsole overrides --- */
+body.airconsole #qr-container,
+body.airconsole #join-url,
+body.airconsole #welcome-footer { display: none !important; }
+body.airconsole #welcome-screen { display: none !important; }
+body.airconsole #mobile-hint { display: none !important; }
+body.airconsole #fullscreen-btn { display: none !important; }
+body.airconsole .player-slot:has(.player-card.empty) { display: none !important; }
+body.airconsole #player-list { display: flex !important; flex-wrap: wrap; justify-content: center; }
