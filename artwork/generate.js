@@ -447,6 +447,16 @@ async function generate() {
         document.documentElement.style.setProperty('--phone-height', phoneHeight);
       }, options.phoneHeight);
     }
+    if (typeof options.displayTop === 'string') {
+      await page.evaluate((displayTop) => {
+        document.documentElement.style.setProperty('--display-top', displayTop);
+      }, options.displayTop);
+    }
+    if (typeof options.pillTop === 'string') {
+      await page.evaluate((pillTop) => {
+        document.documentElement.style.setProperty('--pill-top', pillTop);
+      }, options.pillTop);
+    }
     await page.waitForTimeout(500);
 
     const outPath = path.resolve(BANNER_DIR, outputName);
@@ -466,6 +476,12 @@ async function generate() {
     phoneBottom: '18px',
     phoneHeight: '255px',
     clipHeight: HEADER_HEIGHT
+  });
+  await renderBanner(1280, 720, 'airconsole-screenshot.png', {
+    phoneBottom: '18px',
+    phoneHeight: '255px',
+    displayTop: '40px',
+    pillTop: '30px'
   });
 
   // --- Phase 4: Name banner (title + falling pieces, no screenshots needed) ---

@@ -19,7 +19,7 @@
 
     .display-img {
       position: absolute;
-      top: 0;
+      top: var(--display-top, 0px);
       left: 0;
       width: 100%;
     }
@@ -35,7 +35,7 @@
     /* Variation 2: Colored pill badges, no divider line */
     .mode-pill {
       position: absolute;
-      top: 10px;
+      top: var(--pill-top, 10px);
       padding: 5px 16px;
       font-family: 'Orbitron', sans-serif;
       font-size: 12px;
