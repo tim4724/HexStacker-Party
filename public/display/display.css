@@ -653,4 +653,7 @@ body.airconsole #welcome-screen { display: none !important; }
 body.airconsole #mobile-hint { display: none !important; }
 body.airconsole #fullscreen-btn { display: none !important; }
 body.airconsole .player-slot:has(.player-card.empty) { display: none !important; }
-body.airconsole #player-list { display: flex !important; flex-wrap: wrap; justify-content: center; }
+body.airconsole #player-list {
+  display: flex !important; flex-wrap: wrap; justify-content: center;
+  align-content: center; min-height: 20vh;
+}
