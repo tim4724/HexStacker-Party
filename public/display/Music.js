@@ -152,6 +152,7 @@ class Music {
   pause() {
     if (!this.playing) return;
     this.playing = false;
+    this._removeRetryListeners();
     const gen = ++this.generation;
 
     if (this.masterGain && this.ctx) {
