@@ -35,8 +35,11 @@ class Music {
     // the context may transition to 'running' on its own, or it may just
     // allow future resume() calls to succeed.  Handle both cases.
     this.ctx.addEventListener('statechange', () => {
-      if (this.ctx.state === 'running' && this.playing && !this.source && this.buffer) {
-        this._startSource();
+      if (this.ctx.state === 'running') {
+        this._removeRetryListeners();
+        if (this.playing && !this.source && this.buffer) {
+          this._startSource();
+        }
       }
     });
 
@@ -72,7 +75,9 @@ class Music {
     source.connect(this.masterGain);
     source.start(0);
     this.source = source;
-    this._removeRetryListeners();
+    if (this.ctx.state === 'running') {
+      this._removeRetryListeners();
+    }
   }
 
   _addRetryListeners() {
@@ -175,6 +180,10 @@ class Music {
       this.masterGain.gain.setValueAtTime(0, this.ctx.currentTime);
       this.masterGain.gain.linearRampToValueAtTime(targetVolume, this.ctx.currentTime + 0.3);
     }).catch(e => console.warn('AudioContext resume failed:', e));
+
+    if (this.ctx.state === 'suspended') {
+      this._addRetryListeners();
+    }
   }
 
   setSpeed(level) {
