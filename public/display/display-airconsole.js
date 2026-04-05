@@ -106,9 +106,9 @@ fetchQR = function(text, cb) { if (cb) cb(null); };
 
 // renderQR no-op when qrMatrix is null
 var _originalRenderQR = renderQR;
-renderQR = function(canvas, matrix) {
+renderQR = function(canvas, matrix, targetCssSize) {
   if (!matrix) return;
-  _originalRenderQR(canvas, matrix);
+  _originalRenderQR(canvas, matrix, targetCssSize);
 };
 
 // Init music when game starts — AirConsole's iframe has allow="autoplay" so we
