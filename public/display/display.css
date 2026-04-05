@@ -76,7 +76,8 @@ html, body {
   gap: 6px;
 }
 
-#welcome-footer a {
+#welcome-footer a,
+#lobby-footer a {
   color: var(--text-secondary);
   font-family: system-ui, -apple-system, sans-serif;
   font-size: clamp(13px, 1.5vw, 16px);
@@ -86,7 +87,8 @@ html, body {
   transition: color var(--transition-normal), filter var(--transition-normal);
 }
 
-#welcome-footer a:hover {
+#welcome-footer a:hover,
+#lobby-footer a:hover {
   filter: drop-shadow(0 0 6px rgba(0, 200, 255, 0.2));
 }
 
@@ -95,7 +97,8 @@ html, body {
   opacity: 0.4;
 }
 
-#version-label {
+#version-label,
+#lobby-version-label {
   color: var(--text-secondary);
   font-family: system-ui, -apple-system, sans-serif;
   font-size: clamp(13px, 1.5vw, 16px);
@@ -103,6 +106,16 @@ html, body {
   letter-spacing: 0.06em;
   opacity: 0.6;
 }
+
+#lobby-footer {
+  position: absolute;
+  bottom: clamp(1.2rem, 3vh, 2.5rem);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
 
 /* ============================================
    Lobby Screen
@@ -169,13 +182,13 @@ html, body {
 }
 
 .mode-icon--classic {
-  -webkit-mask-image: url(/favicon-classic.svg);
-  mask-image: url(/favicon-classic.svg);
+  -webkit-mask-image: url(../favicon-classic.svg);
+  mask-image: url(../favicon-classic.svg);
 }
 
 .mode-icon--hex {
-  -webkit-mask-image: url(/favicon-hex.svg);
-  mask-image: url(/favicon-hex.svg);
+  -webkit-mask-image: url(../favicon-hex.svg);
+  mask-image: url(../favicon-hex.svg);
 }
 
 .badge-new {
@@ -649,6 +662,7 @@ html, body {
 body.airconsole #qr-container,
 body.airconsole #join-url,
 body.airconsole #welcome-footer { display: none !important; }
+body.airconsole #lobby-footer { display: flex !important; }
 body.airconsole #welcome-screen { display: none !important; }
 body.airconsole #mobile-hint { display: none !important; }
 body.airconsole #fullscreen-btn { display: none !important; }
