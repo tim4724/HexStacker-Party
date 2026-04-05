@@ -95,13 +95,37 @@ html, body {
   opacity: 0.4;
 }
 
-#version-label {
+#version-label,
+#lobby-version-label {
   color: var(--text-secondary);
   font-family: system-ui, -apple-system, sans-serif;
   font-size: clamp(13px, 1.5vw, 16px);
   font-weight: 500;
   letter-spacing: 0.06em;
   opacity: 0.6;
+}
+
+#lobby-footer {
+  position: absolute;
+  bottom: clamp(1.2rem, 3vh, 2.5rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+#lobby-footer a {
+  color: var(--text-secondary);
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: clamp(13px, 1.5vw, 16px);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  transition: color var(--transition-normal), filter var(--transition-normal);
+}
+
+#lobby-footer a:hover {
+  filter: drop-shadow(0 0 6px rgba(0, 200, 255, 0.2));
 }
 
 /* ============================================
@@ -649,6 +673,7 @@ html, body {
 body.airconsole #qr-container,
 body.airconsole #join-url,
 body.airconsole #welcome-footer { display: none !important; }
+body.airconsole #lobby-footer { display: flex !important; }
 body.airconsole #welcome-screen { display: none !important; }
 body.airconsole #mobile-hint { display: none !important; }
 body.airconsole #fullscreen-btn { display: none !important; }
