@@ -294,11 +294,12 @@ class HexPlayerBoard extends BaseBoard {
     const ghost = this.currentPiece ? this._ghostOf(this.currentPiece) : null;
 
     // Populate pre-allocated block arrays from scratch (no allocation).
-    // _absoluteBlocksFast() returns a shared scratch — consume before the next call.
+    // _absoluteBlocksFast() returns a shared module-level scratch array.
+    // Each block must be fully copied before the next _absoluteBlocksFast() call.
     var cpBlocks = null;
     if (this.currentPiece) {
       var abs = this.currentPiece._absoluteBlocksFast();
-      var absLen = abs.length; // capture before scratch is overwritten by ghost call
+      var absLen = abs.length;
       cpBlocks = this._stateBlocksCurrent;
       while (cpBlocks.length < absLen) cpBlocks.push([0, 0]);
       cpBlocks.length = absLen;

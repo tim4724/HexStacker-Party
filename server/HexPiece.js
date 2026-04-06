@@ -97,6 +97,7 @@ class HexPiece {
     return p;
   }
 
+  // Mutates cells in place — call on a clone() to preserve the original.
   rotateCW() {
     this._rotId++;
     for (var i = 0; i < this.cells.length; i++) {

@@ -162,6 +162,7 @@ class HexBoardRenderer {
             function(col, row) { return grid[row][col] > 0 || ghostSet[col + ',' + row]; },
             function(col, row) { return grid[row][col] === 0 && ghostSet[col + ',' + row]; }
           );
+          // findClearableZigzags returns clearCells as [[col, row], ...]
           this._cachedPreviewCells = result.clearCells;
         }
 
