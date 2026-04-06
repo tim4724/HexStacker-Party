@@ -27,7 +27,10 @@ class HexBoardRenderer {
     this.colW = geo.colW;
     this.boardWidth = geo.boardWidth;
     this.boardHeight = geo.boardHeight;
-    this._prevGhostKey = null;
+    this._prevGhostCol = -1;
+    this._prevGhostRow = -1;
+    this._prevGhostType = -1;
+    this._prevGhostGV = -1;
     this._cachedPreviewCells = [];
 
     // Grid cache: offscreen canvas for locked blocks (redrawn only when gridVersion changes)
@@ -134,14 +137,19 @@ class HexBoardRenderer {
     if (playerState.ghost && playerState.currentPiece && playerState.grid && playerState.alive !== false) {
       var ghostBlocks = playerState.ghost.blocks;
       if (ghostBlocks) {
-        // Build a cache key from ghost block positions
-        var ghostKey = '';
-        for (var gk = 0; gk < ghostBlocks.length; gk++) {
-          ghostKey += ghostBlocks[gk][0] + ',' + ghostBlocks[gk][1] + ';';
-        }
+        // Cache key from ghost anchor + piece type (avoids per-frame string building)
+        var ghost = playerState.ghost;
+        var gkCol = ghost.anchorCol;
+        var gkRow = ghost.anchorRow;
+        var gkType = playerState.currentPiece.typeId;
+        var gkVersion = playerState.gridVersion;
 
-        if (ghostKey !== this._prevGhostKey) {
-          this._prevGhostKey = ghostKey;
+        if (gkCol !== this._prevGhostCol || gkRow !== this._prevGhostRow ||
+            gkType !== this._prevGhostType || gkVersion !== this._prevGhostGV) {
+          this._prevGhostCol = gkCol;
+          this._prevGhostRow = gkRow;
+          this._prevGhostType = gkType;
+          this._prevGhostGV = gkVersion;
           var ghostSet = {};
           for (var gi2 = 0; gi2 < ghostBlocks.length; gi2++) {
             ghostSet[ghostBlocks[gi2][0] + ',' + ghostBlocks[gi2][1]] = true;
@@ -171,7 +179,7 @@ class HexBoardRenderer {
         }
       }
     } else {
-      this._prevGhostKey = null;
+      this._prevGhostCol = -1;
       this._cachedPreviewCells = [];
     }
 
