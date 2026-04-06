@@ -140,8 +140,8 @@ class HexBoardRenderer {
       var ghostBlocks = playerState.ghost.blocks;
       if (ghostBlocks) {
         // Cache key from ghost anchor + piece type (avoids per-frame string building)
-        var gkCol = ghost.anchorCol;
-        var gkRow = ghost.anchorRow;
+        var gkCol = playerState.ghost.anchorCol;
+        var gkRow = playerState.ghost.anchorRow;
         var gkType = playerState.currentPiece.typeId;
         var gkVersion = playerState.gridVersion;
 
