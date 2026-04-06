@@ -102,18 +102,20 @@ class HexPiece {
 
   rotateCW() {
     this._rotId++;
-    this.cells = this.cells.map(function(c) {
-      var rot = rotateCW(c.q, c.r);
-      return { q: rot.q, r: rot.r };
-    });
+    for (var i = 0; i < this.cells.length; i++) {
+      var q = this.cells[i].q, r = this.cells[i].r;
+      this.cells[i].q = -r;
+      this.cells[i].r = q + r;
+    }
   }
 
   rotateCCW() {
     this._rotId++;
-    this.cells = this.cells.map(function(c) {
-      var rot = rotateCCW(c.q, c.r);
-      return { q: rot.q, r: rot.r };
-    });
+    for (var i = 0; i < this.cells.length; i++) {
+      var q = this.cells[i].q, r = this.cells[i].r;
+      this.cells[i].q = q + r;
+      this.cells[i].r = -q;
+    }
   }
 }
 

@@ -33,6 +33,11 @@ class HexPlayerBoard extends BaseBoard {
 
     this.clearingCells = null;
 
+    // Pre-allocated block arrays for getState() — avoids per-frame allocation.
+    // Each board instance gets its own arrays so multi-player snapshots don't alias.
+    this._stateBlocksCurrent = [[0,0],[0,0],[0,0],[0,0]];
+    this._stateBlocksGhost = [[0,0],[0,0],[0,0],[0,0]];
+
     // Ghost cache (invalidated when piece moves or grid changes)
     this._cachedGhost = null;
     this._ghostKeyCol = -1;
@@ -65,7 +70,11 @@ class HexPlayerBoard extends BaseBoard {
 
   _isOnSurface() {
     if (!this.currentPiece) return false;
-    return this._hexDrop(this.currentPiece) === null;
+    if (this.currentPiece.anchorRow + 1 >= HEX_TOTAL_ROWS) return true;
+    this.currentPiece.anchorRow += 1;
+    var blocked = !this.isValidPosition(this.currentPiece);
+    this.currentPiece.anchorRow -= 1;
+    return blocked;
   }
 
   _preDropToVisible() {
@@ -80,13 +89,12 @@ class HexPlayerBoard extends BaseBoard {
 
   // --- Hex-specific methods ---
 
-  // Simple drop: row + 1, same column. No lane system needed.
+  // Simple drop: row + 1, same column. Mutates piece in place.
   _hexDrop(piece) {
-    const newRow = piece.anchorRow + 1;
-    if (newRow >= HEX_TOTAL_ROWS) return null;
-    const test = piece.clone();
-    test.anchorRow = newRow;
-    if (this.isValidPosition(test)) return test;
+    if (piece.anchorRow + 1 >= HEX_TOTAL_ROWS) return null;
+    piece.anchorRow += 1;
+    if (this.isValidPosition(piece)) return piece;
+    piece.anchorRow -= 1;
     return null;
   }
 
@@ -186,12 +194,7 @@ class HexPlayerBoard extends BaseBoard {
 
     if (linesCleared > 0) {
       this.lines += linesCleared;
-      // Store clearing cells as array of [col, row] for animation
-      this.clearingCells = [];
-      for (const key in clearCells) {
-        const parts = key.split(',');
-        this.clearingCells.push([parseInt(parts[0]), parseInt(parts[1])]);
-      }
+      this.clearingCells = clearCells;
       this.clearingTimer = LINE_CLEAR_DELAY_MS;
       this.currentPiece = null;
     } else {
@@ -275,6 +278,15 @@ class HexPlayerBoard extends BaseBoard {
     return ghost.anchorRow;
   }
 
+  _visibleClearingCells() {
+    var out = [];
+    for (var i = 0; i < this.clearingCells.length; i++) {
+      var vr = this.clearingCells[i][1] - HEX_BUFFER_ROWS;
+      if (vr >= 0) out.push([this.clearingCells[i][0], vr]);
+    }
+    return out;
+  }
+
   // Returns snapshot for rendering. grid and nextPieces are cached references —
   // callers must treat the returned object as read-only. Row arrays are shared
   // with the live grid, so call only once per tick after all mutations are complete.
@@ -290,6 +302,26 @@ class HexPlayerBoard extends BaseBoard {
     const visibleGrid = this._visibleGrid;
     const ghost = this.currentPiece ? this._ghostOf(this.currentPiece) : null;
 
+    // Populate pre-allocated block arrays from scratch (no allocation)
+    var cpBlocks = null;
+    if (this.currentPiece) {
+      var abs = this.currentPiece._absoluteBlocksFast();
+      cpBlocks = this._stateBlocksCurrent;
+      for (var bi = 0; bi < abs.length; bi++) {
+        cpBlocks[bi][0] = abs[bi][0];
+        cpBlocks[bi][1] = abs[bi][1] - HEX_BUFFER_ROWS;
+      }
+    }
+    var ghostBlocks = null;
+    if (ghost) {
+      var gAbs = ghost._absoluteBlocksFast();
+      ghostBlocks = this._stateBlocksGhost;
+      for (var gi = 0; gi < gAbs.length; gi++) {
+        ghostBlocks[gi][0] = gAbs[gi][0];
+        ghostBlocks[gi][1] = gAbs[gi][1] - HEX_BUFFER_ROWS;
+      }
+    }
+
     return {
       grid: visibleGrid,
       currentPiece: this.currentPiece ? {
@@ -298,12 +330,12 @@ class HexPlayerBoard extends BaseBoard {
         anchorCol: this.currentPiece.anchorCol,
         anchorRow: this.currentPiece.anchorRow - HEX_BUFFER_ROWS,
         cells: this.currentPiece.cells,
-        blocks: this.currentPiece.getAbsoluteBlocks().map(b => [b[0], b[1] - HEX_BUFFER_ROWS])
+        blocks: cpBlocks
       } : null,
       ghost: ghost ? {
         anchorCol: ghost.anchorCol,
         anchorRow: ghost.anchorRow - HEX_BUFFER_ROWS,
-        blocks: ghost.getAbsoluteBlocks().map(b => [b[0], b[1] - HEX_BUFFER_ROWS])
+        blocks: ghostBlocks
       } : null,
       holdPiece: this.holdPiece,
       nextPieces: this._cachedNextPieces,
@@ -311,9 +343,7 @@ class HexPlayerBoard extends BaseBoard {
       lines: this.lines,
       alive: this.alive,
       pendingGarbage: this.pendingGarbage.reduce((sum, g) => sum + g.lines, 0),
-      clearingCells: this.clearingCells ? this.clearingCells
-        .map(c => [c[0], c[1] - HEX_BUFFER_ROWS])
-        .filter(c => c[1] >= 0) : null,
+      clearingCells: this.clearingCells ? this._visibleClearingCells() : null,
       gridVersion: this.gridVersion
     };
   }
