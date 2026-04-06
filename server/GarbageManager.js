@@ -73,7 +73,7 @@ class GarbageManager {
       }
     }
     if (cancelled > 0) {
-      this._pendingTotals.set(senderId, (this._pendingTotals.get(senderId) || 0) - cancelled);
+      this._pendingTotals.set(senderId, Math.max(0, (this._pendingTotals.get(senderId) || 0) - cancelled));
     }
 
     // Send net attack to opponent with the lowest stack

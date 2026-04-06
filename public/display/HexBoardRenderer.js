@@ -275,6 +275,7 @@ class HexBoardRenderer {
     gc.stroke();
   }
 
+  // Pre-compute outline vertices — must stay in sync with HexConstants.traceHexOutline
   _computeOutlineVerts() {
     var verts = [];
     var bx = this.x, by = this.y, hs = this.hexSize;

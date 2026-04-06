@@ -22,7 +22,6 @@ function rotateCCW(q, r) { return { q: q + r, r: -q }; }
 // Scratch arrays for getAbsoluteBlocks — avoids allocation on every call.
 // All HEX_PIECES have exactly 4 cells; update if a 5+ cell piece is added.
 var _absBlocksScratch = [[0,0],[0,0],[0,0],[0,0]];
-var _axialScratch = { q: 0, r: 0 };
 
 // ===================== PIECE DEFINITIONS =====================
 // Same shapes as pointy-top hex — axial coords are orientation-independent.

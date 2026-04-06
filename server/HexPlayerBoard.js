@@ -276,7 +276,8 @@ class HexPlayerBoard extends BaseBoard {
   }
 
   // Returns snapshot for rendering. grid and nextPieces are cached references —
-  // callers must treat the returned object as read-only.
+  // callers must treat the returned object as read-only. Row arrays are shared
+  // with the live grid, so call only once per tick after all mutations are complete.
   getState() {
     if (this.gridVersion !== this._visibleGridVersion) {
       this._visibleGrid = this.grid.slice(HEX_BUFFER_ROWS);
