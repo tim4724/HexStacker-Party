@@ -142,8 +142,8 @@ function renderFrame(timestamp) {
       var pInfo = players.get(playerData.id);
       var activeGarbageIndicatorEffects = getOrClearEffects(garbageIndicatorEffects, playerData.id, timestamp);
       var activeGarbageDefenceEffects = getOrClearEffects(garbageDefenceEffects, playerData.id, timestamp);
-      // playerData is a fresh snapshot per frame (getState() allocates new objects);
-      // mutating it here avoids Object.assign overhead.
+      // playerData contains live references (blocks, cells, grid rows) —
+      // consume within this frame. Mutating here avoids Object.assign overhead.
       playerData.garbageIndicatorEffects = activeGarbageIndicatorEffects;
       playerData.garbageDefenceEffects = activeGarbageDefenceEffects;
       playerData.playerName = pInfo?.playerName || PLAYER_NAMES[j];
