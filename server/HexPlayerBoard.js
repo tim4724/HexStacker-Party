@@ -309,9 +309,11 @@ class HexPlayerBoard extends BaseBoard {
     var cpBlocks = null;
     if (this.currentPiece) {
       var abs = this.currentPiece._absoluteBlocksFast();
+      var absLen = abs.length; // capture before scratch is overwritten by ghost call
       cpBlocks = this._stateBlocksCurrent;
-      while (cpBlocks.length < abs.length) cpBlocks.push([0, 0]);
-      for (var bi = 0; bi < abs.length; bi++) {
+      while (cpBlocks.length < absLen) cpBlocks.push([0, 0]);
+      cpBlocks.length = absLen;
+      for (var bi = 0; bi < absLen; bi++) {
         cpBlocks[bi][0] = abs[bi][0];
         cpBlocks[bi][1] = abs[bi][1] - HEX_BUFFER_ROWS;
       }
@@ -319,9 +321,11 @@ class HexPlayerBoard extends BaseBoard {
     var ghostBlocks = null;
     if (ghost) {
       var gAbs = ghost._absoluteBlocksFast();
+      var gAbsLen = gAbs.length;
       ghostBlocks = this._stateBlocksGhost;
-      while (ghostBlocks.length < gAbs.length) ghostBlocks.push([0, 0]);
-      for (var gi = 0; gi < gAbs.length; gi++) {
+      while (ghostBlocks.length < gAbsLen) ghostBlocks.push([0, 0]);
+      ghostBlocks.length = gAbsLen;
+      for (var gi = 0; gi < gAbsLen; gi++) {
         ghostBlocks[gi][0] = gAbs[gi][0];
         ghostBlocks[gi][1] = gAbs[gi][1] - HEX_BUFFER_ROWS;
       }
