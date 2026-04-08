@@ -30,8 +30,10 @@ var _getDefenceColor = function() { return THEME.color.text.white; };
 
 class UIRenderer extends BaseUIRenderer {
   getGarbageMeterLayout() {
+    // cx = center of meter cell (matches hex meter positioning)
+    var cx = this.boardX - this.cellSize * 1.07;
     return {
-      x: this.boardX - this.cellSize * 1.07,
+      x: cx - this.cellSize / 2,
       y: this.boardY,
       cellSize: this.cellSize,
       rows: GameConstants.VISIBLE_HEIGHT
@@ -119,7 +121,7 @@ class UIRenderer extends BaseUIRenderer {
     const tier = this._styleTier;
     const isNeon = tier === STYLE_TIERS.NEON_FLAT;
     const color = (isNeon ? NEON_PIECE_COLORS[typeId] : PIECE_COLORS[typeId]) || '#ffffff';
-    const stamp = getMiniBlockStamp(tier, color, size);
+    const stamp = getBlockStamp(tier, color, size);
 
     const offsetX = centerX - (bounds.w * size) / 2;
     const offsetY = centerY - (bounds.h * size) / 2;

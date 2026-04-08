@@ -26,10 +26,10 @@
   // Hex piece definitions (axial coords) — multi-cell pieces, not just singles
   const HEX_PIECES = {
     hT: [[-1,0],[0,0],[1,0],[0,-1]],       // T-shape
-    hS: [[-1,0],[0,0],[0,-1],[1,-1]],       // S-shape
+    hO: [[-1,0],[0,0],[0,-1],[1,-1]],       // O-shape (compact zigzag)
     hL: [[-1,0],[0,0],[1,0],[1,-1]],        // L-shape
-    hI: [[-1,0],[0,0],[1,0],[2,0]],         // I4-shape
-    hF: [[-2,1],[-1,1],[0,0],[1,0]],        // F-shape
+    hI: [[-1,0],[0,0],[1,0],[2,0]],         // I-shape (4 in a line)
+    hS: [[-2,1],[-1,1],[0,0],[1,0]],        // S-shape (wider zigzag)
   };
   const HEX_PIECE_COLORS = {
     hT: '#FFD700', hS: '#00CED1', hL: '#EE4444', hI: '#FF1493', hF: '#7FFF00',
