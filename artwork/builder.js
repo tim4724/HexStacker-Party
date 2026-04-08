@@ -32,7 +32,7 @@
     hS: [[-2,1],[-1,1],[0,0],[1,0]],        // S-shape (wider zigzag)
   };
   const HEX_PIECE_COLORS = {
-    hT: '#FFD700', hS: '#00CED1', hL: '#EE4444', hI: '#FF1493', hF: '#7FFF00',
+    hI: '#EE4444', hT: '#00CED1', hL: '#FFD700', hO: '#7FFF00', hS: '#9B59F0',
   };
   const HEX_PIECE_TYPES = Object.keys(HEX_PIECES);
   const HEX_SOLO_COLORS = ['#00CED1','#FFD700','#9B59F0','#FF1493'];
