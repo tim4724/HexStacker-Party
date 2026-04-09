@@ -44,10 +44,11 @@ class HexBoardRenderer {
     this._cachedGridVersion = -1;
     this._cachedGridTier = null;
 
-    // Pre-compute hex outline vertices, expanded outward so border is fully
-    // outside the cell area with gap matching inter-cell spacing
-    // Outset = half border width so the border inner edge aligns with hexSize
+    // Pre-compute hex outline vertices: inner (for bg clip) and outer (for border stroke)
     var borderHalf = cellSize * THEME.stroke.border / 2;
+    this._bgOutlineVerts = HexConstants.computeHexOutlineVerts(
+      this.x, this.y, this.hexSize, this.hexH, this.colW, HEX_COLS_N, HEX_VIS_ROWS
+    );
     this._outlineVerts = HexConstants.computeHexOutlineVerts(
       this.x, this.y, this.hexSize, this.hexH, this.colW, HEX_COLS_N, HEX_VIS_ROWS, borderHalf
     );
@@ -117,7 +118,39 @@ class HexBoardRenderer {
 
     var sCell = this._sCell;
 
-    // Grid cells — cached to offscreen canvas, redrawn only when gridVersion changes
+    // 1. Board background — clip to hex outline, fill with bg + tint (like square)
+    ctx.save();
+    var bgv = this._bgOutlineVerts;
+    ctx.beginPath();
+    ctx.moveTo(bgv[0][0], bgv[0][1]);
+    for (var bgi = 1; bgi < bgv.length; bgi++) ctx.lineTo(bgv[bgi][0], bgv[bgi][1]);
+    ctx.closePath();
+    ctx.clip();
+    ctx.fillStyle = THEME.color.bg.board;
+    ctx.fill();
+    if (this._tintFill) {
+      ctx.fillStyle = this._tintFill;
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // 2. Grid lines — batched stroke for ALL cells (like square)
+    ctx.beginPath();
+    for (var gr = 0; gr < HEX_VIS_ROWS; gr++) {
+      for (var gc2 = 0; gc2 < HEX_COLS_N; gc2++) {
+        var gp2 = this._hexCenter(gc2, gr);
+        ctx.moveTo(gp2.x + sCell * HEX_UNIT_VERTICES[0], gp2.y + sCell * HEX_UNIT_VERTICES[1]);
+        for (var gvi = 2; gvi < 12; gvi += 2) {
+          ctx.lineTo(gp2.x + sCell * HEX_UNIT_VERTICES[gvi], gp2.y + sCell * HEX_UNIT_VERTICES[gvi + 1]);
+        }
+        ctx.closePath();
+      }
+    }
+    ctx.strokeStyle = this._gridStroke;
+    ctx.lineWidth = this._gridLineWidth;
+    ctx.stroke();
+
+    // 3. Filled blocks — cached to offscreen canvas, redrawn only when gridVersion changes
     if (playerState.grid) {
       var gv = playerState.gridVersion ?? -1;
       if (gv !== this._cachedGridVersion || newTier !== this._cachedGridTier) {
@@ -243,44 +276,18 @@ class HexBoardRenderer {
     gc.setTransform(dpr, 0, 0, dpr, 0, 0);
     gc.clearRect(0, 0, w, h);
 
+    // Only render filled block stamps (background + grid drawn on main canvas)
     var gridRows = grid.length;
-    // Pass 1: fills + stamps
     for (var r = 0; r < gridRows; r++) {
       var row = grid[r];
       for (var c = 0; c < row.length; c++) {
-        var pos = this._hexCenterLocal(c, r);
         if (row[c] > 0) {
+          var pos = this._hexCenterLocal(c, r);
           var stamp = getHexStamp(this._styleTier, colors[row[c]], this._stampHeight);
           gc.drawImage(stamp, pos.x - stamp.cssW / 2, pos.y - stamp.cssH / 2, stamp.cssW, stamp.cssH);
-        } else {
-          hexPath(gc, pos.x, pos.y, sCell);
-          gc.fillStyle = THEME.color.bg.board;
-          gc.fill();
-          if (this._tintFill) {
-            gc.fillStyle = this._tintFill;
-            gc.fill();
-          }
         }
       }
     }
-    // Pass 2: batched grid stroke for empty cells
-    gc.beginPath();
-    for (var r2 = 0; r2 < gridRows; r2++) {
-      var row2 = grid[r2];
-      for (var c2 = 0; c2 < row2.length; c2++) {
-        if (row2[c2] === 0) {
-          var gp = this._hexCenterLocal(c2, r2);
-          gc.moveTo(gp.x + sCell * HEX_UNIT_VERTICES[0], gp.y + sCell * HEX_UNIT_VERTICES[1]);
-          for (var vi = 2; vi < 12; vi += 2) {
-            gc.lineTo(gp.x + sCell * HEX_UNIT_VERTICES[vi], gp.y + sCell * HEX_UNIT_VERTICES[vi + 1]);
-          }
-          gc.closePath();
-        }
-      }
-    }
-    gc.strokeStyle = this._gridStroke;
-    gc.lineWidth = this._gridLineWidth;
-    gc.stroke();
   }
 
   _drawWalls() {
