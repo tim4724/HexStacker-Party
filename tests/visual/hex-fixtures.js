@@ -153,6 +153,7 @@ function buildHexAllPiecesGhostState(playerIds, tierLevel) {
     gp.anchorCol = gpl.col;
     gp.anchorRow = gpl.row;
     var gBlocks = gp.getAbsoluteBlocks();
+    // blocks are absolute coords from getAbsoluteBlocks(); x:0/ghostY:0 = no-op offset
     extraGhosts.push({
       typeId: gp.typeId,
       x: 0,

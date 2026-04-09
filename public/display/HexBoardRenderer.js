@@ -31,7 +31,7 @@ class HexBoardRenderer {
     // Pre-compute cell size with apothem-based gap (stable post-construction)
     this._sCell = this.hexSize - cellSize * THEME.size.blockGap * 2 / _SQRT3;
     this._stampHeight = _SQRT3 * this._sCell;
-    this._gridLineWidth = this._stampHeight * THEME.stroke.grid;
+    this._gridLineWidth = Math.max(1.5, this._stampHeight * THEME.stroke.grid);
     this._prevGhostCol = -1;
     this._prevGhostRow = -1;
     this._prevGhostType = -1;
@@ -56,8 +56,63 @@ class HexBoardRenderer {
     // Cached rgba strings (stable between layout recalculations)
     var rgb = this._accentRgb;
     this._tintFill = rgb ? 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + THEME.opacity.tint + ')' : null;
-    this._gridStroke = rgb ? 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + THEME.opacity.grid + ')' : 'rgba(255,255,255,' + THEME.opacity.grid + ')';
+    var gridAlpha = THEME.opacity.grid + (rgb ? (1 - (rgb.r * 0.299 + rgb.g * 0.587 + rgb.b * 0.114) / 255) * 0.08 : 0);
+    this._gridStroke = rgb ? 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + gridAlpha.toFixed(2) + ')' : 'rgba(255,255,255,' + THEME.opacity.grid + ')';
     this._wallStroke = rgb ? 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + THEME.opacity.strong + ')' : 'rgba(255,255,255,' + THEME.opacity.soft + ')';
+
+    // Board background + grid cache (built lazily on first render)
+    this._boardBgCache = null;
+  }
+
+  _buildBoardBgCache() {
+    var dpr = window.devicePixelRatio || 1;
+    var w = Math.ceil(this.boardWidth);
+    var h = Math.ceil(this.boardHeight);
+    var pw = Math.ceil(w * dpr);
+    var ph = Math.ceil(h * dpr);
+    var oc;
+    if (typeof OffscreenCanvas !== 'undefined') oc = new OffscreenCanvas(pw, ph);
+    else { oc = document.createElement('canvas'); oc.width = pw; oc.height = ph; }
+    oc.cssW = w;
+    oc.cssH = h;
+    var gc = oc.getContext('2d');
+    gc.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // 1. Clip to hex outline and fill board background + tint
+    var bgv = this._bgOutlineVerts;
+    var ox = this.x, oy = this.y;
+    gc.save();
+    gc.beginPath();
+    gc.moveTo(bgv[0][0] - ox, bgv[0][1] - oy);
+    for (var i = 1; i < bgv.length; i++) gc.lineTo(bgv[i][0] - ox, bgv[i][1] - oy);
+    gc.closePath();
+    gc.clip();
+    gc.fillStyle = THEME.color.bg.board;
+    gc.fill();
+    if (this._tintFill) {
+      gc.fillStyle = this._tintFill;
+      gc.fill();
+    }
+    gc.restore();
+
+    // 2. Grid lines at full hexSize (cells touch at boundaries, like square mode)
+    var hs = this.hexSize;
+    gc.beginPath();
+    for (var row = 0; row < HEX_VIS_ROWS; row++) {
+      for (var col = 0; col < HEX_COLS_N; col++) {
+        var pos = this._hexCenterLocal(col, row);
+        gc.moveTo(pos.x + hs * HEX_UNIT_VERTICES[0], pos.y + hs * HEX_UNIT_VERTICES[1]);
+        for (var vi = 2; vi < 12; vi += 2) {
+          gc.lineTo(pos.x + hs * HEX_UNIT_VERTICES[vi], pos.y + hs * HEX_UNIT_VERTICES[vi + 1]);
+        }
+        gc.closePath();
+      }
+    }
+    gc.strokeStyle = this._gridStroke;
+    gc.lineWidth = this._gridLineWidth;
+    gc.stroke();
+
+    return oc;
   }
 
   get styleTier() { return this._styleTier; }
@@ -118,39 +173,13 @@ class HexBoardRenderer {
 
     var sCell = this._sCell;
 
-    // 1. Board background — clip to hex outline, fill with bg + tint (like square)
-    ctx.save();
-    var bgv = this._bgOutlineVerts;
-    ctx.beginPath();
-    ctx.moveTo(bgv[0][0], bgv[0][1]);
-    for (var bgi = 1; bgi < bgv.length; bgi++) ctx.lineTo(bgv[bgi][0], bgv[bgi][1]);
-    ctx.closePath();
-    ctx.clip();
-    ctx.fillStyle = THEME.color.bg.board;
-    ctx.fill();
-    if (this._tintFill) {
-      ctx.fillStyle = this._tintFill;
-      ctx.fill();
-    }
-    ctx.restore();
+    // 1. Board background + grid lines (cached, single blit)
+    if (!this._boardBgCache) this._boardBgCache = this._buildBoardBgCache();
+    var bgc = this._boardBgCache;
+    ctx.drawImage(bgc, 0, 0, bgc.width, bgc.height,
+      this.x, this.y, Math.ceil(this.boardWidth), Math.ceil(this.boardHeight));
 
-    // 2. Grid lines — batched stroke for ALL cells (like square)
-    ctx.beginPath();
-    for (var gr = 0; gr < HEX_VIS_ROWS; gr++) {
-      for (var gc2 = 0; gc2 < HEX_COLS_N; gc2++) {
-        var gp2 = this._hexCenter(gc2, gr);
-        ctx.moveTo(gp2.x + sCell * HEX_UNIT_VERTICES[0], gp2.y + sCell * HEX_UNIT_VERTICES[1]);
-        for (var gvi = 2; gvi < 12; gvi += 2) {
-          ctx.lineTo(gp2.x + sCell * HEX_UNIT_VERTICES[gvi], gp2.y + sCell * HEX_UNIT_VERTICES[gvi + 1]);
-        }
-        ctx.closePath();
-      }
-    }
-    ctx.strokeStyle = this._gridStroke;
-    ctx.lineWidth = this._gridLineWidth;
-    ctx.stroke();
-
-    // 3. Filled blocks — cached to offscreen canvas, redrawn only when gridVersion changes
+    // 2. Filled blocks — cached to offscreen canvas, redrawn only when gridVersion changes
     if (playerState.grid) {
       var gv = playerState.gridVersion ?? -1;
       if (gv !== this._cachedGridVersion || newTier !== this._cachedGridTier) {

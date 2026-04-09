@@ -109,7 +109,7 @@ const THEME = Object.freeze({
     tint:      0.06,  // player color surface tints
     subtle:    0.08,  // ghost fills, inner shines, scanlines
     muted:     0.10,  // dot patterns
-    grid:      0.14,  // grid lines
+    grid:      0.18,  // grid lines
     soft:      0.15,  // borders, soft accents
     highlight: 0.22,  // block top highlight
     shadow:    0.25,  // block bottom shadow

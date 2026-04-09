@@ -19,7 +19,8 @@ class BoardRenderer {
     // Cached rgba strings (stable between layout recalculations)
     const rgb = this._accentRgb;
     this._tintFill = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${THEME.opacity.tint})` : null;
-    this._gridStroke = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${THEME.opacity.grid})` : `rgba(255, 255, 255, ${THEME.opacity.grid})`;
+    const gridAlpha = THEME.opacity.grid + (rgb ? (1 - (rgb.r * 0.299 + rgb.g * 0.587 + rgb.b * 0.114) / 255) * 0.08 : 0);
+    this._gridStroke = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${gridAlpha.toFixed(2)})` : `rgba(255, 255, 255, ${THEME.opacity.grid})`;
     this._borderStroke = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${THEME.opacity.strong})` : `rgba(255, 255, 255, ${THEME.opacity.soft})`;
     this._accentRgbStr = rgb ? `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})` : null;
 
