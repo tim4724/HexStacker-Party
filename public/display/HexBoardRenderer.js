@@ -31,7 +31,7 @@ class HexBoardRenderer {
     // Pre-compute cell size with apothem-based gap (stable post-construction)
     this._sCell = this.hexSize - cellSize * THEME.size.blockGap * 2 / _SQRT3;
     this._stampHeight = _SQRT3 * this._sCell;
-    this._gridLineWidth = Math.max(1.5, this._stampHeight * THEME.stroke.grid);
+    this._gridLineWidth = this._stampHeight * THEME.stroke.grid;
     this._prevGhostCol = -1;
     this._prevGhostRow = -1;
     this._prevGhostType = -1;
