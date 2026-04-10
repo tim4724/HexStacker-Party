@@ -92,9 +92,11 @@ class HexUIRenderer extends BaseUIRenderer {
     var baseY = this.boardY;
     var now = timestamp || performance.now();
 
-    // Highlight stripe proportions (matches square mode's top-edge bevel feel)
-    var stripeInset = sCell * 0.08;
-    var stripeH = sCell * 0.16;
+    // Highlight stripe proportions (matches square mode's top-edge bevel feel).
+    // Square uses cellSize * blockGap (~0.03 * cellSize); sCell ≈ 0.54 * cellSize,
+    // so we target a similar absolute thickness via a small fraction of sCell.
+    var stripeInset = sCell * 0.05;
+    var stripeH = sCell * 0.06;
     var halfStripeW = sCell / 2;
 
     try {
@@ -120,15 +122,13 @@ class HexUIRenderer extends BaseUIRenderer {
         ctx.fill();
 
         // Batched highlight stripe along each hex's top flat edge
-        if (highlightAlpha > 0) {
-          ctx.fillStyle = 'rgba(255, 255, 255, ' + highlightAlpha + ')';
-          for (var hRow = effect.rowStart; hRow < effect.rowStart + effect.lines; hRow++) {
-            if (hRow < 0 || hRow >= HexConstants.HEX_VISIBLE_ROWS) continue;
-            var hVisRow = HexConstants.HEX_VISIBLE_ROWS - 1 - hRow;
-            var hCy = baseY + hexH * hVisRow + hexH / 2;
-            var topY = hCy - hexH / 2 + stripeInset;
-            ctx.fillRect(mx - halfStripeW, topY, sCell, stripeH);
-          }
+        ctx.fillStyle = 'rgba(255, 255, 255, ' + highlightAlpha + ')';
+        for (var hRow = effect.rowStart; hRow < effect.rowStart + effect.lines; hRow++) {
+          if (hRow < 0 || hRow >= HexConstants.HEX_VISIBLE_ROWS) continue;
+          var hVisRow = HexConstants.HEX_VISIBLE_ROWS - 1 - hRow;
+          var hCy = baseY + hexH * hVisRow + hexH / 2;
+          var topY = hCy - hexH / 2 + stripeInset;
+          ctx.fillRect(mx - halfStripeW, topY, sCell, stripeH);
         }
       }
     } finally {
