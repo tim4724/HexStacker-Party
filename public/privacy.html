@@ -81,6 +81,28 @@
       background-clip: text;
     }
 
+    .objection {
+      margin-top: 2.5rem;
+      padding: 1.3rem 1.5rem;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent-cyan);
+      border-radius: 6px;
+      animation: fadeUp 0.5s 0.25s ease-out both;
+    }
+
+    .objection h2 {
+      color: var(--text-primary);
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin: 0 0 0.8rem 0;
+    }
+
+    .objection p {
+      margin: 0;
+    }
+
     .footer {
       margin-top: 2.5rem;
       padding-top: 1rem;
@@ -95,17 +117,31 @@
   <div class="privacy-shell">
     <h1 class="gradient-title" data-i18n="privacy_title">PRIVACY NOTICE</h1>
     <dl>
-      <dt data-i18n="privacy_data">data</dt>
-      <dd data-i18n="privacy_data_detail">IP addresses are processed by the web server and the WebSocket relay to serve the site and enable multiplayer communication. They appear in temporary server logs and are not stored persistently or shared with third parties. Processing is based on legitimate interest in operating the service (Art. 6(1)(f) GDPR).</dd>
-      <dt data-i18n="privacy_tracking">tracking</dt>
-      <dd data-i18n="privacy_tracking_detail">No cookies, analytics, or third-party services are used.</dd>
-      <dt data-i18n="privacy_gameplay">gameplay</dt>
-      <dd data-i18n="privacy_gameplay_detail">Player names and inputs are relayed between players during a session and exist only in memory. Nothing is stored.</dd>
-      <dt data-i18n="privacy_contact">contact</dt>
+      <dt data-i18n="privacy_controller">controller</dt>
+      <dd data-i18n="privacy_controller_intro">Controller within the meaning of the GDPR is:</dd>
       <dd>Tim Vogel</dd>
       <dd><a href="mailto:info@couch-games.com">info@couch-games.com</a></dd>
+      <dd><span data-i18n="privacy_postal_address">Postal address:</span> <a href="/imprint" data-i18n="privacy_see_imprint">see imprint</a></dd>
+      <dt data-i18n="privacy_data">data</dt>
+      <dd data-i18n="privacy_data_detail">IP addresses are processed by the web server and the WebSocket relay to serve the site and enable multiplayer communication. They appear in server access logs, which are retained for a maximum of 7 days for security purposes (abuse detection and operational troubleshooting) and then automatically deleted. Logs are not shared with third parties. Processing is based on legitimate interest in operating the service (Art. 6(1)(f) GDPR).</dd>
+      <dt data-i18n="privacy_tracking">tracking</dt>
+      <dd data-i18n="privacy_tracking_detail">No cookies, no analytics, no third-party services, and no tracking-related local storage are used.</dd>
+      <dt data-i18n="privacy_gameplay">gameplay</dt>
+      <dd data-i18n="privacy_gameplay_detail">Player names and inputs are relayed between players during a session and exist only in memory. Nothing is stored. Processing is based on legitimate interest in operating the service (Art. 6(1)(f) GDPR).</dd>
+      <dt data-i18n="privacy_hosting">hosting</dt>
+      <dd data-i18n="privacy_hosting_detail">Processing takes place exclusively on servers operated by the controller within Germany. No processors within the meaning of Art. 28 GDPR are engaged. No personal data is transferred to third countries.</dd>
+      <dt data-i18n="privacy_rights">your rights</dt>
+      <dd data-i18n="privacy_rights_detail">You have the right to access (Art. 15 GDPR), rectification (Art. 16), erasure (Art. 17), restriction of processing (Art. 18), and data portability (Art. 20). To exercise these rights, contact the controller using the e-mail address above. Your separate right to object under Art. 21 GDPR is set out below.</dd>
+      <dt data-i18n="privacy_authority">supervisory authority</dt>
+      <dd data-i18n="privacy_authority_detail">You have the right to lodge a complaint with a data protection supervisory authority (Art. 77 GDPR). The competent authority is: Bayerisches Landesamt für Datenschutzaufsicht (BayLDA), Promenade 18, 91522 Ansbach — lda.bayern.de.</dd>
+      <dt data-i18n="privacy_automated">automated decisions</dt>
+      <dd data-i18n="privacy_automated_detail">No automated decision-making within the meaning of Art. 22 GDPR takes place.</dd>
     </dl>
-    <p class="footer" data-i18n="privacy_updated">last updated march 2026</p>
+    <section class="objection" aria-labelledby="objection-heading">
+      <h2 id="objection-heading" data-i18n="privacy_objection">Right to object</h2>
+      <p data-i18n="privacy_objection_detail">You have the right at any time, on grounds relating to your particular situation, to object to the processing of your personal data which is based on legitimate interest (Art. 6(1)(f) GDPR) — Art. 21(1) GDPR. An informal e-mail to the address in the imprint is sufficient.</p>
+    </section>
+    <p class="footer" data-i18n="privacy_updated">last updated april 2026</p>
   </div>
   <script src="/shared/i18n.js"></script>
   <script src="/shared/i18n-fallback.js"></script>
