@@ -34,8 +34,11 @@ var HEX_PIECES = {
   Z:  [[-1,1],[0,0],[1,0],[2,-1]],
   q:  [[-1,0],[0,0],[1,0],[1,-1]],    // was L — chevron ribbon + right stem
   p:  [[-1,1],[0,0],[1,-1],[-1,0]],   // was J — chevron ribbon + left stem
-  L:  [[-1,1],[0,0],[1,-1],[1,-2]],   // new — 3-diagonal + top-right vertical extension
-  J:  [[1,0],[0,0],[-1,0],[-1,-1]],   // new — 3-diagonal + top-left vertical extension
+  // L and J use different axial axes ((1,-1) and (-1,0) respectively) so that
+  // they render as true visual mirrors in flat-top odd-q — a pure axial q-flip
+  // would produce a steep zigzag instead of the gentle L/J silhouette.
+  L:  [[-1,1],[0,0],[1,-1],[1,-2]],   // new — 3-cell up-right diagonal + top-right vertical extension
+  J:  [[1,0],[0,0],[-1,0],[-1,-1]],   // new — 3-cell up-left diagonal + top-left vertical extension
 };
 
 var KICKS = [[0,0], [-1,0], [1,0], [0,-1], [0,1], [-1,-1], [1,-1], [-1,1], [1,1]];
