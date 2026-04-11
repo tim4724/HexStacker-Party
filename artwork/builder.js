@@ -23,19 +23,31 @@
 
   const PIECE_TYPES = ['Z','I','S','T','L','O','J'];
 
-  // Hex piece definitions (axial coords) — multi-cell pieces, not just singles
+  // Hex piece definitions (axial coords) — multi-cell pieces, not just singles.
+  // Mirrors the v2 game set in server/HexPiece.js (T removed; L and J are the
+  // new 4-chain pieces; q and p are the renamed old L and J).
   const HEX_PIECES = {
-    hT: [[-1,0],[0,0],[1,0],[0,-1]],       // T-shape
-    hO: [[-1,0],[0,0],[0,-1],[1,-1]],       // O-shape (compact zigzag)
-    hL: [[-1,0],[0,0],[1,0],[1,-1]],        // L-shape
-    hI: [[-1,0],[0,0],[1,0],[2,0]],         // I-shape (4 in a line)
-    hS: [[-2,1],[-1,1],[0,0],[1,0]],        // S-shape (wider zigzag)
+    hI: [[-1,0],[0,0],[1,0],[2,0]],       // I — straight
+    hO: [[-1,0],[0,0],[0,-1],[1,-1]],     // O — rhombus
+    hS: [[-2,1],[-1,1],[0,0],[1,0]],      // S — ribbon
+    hZ: [[-1,1],[0,0],[1,0],[2,-1]],      // Z — ribbon (shifted)
+    hq: [[-1,0],[0,0],[1,0],[1,-1]],      // q — chevron ribbon + right stem (was old L)
+    hp: [[-1,1],[0,0],[1,-1],[-1,0]],     // p — chevron ribbon + left stem (was old J)
+    hL: [[-1,1],[0,0],[1,-1],[1,-2]],     // L — up-right diagonal + top-right vertical
+    hJ: [[1,0],[0,0],[-1,0],[-1,-1]],     // J — up-left diagonal + top-left vertical
   };
   const HEX_PIECE_COLORS = {
-    hI: '#EE4444', hT: '#00CED1', hL: '#FFD700', hO: '#7FFF00', hS: '#9B59F0',
+    hI: '#EE4444',  // red
+    hO: '#7FFF00',  // lime
+    hS: '#9B59F0',  // violet
+    hZ: '#FF8C00',  // amber
+    hq: '#FFD700',  // gold
+    hp: '#00CED1',  // teal
+    hL: '#FF1493',  // hot pink
+    hJ: '#3377FF',  // royal blue
   };
   const HEX_PIECE_TYPES = Object.keys(HEX_PIECES);
-  const HEX_SOLO_COLORS = ['#00CED1','#FFD700','#9B59F0','#FF1493'];
+  const HEX_SOLO_COLORS = ['#FFD700','#00CED1','#FF1493','#3377FF'];
 
   // --- Layout presets ---
   // pieces: {x, y, rot} for each of 7 classic pieces
@@ -50,119 +62,119 @@
     // --- CORNERS 2+2 ---
     c2a: {
       pieces: [{x:10,y:15,rot:-10},{x:310,y:430,rot:8}],
-      hexPieces: [{type:'hT',x:340,y:10,size:14},{type:'hS',x:10,y:390,size:14}],
+      hexPieces: [{type:'hL',x:340,y:10,size:14},{type:'hS',x:10,y:390,size:14}],
       hexSolo: [],
     },
     c2b: {
       pieces: [{x:10,y:430,rot:8},{x:310,y:15,rot:-8}],
-      hexPieces: [{type:'hI',x:10,y:10,size:14},{type:'hL',x:330,y:400,size:14}],
+      hexPieces: [{type:'hI',x:10,y:10,size:14},{type:'hq',x:330,y:400,size:14}],
       hexSolo: [],
     },
     // --- CORNERS 3+3 ---
     c3a: {
       pieces: [{x:10,y:15,rot:-10},{x:310,y:15,rot:8},{x:10,y:430,rot:6}],
-      hexPieces: [{type:'hT',x:330,y:400,size:14},{type:'hS',x:10,y:110,size:13},{type:'hI',x:340,y:110,size:12}],
+      hexPieces: [{type:'hL',x:330,y:400,size:14},{type:'hS',x:10,y:110,size:13},{type:'hI',x:340,y:110,size:12}],
       hexSolo: [],
     },
     c3b: {
       pieces: [{x:10,y:15,rot:-8},{x:310,y:430,rot:10},{x:310,y:15,rot:6}],
-      hexPieces: [{type:'hL',x:10,y:400,size:14},{type:'hT',x:10,y:110,size:13},{type:'hF',x:340,y:110,size:12}],
+      hexPieces: [{type:'hq',x:10,y:400,size:14},{type:'hL',x:10,y:110,size:13},{type:'hJ',x:340,y:110,size:12}],
       hexSolo: [],
     },
     // --- CORNERS 4+4 ---
     c4a: {
       pieces: [{x:10,y:15,rot:-10},{x:310,y:15,rot:8},{x:10,y:430,rot:6},{x:310,y:430,rot:-8}],
-      hexPieces: [{type:'hT',x:10,y:110,size:14},{type:'hS',x:340,y:110,size:13},{type:'hL',x:10,y:370,size:12},{type:'hI',x:340,y:370,size:12}],
+      hexPieces: [{type:'hL',x:10,y:110,size:14},{type:'hS',x:340,y:110,size:13},{type:'hq',x:10,y:370,size:12},{type:'hI',x:340,y:370,size:12}],
       hexSolo: [],
     },
     c4b: {
       pieces: [{x:10,y:15,rot:-8},{x:310,y:15,rot:10},{x:10,y:430,rot:8},{x:310,y:430,rot:-6}],
-      hexPieces: [{type:'hI',x:160,y:10,size:14},{type:'hT',x:160,y:410,size:14},{type:'hS',x:10,y:120,size:12},{type:'hL',x:350,y:120,size:12}],
+      hexPieces: [{type:'hI',x:160,y:10,size:14},{type:'hL',x:160,y:410,size:14},{type:'hS',x:10,y:120,size:12},{type:'hq',x:350,y:120,size:12}],
       hexSolo: [],
     },
     c4sym: {
       pieces: [{x:10,y:15,rot:-6},{x:320,y:15,rot:6},{x:10,y:430,rot:6},{x:320,y:430,rot:-6}],
-      hexPieces: [{type:'hT',x:10,y:110,size:14},{type:'hS',x:350,y:110,size:14},{type:'hL',x:10,y:370,size:12},{type:'hI',x:350,y:370,size:12}],
+      hexPieces: [{type:'hL',x:10,y:110,size:14},{type:'hS',x:350,y:110,size:14},{type:'hq',x:10,y:370,size:12},{type:'hI',x:350,y:370,size:12}],
       hexSolo: [],
     },
     // --- CORNERS 5+5 ---
     c5a: {
       pieces: [{x:10,y:15,rot:-10},{x:310,y:15,rot:8},{x:10,y:430,rot:6},{x:310,y:430,rot:-8},{x:155,y:430,rot:4}],
-      hexPieces: [{type:'hT',x:10,y:110,size:14},{type:'hS',x:350,y:110,size:13},{type:'hL',x:155,y:10,size:12},{type:'hI',x:10,y:370,size:12},{type:'hF',x:350,y:370,size:11}],
+      hexPieces: [{type:'hL',x:10,y:110,size:14},{type:'hS',x:350,y:110,size:13},{type:'hq',x:155,y:10,size:12},{type:'hI',x:10,y:370,size:12},{type:'hJ',x:350,y:370,size:11}],
       hexSolo: [],
     },
     c5b: {
       pieces: [{x:10,y:15,rot:-8},{x:310,y:15,rot:10},{x:10,y:430,rot:6},{x:310,y:430,rot:-10},{x:155,y:15,rot:4}],
-      hexPieces: [{type:'hI',x:10,y:110,size:14},{type:'hT',x:350,y:110,size:13},{type:'hS',x:155,y:410,size:12},{type:'hL',x:10,y:370,size:11},{type:'hF',x:350,y:370,size:11}],
+      hexPieces: [{type:'hI',x:10,y:110,size:14},{type:'hL',x:350,y:110,size:13},{type:'hS',x:155,y:410,size:12},{type:'hq',x:10,y:370,size:11},{type:'hJ',x:350,y:370,size:11}],
       hexSolo: [],
     },
     // --- CORNERS 6+6 ---
     c6a: {
       pieces: [{x:10,y:15,rot:-10},{x:175,y:15,rot:4},{x:330,y:15,rot:8},{x:10,y:430,rot:6},{x:175,y:430,rot:-4},{x:330,y:430,rot:-8}],
-      hexPieces: [{type:'hT',x:10,y:105,size:13},{type:'hS',x:175,y:105,size:12},{type:'hL',x:350,y:105,size:12},{type:'hI',x:10,y:370,size:12},{type:'hF',x:175,y:375,size:11},{type:'hT',x:350,y:370,size:11}],
+      hexPieces: [{type:'hL',x:10,y:105,size:13},{type:'hS',x:175,y:105,size:12},{type:'hq',x:350,y:105,size:12},{type:'hI',x:10,y:370,size:12},{type:'hJ',x:175,y:375,size:11},{type:'hL',x:350,y:370,size:11}],
       hexSolo: [],
     },
     c6b: {
       pieces: [{x:10,y:15,rot:-8},{x:330,y:15,rot:8},{x:10,y:430,rot:6},{x:330,y:430,rot:-8},{x:10,y:105,rot:-5},{x:330,y:105,rot:5}],
-      hexPieces: [{type:'hI',x:160,y:5,size:13},{type:'hT',x:160,y:410,size:13},{type:'hS',x:10,y:370,size:12},{type:'hL',x:350,y:370,size:12},{type:'hF',x:160,y:105,size:11},{type:'hS',x:160,y:370,size:11}],
+      hexPieces: [{type:'hI',x:160,y:5,size:13},{type:'hL',x:160,y:410,size:13},{type:'hS',x:10,y:370,size:12},{type:'hq',x:350,y:370,size:12},{type:'hJ',x:160,y:105,size:11},{type:'hS',x:160,y:370,size:11}],
       hexSolo: [],
     },
     // --- CASCADE 2+2 ---
     d2a: {
       pieces: [{x:10,y:15,rot:-5},{x:310,y:430,rot:5}],
-      hexPieces: [{type:'hT',x:340,y:10,size:14},{type:'hS',x:10,y:400,size:14}],
+      hexPieces: [{type:'hL',x:340,y:10,size:14},{type:'hS',x:10,y:400,size:14}],
       hexSolo: [],
     },
     // --- CASCADE 3+3 ---
     d3a: {
       pieces: [{x:10,y:15,rot:-5},{x:110,y:80,rot:-3},{x:310,y:430,rot:5}],
-      hexPieces: [{type:'hT',x:290,y:370,size:14},{type:'hL',x:340,y:10,size:13},{type:'hI',x:10,y:400,size:12}],
+      hexPieces: [{type:'hL',x:290,y:370,size:14},{type:'hq',x:340,y:10,size:13},{type:'hI',x:10,y:400,size:12}],
       hexSolo: [],
     },
     // --- CASCADE 4+4 ---
     d4a: {
       pieces: [{x:10,y:15,rot:-5},{x:110,y:80,rot:-3},{x:290,y:380,rot:3},{x:360,y:430,rot:5}],
-      hexPieces: [{type:'hT',x:340,y:10,size:14},{type:'hS',x:10,y:400,size:13},{type:'hL',x:340,y:110,size:12},{type:'hI',x:10,y:360,size:12}],
+      hexPieces: [{type:'hL',x:340,y:10,size:14},{type:'hS',x:10,y:400,size:13},{type:'hq',x:340,y:110,size:12},{type:'hI',x:10,y:360,size:12}],
       hexSolo: [],
     },
     d4rev: {
       pieces: [{x:310,y:15,rot:5},{x:250,y:80,rot:3},{x:80,y:380,rot:-3},{x:10,y:430,rot:-5}],
-      hexPieces: [{type:'hS',x:10,y:10,size:14},{type:'hT',x:330,y:400,size:13},{type:'hI',x:10,y:110,size:12},{type:'hL',x:340,y:360,size:12}],
+      hexPieces: [{type:'hS',x:10,y:10,size:14},{type:'hL',x:330,y:400,size:13},{type:'hI',x:10,y:110,size:12},{type:'hq',x:340,y:360,size:12}],
       hexSolo: [],
     },
     // --- TOP & BOTTOM 2+2 ---
     tb2a: {
       pieces: [{x:10,y:50,rot:-6},{x:310,y:390,rot:6}],
-      hexPieces: [{type:'hT',x:200,y:45,size:14},{type:'hS',x:170,y:360,size:14}],
+      hexPieces: [{type:'hL',x:200,y:45,size:14},{type:'hS',x:170,y:360,size:14}],
       hexSolo: [],
     },
     // --- TOP & BOTTOM 3+3 ---
     tb3a: {
       pieces: [{x:10,y:50,rot:-8},{x:310,y:50,rot:6},{x:155,y:390,rot:4}],
-      hexPieces: [{type:'hT',x:170,y:45,size:14},{type:'hS',x:10,y:360,size:13},{type:'hI',x:310,y:360,size:12}],
+      hexPieces: [{type:'hL',x:170,y:45,size:14},{type:'hS',x:10,y:360,size:13},{type:'hI',x:310,y:360,size:12}],
       hexSolo: [],
     },
     // --- TOP & BOTTOM 4+4 ---
     tb4a: {
       pieces: [{x:10,y:50,rot:-8},{x:310,y:50,rot:6},{x:10,y:390,rot:6},{x:310,y:390,rot:-8}],
-      hexPieces: [{type:'hT',x:170,y:45,size:14},{type:'hS',x:170,y:360,size:14},{type:'hL',x:430,y:50,size:12},{type:'hI',x:430,y:360,size:12}],
+      hexPieces: [{type:'hL',x:170,y:45,size:14},{type:'hS',x:170,y:360,size:14},{type:'hq',x:430,y:50,size:12},{type:'hI',x:430,y:360,size:12}],
       hexSolo: [],
     },
     tb4b: {
       pieces: [{x:10,y:50,rot:-6},{x:220,y:50,rot:4},{x:10,y:390,rot:6},{x:220,y:390,rot:-4}],
-      hexPieces: [{type:'hI',x:370,y:45,size:14},{type:'hT',x:370,y:360,size:14},{type:'hS',x:130,y:45,size:12},{type:'hL',x:130,y:360,size:12}],
+      hexPieces: [{type:'hI',x:370,y:45,size:14},{type:'hL',x:370,y:360,size:14},{type:'hS',x:130,y:45,size:12},{type:'hq',x:130,y:360,size:12}],
       hexSolo: [],
     },
     // --- TOP & BOTTOM 5+5 ---
     tb5a: {
       pieces: [{x:10,y:50,rot:-8},{x:175,y:50,rot:4},{x:340,y:50,rot:8},{x:10,y:390,rot:6},{x:340,y:390,rot:-6}],
-      hexPieces: [{type:'hT',x:10,y:130,size:14},{type:'hS',x:350,y:130,size:13},{type:'hI',x:170,y:360,size:13},{type:'hL',x:10,y:340,size:12},{type:'hF',x:350,y:340,size:11}],
+      hexPieces: [{type:'hL',x:10,y:130,size:14},{type:'hS',x:350,y:130,size:13},{type:'hI',x:170,y:360,size:13},{type:'hq',x:10,y:340,size:12},{type:'hJ',x:350,y:340,size:11}],
       hexSolo: [],
     },
     // --- TOP & BOTTOM 6+6 ---
     tb6a: {
       pieces: [{x:10,y:50,rot:-8},{x:175,y:50,rot:4},{x:340,y:50,rot:8},{x:10,y:390,rot:6},{x:175,y:390,rot:-4},{x:340,y:390,rot:-8}],
-      hexPieces: [{type:'hT',x:10,y:130,size:13},{type:'hS',x:175,y:130,size:12},{type:'hL',x:350,y:130,size:12},{type:'hI',x:10,y:340,size:12},{type:'hF',x:175,y:340,size:11},{type:'hT',x:350,y:340,size:11}],
+      hexPieces: [{type:'hL',x:10,y:130,size:13},{type:'hS',x:175,y:130,size:12},{type:'hq',x:350,y:130,size:12},{type:'hI',x:10,y:340,size:12},{type:'hJ',x:175,y:340,size:11},{type:'hL',x:350,y:340,size:11}],
       hexSolo: [],
     },
   };
