@@ -85,6 +85,7 @@ class HexUIRenderer extends BaseUIRenderer {
 
   _drawGarbageEffects(effects, timestamp, getColor, highlightAlpha) {
     if (!Array.isArray(effects) || effects.length === 0) return;
+    if (highlightAlpha == null) highlightAlpha = 0;
     var sCell = this._sCell;
     var ctx = this.ctx;
     var mx = this._meterX;
