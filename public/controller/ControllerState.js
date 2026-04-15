@@ -67,6 +67,11 @@ function syncViewportLayout() {
     if (welcomeBg) {
       welcomeBg.resize(metrics.width, metrics.height);
     }
+    // iOS Safari doesn't support interactive-widget=resizes-content,
+    // so the CSS media query won't fire. Use visualViewport as fallback.
+    var isLandscape = metrics.width > metrics.height;
+    var keyboardOpen = isLandscape && metrics.height < 220;
+    document.documentElement.classList.toggle('keyboard-compact', keyboardOpen);
   });
 }
 
