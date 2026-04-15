@@ -52,7 +52,7 @@ html, body {
   padding:
     max(env(safe-area-inset-top), 8px)
     max(env(safe-area-inset-right), 12px)
-    max(env(safe-area-inset-bottom), 16px)
+    calc(env(safe-area-inset-bottom) + 16px)
     max(env(safe-area-inset-left), 12px);
   background: none;
 }
@@ -126,7 +126,7 @@ html, body {
 
 .legal-links {
   position: absolute;
-  bottom: calc(max(env(safe-area-inset-bottom), 0px) + 16px);
+  bottom: calc(env(safe-area-inset-bottom) + 16px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
