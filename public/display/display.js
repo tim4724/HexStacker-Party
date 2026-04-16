@@ -97,7 +97,11 @@ if (navigator.share) {
       title: 'Stacker Party',
       text: 'Play Stacker Party with your friends',
       url: 'https://couch-games.com'
-    }).catch(function() { /* user cancelled or share failed */ });
+    }).catch(function(err) {
+      // AbortError = user cancelled the sheet — do nothing.
+      // Any other error = share was blocked — fall back to normal navigation.
+      if (err && err.name !== 'AbortError') window.open(link.href, '_blank');
+    });
   });
 }
 

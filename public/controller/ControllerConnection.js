@@ -53,6 +53,8 @@ function connect() {
     stopPing();
     if (gameCancelled) return;
     if (meta && meta.replaced) {
+      // keepClientId=true: the newer tab that evicted us now owns the
+      // localStorage clientId — clearing it would orphan that session.
       showEndScreen(undefined, true);
       return;
     }

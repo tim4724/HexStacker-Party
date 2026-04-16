@@ -607,7 +607,9 @@ html, body {
 
 /* ============================================
    End Screen visibility (mobile devices viewing display URL)
-   Styles defined in /shared/end-screen.css
+   Styles defined in /shared/end-screen.css.
+   ID selector (1,0,0) intentionally beats .end-screen.hidden (0,2,0)
+   so the element shows on mobile even with the `hidden` class present.
    ============================================ */
 @media (max-width: 768px) and (orientation: portrait) {
   #end-screen { display: flex; }
