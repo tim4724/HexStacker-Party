@@ -77,12 +77,34 @@ document.addEventListener('visibilitychange', function() {
   }
 });
 
-// --- Mobile Hint ---
-var mobileHintBtn = document.getElementById('mobile-hint-btn');
-if (mobileHintBtn) {
-  mobileHintBtn.addEventListener('click', function() {
-    var hint = document.getElementById('mobile-hint');
-    if (hint) hint.remove();
+// --- End Screen (mobile hint) ---
+// Note: on mobile the display.css media query (#end-screen { display: flex })
+// overrides the .hidden class via higher specificity, so dismissing the hint
+// requires removing the element rather than just adding `.hidden`.
+var endContinueBtn = document.getElementById('end-continue-btn');
+if (endContinueBtn) {
+  endContinueBtn.addEventListener('click', function() {
+    var endScreen = document.getElementById('end-screen');
+    if (endScreen) endScreen.remove();
+  });
+}
+
+// Share couch-games.com via the Web Share API when the link is tapped on mobile.
+// Delegated on document so i18n re-translations don't discard the listener.
+if (navigator.share) {
+  document.addEventListener('click', function(e) {
+    var link = e.target.closest && e.target.closest('#end-step-1-link');
+    if (!link) return;
+    e.preventDefault();
+    navigator.share({
+      title: 'Stacker Party',
+      text: 'Play Stacker Party with your friends',
+      url: 'https://couch-games.com'
+    }).catch(function(err) {
+      // AbortError = user cancelled the sheet — do nothing.
+      // Any other error = share was blocked — fall back to normal navigation.
+      if (err && err.name !== 'AbortError') window.open(link.href, '_blank');
+    });
   });
 }
 
@@ -138,6 +160,18 @@ startBtn.addEventListener('click', function() {
   if (startBtn.disabled) return;
   initMusic();
   startGame();
+});
+
+// Goodbye to controllers on intentional close/navigate-away so they
+// immediately see the end screen instead of a "reconnecting" overlay.
+// Best-effort: pagehide also fires on bfcache freeze (iOS Safari) where
+// the WebSocket send may not complete before the page is frozen.
+// Controllers fall back to the existing reconnect overlay in that case.
+window.addEventListener('pagehide', function() {
+  if (party) {
+    try { party.broadcast({ type: MSG.DISPLAY_CLOSED }); } catch (_) {}
+    party.close();
+  }
 });
 
 // --- Game mode selector ---

@@ -4,6 +4,7 @@
 
 const { chromium } = require('playwright');
 const path = require('path');
+const fs = require('fs');
 // fixtures no longer needed — banner uses its own buildBannerGameState()
 const { PLAYER_COLORS } = require('../public/shared/theme.js');
 const { HexPiece } = require('../server/HexPiece.js');
@@ -251,8 +252,13 @@ function buildHexBannerGameState() {
 
 const SOCIAL_WIDTH = 1280;
 const SOCIAL_HEIGHT = 640;
-const HEADER_WIDTH = 1280;
-const HEADER_HEIGHT = 540;
+
+// Gameplay banner variants — same scene, different aspect ratios.
+const GAMEPLAY_VARIANTS = [
+  { name: 'gameplay-2x1.png',  width: 1280, height: 640, phoneBottom: '18px', phoneHeight: '255px' },
+  { name: 'gameplay-21x9.png', width: 1280, height: 640, phoneBottom: '18px', phoneHeight: '255px', clipHeight: 540 },
+  { name: 'gameplay-16x9.png', width: 1280, height: 720, phoneBottom: '18px', phoneHeight: '255px', displayTop: '40px', pillTop: '30px' },
+];
 
 async function waitForFont(page) {
   await page.evaluate(() => document.fonts.ready);
@@ -342,8 +348,8 @@ async function generate() {
   await roomPage.goto(BASE_URL);
   await waitForFont(roomPage);
 
-  const mobileHint = roomPage.locator('#mobile-hint button');
-  if (await mobileHint.isVisible()) await mobileHint.click();
+  const continueAnyway = roomPage.locator('#end-continue-btn');
+  if (await continueAnyway.isVisible()) await continueAnyway.click();
 
   await roomPage.click('#new-game-btn');
   await roomPage.waitForSelector('#lobby-screen:not(.hidden)', { timeout: 10000 });
@@ -470,21 +476,19 @@ async function generate() {
     console.log(`  ${outPath} (${width}x${height} @2x)`);
   }
 
-  await renderBanner(SOCIAL_WIDTH, SOCIAL_HEIGHT, 'github-preview.png', {
-    phoneBottom: '18px',
-    phoneHeight: '255px'
-  });
-  await renderBanner(SOCIAL_WIDTH, SOCIAL_HEIGHT, 'readme-header.png', {
-    phoneBottom: '18px',
-    phoneHeight: '255px',
-    clipHeight: HEADER_HEIGHT
-  });
-  await renderBanner(1280, 720, 'airconsole-screenshot.png', {
-    phoneBottom: '18px',
-    phoneHeight: '255px',
-    displayTop: '40px',
-    pillTop: '30px'
-  });
+  for (const v of GAMEPLAY_VARIANTS) {
+    await renderBanner(v.width, v.height, v.name, v);
+  }
+
+  // Mirror the 16:9 gameplay banner into public/artwork/ so the end screen
+  // can serve it via HTTP.
+  const publicDir = path.resolve(BANNER_DIR, '..', 'public', 'artwork');
+  fs.mkdirSync(publicDir, { recursive: true });
+  fs.copyFileSync(
+    path.resolve(BANNER_DIR, 'gameplay-16x9.png'),
+    path.resolve(publicDir, 'gameplay-16x9.png')
+  );
+  console.log(`  ${path.resolve(publicDir, 'gameplay-16x9.png')} (copied for end screen)`);
 
   // --- Phase 4: Name banner (title + falling pieces, no screenshots needed) ---
   console.log('Generating name banner...');

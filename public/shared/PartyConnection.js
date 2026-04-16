@@ -26,7 +26,7 @@ class PartyConnection {
 
     // Callbacks
     this.onOpen = null;        // () => void
-    this.onClose = null;       // (attempt: number, maxAttempts: number) => void
+    this.onClose = null;       // (attempt: number, maxAttempts: number, meta?: {replaced: boolean}) => void
     this.onError = null;       // () => void
     this.onMessage = null;     // (from: string, data: object) => void
     this.onProtocol = null;    // (type: string, msg: object) => void
@@ -56,8 +56,14 @@ class PartyConnection {
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       if (this.ws !== ws) return; // stale — already replaced by reconnectNow
+      if (event && event.code === 4000) {
+        // Relay evicted us because another client joined with the same clientId
+        this._shouldReconnect = false;
+        if (this.onClose) this.onClose(0, 0, { replaced: true });
+        return;
+      }
       this.reconnectAttempt++;
       if (this.onClose) this.onClose(this.reconnectAttempt, this.maxReconnectAttempts);
       if (this._shouldReconnect && this.reconnectAttempt <= this.maxReconnectAttempts) {

@@ -50,11 +50,12 @@ var LOCALES = {
 
     // Screens
     paused: 'PAUSED',
-    open_larger_screen: 'Open on a Larger Screen',
-    mobile_hint_detail: 'This display is designed for TVs and computers. Use your phone as a controller instead.',
     room_not_found: 'Room Not Found',
+    game_ended: 'Game ended',
     game_full: 'Room is Full',
-    scan_qr_to_join: 'Scan Game QR code to join',
+    end_step_1: 'Open <a href="https://couch-games.com" id="end-step-1-link" class="end-link">couch-games.com</a> on a larger screen',
+    end_step_2: 'Scan the QR code to use your phone as controller',
+    end_how_to_play: 'How to play',
     game_in_progress: 'Game in progress. Please wait for New Game.',
 
     // Results
@@ -139,10 +140,11 @@ var LOCALES = {
     attempt_n_of_m: 'Versuch {attempt} von {max}',
     display_reconnecting: 'Display verbindet sich neu...',
     bad_connection: 'Schlechte Verbindung',
-    paused: 'PAUSIERT', open_larger_screen: 'Auf größerem Bildschirm öffnen',
-    mobile_hint_detail: 'Dieses Display ist für Fernseher und Computer. Benutze dein Smartphone als Controller.',
-    room_not_found: 'Raum nicht gefunden', game_full: 'Raum ist voll',
-    scan_qr_to_join: 'QR-Code scannen zum Beitreten',
+    paused: 'PAUSIERT', room_not_found: 'Raum nicht gefunden', game_full: 'Raum ist voll',
+    game_ended: 'Spiel beendet',
+    end_step_1: 'Öffne <a href="https://couch-games.com" id="end-step-1-link" class="end-link">couch-games.com</a> auf einem größeren Bildschirm',
+    end_step_2: 'Scanne den QR-Code, um dein Handy als Controller zu nutzen',
+    end_how_to_play: 'So wird gespielt',
     game_in_progress: 'Spiel läuft. Bitte auf neues Spiel warten.',
     n_lines: { one: '{count} Zeile', other: '{count} Zeilen' },
     level_n: 'Level {level}', player: 'Spieler', level_heading: 'Level',
@@ -202,10 +204,11 @@ var LOCALES = {
     attempt_n_of_m: 'Tentative {attempt} sur {max}',
     display_reconnecting: 'Écran en reconnexion...',
     bad_connection: 'Mauvaise connexion',
-    paused: 'EN PAUSE', open_larger_screen: 'Ouvrir sur un plus grand écran',
-    mobile_hint_detail: 'Cet écran est conçu pour les téléviseurs et ordinateurs. Utilisez votre téléphone comme manette.',
-    room_not_found: 'Salle introuvable', game_full: 'Salle pleine',
-    scan_qr_to_join: 'Scanner le QR code pour rejoindre',
+    paused: 'EN PAUSE', room_not_found: 'Salle introuvable', game_full: 'Salle pleine',
+    game_ended: 'Partie terminée',
+    end_step_1: 'Ouvre <a href="https://couch-games.com" id="end-step-1-link" class="end-link">couch-games.com</a> sur un plus grand écran',
+    end_step_2: 'Scanne le QR code pour utiliser ton téléphone comme manette',
+    end_how_to_play: 'Comment jouer',
     game_in_progress: 'Partie en cours. Veuillez attendre une nouvelle partie.',
     n_lines: { one: '{count} ligne', other: '{count} lignes' },
     level_n: 'Niveau {level}', player: 'Joueur', level_heading: 'Niveau',
@@ -237,10 +240,11 @@ var LOCALES = {
     attempt_n_of_m: 'Tentativa {attempt} de {max}',
     display_reconnecting: 'Tela reconectando...',
     bad_connection: 'Conexão ruim',
-    paused: 'PAUSADO', open_larger_screen: 'Abra em uma tela maior',
-    mobile_hint_detail: 'Este display é para TVs e computadores. Use seu celular como controle.',
-    room_not_found: 'Sala não encontrada', game_full: 'Sala cheia',
-    scan_qr_to_join: 'Escaneie o QR code para entrar',
+    paused: 'PAUSADO', room_not_found: 'Sala não encontrada', game_full: 'Sala cheia',
+    game_ended: 'Jogo encerrado',
+    end_step_1: 'Abra <a href="https://couch-games.com" id="end-step-1-link" class="end-link">couch-games.com</a> em uma tela maior',
+    end_step_2: 'Escaneie o QR code para usar seu celular como controle',
+    end_how_to_play: 'Como jogar',
     game_in_progress: 'Jogo em andamento. Aguarde um novo jogo.',
     n_lines: { one: '{count} linha', other: '{count} linhas' },
     level_n: 'Nível {level}', player: 'Jogador', level_heading: 'Nível',
@@ -272,10 +276,11 @@ var LOCALES = {
     attempt_n_of_m: 'Intento {attempt} de {max}',
     display_reconnecting: 'Pantalla reconectando...',
     bad_connection: 'Mala conexión',
-    paused: 'PAUSA', open_larger_screen: 'Abrir en una pantalla más grande',
-    mobile_hint_detail: 'Esta pantalla es para TVs y computadoras. Usa tu teléfono como control.',
-    room_not_found: 'Sala no encontrada', game_full: 'Sala llena',
-    scan_qr_to_join: 'Escanea el código QR para unirte',
+    paused: 'PAUSA', room_not_found: 'Sala no encontrada', game_full: 'Sala llena',
+    game_ended: 'Partida finalizada',
+    end_step_1: 'Abre <a href="https://couch-games.com" id="end-step-1-link" class="end-link">couch-games.com</a> en una pantalla más grande',
+    end_step_2: 'Escanea el código QR para usar tu teléfono como control',
+    end_how_to_play: 'Cómo jugar',
     game_in_progress: 'Partida en curso. Espera a una nueva partida.',
     n_lines: { one: '{count} línea', other: '{count} líneas' },
     level_n: 'Nivel {level}', player: 'Jugador', level_heading: 'Nivel',
@@ -307,10 +312,11 @@ var LOCALES = {
     attempt_n_of_m: '第 {attempt} 次尝试，共 {max} 次',
     display_reconnecting: '显示屏正在重连...',
     bad_connection: '连接不佳',
-    paused: '已暂停', open_larger_screen: '请在大屏幕上打开',
-    mobile_hint_detail: '此画面适用于电视和电脑。请用手机作为控制器。',
-    room_not_found: '房间未找到', game_full: '房间已满',
-    scan_qr_to_join: '扫描二维码加入游戏',
+    paused: '已暂停', room_not_found: '房间未找到', game_full: '房间已满',
+    game_ended: '游戏已结束',
+    end_step_1: '在更大的屏幕上打开 <a href="https://couch-games.com" id="end-step-1-link" class="end-link">couch-games.com</a>',
+    end_step_2: '扫描二维码，将手机用作控制器',
+    end_how_to_play: '游戏方法',
     game_in_progress: '游戏进行中，请等待新游戏开始。',
     n_lines: { other: '{count} 行' },
     level_n: '等级 {level}', player: '玩家', level_heading: '等级',
@@ -341,10 +347,11 @@ var LOCALES = {
     attempt_n_of_m: '再試行 {attempt}/{max}',
     display_reconnecting: 'ディスプレイ再接続中...',
     bad_connection: '接続不良',
-    paused: '一時停止', open_larger_screen: '大きな画面で開いてください',
-    mobile_hint_detail: 'この画面はテレビやパソコン用です。スマートフォンをコントローラーとして使用してください。',
-    room_not_found: 'ルームが見つかりません', game_full: 'ルームが満員です',
-    scan_qr_to_join: 'QRコードをスキャンして参加',
+    paused: '一時停止', room_not_found: 'ルームが見つかりません', game_full: 'ルームが満員です',
+    game_ended: 'ゲーム終了',
+    end_step_1: 'より大きな画面で <a href="https://couch-games.com" id="end-step-1-link" class="end-link">couch-games.com</a> を開く',
+    end_step_2: 'QRコードをスキャンして、スマートフォンをコントローラーとして使用',
+    end_how_to_play: '遊び方',
     game_in_progress: 'ゲーム進行中です。新しいゲームをお待ちください。',
     n_lines: { other: '{count}ライン' },
     level_n: 'レベル {level}', player: 'プレイヤー', level_heading: 'レベル',
@@ -376,10 +383,11 @@ var LOCALES = {
     attempt_n_of_m: '시도 {attempt}/{max}',
     display_reconnecting: '디스플레이 재연결 중...',
     bad_connection: '연결 불량',
-    paused: '일시정지', open_larger_screen: '큰 화면에서 열어주세요',
-    mobile_hint_detail: '이 화면은 TV와 컴퓨터용입니다. 휴대폰을 컨트롤러로 사용하세요.',
-    room_not_found: '방을 찾을 수 없습니다', game_full: '방이 가득 찼습니다',
-    scan_qr_to_join: 'QR 코드를 스캔하여 참가',
+    paused: '일시정지', room_not_found: '방을 찾을 수 없습니다', game_full: '방이 가득 찼습니다',
+    game_ended: '게임 종료',
+    end_step_1: '더 큰 화면에서 <a href="https://couch-games.com" id="end-step-1-link" class="end-link">couch-games.com</a> 열기',
+    end_step_2: 'QR 코드를 스캔하여 휴대폰을 컨트롤러로 사용하세요',
+    end_how_to_play: '플레이 방법',
     game_in_progress: '게임 진행 중입니다. 새 게임을 기다려주세요.',
     n_lines: { other: '{count}줄' },
     level_n: '레벨 {level}', player: '플레이어', level_heading: '레벨',
@@ -413,10 +421,11 @@ var LOCALES = {
     attempt_n_of_m: 'Попытка {attempt} из {max}',
     display_reconnecting: 'Дисплей переподключается...',
     bad_connection: 'Плохое соединение',
-    paused: 'ПАУЗА', open_larger_screen: 'Откройте на большом экране',
-    mobile_hint_detail: 'Этот экран предназначен для ТВ и компьютеров. Используйте телефон как контроллер.',
-    room_not_found: 'Комната не найдена', game_full: 'Комната заполнена',
-    scan_qr_to_join: 'Сканируйте QR-код для входа',
+    paused: 'ПАУЗА', room_not_found: 'Комната не найдена', game_full: 'Комната заполнена',
+    game_ended: 'Игра завершена',
+    end_step_1: 'Откройте <a href="https://couch-games.com" id="end-step-1-link" class="end-link">couch-games.com</a> на большом экране',
+    end_step_2: 'Отсканируйте QR-код, чтобы использовать телефон как контроллер',
+    end_how_to_play: 'Как играть',
     game_in_progress: 'Игра идёт. Дождитесь новой игры.',
     n_lines: {
       one: '{count} линия', few: '{count} линии',
@@ -451,10 +460,11 @@ var LOCALES = {
     attempt_n_of_m: 'Tentativo {attempt} di {max}',
     display_reconnecting: 'Display in riconnessione...',
     bad_connection: 'Connessione scarsa',
-    paused: 'IN PAUSA', open_larger_screen: 'Apri su uno schermo più grande',
-    mobile_hint_detail: 'Questo display è per TV e computer. Usa il telefono come controller.',
-    room_not_found: 'Stanza non trovata', game_full: 'Stanza piena',
-    scan_qr_to_join: 'Scansiona il QR code per unirti',
+    paused: 'IN PAUSA', room_not_found: 'Stanza non trovata', game_full: 'Stanza piena',
+    game_ended: 'Partita terminata',
+    end_step_1: 'Apri <a href="https://couch-games.com" id="end-step-1-link" class="end-link">couch-games.com</a> su uno schermo più grande',
+    end_step_2: 'Scansiona il QR code per usare il telefono come controller',
+    end_how_to_play: 'Come giocare',
     game_in_progress: 'Partita in corso. Attendi una nuova partita.',
     n_lines: { one: '{count} linea', other: '{count} linee' },
     level_n: 'Livello {level}', player: 'Giocatore', level_heading: 'Livello',
@@ -486,10 +496,11 @@ var LOCALES = {
     attempt_n_of_m: 'Deneme {attempt}/{max}',
     display_reconnecting: 'Ekran yeniden bağlanıyor...',
     bad_connection: 'Kötü bağlantı',
-    paused: 'DURAKLATILDI', open_larger_screen: 'Daha büyük bir ekranda aç',
-    mobile_hint_detail: 'Bu ekran TV ve bilgisayarlar için tasarlandı. Telefonunu kumanda olarak kullan.',
-    room_not_found: 'Oda bulunamadı', game_full: 'Oda dolu',
-    scan_qr_to_join: 'Katılmak için QR kodu tara',
+    paused: 'DURAKLATILDI', room_not_found: 'Oda bulunamadı', game_full: 'Oda dolu',
+    game_ended: 'Oyun sona erdi',
+    end_step_1: '<a href="https://couch-games.com" id="end-step-1-link" class="end-link">couch-games.com</a> adresini daha büyük bir ekranda aç',
+    end_step_2: 'Telefonunu kumanda olarak kullanmak için QR kodu tara',
+    end_how_to_play: 'Nasıl oynanır',
     game_in_progress: 'Oyun devam ediyor. Yeni oyunu bekle.',
     n_lines: { one: '{count} satır', other: '{count} satır' },
     level_n: 'Seviye {level}', player: 'Oyuncu', level_heading: 'Seviye',
@@ -594,6 +605,13 @@ function tOrdinal(n) {
 /**
  * Translate all static HTML elements with data-i18n, data-i18n-placeholder,
  * or data-i18n-title attributes.
+ *
+ * SECURITY: data-i18n-html renders the locale string as HTML via innerHTML.
+ * It is ONLY safe because locale strings are hardcoded developer content in
+ * this file. Do NOT pass user input, server-provided strings, or any
+ * untrusted content through a data-i18n-html key — doing so is XSS. Prefer
+ * data-i18n (uses textContent) for any string that could include external
+ * data, and keep the set of data-i18n-html keys minimal.
  */
 function translatePage() {
   if (typeof document === 'undefined') return;
@@ -606,6 +624,13 @@ function translatePage() {
   var phs = document.querySelectorAll('[data-i18n-placeholder]');
   for (var j = 0; j < phs.length; j++) {
     phs[j].placeholder = t(phs[j].getAttribute('data-i18n-placeholder'));
+  }
+
+  // data-i18n-html renders the locale string as HTML. Only use for trusted
+  // locale content — never pass user input through this attribute.
+  var htmlEls = document.querySelectorAll('[data-i18n-html]');
+  for (var h = 0; h < htmlEls.length; h++) {
+    htmlEls[h].innerHTML = t(htmlEls[h].getAttribute('data-i18n-html'));
   }
 
   var titleEl = document.querySelector('title[data-i18n-title]');

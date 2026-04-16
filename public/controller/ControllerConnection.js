@@ -33,7 +33,13 @@ function connect() {
         }
       }
     } else if (type === 'error') {
-      showRoomGone();
+      if (msg.message === 'Room not found') {
+        showEndScreen('room_not_found');
+      } else if (msg.message === 'Room is full') {
+        showEndScreen('game_full');
+      } else {
+        showEndScreen();
+      }
     }
   };
 
@@ -43,9 +49,15 @@ function connect() {
     }
   };
 
-  party.onClose = function (attempt, maxAttempts) {
+  party.onClose = function (attempt, maxAttempts, meta) {
     stopPing();
     if (gameCancelled) return;
+    if (meta && meta.replaced) {
+      // keepClientId=true: the newer tab that evicted us now owns the
+      // localStorage clientId — clearing it would orphan that session.
+      showEndScreen(undefined, true);
+      return;
+    }
     if (currentScreen !== 'game') return;
     clearTimeout(disconnectedTimer);
 
@@ -129,6 +141,7 @@ function performDisconnect() {
   var qs = params.toString();
   history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
   rejoinId = null;
+  try { localStorage.removeItem('clientId_' + roomCode); } catch (e) { /* iframe sandbox */ }
   playerColor = null;
   gameCancelled = false;
   // Prefill from the persisted user-typed name (localStorage is the single
@@ -142,37 +155,35 @@ function performDisconnect() {
   nameInput.disabled = false;
   nameStatusText.textContent = '';
   nameStatusDetail.textContent = '';
-  roomGoneMessage.classList.add('hidden');
   reconnectOverlay.classList.add('hidden');
   showScreen('name');
   nameInput.focus();
 }
 
-function showRoomGone(heading) {
-  try { if (roomCode) sessionStorage.removeItem('clientId_' + roomCode); } catch (e) { /* iframe sandbox */ }
-  gameCancelled = true;
-  if (party) party.close();
-  nameForm.classList.add('hidden');
-  nameJoinBtn.classList.add('hidden');
-  nameStatusText.textContent = '';
-  nameStatusDetail.textContent = '';
-  roomGoneHeading.textContent = heading || t('room_not_found');
-  roomGoneDetail.textContent = t('scan_qr_to_join');
-  roomGoneMessage.classList.remove('hidden');
-  showScreen('name');
-}
-
-function showErrorState(heading, detail) {
-  try { sessionStorage.removeItem('clientId_' + roomCode); } catch (e) { /* iframe sandbox */ }
+function showEndScreen(toastKey, keepClientId) {
+  // Guard against double-invocation (e.g. relay close + DISPLAY_CLOSED in
+  // flight): don't reset the toast timer or re-null party.
+  if (gameCancelled) return;
+  // Tab-replacement path (keepClientId=true) must preserve localStorage —
+  // the evicting tab now owns that identity.
+  if (!keepClientId) {
+    try { localStorage.removeItem('clientId_' + roomCode); } catch (e) { /* iframe sandbox */ }
+  }
   gameCancelled = true;
   stopPing();
+  if (party) { party.close(); party = null; }
 
-  nameJoinBtn.disabled = false;
-  nameJoinBtn.textContent = t('join');
-  nameInput.disabled = false;
-  roomGoneMessage.classList.add('hidden');
-
-  nameStatusText.textContent = heading;
-  nameStatusDetail.textContent = detail || '';
-  showScreen('name');
+  if (toastKey) {
+    endToast.textContent = t(toastKey);
+    endToast.classList.remove('hidden');
+    endToast.removeAttribute('aria-hidden');
+    setTimeout(function () {
+      endToast.classList.add('hidden');
+      endToast.setAttribute('aria-hidden', 'true');
+    }, 5000);
+  } else {
+    endToast.classList.add('hidden');
+    endToast.setAttribute('aria-hidden', 'true');
+  }
+  showScreen('end');
 }

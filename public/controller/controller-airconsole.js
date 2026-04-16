@@ -28,26 +28,16 @@ airconsole.onReady = function(code) {
 // is /controller.html which gets parsed as roomCode="controller.html".
 // We can't use history.replaceState because it breaks AirConsole's SDK
 // location matching (isDeviceInSameLocation_ compares URLs).
-// Instead, pre-set roomCode and override showRoomGone to be a no-op.
+// Instead, pre-set roomCode and override showEndScreen to surface errors
+// via the AirConsole status overlay instead of the end screen.
 // controller.js will overwrite roomCode with "controller.html" — that's fine,
 // we just need to ensure the if(roomCode) block executes.
-// AirConsole has no room concept — showRoomGone would show a "Room Not Found"
-// error when controller.js can't find a room code in the URL. Safe to silence
-// unless a specific message is passed (e.g. "Game is full").
-showRoomGone = function(heading) {
-  if (heading && _acStatusOverlay) {
-    _acStatusOverlay.textContent = heading;
-    _acStatusOverlay.classList.remove('hidden');
-  }
-};
 
 // Pre-set clientId (adapter maps real AirConsole device IDs at message time)
 clientId = 'ac_controller';
 
-// Force hadStoredId so controller.js auto-connects on load (skips name screen).
-// controller.js parses location.pathname to get roomCode and checks
-// sessionStorage['clientId_' + roomCode]. We pre-set that key here.
-try { sessionStorage.setItem('clientId_' + (location.pathname.split('/').filter(Boolean)[0] || 'controller.html'), clientId); } catch (e) { /* iframe sandbox */ }
+// Skip the name screen — AirConsole manages identity via the SDK.
+skipNameScreen = true;
 
 // Replace PartyConnection with a factory that returns AirConsoleAdapter.
 PartyConnection = function() {
@@ -90,11 +80,18 @@ showScreen = function(name) {
   }
 };
 
-// Override showErrorState to show errors in our overlay instead of the hidden name screen
-showErrorState = function(heading, detail) {
+// Override showEndScreen to surface errors via the AirConsole status overlay
+// instead of the end screen (AirConsole has its own home/lobby navigation).
+// Still clear game state so stale incoming messages can't re-trigger game logic.
+// keepClientId (second arg) is deliberately ignored — AirConsole manages
+// device identity via its SDK, not via localStorage. party.close() is also
+// skipped because the AirConsole adapter's lifecycle is owned by the SDK.
+showEndScreen = function(toastKey /*, keepClientId */) {
+  gameCancelled = true;
+  stopPing();
   if (_acStatusOverlay) {
-    _acStatusOverlay.textContent = detail || heading || 'Error';
-    _acStatusOverlay.classList.remove('hidden');
+    _acStatusOverlay.textContent = toastKey ? t(toastKey) : '';
+    _acStatusOverlay.classList.toggle('hidden', !toastKey);
   }
 };
 

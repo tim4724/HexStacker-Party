@@ -105,7 +105,7 @@ async function createRoom(page) {
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto('/?test=1', { waitUntil: 'networkidle' });
   await waitForFont(page);
-  const continueAnyway = page.locator('#mobile-hint button');
+  const continueAnyway = page.locator('#end-continue-btn');
   if (await continueAnyway.isVisible()) {
     await continueAnyway.click();
   }
@@ -125,6 +125,10 @@ async function createRoom(page) {
 
 async function joinController(context, roomCode, name) {
   const page = await context.newPage();
+  // Clear the shared-localStorage clientId on each navigation so each
+  // controller starts as a fresh player. Reconnect tests that need identity
+  // persistence should use ?rejoin=<id> (see performDisconnect for details).
+  await page.addInitScript((rc) => localStorage.removeItem('clientId_' + rc), roomCode);
   await page.goto(`/${roomCode}?test=1`);
   await waitForFont(page);
   await page.fill('#name-input', name);

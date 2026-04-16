@@ -19,7 +19,8 @@ function handleMessage(data) {
     // WELCOME (re-admission), GAME_END (show results), RETURN_TO_LOBBY, LOBBY_UPDATE, ERROR
     if (waitingForNextGame && data.type !== MSG.WELCOME && data.type !== MSG.GAME_END
         && data.type !== MSG.RETURN_TO_LOBBY && data.type !== MSG.LOBBY_UPDATE
-        && data.type !== MSG.ERROR && data.type !== MSG.PONG) return;
+        && data.type !== MSG.ERROR && data.type !== MSG.PONG
+        && data.type !== MSG.DISPLAY_CLOSED) return;
 
     switch (data.type) {
       case MSG.WELCOME:
@@ -63,6 +64,12 @@ function handleMessage(data) {
       case MSG.GAME_RESUMED:
         onGameResumed();
         break;
+      case MSG.DISPLAY_CLOSED:
+        // Don't surface "Game ended" if the user hasn't actually joined a
+        // game yet (still on name screen, e.g. race during lobby→game).
+        if (currentScreen === 'name') showEndScreen();
+        else showEndScreen('game_ended');
+        break;
       case MSG.RETURN_TO_LOBBY:
         waitingForNextGame = false;
         playerCount = data.playerCount || playerCount;
@@ -95,12 +102,12 @@ function handleMessage(data) {
 
 roomCode = location.pathname.split('/').filter(Boolean)[0] || null;
 if (!roomCode) {
-  showRoomGone();
+  showEndScreen();
 } else {
 
 // Check for stored clientId BEFORE generating a new one (used for auto-reconnect)
 var hadStoredId = null;
-try { hadStoredId = sessionStorage.getItem('clientId_' + roomCode); } catch (e) { /* iframe sandbox */ }
+try { hadStoredId = localStorage.getItem('clientId_' + roomCode); } catch (e) { /* iframe sandbox */ }
 
 if (rejoinId) {
   clientId = rejoinId;
@@ -126,7 +133,16 @@ function submitName() {
     if (name) localStorage.setItem('stacker_player_name', name);
     else localStorage.removeItem('stacker_player_name');
   } catch (e) { /* iframe sandbox */ }
-  try { sessionStorage.setItem('clientId_' + roomCode, clientId); } catch (e) { /* iframe sandbox */ }
+  try {
+    // Clean up clientIds from previous rooms — a player is only in one room at a time
+    for (var i = localStorage.length - 1; i >= 0; i--) {
+      var key = localStorage.key(i);
+      if (key && key.indexOf('clientId_') === 0 && key !== 'clientId_' + roomCode) {
+        localStorage.removeItem(key);
+      }
+    }
+    localStorage.setItem('clientId_' + roomCode, clientId);
+  } catch (e) { /* iframe sandbox */ }
   nameJoinBtn.disabled = true;
   nameJoinBtn.textContent = t('connecting');
   nameInput.disabled = true;
@@ -273,11 +289,40 @@ window.addEventListener('popstate', function () {
   }
 });
 
+// Best-effort: pagehide also fires on iOS bfcache freeze, where the WS close
+// may not complete before the page is frozen. If the page is restored from
+// bfcache the WebSocket is dead; the existing visibilitychange + reconnect
+// flow will surface the reconnect overlay.
+window.addEventListener('pagehide', function () {
+  if (party) party.close();
+});
+
+// Share couch-games.com via the Web Share API when the end-screen link is tapped.
+// Delegated on document because i18n translatePage re-sets innerHTML and would
+// discard a direct listener.
+if (navigator.share) {
+  document.addEventListener('click', function(e) {
+    var link = e.target.closest && e.target.closest('#end-step-1-link');
+    if (!link) return;
+    e.preventDefault();
+    navigator.share({
+      title: 'Stacker Party',
+      text: 'Play Stacker Party with your friends',
+      url: 'https://couch-games.com'
+    }).catch(function(err) {
+      // AbortError = user cancelled the sheet — do nothing.
+      // Any other error = share was blocked (e.g. NotAllowedError when
+      // document isn't focused) — fall back to normal navigation.
+      if (err && err.name !== 'AbortError') window.open(link.href, '_blank');
+    });
+  });
+}
+
 // =====================================================================
 // Initialize
 // =====================================================================
 
-if (hadStoredId || rejoinId) {
+if (hadStoredId || rejoinId || skipNameScreen) {
   playerName = savedName || null;
   nameInput.value = savedName;
   nameJoinBtn.disabled = true;
