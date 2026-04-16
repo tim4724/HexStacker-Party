@@ -124,8 +124,8 @@ describe('i18n', function () {
 
     it('formats Chinese ordinals', function () {
       setLocale('zh');
-      assert.equal(tOrdinal(1), '第1');
-      assert.equal(tOrdinal(5), '第5');
+      assert.equal(tOrdinal(1), '第1名');
+      assert.equal(tOrdinal(5), '第5名');
     });
 
     it('formats Japanese ordinals', function () {
