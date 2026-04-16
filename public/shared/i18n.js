@@ -594,6 +594,13 @@ function tOrdinal(n) {
 /**
  * Translate all static HTML elements with data-i18n, data-i18n-placeholder,
  * or data-i18n-title attributes.
+ *
+ * SECURITY: data-i18n-html renders the locale string as HTML via innerHTML.
+ * It is ONLY safe because locale strings are hardcoded developer content in
+ * this file. Do NOT pass user input, server-provided strings, or any
+ * untrusted content through a data-i18n-html key — doing so is XSS. Prefer
+ * data-i18n (uses textContent) for any string that could include external
+ * data, and keep the set of data-i18n-html keys minimal.
  */
 function translatePage() {
   if (typeof document === 'undefined') return;

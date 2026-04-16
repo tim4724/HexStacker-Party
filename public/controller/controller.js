@@ -64,7 +64,10 @@ function handleMessage(data) {
         onGameResumed();
         break;
       case MSG.DISPLAY_CLOSED:
-        showEndScreen('game_ended');
+        // Don't surface "Game ended" if the user hasn't actually joined a
+        // game yet (still on name screen, e.g. race during lobby→game).
+        if (currentScreen === 'name') showEndScreen();
+        else showEndScreen('game_ended');
         break;
       case MSG.RETURN_TO_LOBBY:
         waitingForNextGame = false;
