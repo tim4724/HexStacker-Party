@@ -120,6 +120,49 @@ function sanitizePlayerName(name, slotIndex) {
   return name;
 }
 
+// Host = the connected player designated as master controller (AirConsole rule:
+// "menus can only be controlled by the Master Controller"). In AirConsole mode
+// we defer to the platform (premium devices get priority); otherwise we fall
+// back to the player with the lowest playerIndex. Only the host can trigger
+// menu actions (start / play again / return-to-lobby). Returns null when no
+// players are connected.
+//
+// During COUNTDOWN/PLAYING/RESULTS the candidate set is restricted to active
+// game participants (playerOrder). Otherwise a late joiner — promoted to AC
+// master, or one who reclaims slot 0 after an original player leaves mid-
+// results — would control menu actions they can't even reach: their screen
+// is a "Game in progress" waiting banner with no pause overlay, so gating
+// RETURN_TO_LOBBY on them would deadlock the game. Host opens back up to
+// everyone in LOBBY where late joiners have already been folded into
+// playerOrder (see DisplayGame.js#returnToLobby).
+// NOTE: tests/display-state.test.js mirrors this algorithm — keep in sync.
+function getHostClientId() {
+  var restricted = (roomState === ROOM_STATE.PLAYING
+                 || roomState === ROOM_STATE.COUNTDOWN
+                 || roomState === ROOM_STATE.RESULTS)
+                && playerOrder.length > 0;
+  var eligible = restricted ? new Set(playerOrder) : null;
+
+  if (party && typeof party.getMasterClientId === 'function') {
+    var acHost = party.getMasterClientId();
+    // Only trust it if the device has completed HELLO and (when restricted) is
+    // an active participant; otherwise fall through until they qualify.
+    if (acHost && players.has(acHost) && (!restricted || eligible.has(acHost))) {
+      return acHost;
+    }
+  }
+  var hostId = null;
+  var hostIdx = Infinity;
+  for (const entry of players) {
+    if (restricted && !eligible.has(entry[0])) continue;
+    if (entry[1].playerIndex < hostIdx) {
+      hostIdx = entry[1].playerIndex;
+      hostId = entry[0];
+    }
+  }
+  return hostId;
+}
+
 // --- DOM References ---
 var welcomeScreen = document.getElementById('welcome-screen');
 var newGameBtn = document.getElementById('new-game-btn');

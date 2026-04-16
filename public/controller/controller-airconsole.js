@@ -7,9 +7,20 @@
 // and calls party.connect() — works with AirConsole instead.
 // =====================================================================
 
-// AirConsole requires fresh audio state on each load (no persisted mute).
-// Clear before controller.js reads it.
-try { localStorage.removeItem('stacker_muted'); } catch (e) { /* iframe sandbox */ }
+// Neutralize localStorage in AirConsole mode — AC manages identity, nickname,
+// and resets audio state per session, so persisting anything is dead weight
+// and could pick up stale values from previous sessions in the AC iframe
+// storage partition. Reads return null; writes are silently dropped.
+// NOTE: display-airconsole.js has the same noop — keep the two in sync.
+var _acNoopStorage = {
+  getItem: function() { return null; },
+  setItem: function() {},
+  removeItem: function() {},
+  clear: function() {},
+  key: function() { return null; },
+  length: 0
+};
+try { Object.defineProperty(window, 'localStorage', { value: _acNoopStorage, configurable: true }); } catch (e) { /* read-only */ }
 
 var airconsole = new AirConsole({
   orientation: AirConsole.ORIENTATION_PORTRAIT,
@@ -44,28 +55,41 @@ PartyConnection = function() {
   return new AirConsoleAdapter(airconsole, { role: 'controller' });
 };
 
-// Wrap connect() to inject AirConsole nickname and replay early onReady
+// Wrap connect() to inject AirConsole nickname/locale on top of the adapter's
+// onReady. Re-wrap on every call — _originalConnect() creates a fresh
+// AirConsoleAdapter whose _wireAirConsole overwrites ac.onReady, so a one-shot
+// wrap would be silently dropped on reconnect.
 var _originalConnect = connect;
-var _acOnReadyWrapped = false; // one-time setup — AirConsole onReady fires once per session
 connect = function() {
   if (party && party.connected) return;
   // Set nickname before connect sends HELLO (early-ready race)
   var nick = airconsole.getNickname(airconsole.getDeviceId());
   if (nick) playerName = nick;
   _originalConnect();
-  // Wrap onReady AFTER adapter is created to inject nickname from AirConsole profile
-  if (!_acOnReadyWrapped) {
-    _acOnReadyWrapped = true;
-    var _adapterOnReady = airconsole.onReady;
-    airconsole.onReady = function(code) {
-      var nickname = airconsole.getNickname(airconsole.getDeviceId());
-      if (nickname) playerName = nickname;
-      if (_adapterOnReady) _adapterOnReady.call(airconsole, code);
-    };
-    // Replay early onReady if the SDK fired before the adapter was wired
-    if (_acEarlyReady) {
-      airconsole.onReady(_acEarlyReadyCode);
+  var _adapterOnReady = airconsole.onReady;
+  airconsole.onReady = function(code) {
+    var nickname = airconsole.getNickname(airconsole.getDeviceId());
+    if (nickname) playerName = nickname;
+    // Prefer the user's AirConsole-profile language over navigator.language.
+    // Per the AirConsole checklist: "the game and the controller may have
+    // different languages" — each device uses its own. Only override the
+    // initial detectLocale result when AC's language is actually supported;
+    // otherwise setLocale would silently coerce to 'en' and discard a valid
+    // navigator.language fallback.
+    if (typeof airconsole.getLanguage === 'function') {
+      var acLang = airconsole.getLanguage();
+      var acCode = acLang && acLang.toLowerCase().split('-')[0];
+      if (acCode && LOCALES[acCode]) { setLocale(acLang); translatePage(); }
     }
+    if (_adapterOnReady) _adapterOnReady.call(airconsole, code);
+  };
+  // Replay the captured-early onReady into the freshly-wired adapter.
+  // The SDK fires onReady at most once per session, so reconnect paths rely
+  // on this manual replay to bring a new adapter to ready. Guard on
+  // !party.connected so already-connected sessions don't double-fire; the
+  // adapter's _fireReady is itself idempotent, so this is belt-and-suspenders.
+  if (_acEarlyReady && party && !party.connected) {
+    airconsole.onReady(_acEarlyReadyCode);
   }
 };
 
@@ -94,4 +118,31 @@ showEndScreen = function(toastKey /*, keepClientId */) {
     _acStatusOverlay.classList.toggle('hidden', !toastKey);
   }
 };
+
+// Don't create history entries in the AC iframe. ControllerState.js'
+// showScreen() calls history.pushState on name→lobby so standalone web users
+// can swipe/back to the name screen; in AC mode that "back" target is CSS-
+// hidden and AC owns iframe navigation anyway. The entry we'd push is
+// exactly what a spurious popstate (SDK location check, bfcache restore,
+// phone back gesture) pops to, triggering performDisconnect. Skip the push
+// and there's nothing for popstate to land on. performDisconnect stays a
+// no-op as belt-and-suspenders in case some other history source pops.
+history.pushState = function() {};
+performDisconnect = function() {};
+
+// Route haptics through the AirConsole SDK so the iframe's permissions policy
+// can't silently block vibration. Array patterns aren't supported by the SDK,
+// so we fall back to navigator.vibrate — which the iframe permissions policy
+// may still block silently. Accepted tradeoff: the SDK path covers the common
+// single-duration cases; the array fallback is best-effort.
+function _acVibrate(pattern) {
+  if (typeof pattern === 'number') {
+    airconsole.vibrate(pattern);
+  } else if (navigator.vibrate) {
+    navigator.vibrate(pattern);
+  }
+}
+// Overrides ControllerState.js#vibrate (global) and the TouchInput prototype.
+vibrate = _acVibrate;
+if (window.TouchInput) TouchInput.prototype._haptic = _acVibrate;
 

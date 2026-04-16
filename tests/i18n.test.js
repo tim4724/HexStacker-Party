@@ -191,6 +191,7 @@ describe('i18n', function () {
       'attempt_n_of_m', 'display_reconnecting', 'bad_connection',
       'paused', 'end_step_1', 'end_step_2', 'end_how_to_play',
       'room_not_found', 'game_ended', 'game_in_progress',
+      'waiting_for_host_to_start', 'waiting_for_host_to_continue',
       'n_lines', 'level_n', 'player', 'level_heading',
       'enter_name', 'touchpad', 'privacy',
       'stacked_by', 'music_by', 'hex_lines_level',
@@ -205,6 +206,26 @@ describe('i18n', function () {
           assert.ok(
             LOCALES[locale][key] !== undefined,
             'Missing key "' + key + '" in locale "' + locale + '"'
+          );
+        }
+      });
+    }
+  });
+
+  describe('waiting_for_host banner keys', function () {
+    // renderHostBanner splits these strings on a \x00 sentinel placed at
+    // {name}. Every locale must contain {name} exactly once or the banner
+    // will render the template text colliding with the name.
+    var bannerKeys = ['waiting_for_host_to_start', 'waiting_for_host_to_continue'];
+    for (var locale of Object.keys(LOCALES)) {
+      it('locale "' + locale + '" banner keys contain exactly one {name}', function () {
+        for (var key of bannerKeys) {
+          var val = LOCALES[locale][key];
+          if (val === undefined) continue; // covered by required-keys test
+          var matches = val.match(/\{name\}/g) || [];
+          assert.equal(
+            matches.length, 1,
+            'locale "' + locale + '" key "' + key + '" must contain exactly one {name}, got ' + matches.length
           );
         }
       });

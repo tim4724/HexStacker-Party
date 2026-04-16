@@ -84,6 +84,9 @@ function generateICO(svgPath, icoPath) {
       const framePath = path.join(tmp, `favicon-${size}.png`);
       // -resize "NxN>" with -extent NxN forces a square frame even if the SVG
       // viewBox isn't square (the hex bounding box is wider than tall).
+      // PNG32: forces 32-bit RGBA output — without it ImageMagick palette-
+      // optimizes small frames to 8bpp, which bakes harsh aliased edges into
+      // the ICO (loses alpha gradation).
       execSync([
         'magick',
         '-background', 'none',
@@ -92,7 +95,7 @@ function generateICO(svgPath, icoPath) {
         '-resize', `"${size}x${size}>"`,
         '-gravity', 'center',
         '-extent', `${size}x${size}`,
-        framePath,
+        `PNG32:${framePath}`,
       ].join(' '), { stdio: 'inherit' });
       frames.push(framePath);
     }

@@ -16,6 +16,68 @@ function updateLevelDisplay() {
   if (levelPlusBtn) levelPlusBtn.disabled = startLevel >= 15;
 }
 
+// Apply host info from a WELCOME or LOBBY_UPDATE payload, then refresh any
+// visible host-gated UI. Safe to call on any screen.
+function applyHostInfo(data) {
+  if (data.isHost !== undefined) isHost = !!data.isHost;
+  if (data.hostName !== undefined) hostName = data.hostName;
+  if (data.hostColor !== undefined) hostColor = data.hostColor;
+  updateHostVisibility();
+}
+
+function updateHostVisibility() {
+  // Lobby: host sees Start button, non-host sees waiting banner.
+  // Skip when waitingForNextGame — late joiners in an active game sit on
+  // the lobby screen with the "game_in_progress" banner already in place;
+  // letting the host-gate overwrite it would hide that status.
+  if (currentScreen === 'lobby' && !waitingForNextGame) {
+    if (isHost) {
+      startBtn.classList.remove('hidden');
+      startBtn.disabled = false;
+      setWaitingActionMessage('');
+    } else {
+      startBtn.classList.add('hidden');
+      startBtn.disabled = true;
+      renderHostBanner(waitingActionText, 'waiting_for_host_to_start', hostName || t('player'), hostColor);
+      waitingActionText.classList.remove('hidden');
+    }
+  }
+  // Results: host sees Play Again / New Game, non-host sees waiting banner.
+  if (currentScreen === 'gameover') {
+    if (isHost) {
+      gameoverStatus.textContent = '';
+      gameoverStatus.style.color = '';
+      gameoverButtons.classList.remove('hidden');
+      // If renderGameResults is still in its 2s anti-misclick delay, don't
+      // bypass it — a concurrent LOBBY_UPDATE (e.g. another player leaving)
+      // would otherwise flip the host's buttons live immediately after the
+      // results render. Only reveal unconditionally after the timer has
+      // fired or for a true host handoff (no timer is running on this
+      // controller).
+      if (!gameoverButtonsTimer) {
+        gameoverButtons.style.opacity = '';
+        gameoverButtons.style.pointerEvents = '';
+        gameoverButtonsReady = true;
+      }
+    } else {
+      // Cancel any pending button-reveal timer from a prior host render so a
+      // mid-delay handoff can't flip gameoverButtonsReady on a hidden button.
+      clearTimeout(gameoverButtonsTimer);
+      gameoverButtonsTimer = null;
+      // Reset the ready flag so a host→non-host handoff can't leave stale
+      // "ready to click" state on a hidden button. Display-side gating would
+      // reject a stray click anyway, but keep controller-side state honest.
+      gameoverButtonsReady = false;
+      gameoverButtons.classList.add('hidden');
+      renderHostBanner(gameoverStatus, 'waiting_for_host_to_continue', hostName || t('player'), hostColor);
+    }
+  }
+  // Pause overlay: non-host can still resume, but can't return to lobby.
+  if (pauseNewGameBtn) {
+    pauseNewGameBtn.classList.toggle('hidden', !isHost);
+  }
+}
+
 function showLobbyUI() {
   clearTimeout(gameoverButtonsTimer);
   gameoverButtonsReady = false;
@@ -23,14 +85,13 @@ function showLobbyUI() {
   playerIdentityName.textContent = playerName || t('player');
   updateLevelDisplay();
 
-  startBtn.classList.remove('hidden');
-  startBtn.disabled = false;
-  setWaitingActionMessage('');
   updateStartButton();
   statusText.textContent = '';
   statusDetail.textContent = '';
 
   showScreen('lobby');
+  // Must run after showScreen so currentScreen === 'lobby' when we gate UI.
+  updateHostVisibility();
 }
 
 function updateStartButton() {
@@ -40,6 +101,39 @@ function updateStartButton() {
 function setWaitingActionMessage(message) {
   waitingActionText.textContent = message || '';
   waitingActionText.classList.toggle('hidden', !message);
+  waitingActionText.style.color = '';
+}
+
+// Render a "Waiting for {name}..." banner with only the player name colored.
+// Uses DOM nodes rather than innerHTML so the untrusted name can't inject HTML.
+// Everything is wrapped in a single inline span so the parent's `display: flex`
+// sees only one flex item — otherwise each text node + name span becomes its
+// own item and the text can't wrap naturally between words.
+// Assumes each locale string has exactly one {name} placeholder. A template
+// with multiple {name} occurrences would split into 3+ parts and only
+// parts[0]/parts[1] would render. tests/i18n.test.js ("waiting_for_host
+// banner keys contain exactly one {name}") enforces this invariant.
+function renderHostBanner(element, key, name, color) {
+  element.textContent = '';
+  element.style.color = '';
+  var wrap = document.createElement('span');
+  var tmpl = t(key, { name: '\x00' });
+  var parts = tmpl.split('\x00');
+  var nameSpan = document.createElement('span');
+  nameSpan.textContent = name;
+  if (color) nameSpan.style.color = color;
+  if (parts.length < 2) {
+    // Graceful degrade for a malformed locale: render the template text
+    // followed by a space and the name, rather than colliding them.
+    console.warn('[renderHostBanner] missing {name} placeholder in locale key:', key);
+    wrap.appendChild(document.createTextNode(parts[0] + ' '));
+    wrap.appendChild(nameSpan);
+  } else {
+    wrap.appendChild(document.createTextNode(parts[0]));
+    wrap.appendChild(nameSpan);
+    wrap.appendChild(document.createTextNode(parts[1]));
+  }
+  element.appendChild(wrap);
 }
 
 // =====================================================================
@@ -51,6 +145,10 @@ function onWelcome(data) {
   playerCount = data.playerCount || 1;
   gameCancelled = false;
   waitingForNextGame = false;
+  // Set host state first so renderGameResults / showLobbyUI below see it.
+  // updateHostVisibility is a no-op on the current screen ('name' or mid-
+  // transition) thanks to its screen guards.
+  applyHostInfo(data);
 
   if (party) party.resetReconnectCount();
   startPing();
@@ -61,8 +159,6 @@ function onWelcome(data) {
   playerNameEl.textContent = playerName;
   touchArea.setAttribute('data-player-name', playerName);
   if (data.startLevel != null) startLevel = data.startLevel;
-
-  if (data.locale) { setLocale(data.locale); translatePage(); }
 
   if (data.roomState === 'playing' || data.roomState === 'countdown') {
     // Late joiner (not in active game) — display omits alive field
@@ -114,6 +210,7 @@ function onWelcome(data) {
 function onLobbyUpdate(data) {
   playerCount = data.playerCount;
   if (data.startLevel != null) startLevel = data.startLevel;
+  applyHostInfo(data);
   updateStartButton();
   if (currentScreen === 'lobby') updateLevelDisplay();
 }
@@ -197,18 +294,25 @@ var gameoverButtonsTimer = null;
 
 function renderGameResults(results) {
   resultsList.innerHTML = '';
-  gameoverButtons.classList.remove('hidden');
-  gameoverButtons.style.opacity = '0';
-  gameoverButtons.style.pointerEvents = 'none';
   gameoverStatus.textContent = '';
+  gameoverStatus.style.color = '';
   gameoverButtonsReady = false;
   clearTimeout(gameoverButtonsTimer);
-  gameoverButtonsTimer = setTimeout(function() {
+  if (isHost) {
+    gameoverButtons.classList.remove('hidden');
+    gameoverButtons.style.opacity = '0';
+    gameoverButtons.style.pointerEvents = 'none';
+    gameoverButtonsTimer = setTimeout(function() {
+      gameoverButtonsTimer = null;
+      gameoverButtons.style.opacity = '';
+      gameoverButtons.style.pointerEvents = '';
+      gameoverButtonsReady = true;
+    }, 2000);
+  } else {
     gameoverButtonsTimer = null;
-    gameoverButtons.style.opacity = '';
-    gameoverButtons.style.pointerEvents = '';
-    gameoverButtonsReady = true;
-  }, 2000);
+    gameoverButtons.classList.add('hidden');
+    renderHostBanner(gameoverStatus, 'waiting_for_host_to_continue', hostName || t('player'), hostColor);
+  }
 
   var winnerColor = 'rgba(255, 215, 0, 0.06)';
   if (results && results.length) {

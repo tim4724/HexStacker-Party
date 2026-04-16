@@ -19,12 +19,13 @@ const PIECE_COLORS = {
 };
 
 // Ghost piece colors — computed from PIECE_COLORS via ghostColor() (CanvasUtils.js).
-// Requires CanvasUtils.js to be loaded first (see index.html script order).
+// Silently skipped when CanvasUtils.js isn't loaded: the controller doesn't
+// render ghost pieces so it intentionally omits CanvasUtils. If a display
+// renderer that needs GHOST_COLORS runs without CanvasUtils loaded, it will
+// crash on its own — much more obvious than a startup warning.
 var GHOST_COLORS = {};
 if (typeof ghostColor === 'function') {
   for (var _i = 1; _i <= 9; _i++) GHOST_COLORS[_i] = ghostColor(PIECE_COLORS[_i]);
-} else if (typeof document !== 'undefined') {
-  console.warn('ghostColor() not available — CanvasUtils.js must load before theme.js');
 }
 
 // Player accent colors

@@ -54,6 +54,8 @@ var LOCALES = {
     end_step_2: 'Scan the QR code to use your phone as controller',
     end_how_to_play: 'How to play',
     game_in_progress: 'Game in progress. Please wait for New Game.',
+    waiting_for_host_to_start: 'Waiting for {name} to start the game',
+    waiting_for_host_to_continue: 'Waiting for {name} to continue',
 
     // Results
     n_lines: { one: '{count} line', other: '{count} lines' },
@@ -143,6 +145,8 @@ var LOCALES = {
     end_step_2: 'Scanne den QR-Code, um dein Handy als Controller zu nutzen',
     end_how_to_play: 'So wird gespielt',
     game_in_progress: 'Spiel läuft. Bitte auf neues Spiel warten.',
+    waiting_for_host_to_start: 'Warte auf {name}, um das Spiel zu starten',
+    waiting_for_host_to_continue: 'Warte auf {name}, um fortzufahren',
     n_lines: { one: '{count} Zeile', other: '{count} Zeilen' },
     level_n: 'Level {level}', player: 'Spieler', level_heading: 'Level',
     enter_name: 'Name eingeben...', touchpad: 'Touchpad', privacy: 'Datenschutz',
@@ -207,6 +211,8 @@ var LOCALES = {
     end_step_2: 'Scanne le QR code pour utiliser ton téléphone comme manette',
     end_how_to_play: 'Comment jouer',
     game_in_progress: 'Partie en cours. Veuillez attendre une nouvelle partie.',
+    waiting_for_host_to_start: 'En attente que {name} lance la partie',
+    waiting_for_host_to_continue: 'En attente que {name} continue',
     n_lines: { one: '{count} ligne', other: '{count} lignes' },
     level_n: 'Niveau {level}', player: 'Joueur', level_heading: 'Niveau',
     enter_name: 'Entrez votre nom...', touchpad: 'Pavé tactile',
@@ -243,6 +249,8 @@ var LOCALES = {
     end_step_2: 'Escaneie o QR code para usar seu celular como controle',
     end_how_to_play: 'Como jogar',
     game_in_progress: 'Jogo em andamento. Aguarde um novo jogo.',
+    waiting_for_host_to_start: 'Aguardando {name} iniciar o jogo',
+    waiting_for_host_to_continue: 'Aguardando {name} continuar',
     n_lines: { one: '{count} linha', other: '{count} linhas' },
     level_n: 'Nível {level}', player: 'Jogador', level_heading: 'Nível',
     enter_name: 'Digite o nome...', touchpad: 'Touchpad',
@@ -279,6 +287,8 @@ var LOCALES = {
     end_step_2: 'Escanea el código QR para usar tu teléfono como control',
     end_how_to_play: 'Cómo jugar',
     game_in_progress: 'Partida en curso. Espera a una nueva partida.',
+    waiting_for_host_to_start: 'Esperando que {name} inicie la partida',
+    waiting_for_host_to_continue: 'Esperando que {name} continúe',
     n_lines: { one: '{count} línea', other: '{count} líneas' },
     level_n: 'Nivel {level}', player: 'Jugador', level_heading: 'Nivel',
     enter_name: 'Escribe tu nombre...', touchpad: 'Touchpad',
@@ -315,6 +325,8 @@ var LOCALES = {
     end_step_2: '扫描二维码，将手机用作控制器',
     end_how_to_play: '游戏方法',
     game_in_progress: '游戏进行中，请等待新游戏开始。',
+    waiting_for_host_to_start: '等待 {name} 开始游戏',
+    waiting_for_host_to_continue: '等待 {name} 继续',
     n_lines: { other: '{count} 行' },
     level_n: '等级 {level}', player: '玩家', level_heading: '等级',
     enter_name: '输入名字...', touchpad: '触控板', privacy: '隐私', imprint: '法律声明', back_to_game: '← 返回',
@@ -350,6 +362,8 @@ var LOCALES = {
     end_step_2: 'QRコードをスキャンして、スマートフォンをコントローラーとして使用',
     end_how_to_play: '遊び方',
     game_in_progress: 'ゲーム進行中です。新しいゲームをお待ちください。',
+    waiting_for_host_to_start: '{name}がゲームを開始するのを待っています',
+    waiting_for_host_to_continue: '{name}が続けるのを待っています',
     n_lines: { other: '{count}ライン' },
     level_n: 'レベル {level}', player: 'プレイヤー', level_heading: 'レベル',
     enter_name: '名前を入力...', touchpad: 'タッチパッド',
@@ -386,6 +400,8 @@ var LOCALES = {
     end_step_2: 'QR 코드를 스캔하여 휴대폰을 컨트롤러로 사용하세요',
     end_how_to_play: '플레이 방법',
     game_in_progress: '게임 진행 중입니다. 새 게임을 기다려주세요.',
+    waiting_for_host_to_start: '{name}이(가) 게임을 시작하기를 기다리는 중',
+    waiting_for_host_to_continue: '{name}이(가) 계속하기를 기다리는 중',
     n_lines: { other: '{count}줄' },
     level_n: '레벨 {level}', player: '플레이어', level_heading: '레벨',
     enter_name: '이름 입력...', touchpad: '터치패드', privacy: '개인정보', imprint: '법적 고지', back_to_game: '← 돌아가기',
@@ -424,6 +440,8 @@ var LOCALES = {
     end_step_2: 'Отсканируйте QR-код, чтобы использовать телефон как контроллер',
     end_how_to_play: 'Как играть',
     game_in_progress: 'Игра идёт. Дождитесь новой игры.',
+    waiting_for_host_to_start: 'Ожидание, пока {name} начнёт игру',
+    waiting_for_host_to_continue: 'Ожидание, пока {name} продолжит',
     n_lines: {
       one: '{count} линия', few: '{count} линии',
       many: '{count} линий', other: '{count} линий'
@@ -463,6 +481,8 @@ var LOCALES = {
     end_step_2: 'Scansiona il QR code per usare il telefono come controller',
     end_how_to_play: 'Come giocare',
     game_in_progress: 'Partita in corso. Attendi una nuova partita.',
+    waiting_for_host_to_start: 'In attesa che {name} inizi la partita',
+    waiting_for_host_to_continue: 'In attesa che {name} continui',
     n_lines: { one: '{count} linea', other: '{count} linee' },
     level_n: 'Livello {level}', player: 'Giocatore', level_heading: 'Livello',
     enter_name: 'Inserisci nome...', touchpad: 'Touchpad',
@@ -499,6 +519,8 @@ var LOCALES = {
     end_step_2: 'Telefonunu kumanda olarak kullanmak için QR kodu tara',
     end_how_to_play: 'Nasıl oynanır',
     game_in_progress: 'Oyun devam ediyor. Yeni oyunu bekle.',
+    waiting_for_host_to_start: '{name} oyunu başlatana kadar bekleniyor',
+    waiting_for_host_to_continue: '{name} devam edene kadar bekleniyor',
     n_lines: { one: '{count} satır', other: '{count} satır' },
     level_n: 'Seviye {level}', player: 'Oyuncu', level_heading: 'Seviye',
     enter_name: 'İsim gir...', touchpad: 'Touchpad',
@@ -639,22 +661,17 @@ function translatePage() {
 }
 
 /**
- * Auto-detect locale from localStorage → URL param → navigator.language → 'en'.
+ * Auto-detect locale from URL param → navigator.language → 'en'.
  */
 function detectLocale() {
   var lang = null;
 
-  // 1. localStorage preference
-  if (typeof localStorage !== 'undefined') {
-    try { lang = localStorage.getItem('stacker_lang'); } catch (e) { /* private browsing */ }
-  }
-
-  // 2. URL parameter ?lang=xx
-  if (!lang && typeof URLSearchParams !== 'undefined' && typeof location !== 'undefined') {
+  // 1. URL parameter ?lang=xx
+  if (typeof URLSearchParams !== 'undefined' && typeof location !== 'undefined') {
     try { lang = new URLSearchParams(location.search).get('lang'); } catch (e) { /* ignore */ }
   }
 
-  // 3. Browser language
+  // 2. Browser language
   if (!lang && typeof navigator !== 'undefined' && navigator.language) {
     lang = navigator.language;
   }

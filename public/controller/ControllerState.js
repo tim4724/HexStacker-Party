@@ -25,6 +25,12 @@ var lastLines = 0;
 var lastGameResults = null;
 var startLevel = 1;
 
+// Host (AirConsole master controller) — lowest-slot connected player.
+// Only the host can trigger menu actions (start, play again, return to lobby).
+var isHost = false;
+var hostName = null;
+var hostColor = null;
+
 // Ping/pong
 var PING_INTERVAL_MS = 1000;
 var PONG_TIMEOUT_MS = 3000;
