@@ -78,6 +78,9 @@ document.addEventListener('visibilitychange', function() {
 });
 
 // --- End Screen (mobile hint) ---
+// Note: on mobile the display.css media query (#end-screen { display: flex })
+// overrides the .hidden class via higher specificity, so dismissing the hint
+// requires removing the element rather than just adding `.hidden`.
 var endContinueBtn = document.getElementById('end-continue-btn');
 if (endContinueBtn) {
   endContinueBtn.addEventListener('click', function() {

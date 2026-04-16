@@ -610,6 +610,7 @@ html, body {
    Styles defined in /shared/end-screen.css.
    ID selector (1,0,0) intentionally beats .end-screen.hidden (0,2,0)
    so the element shows on mobile even with the `hidden` class present.
+   "Continue anyway" removes the element from the DOM, not via .hidden.
    ============================================ */
 @media (max-width: 768px) and (orientation: portrait) {
   #end-screen { display: flex; }
