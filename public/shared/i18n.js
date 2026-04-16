@@ -221,7 +221,7 @@ var LOCALES = {
     swipe: 'Glisser', tap: 'Appuyer', flick: 'Lancer',
     gesture_move: 'déplacer', gesture_rotate: 'tourner',
     stacked_by: 'Créé par Tim', music_by: 'Musique par FoxSynergy',
-    gesture_drop: 'faire tomber', gesture_hold: 'maintenir',
+    gesture_drop: 'lâcher', gesture_hold: 'maintenir',
     _ordinal: { one: '{n}er', other: '{n}e' }
   },
 
