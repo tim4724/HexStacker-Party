@@ -288,6 +288,10 @@ window.addEventListener('popstate', function () {
   }
 });
 
+// Best-effort: pagehide also fires on iOS bfcache freeze, where the WS close
+// may not complete before the page is frozen. If the page is restored from
+// bfcache the WebSocket is dead; the existing visibilitychange + reconnect
+// flow will surface the reconnect overlay.
 window.addEventListener('pagehide', function () {
   if (party) party.close();
 });

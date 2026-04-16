@@ -161,6 +161,9 @@ function performDisconnect() {
 }
 
 function showEndScreen(toastKey, keepClientId) {
+  // Guard against double-invocation (e.g. relay close + DISPLAY_CLOSED in
+  // flight): don't reset the toast timer or re-null party.
+  if (gameCancelled) return;
   // Tab-replacement path (keepClientId=true) must preserve localStorage —
   // the evicting tab now owns that identity.
   if (!keepClientId) {
