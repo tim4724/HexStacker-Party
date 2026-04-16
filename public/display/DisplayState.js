@@ -44,9 +44,13 @@ function setRoomState(newState) {
 // Clear all room-local state — used when entering a fresh room or returning to welcome
 function resetRoomData() {
   if (music) music.stop();
+  clearCountdownTimers();
+  countdown.callback = null;
+  countdown.remaining = 0;
   players.clear();
   playerOrder = [];
   paused = false;
+  autoPaused = false;
   gameState = null;
   boardRenderers = [];
   uiRenderers = [];

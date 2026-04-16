@@ -5,12 +5,11 @@
 
 var PlayerBoard = ((typeof require !== 'undefined') ? require('./PlayerBoard.js') : window.PlayerBoardModule).PlayerBoard;
 var GarbageManager = ((typeof require !== 'undefined') ? require('./GarbageManager.js') : window.GameGarbageManager).GarbageManager;
-var LOGIC_TICK_MS = ((typeof require !== 'undefined') ? require('./constants.js') : window.GameConstants).LOGIC_TICK_MS;
 var mulberry32 = ((typeof require !== 'undefined') ? require('./Randomizer.js') : window.GameRandomizer).mulberry32;
 
 class Game {
   constructor(players, callbacks, seed) {
-    this.callbacks = callbacks; // { onGameState, onEvent, onGameEnd }
+    this.callbacks = callbacks; // { onEvent, onGameEnd }
     this.boards = new Map();
     this.playerIds = [];
     this.ended = false;
@@ -166,19 +165,6 @@ class Game {
       players: playerArr,
       elapsed: this.elapsed
     };
-  }
-
-  logicTick() {
-    if (this.ended) return;
-    this.update(LOGIC_TICK_MS);
-    this.broadcastTick();
-  }
-
-  broadcastTick() {
-    if (this.ended) return;
-    if (this.callbacks.onGameState) {
-      this.callbacks.onGameState(this.getSnapshot());
-    }
   }
 
   handleLineClear(playerId, clearResult) {
