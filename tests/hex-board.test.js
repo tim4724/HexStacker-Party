@@ -264,6 +264,147 @@ describe('HexPlayerBoard - movement boundaries', () => {
   });
 });
 
+describe('HexPlayerBoard - lateral up-bias', () => {
+  // In flat-top hex, a horizontal move is always a diagonal in screen space.
+  // We bias up: first lateral from anchor goes up by one half-hex; the next
+  // returns down to anchor. y is measured in half-hex units as
+  //   y = 2 * anchorRow + (anchorCol & 1).
+
+  function y(piece) {
+    return 2 * piece.anchorRow + (piece.anchorCol & 1);
+  }
+
+  it('first lateral press from spawn moves up one half-hex', () => {
+    var b = new HexPlayerBoard('p1', 42, 1);
+    b.spawnPiece();
+    var y0 = y(b.currentPiece);
+    assert.equal(b.moveLeft(), true);
+    assert.equal(y(b.currentPiece), y0 - 1, 'left goes up');
+
+    var b2 = new HexPlayerBoard('p2', 42, 1);
+    b2.spawnPiece();
+    var y0r = y(b2.currentPiece);
+    assert.equal(b2.moveRight(), true);
+    assert.equal(y(b2.currentPiece), y0r - 1, 'right goes up');
+  });
+
+  it('second consecutive lateral press returns to anchor y', () => {
+    var b = new HexPlayerBoard('p1', 42, 1);
+    b.spawnPiece();
+    var anchorY = b.currentPiece._anchorY;
+    b.moveLeft();
+    b.moveLeft();
+    assert.equal(y(b.currentPiece), anchorY, 'returns to anchor');
+  });
+
+  it('alternates up/anchor across four presses in the same direction', () => {
+    var b = new HexPlayerBoard('p1', 42, 1);
+    b.spawnPiece();
+    var anchorY = b.currentPiece._anchorY;
+    var expected = [anchorY - 1, anchorY, anchorY - 1, anchorY];
+    for (var i = 0; i < 4; i++) {
+      assert.equal(b.moveLeft(), true, 'press ' + (i + 1) + ' succeeds');
+      assert.equal(y(b.currentPiece), expected[i], 'press ' + (i + 1) + ' y');
+    }
+  });
+
+  it('L then R returns to starting col and row', () => {
+    var b = new HexPlayerBoard('p1', 42, 1);
+    b.spawnPiece();
+    var startCol = b.currentPiece.anchorCol;
+    var startRow = b.currentPiece.anchorRow;
+    b.moveLeft();
+    b.moveRight();
+    assert.equal(b.currentPiece.anchorCol, startCol);
+    assert.equal(b.currentPiece.anchorRow, startRow);
+  });
+
+  it('gravity preserves above-anchor displacement (no up-budget refund)', () => {
+    // After player moves up, gravity ticks. The piece must stay one half-hex
+    // above the new anchor — otherwise a second up-press could fully cancel
+    // the gravity drop and the player would be hovering.
+    var b = new HexPlayerBoard('p1', 42, 1);
+    b.spawnPiece();
+    b.moveLeft();  // piece is 1 half-hex above anchor
+    var anchorYBefore = b.currentPiece._anchorY;
+    var yBefore = y(b.currentPiece);
+    assert.equal(yBefore, anchorYBefore - 1, 'above anchor before gravity');
+    b._hexDrop(b.currentPiece);
+    assert.equal(b.currentPiece._anchorY, anchorYBefore + 2, 'anchor tracks gravity');
+    assert.equal(y(b.currentPiece), yBefore + 2, 'piece y also +2');
+    assert.equal(y(b.currentPiece), b.currentPiece._anchorY - 1, 'still 1 above anchor');
+  });
+
+  it('no climbing: after L + gravity, next L returns to anchor (down)', () => {
+    var b = new HexPlayerBoard('p1', 42, 1);
+    b.spawnPiece();
+    var y0 = y(b.currentPiece);
+    b.moveLeft();            // y0 - 1
+    b._hexDrop(b.currentPiece);  // y0 + 1 (anchor now at y0 + 2)
+    b.moveLeft();            // primary DOWN back to anchor = y0 + 2
+    assert.equal(y(b.currentPiece), y0 + 2, 'piece descended full gravity over the cycle');
+  });
+
+  it('lateral between ticks saves at most one half-hex of altitude', () => {
+    // Pattern "gravity, L": one lateral UP after a gravity tick saves half a
+    // cell vs pure gravity. Holding L across further ticks cannot compound —
+    // the UP budget is preserved (not refunded) through gravity.
+    var b = new HexPlayerBoard('p1', 42, 1);
+    b.spawnPiece();
+    var y0 = y(b.currentPiece);
+    b._hexDrop(b.currentPiece);   // y0 + 2, at anchor
+    b.moveLeft();                  // y0 + 1, above anchor
+    assert.equal(y(b.currentPiece), y0 + 1, 'saved 1 half-hex');
+    b._hexDrop(b.currentPiece);   // y0 + 3, still above (anchor now y0 + 4)
+    b.moveLeft();                  // primary DOWN → y0 + 4, at anchor
+    assert.equal(y(b.currentPiece), y0 + 4, 'second cycle full gravity, no extra savings');
+  });
+
+  it('rotation re-baselines the up-bias anchor to current y', () => {
+    var b = new HexPlayerBoard('p1', 42, 1);
+    b.spawnPiece();
+    b.moveLeft();  // piece is above anchor
+    var preY = y(b.currentPiece);
+    if (b.rotateCW()) {
+      var postY = y(b.currentPiece);
+      assert.equal(b.currentPiece._anchorY, postY, 'anchor matches current y after rotation');
+    }
+  });
+
+  it('fallback takes opposite diagonal when primary is blocked', () => {
+    var b = new HexPlayerBoard('p1', 42, 1);
+    // Use an O piece at anchor (5, 3) — O cells at (4,3),(5,3),(5,2),(6,3).
+    b.currentPiece = new HexPiece('O');
+    b.currentPiece.anchorCol = 5;
+    b.currentPiece.anchorRow = 3;
+    b.currentPiece._anchorY = 2 * 3 + 1;  // at anchor
+
+    // Primary UP (moveRight → anchor (6,3)) needs cells (5,2),(6,3),(6,2),(7,2).
+    // Block (6,2) so primary fails. Fallback DOWN (anchor (6,4)) needs
+    // (5,3),(6,4),(6,3),(7,3) — all free.
+    b.grid[2][6] = HEX_GARBAGE_CELL;
+
+    assert.equal(b.moveRight(), true);
+    assert.equal(b.currentPiece.anchorCol, 6);
+    assert.equal(b.currentPiece.anchorRow, 4, 'used DOWN fallback row');
+  });
+
+  it('returns false when both primary and fallback are blocked', () => {
+    var b = new HexPlayerBoard('p1', 42, 1);
+    b.currentPiece = new HexPiece('O');
+    b.currentPiece.anchorCol = 5;
+    b.currentPiece.anchorRow = 3;
+    b.currentPiece._anchorY = 2 * 3 + 1;
+
+    // Block both the primary (6,2) and the fallback (6,4) cells.
+    b.grid[2][6] = HEX_GARBAGE_CELL;
+    b.grid[4][6] = HEX_GARBAGE_CELL;
+
+    assert.equal(b.moveRight(), false);
+    assert.equal(b.currentPiece.anchorCol, 5, 'piece did not move');
+  });
+});
+
 describe('HexPlayerBoard - gravity and tick', () => {
   it('tick drops piece over time', () => {
     var b = new HexPlayerBoard('p1', 42, 1);

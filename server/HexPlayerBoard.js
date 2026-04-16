@@ -90,10 +90,16 @@ class HexPlayerBoard extends BaseBoard {
   // --- Hex-specific methods ---
 
   // Simple drop: row + 1, same column. Mutates piece in place; restores on failure.
+  // _anchorY tracks with gravity (+=2 per row drop) instead of resetting, so the
+  // piece's up-displacement is preserved through gravity. Otherwise a player
+  // could press UP, let gravity tick, press UP again and fully cancel the drop.
   _hexDrop(piece) {
     if (piece.anchorRow + 1 >= HEX_TOTAL_ROWS) return null;
     piece.anchorRow += 1;
-    if (this.isValidPosition(piece)) return piece;
+    if (this.isValidPosition(piece)) {
+      piece._anchorY += 2;
+      return piece;
+    }
     piece.anchorRow -= 1;
     return null;
   }
@@ -124,13 +130,47 @@ class HexPlayerBoard extends BaseBoard {
     return this._move(1);
   }
 
+  // Flat-top hex has no pure east/west neighbor — every lateral move is diagonal.
+  // We bias up: from the anchor y, the first press goes up by one half-hex; the
+  // next press returns down to the anchor. Measuring in half-hex units with
+  //   currentY = 2 * anchorRow + (anchorCol & 1)
+  // the piece invariant is currentY ∈ { _anchorY, _anchorY - 1 }. If the primary
+  // diagonal is blocked, we try the other one — which may leave currentY outside
+  // that range, but subsequent presses naturally pull back toward it.
   _move(dir) {
-    const test = this.currentPiece.clone();
-    test.anchorCol += dir;
-    if (!this.isValidPosition(test)) return false;
-    this.currentPiece = test;
-    this._resetLockTimerIfOnSurface();
-    return true;
+    const piece = this.currentPiece;
+    const newCol = piece.anchorCol + dir;
+    if (newCol < 0 || newCol >= HEX_COLS) return false;
+
+    const currentY = 2 * piece.anchorRow + (piece.anchorCol & 1);
+    const anchorY = piece._anchorY;
+    const aboveAnchor = currentY < anchorY;
+    const newColParity = newCol & 1;
+
+    // Primary: above-anchor bias. If at/below anchor, go up; if above, go down.
+    const primaryY = aboveAnchor ? currentY + 1 : currentY - 1;
+    const fallbackY = aboveAnchor ? currentY - 1 : currentY + 1;
+
+    // y and col parity always match (2*row + parity has parity == col parity),
+    // and primary/fallback shift y by ±1 so new y's parity matches newColParity.
+    const primaryRow = (primaryY - newColParity) >> 1;
+    const fallbackRow = (fallbackY - newColParity) >> 1;
+
+    const test = piece.clone();
+    test.anchorCol = newCol;
+    test.anchorRow = primaryRow;
+    if (this.isValidPosition(test)) {
+      this.currentPiece = test;
+      this._resetLockTimerIfOnSurface();
+      return true;
+    }
+    test.anchorRow = fallbackRow;
+    if (this.isValidPosition(test)) {
+      this.currentPiece = test;
+      this._resetLockTimerIfOnSurface();
+      return true;
+    }
+    return false;
   }
 
   // ===================== ROTATION =====================
@@ -154,6 +194,8 @@ class HexPlayerBoard extends BaseBoard {
       kicked.anchorCol += KICKS[i][0];
       kicked.anchorRow += KICKS[i][1];
       if (!this.isValidPosition(kicked)) continue;
+      // Rotation (and any kick displacement) re-baselines the lateral up-bias.
+      kicked._anchorY = 2 * kicked.anchorRow + (kicked.anchorCol & 1);
       this.currentPiece = kicked;
       this._resetLockTimerIfOnSurface();
       return true;

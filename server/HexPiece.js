@@ -62,6 +62,15 @@ class HexPiece {
     // In odd-q (flat-top), column parity affects offset row mapping,
     // so we must compute the actual minimum offset row of all blocks.
     this._adjustAnchorRow();
+    // Lateral moves in flat-top hex are diagonal (half a cell up or down).
+    // _anchorY is the piece's "resting" visual y in half-hex units. Lateral
+    // moves oscillate between y == _anchorY and y == _anchorY - 1, biased up,
+    // so holding a column never costs altitude. Gravity/rotation reset it.
+    this._anchorY = 2 * this.anchorRow + (this.anchorCol & 1);
+  }
+
+  _resetAnchorY() {
+    this._anchorY = 2 * this.anchorRow + (this.anchorCol & 1);
   }
 
   // Ensure no block has a negative offset row by raising anchorRow
@@ -110,6 +119,7 @@ class HexPiece {
     p.anchorCol = this.anchorCol;
     p.anchorRow = this.anchorRow;
     p._rotId = this._rotId;
+    p._anchorY = this._anchorY;
     return p;
   }
 
