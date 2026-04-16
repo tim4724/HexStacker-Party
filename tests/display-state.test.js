@@ -233,30 +233,6 @@ describe('Input validation', () => {
 });
 
 // =========================================================================
-// Game mode validation
-// =========================================================================
-
-describe('Game mode validation', () => {
-  function isValidMode(mode) {
-    return mode === 'classic' || mode === 'hex';
-  }
-
-  it('accepts classic', () => {
-    assert.ok(isValidMode('classic'));
-  });
-
-  it('accepts hex', () => {
-    assert.ok(isValidMode('hex'));
-  });
-
-  it('rejects unknown modes', () => {
-    assert.ok(!isValidMode('triangle'));
-    assert.ok(!isValidMode(''));
-    assert.ok(!isValidMode(null));
-  });
-});
-
-// =========================================================================
 // Level validation (from DisplayInput.js onSetLevel)
 // =========================================================================
 

@@ -21,13 +21,9 @@ const ENGINE_FILES = new Set([
   'constants.js',
   'Game.js',
   'GarbageManager.js',
-  'Piece.js',
-  'BaseBoard.js',
-  'PlayerBoard.js',
   'Randomizer.js',
-  'HexConstants.js',
-  'HexPiece.js',
-  'HexPlayerBoard.js',
+  'Piece.js',
+  'PlayerBoard.js',
 ]);
 
 // --- MIME types ---
@@ -128,11 +124,6 @@ const server = http.createServer((req, res) => {
   }
 
 
-  // Serve SVG favicon for /favicon.ico requests
-  if (urlPath === '/favicon.ico') {
-    urlPath = '/favicon.svg';
-  }
-
   // AirConsole entry points at root
   if (urlPath === '/screen.html') {
     urlPath = '/display/screen.html';
@@ -192,7 +183,7 @@ const server = http.createServer((req, res) => {
           "frame-ancestors https://www.airconsole.com" + (APP_ENV !== 'production' ? " http://http.airconsole.com" : ""),
         ].join('; ');
       } else {
-        headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' wss://ws.couch-games.com; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'";
+        headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' wss://ws.hexstackerparty.com; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'";
       }
     }
 
@@ -217,7 +208,7 @@ function getLocalIP() {
 // --- Start server ---
 server.listen(PORT, () => {
   const localIP = getLocalIP();
-  console.log(`Stacker Party server running on http://localhost:${PORT}`);
+  console.log(`HexStacker Party server running on http://localhost:${PORT}`);
   console.log(`Local network: http://${localIP}:${PORT}`);
   console.log(`Display: http://localhost:${PORT}/`);
 });

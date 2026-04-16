@@ -3,11 +3,10 @@
 var _SQRT3 = Math.sqrt(3);
 
 // Falling ghost-piece background animation for the welcome screen.
-// Renders translucent piece silhouettes on a canvas behind the DOM overlay.
-// Supports both classic (square blocks) and hex (hexagonal cells) modes.
+// Renders translucent hex piece silhouettes on a canvas behind the DOM overlay.
 //
-// Piece data is derived from engine modules (GamePiece, HexPieceModule) at
-// runtime so it stays in sync automatically when pieces change.
+// Piece data is derived from PieceModule at runtime so it stays in sync
+// automatically when pieces change.
 
 // Inline flat-top hex path for use when CanvasUtils.js is not loaded (controller).
 function _wbHexPath(ctx, cx, cy, size) {
@@ -23,44 +22,11 @@ function _wbHexPath(ctx, cx, cy, size) {
 }
 
 class WelcomeBackground {
-  // Populated once from engine modules via _syncFromEngine()
+  // Populated once from PieceModule via _syncFromEngine()
   static SHAPES = null;
   static PIECE_KEYS = null;
   static SHAPE_COLOR_INDEX = null;
-  static HEX_SHAPES = null;
-  static HEX_PIECE_KEYS = null;
-  static HEX_SHAPE_COLOR_INDEX = null;
   static _synced = false;
-
-  // Build classic piece shapes from GamePiece.PIECES.
-  // Deduplicates rotations (e.g. O piece has 4 identical states).
-  static _buildClassicShapes() {
-    var src = GamePiece.PIECES;
-    var shapes = {};
-    for (var key in src) {
-      var seen = [];
-      shapes[key] = [];
-      for (var i = 0; i < src[key].length; i++) {
-        var sig = JSON.stringify(src[key][i]);
-        if (seen.indexOf(sig) === -1) {
-          seen.push(sig);
-          shapes[key].push(src[key][i]);
-        }
-      }
-    }
-    return shapes;
-  }
-
-  // Build hex piece shapes from HexPieceModule.HEX_PIECES.
-  // Generates all unique rotations for each piece type.
-  static _buildHexShapes() {
-    var src = HexPieceModule.HEX_PIECES;
-    var shapes = {};
-    for (var key in src) {
-      shapes[key] = WelcomeBackground._generateHexRotations(src[key]);
-    }
-    return shapes;
-  }
 
   // Generate all unique rotations of a hex piece via repeated 60° CW rotation.
   static _generateHexRotations(baseCells) {
@@ -85,15 +51,7 @@ class WelcomeBackground {
 
   // Opacity boost derived from perceived luminance of the piece color.
   // Low-luminance colors get a boost so background pieces stay visible on
-  // the dark canvas. Derived at runtime so the logic auto-adjusts if the
-  // palette ever changes — an earlier hand-maintained per-key table
-  // (J → +0.06, T/L → +0.03) silently went stale when the color palette
-  // was replaced, leaving the boost pointing at the wrong pieces.
-  //
-  // Threshold rationale (ITU-R BT.601 luma weights: 0.299 R + 0.587 G + 0.114 B):
-  //   <115 → +0.06  hot pink / royal blue (darkest pieces)
-  //   <135 → +0.03  red, violet (medium-dark)
-  //   ≥135 →   0    teal, amber, lime, gold (already bright enough)
+  // the dark canvas. ITU-R BT.601 luma: 0.299R + 0.587G + 0.114B.
   static _opacityBoost(hex) {
     const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
     if (!m) return 0;
@@ -101,22 +59,21 @@ class WelcomeBackground {
     const g = parseInt(m[2], 16);
     const b = parseInt(m[3], 16);
     const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-    if (lum < 115) return 0.06;
-    if (lum < 135) return 0.03;
+    if (lum < 115) return 0.12;
+    if (lum < 135) return 0.06;
     return 0;
   }
 
-  // One-time initialization: read piece data from engine modules.
+  // One-time initialization: read piece data from PieceModule.
   static _syncFromEngine() {
-    // Classic pieces
-    WelcomeBackground.SHAPES = WelcomeBackground._buildClassicShapes();
-    WelcomeBackground.PIECE_KEYS = Object.keys(WelcomeBackground.SHAPES);
+    var src = PieceModule.PIECES;
+    var shapes = {};
+    for (var key in src) {
+      shapes[key] = WelcomeBackground._generateHexRotations(src[key]);
+    }
+    WelcomeBackground.SHAPES = shapes;
+    WelcomeBackground.PIECE_KEYS = Object.keys(shapes);
     WelcomeBackground.SHAPE_COLOR_INDEX = GameConstants.PIECE_TYPE_TO_ID;
-
-    // Hex pieces
-    WelcomeBackground.HEX_SHAPES = WelcomeBackground._buildHexShapes();
-    WelcomeBackground.HEX_PIECE_KEYS = Object.keys(WelcomeBackground.HEX_SHAPES);
-    WelcomeBackground.HEX_SHAPE_COLOR_INDEX = HexConstants.HEX_PIECE_TYPE_TO_ID;
   }
 
   constructor(canvas, poolSize = 15) {
@@ -128,7 +85,6 @@ class WelcomeBackground {
     this.h = 0;
     this.rafId = null;
     this.lastTime = null;
-    this.mode = 'classic';
 
     if (!WelcomeBackground._synced) {
       WelcomeBackground._syncFromEngine();
@@ -158,20 +114,6 @@ class WelcomeBackground {
     }
     this._prevW = w;
     this._prevH = h;
-  }
-
-  setMode(mode) {
-    if (mode === this.mode) return;
-    this.mode = mode;
-    // Replace all pool shapes with new mode shapes (keep positions/speeds)
-    for (let i = 0; i < this.pool.length; i++) {
-      const old = this.pool[i];
-      const shape = this._makeShape();
-      shape.x = old.x;
-      shape.y = old.y;
-      shape.speed = old.speed;
-      this.pool[i] = shape;
-    }
   }
 
   start() {
@@ -216,59 +158,20 @@ class WelcomeBackground {
   }
 
   _makeShape() {
-    if (this.mode === 'hex') return this._makeHexShape();
-    return this._makeClassicShape();
-  }
-
-  _makeClassicShape() {
-    const key = WelcomeBackground.PIECE_KEYS[Math.floor(Math.random() * WelcomeBackground.PIECE_KEYS.length)];
-    const rotations = WelcomeBackground.SHAPES[key];
-    const rotated = rotations[Math.floor(Math.random() * rotations.length)];
-    const blockSize = 16 + Math.random() * 32; // 16-48px
-    // Larger shapes fall slower for parallax depth feel
-    const speed = 15 + (48 - blockSize) / 32 * 25; // 15-40 px/s
-    const drift = 0;
-
-    // Use correct color for this piece type
-    const colorIdx = WelcomeBackground.SHAPE_COLOR_INDEX[key];
-    const color = typeof PIECE_COLORS !== 'undefined' ? PIECE_COLORS[colorIdx] : '#4444ff';
-
-    // Base opacity close to original; boost low-luminance colors so they stay
-    // visible against the dark background. Derived from color at runtime so it
-    // auto-adjusts if the palette changes.
-    const boost = WelcomeBackground._opacityBoost(color);
-    const opacity = 0.05 + Math.random() * 0.04 + boost; // base 0.05-0.09
-
-    return {
-      hex: false,
-      blocks: rotated,
-      blockSize,
-      speed,
-      drift,
-      opacity,
-      color,
-      x: 0,
-      y: 0,
-    };
-  }
-
-  _makeHexShape() {
-    const keys = WelcomeBackground.HEX_PIECE_KEYS;
+    const keys = WelcomeBackground.PIECE_KEYS;
     const key = keys[Math.floor(Math.random() * keys.length)];
-    const rotations = WelcomeBackground.HEX_SHAPES[key];
+    const rotations = WelcomeBackground.SHAPES[key];
     const cells = rotations[Math.floor(Math.random() * rotations.length)];
     const blockSize = 12 + Math.random() * 20; // 12-32px (hex radius)
     const speed = 15 + (32 - blockSize) / 20 * 25;
 
-    const colorIdx = WelcomeBackground.HEX_SHAPE_COLOR_INDEX[key];
-    const color = typeof HEX_PIECE_COLORS !== 'undefined' ? HEX_PIECE_COLORS[colorIdx] : '#4444ff';
+    const colorIdx = WelcomeBackground.SHAPE_COLOR_INDEX[key];
+    const color = typeof PIECE_COLORS !== 'undefined' ? PIECE_COLORS[colorIdx] : '#4444ff';
 
-    // Boost low-luminance colors so they stay visible against the dark bg.
     const boost = WelcomeBackground._opacityBoost(color);
-    const opacity = 0.05 + Math.random() * 0.04 + boost;
+    const opacity = 0.14 + Math.random() * 0.08 + boost;
 
     return {
-      hex: true,
       cells: cells,
       blockSize,
       speed,
@@ -318,51 +221,12 @@ class WelcomeBackground {
       }
 
       ctx.globalAlpha = p.opacity;
-
-      if (p.hex) {
-        this._drawHexPiece(ctx, p);
-      } else {
-        this._drawClassicPiece(ctx, p);
-      }
-
+      this._drawPiece(ctx, p);
       ctx.globalAlpha = 1;
     }
   };
 
-  _drawClassicPiece(ctx, p) {
-    const size = p.blockSize;
-    const hasStamps = typeof getBlockStamp === 'function';
-    if (hasStamps) {
-      const stamp = getBlockStamp(STYLE_TIERS.NORMAL, p.color, size);
-      for (const [col, row] of p.blocks) {
-        ctx.drawImage(stamp, p.x + col * size, p.y + row * size, stamp.cssW, stamp.cssH);
-      }
-    } else {
-      const inset = size * 0.03;
-      const s = size - inset * 2;
-      const r = size * 0.12;
-      for (const [col, row] of p.blocks) {
-        const bx = p.x + col * size + inset;
-        const by = p.y + row * size + inset;
-        // Gradient fill
-        const g = ctx.createLinearGradient(bx, by, bx, by + s);
-        g.addColorStop(0, p.color);
-        g.addColorStop(1, p.color);
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.roundRect(bx, by, s, s, r);
-        ctx.fill();
-        // Darken bottom half
-        ctx.fillStyle = 'rgba(0,0,0,0.15)';
-        ctx.fillRect(bx + r, by + s * 0.5, s - r * 2, s * 0.5);
-        // Top highlight
-        ctx.fillStyle = 'rgba(255,255,255,0.25)';
-        ctx.fillRect(bx + r, by, s - r * 2, s * 0.1);
-      }
-    }
-  }
-
-  _drawHexPiece(ctx, p) {
+  _drawPiece(ctx, p) {
     const size = p.blockSize;
     const sCell = size * 0.94;
     const hasStamps = typeof getHexStamp === 'function';
@@ -393,5 +257,4 @@ class WelcomeBackground {
       }
     }
   }
-
 }

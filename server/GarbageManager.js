@@ -6,15 +6,14 @@
 var constants = (typeof require !== 'undefined') ? require('./constants') : window.GameConstants;
 var GARBAGE_TABLE = constants.GARBAGE_TABLE;
 var GARBAGE_DELAY_MS = constants.GARBAGE_DELAY_MS;
-var DEFAULT_BOARD_WIDTH = constants.BOARD_WIDTH;
+var BOARD_WIDTH = constants.COLS;
 
 class GarbageManager {
-  constructor(rng, boardWidth) {
+  constructor(rng) {
     this.queues = new Map(); // playerId -> array of { lines, gapColumn, senderId, msLeft }
     this._pendingTotals = new Map(); // playerId -> total pending lines
     this._readyGarbage = [];
     this.rng = rng || Math.random;
-    this.boardWidth = boardWidth || DEFAULT_BOARD_WIDTH;
   }
 
   addPlayer(playerId) {
@@ -118,7 +117,7 @@ class GarbageManager {
   }
 
   generateGapColumn() {
-    return Math.floor(this.rng() * this.boardWidth);
+    return Math.floor(this.rng() * BOARD_WIDTH);
   }
 }
 

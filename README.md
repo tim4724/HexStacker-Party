@@ -1,14 +1,14 @@
-# Stacker Party
+# HexStacker Party
 
-![Stacker Party gameplay banner](artwork/gameplay-21x9.png)
+![HexStacker Party gameplay banner](artwork/gameplay-21x9.png)
 
-Browser-based multiplayer stacker where phones become controllers and a shared screen shows the action.
+Browser-based multiplayer hex stacker where phones become controllers and a shared screen shows the action.
 
-**Play now at [couch-games.com](https://couch-games.com)**
+**Play now at [hexstackerparty.com](https://hexstackerparty.com)**
 
 ## Overview
 
-Stacker Party supports 1 to 8 players on a single shared display. One browser window acts as the game screen (TV, monitor, or laptop), while each player joins by scanning a QR code with their phone. The phone becomes a touch-based controller with gesture input and haptic feedback. The display client runs the authoritative game engine, communicating with controllers through a lightweight WebSocket relay.
+HexStacker Party supports 1 to 8 players on a single shared display. One browser window acts as the game screen (TV, monitor, or laptop), while each player joins by scanning a QR code with their phone. The phone becomes a touch-based controller with gesture input and haptic feedback. The display client runs the authoritative game engine, communicating with controllers through a lightweight WebSocket relay.
 
 ## Architecture
 
@@ -27,10 +27,10 @@ The display browser runs the game engine and renders all player boards. Controll
 - 1–8 players on one screen
 - QR code join – scan and play, no app install
 - Touch gesture controls with haptic feedback
-- Two game modes: **Square** (standard stacker) and **Hex** (flat-top hexagonal grid)
+- Flat-top hexagonal grid with dual-zigzag line clears
 - Competitive mode with garbage lines
 - Rotation with wall kicks
-- 7-bag randomizer
+- 8-bag randomizer (I, O, S, Z, q, p, L, J)
 - Localized UI (11 languages)
 - AirConsole platform support (`screen.html` / `controller.html`)
 

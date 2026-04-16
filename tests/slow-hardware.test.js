@@ -2,9 +2,10 @@
 
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
-const { PlayerBoard } = require('../server/PlayerBoard');
 const { Game } = require('../server/Game');
-const { BOARD_HEIGHT, BUFFER_ROWS, LOGIC_TICK_MS, MAX_DROPS_PER_TICK } = require('../server/constants');
+const { LOGIC_TICK_MS, MAX_DROPS_PER_TICK } = require('../server/constants');
+const { TOTAL_ROWS, BUFFER_ROWS } = require('../server/constants');
+const BOARD_HEIGHT = TOTAL_ROWS;
 
 // Helpers
 
@@ -23,24 +24,20 @@ function makeGame(playerCount, seed) {
   return { game, events };
 }
 
-function getPlayerY(game, playerId) {
-  const board = game.boards.get(playerId);
-  return board.currentPiece ? board.currentPiece.y : null;
-}
 
 describe('Slow hardware — large deltaMs', () => {
 
   test('piece does not teleport with a 200ms frame gap (MAX_DROPS_PER_TICK cap)', () => {
     const { game } = makeGame(1);
     const board = game.boards.get('p0');
-    const startY = board.currentPiece.y;
+    const startY = board.currentPiece.anchorRow;
 
     // 200ms at 60fps = 12 frames; at level 1 gravity=48 frames/drop, so <1 drop expected.
     // But at high level, gravity is fast — cap should prevent teleporting.
     board.lines = 290; // force high level for fast gravity
     game.update(200);
 
-    const endY = board.currentPiece ? board.currentPiece.y : BOARD_HEIGHT;
+    const endY = board.currentPiece ? board.currentPiece.anchorRow : BOARD_HEIGHT;
     const dropped = endY - startY;
     assert.ok(dropped <= MAX_DROPS_PER_TICK,
       `Piece dropped ${dropped} rows on 200ms frame, cap is ${MAX_DROPS_PER_TICK}`);
@@ -58,7 +55,7 @@ describe('Slow hardware — large deltaMs', () => {
 
     // Should still be alive and functioning after 500ms of play
     assert.ok(board.alive, 'Player should be alive after 500ms of capped updates');
-    assert.ok(board.currentPiece || board.clearingRows,
+    assert.ok(board.currentPiece || board.clearingCells,
       'Should have an active piece or be clearing lines');
   });
 
@@ -88,8 +85,8 @@ describe('Slow hardware — large deltaMs', () => {
     }
 
     // Both should have their piece at the same Y position (same gravity accumulation)
-    const steadyY = steadyBoard.currentPiece ? steadyBoard.currentPiece.y : -1;
-    const jitteryY = jitteryBoard.currentPiece ? jitteryBoard.currentPiece.y : -1;
+    const steadyY = steadyBoard.currentPiece ? steadyBoard.currentPiece.anchorRow : -1;
+    const jitteryY = jitteryBoard.currentPiece ? jitteryBoard.currentPiece.anchorRow : -1;
     assert.strictEqual(steadyY, jitteryY,
       `Steady Y=${steadyY} vs Jittery Y=${jitteryY} — gravity should be frame-rate independent`);
   });
@@ -126,7 +123,7 @@ describe('Slow hardware — large deltaMs', () => {
     for (let i = 0; i < 20; i++) {
       game.update(50); // ~3 frames per tick at 60fps
       if (board.currentPiece) {
-        positions.push(board.currentPiece.y);
+        positions.push(board.currentPiece.anchorRow);
       }
     }
 
@@ -142,12 +139,12 @@ describe('Slow hardware — large deltaMs', () => {
     const board = game.boards.get('p0');
 
     board.softDropStart(20);
-    const startY = board.currentPiece.y;
+    const startY = board.currentPiece.anchorRow;
 
     // One very slow frame
     game.update(50);
 
-    const endY = board.currentPiece ? board.currentPiece.y : BOARD_HEIGHT;
+    const endY = board.currentPiece ? board.currentPiece.anchorRow : BOARD_HEIGHT;
     const dropped = endY - startY;
     assert.ok(dropped <= MAX_DROPS_PER_TICK,
       `Soft drop moved ${dropped} rows on 50ms frame, cap is ${MAX_DROPS_PER_TICK}`);
@@ -178,21 +175,21 @@ describe('Slow hardware — large deltaMs', () => {
     assert.ok(board.alive, 'Player should still be alive');
     assert.ok(board.currentPiece, 'Should have an active piece');
     // Piece should be sitting on the surface or near bottom
-    assert.ok(board.currentPiece.y > BUFFER_ROWS,
-      `Piece should have dropped past buffer (y=${board.currentPiece.y})`);
+    assert.ok(board.currentPiece.anchorRow > BUFFER_ROWS,
+      `Piece should have dropped past buffer (y=${board.currentPiece.anchorRow})`);
   });
 
   test('zero deltaMs frames are harmless (frozen frames)', () => {
     const { game } = makeGame(1);
     const board = game.boards.get('p0');
-    const startY = board.currentPiece.y;
+    const startY = board.currentPiece.anchorRow;
 
     // Several zero-time frames (e.g., RAF fires twice without time advancing)
     for (let i = 0; i < 10; i++) {
       game.update(0);
     }
 
-    assert.strictEqual(board.currentPiece.y, startY,
+    assert.strictEqual(board.currentPiece.anchorRow, startY,
       'Piece should not move on zero-time frames');
     assert.ok(board.alive, 'Player should still be alive');
   });

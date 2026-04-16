@@ -1,14 +1,14 @@
 {
-  "name": "couch-games",
+  "name": "hexstacker-party",
   "version": "2.4.0",
-  "description": "Browser-based multiplayer stacker with phone controllers",
+  "description": "Browser-based multiplayer hex stacker with phone controllers",
   "main": "server/index.js",
   "scripts": {
     "start": "node scripts/generate-airconsole-html.js && node server/index.js",
     "dev": "node scripts/generate-airconsole-html.js && node --watch server/index.js",
     "test": "node --test tests/*.test.js",
-    "test:visual": "npx playwright test --project=display --project=controller --project=controller-landscape",
-    "test:visual:update": "npx playwright test --project=display --project=controller --project=controller-landscape --update-snapshots",
+    "test:visual": "npx playwright test --project=display --project=hex-display --project=controller --project=controller-landscape",
+    "test:visual:update": "npx playwright test --project=display --project=hex-display --project=controller --project=controller-landscape --update-snapshots",
     "test:e2e": "npx playwright test --project=e2e",
     "test:e2e:airconsole": "AC_MOCK=1 npx playwright test --project=e2e-airconsole",
     "ad:pieces": "node ad/scripts/generate-piece-assets.js",

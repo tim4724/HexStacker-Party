@@ -19,7 +19,6 @@ async function injectHexGameState(page, playerCount, options) {
   const playerIds = buildPlayerIds(playerCount);
   const state = buildHexGameState(playerIds, options || {});
   await page.evaluate(({ s }) => {
-    window.__TEST__.setGameMode('hex');
     window.__TEST__.injectGameState(s);
   }, { s: state });
   await waitForGameRender(page);
@@ -85,7 +84,6 @@ test.describe('Hex Display', () => {
     const playerIds = buildPlayerIds(3);
     const state = buildHexStyleTierState(playerIds);
     await page.evaluate(({ s }) => {
-      window.__TEST__.setGameMode('hex');
       window.__TEST__.injectGameState(s);
     }, { s: state });
     await waitForGameRender(page);
@@ -100,7 +98,6 @@ test.describe('Hex Display', () => {
       const playerIds = buildPlayerIds(8);
       const result = buildHexAllPiecesGhostState(playerIds, tierLevel);
       await page.evaluate(({ s, extraGhosts }) => {
-        window.__TEST__.setGameMode('hex');
         window.__TEST__.setExtraGhosts(extraGhosts);
         window.__TEST__.injectGameState(s);
       }, { s: result.state, extraGhosts: result.extraGhostsPerPlayer });
@@ -117,7 +114,6 @@ test.describe('Hex Display', () => {
     const state = buildHexGameState(playerIds, {});
     state.players[1].alive = false;
     await page.evaluate(({ s }) => {
-      window.__TEST__.setGameMode('hex');
       window.__TEST__.injectGameState(s);
       window.__TEST__.injectKO('player2');
     }, { s: state });

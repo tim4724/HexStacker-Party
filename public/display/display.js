@@ -89,7 +89,7 @@ if (endContinueBtn) {
   });
 }
 
-// Share couch-games.com via the Web Share API when the link is tapped on mobile.
+// Share hexstackerparty.com via the Web Share API when the link is tapped on mobile.
 // Delegated on document so i18n re-translations don't discard the listener.
 if (navigator.share) {
   document.addEventListener('click', function(e) {
@@ -97,9 +97,9 @@ if (navigator.share) {
     if (!link) return;
     e.preventDefault();
     navigator.share({
-      title: 'Stacker Party',
-      text: 'Play Stacker Party with your friends',
-      url: 'https://couch-games.com'
+      title: 'HexStacker Party',
+      text: 'Play HexStacker Party with your friends',
+      url: 'https://hexstackerparty.com'
     }).catch(function(err) {
       // AbortError = user cancelled the sheet — do nothing.
       // Any other error = share was blocked — fall back to normal navigation.
@@ -174,49 +174,6 @@ window.addEventListener('pagehide', function() {
   }
 });
 
-// --- Game mode selector ---
-var modeCards = document.querySelectorAll('#mode-selector .mode-option');
-
-function updateModeUI(mode) {
-  for (var i = 0; i < modeCards.length; i++) {
-    modeCards[i].classList.toggle('selected', modeCards[i].getAttribute('data-mode') === mode);
-  }
-}
-
-// Restore from localStorage
-var savedMode = null;
-try { savedMode = localStorage.getItem('stacker_game_mode'); } catch (e) { /* iframe sandbox */ }
-if (savedMode === 'hex' || savedMode === 'classic') {
-  gameMode = savedMode;
-  updateModeUI(gameMode);
-  if (welcomeBg) welcomeBg.setMode(gameMode);
-  if (savedMode === 'hex') {
-    var link = document.querySelector('link[rel="icon"]');
-    if (link) link.href = '/favicon-hex.svg';
-  }
-}
-
-function setFavicon(mode) {
-  var link = document.querySelector('link[rel="icon"]');
-  if (link) link.href = mode === 'hex' ? '/favicon-hex.svg' : '/favicon-classic.svg';
-}
-
-function setGameMode(mode) {
-  if (mode !== 'classic' && mode !== 'hex') return;
-  gameMode = mode;
-  updateModeUI(mode);
-  setFavicon(mode);
-  if (welcomeBg) welcomeBg.setMode(mode);
-  try { localStorage.setItem('stacker_game_mode', mode); } catch (e) { /* iframe sandbox */ }
-  if (party && roomState === ROOM_STATE.LOBBY) broadcastLobbyUpdate();
-}
-
-for (var mi = 0; mi < modeCards.length; mi++) {
-  modeCards[mi].addEventListener('click', function() {
-    setGameMode(this.getAttribute('data-mode'));
-  });
-}
-
 playAgainBtn.addEventListener('click', function() {
   initMusic();
   playAgain();
@@ -285,7 +242,6 @@ fetch('/api/version').then(function(r) { return r.json(); }).then(function(data)
 var bgCanvas = document.getElementById('bg-canvas');
 if (bgCanvas && urlParams.get('test') !== '1') {
   welcomeBg = new WelcomeBackground(bgCanvas);
-  if (gameMode !== 'classic') welcomeBg.setMode(gameMode);
   welcomeBg.resize(window.innerWidth, window.innerHeight);
   welcomeBg.start();
 }

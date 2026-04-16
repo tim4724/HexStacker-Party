@@ -3,18 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
-  <title>Stacker Party Controller</title>
-  <meta name="description" content="Multiplayer stacker — play on your TV, control with your phone.">
-  <meta property="og:title" content="Stacker Party">
-  <meta property="og:description" content="Multiplayer stacker — play on your TV, control with your phone.">
-  <meta property="og:image" content="https://couch-games.com/social-preview.png">
+  <title>HexStacker Party Controller</title>
+  <meta name="description" content="Multiplayer hex stacker — play on your TV, control with your phone.">
+  <meta property="og:title" content="HexStacker Party">
+  <meta property="og:description" content="Multiplayer hex stacker — play on your TV, control with your phone.">
+  <meta property="og:image" content="https://hexstackerparty.com/social-preview.png">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Stacker Party">
-  <meta name="twitter:description" content="Multiplayer stacker — play on your TV, control with your phone.">
-  <meta name="twitter:image" content="https://couch-games.com/social-preview.png">
+  <meta name="twitter:title" content="HexStacker Party">
+  <meta name="twitter:description" content="Multiplayer hex stacker — play on your TV, control with your phone.">
+  <meta name="twitter:image" content="https://hexstackerparty.com/social-preview.png">
   <link rel="stylesheet" href="/shared/fonts/orbitron.css">
-  <link rel="icon" href="/favicon-classic.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/shared/theme.css">
   <link rel="stylesheet" href="/shared/results.css">
   <link rel="stylesheet" href="/shared/end-screen.css">
@@ -30,7 +31,7 @@
   <div id="name-screen" class="screen controller-shell hidden">
     <div class="controller-shell__frame controller-shell__frame--name">
       <div class="controller-shell__brand">
-        <h1 class="controller-shell__title gradient-title">STACKER PARTY</h1>
+        <h1 class="controller-shell__title gradient-title">HEX STACKER<span class="gradient-title__sub">party</span></h1>
       </div>
       <div class="controller-shell__body">
         <div id="name-form">
@@ -59,20 +60,9 @@
     </div>
     <div class="controller-shell__frame controller-shell__frame--lobby">
       <div class="controller-shell__brand">
-        <h1 id="lobby-title" class="controller-shell__title gradient-title">STACKER PARTY</h1>
+        <h1 id="lobby-title" class="controller-shell__title gradient-title">HEX STACKER<span class="gradient-title__sub">party</span></h1>
       </div>
       <div class="controller-shell__body">
-        <div id="mode-selector">
-          <button class="mode-option selected" data-mode="classic">
-            <span class="mode-icon mode-icon--classic"></span>
-            <span data-i18n="square">SQUARE</span>
-          </button>
-          <button class="mode-option" data-mode="hex">
-            <span class="mode-icon mode-icon--hex"></span>
-            <span data-i18n="hex">HEX</span>
-            <span class="badge-new" data-i18n="new_badge">NEW</span>
-          </button>
-        </div>
         <div id="player-identity">
           <div id="player-identity-card" class="player-card">
             <span id="player-identity-name"></span>
@@ -139,7 +129,7 @@
   <div id="gameover-screen" class="screen controller-shell hidden">
     <div class="controller-shell__frame controller-shell__frame--results">
       <div class="controller-shell__brand">
-        <h1 class="controller-shell__title gradient-title">STACKER PARTY</h1>
+        <h1 class="controller-shell__title gradient-title">HEX STACKER<span class="gradient-title__sub">party</span></h1>
       </div>
       <div class="controller-shell__body controller-shell__body--results">
         <div id="results-list"></div>
@@ -157,14 +147,14 @@
   <!-- End screen: shown when session is replaced, display closes, or room errors -->
   <div class="end-screen hidden" id="end-screen">
     <div class="end-brand">
-      <h1 class="gradient-title">STACKER PARTY</h1>
+      <h1 class="gradient-title">HEX STACKER<span class="gradient-title__sub">party</span></h1>
     </div>
     <div class="end-content">
       <img src="/artwork/gameplay-16x9.png" alt="" class="end-screenshot">
       <div class="end-steps-card">
         <p class="end-steps-card__title" data-i18n="end_how_to_play">How to play</p>
         <ol class="end-steps">
-          <li><span class="end-step-text" data-i18n-html="end_step_1">Open <a href="https://couch-games.com" id="end-step-1-link" class="end-link">couch-games.com</a> on a larger screen</span></li>
+          <li><span class="end-step-text" data-i18n-html="end_step_1">Open <a href="https://hexstackerparty.com" id="end-step-1-link" class="end-link">hexstackerparty.com</a> on a larger screen</span></li>
           <li><span class="end-step-text" data-i18n="end_step_2">Scan the QR code to use your phone as controller</span></li>
         </ol>
       </div>
@@ -173,7 +163,7 @@
       <p id="end-toast" class="end-toast hidden" aria-hidden="true"></p>
     </div>
     <div class="end-legal">
-      <a href="https://github.com/tim4724/Stacker-Party" target="_blank" rel="noopener" data-i18n="stacked_by">Stacked by Tim</a>
+      <a href="https://github.com/tim4724/HexStacker-Party" target="_blank" rel="noopener" data-i18n="stacked_by">Stacked by Tim</a>
       <span aria-hidden="true">&middot;</span>
       <a href="/privacy" data-i18n="privacy">Privacy</a>
       <span aria-hidden="true">&middot;</span>
@@ -183,8 +173,6 @@
 
   <script src="/engine/constants.js"></script>
   <script src="/engine/Piece.js"></script>
-  <script src="/engine/HexConstants.js"></script>
-  <script src="/engine/HexPiece.js"></script>
   <script src="/shared/PartyConnection.js"></script>
   <script src="/shared/AirConsoleAdapter.js"></script>
   <script src="/shared/protocol.js"></script>

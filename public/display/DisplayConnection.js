@@ -181,8 +181,7 @@ function onDisplayRejoined(partyRoomCode, clients) {
       playerColor: info.playerColor,
       playerCount: players.size,
       roomState: roomState,
-      startLevel: info.startLevel || 1,
-      gameMode: gameMode
+      startLevel: info.startLevel || 1
     };
     if (!isLateJoiner) {
       welcomeMsg.alive = lastAliveState[id] != null ? lastAliveState[id] : true;
@@ -290,8 +289,7 @@ function broadcastLobbyUpdate() {
     party.sendTo(id, {
       type: MSG.LOBBY_UPDATE,
       playerCount: players.size,
-      startLevel: entry[1].startLevel || 1,
-      gameMode: gameMode
+      startLevel: entry[1].startLevel || 1
     });
   }
 }

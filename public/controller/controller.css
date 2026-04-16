@@ -108,6 +108,14 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* When the actions block contains a status banner (e.g. the late-joiner
+   "Game in progress — please wait for New Game" message), widen the
+   container so the text fits on two lines with breathing room on the
+   longest locale (French is ~56 chars). */
+.controller-shell__actions:has(.status-banner:not(.hidden)) {
+  max-width: min(92%, 420px);
   align-items: stretch;
   margin-top: 24px;
 }
@@ -248,91 +256,6 @@ html, body {
   animation: fadeUp 0.5s 0.4s ease-out both, btnPulse 2.5s 1s ease-in-out infinite;
 }
 
-
-/* --- Mode Selector --- */
-#mode-selector {
-  display: flex;
-  width: min(85vw, 300px);
-  border-radius: var(--radius-lg);
-  border: 1.5px solid var(--border);
-  background: var(--bg-card);
-  overflow: hidden;
-  animation: fadeUp 0.4s 0.2s ease-out both;
-}
-
-.mode-option {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 12px 0;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  font-family: 'Orbitron', sans-serif;
-  font-size: clamp(0.9rem, 4.5vw, 1.1rem);
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
-}
-
-.mode-option .mode-icon {
-  display: inline-block;
-  width: 26px;
-  height: 18px;
-  background: currentColor;
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-  opacity: 0.4;
-  transition: opacity 0.2s;
-}
-
-.mode-icon--classic {
-  -webkit-mask-image: url(../favicon-classic.svg);
-  mask-image: url(../favicon-classic.svg);
-}
-
-.mode-icon--hex {
-  -webkit-mask-image: url(../favicon-hex.svg);
-  mask-image: url(../favicon-hex.svg);
-}
-
-.badge-new {
-  font-size: 0.55rem;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: var(--accent-cyan);
-  color: var(--bg-primary);
-  line-height: 1.4;
-  animation: badgePulse 2s ease-in-out infinite;
-}
-
-@keyframes badgePulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-
-.mode-option.selected {
-  background: rgba(var(--accent-cyan-rgb), 0.12);
-  color: var(--text-primary);
-  box-shadow: inset 0 0 16px rgba(var(--accent-cyan-rgb), 0.06);
-}
-
-.mode-option.selected .mode-icon {
-  opacity: 1;
-}
-
-.mode-option:not(.selected):active {
-  background: rgba(255, 255, 255, 0.05);
-}
 
 #player-identity {
   display: flex;
@@ -889,8 +812,13 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   padding: 4px;
 }
 
-/* --- Landscape layout --- */
-@media (orientation: landscape) {
+/* --- Landscape layout ---
+   min-aspect-ratio guards against false-landscape when a portrait device
+   opens the soft keyboard: interactive-widget=resizes-content shrinks the
+   layout viewport height so much that width > height on short phones
+   (e.g. iPhone SE 375x367 with keyboard open). 5/4 still matches real
+   landscape on phones (>1.7) and iPad (1.33). */
+@media (orientation: landscape) and (min-aspect-ratio: 5/4) {
   /* Shell screens: widen frame and reduce vertical spacing */
   .controller-shell__frame {
     width: min(100%, 520px);
@@ -912,25 +840,27 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
     gap: 8px;
   }
 
-  #mode-selector {
-    width: min(85vw, 400px);
+  /* Status banners need breathing room for longer messages like
+     "Game in progress. Please wait for New Game." */
+  .controller-shell__actions:has(.status-banner:not(.hidden)) {
+    max-width: min(92%, 560px);
   }
 
   .status-banner {
     min-height: 36px;
     padding: 0.4rem 1rem;
     font-size: clamp(0.85rem, 3vw, 1rem);
-    white-space: nowrap;
   }
 
-  /* Lobby: spread elements evenly */
+  /* Lobby: pack player card + start button together near center,
+     matching portrait layout rather than spreading to edges. */
   .controller-shell__frame--lobby {
-    justify-content: stretch;
+    justify-content: center;
+    gap: 14px;
   }
 
   .controller-shell__frame--lobby .controller-shell__body {
-    flex: 1;
-    justify-content: space-evenly;
+    flex: 0 0 auto;
   }
 
   .controller-shell__frame--lobby .controller-shell__actions {
@@ -1089,7 +1019,7 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
    Uses visibility+height instead of display:none to avoid replaying
    CSS entrance animations when the keyboard closes.
    iPhone 14 landscape = 390px, SE = 259px; keyboard leaves ~140-190px. */
-@media (orientation: landscape) and (max-height: 220px) {
+@media (orientation: landscape) and (min-aspect-ratio: 5/4) and (max-height: 220px) {
   .controller-shell__brand,
   .controller-shell__actions,
   .legal-links,

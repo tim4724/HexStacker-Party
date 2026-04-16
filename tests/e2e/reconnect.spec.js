@@ -62,7 +62,7 @@ test.describe('Reconnection', () => {
   test('display reconnect overlay shows when relay connection drops', async ({ page, context }) => {
     // Intercept the relay WebSocket so we can force-close it
     let serverWs;
-    await page.routeWebSocket(/ws\.couch-games\.com/, (ws) => {
+    await page.routeWebSocket(/ws\.hexstackerparty\.com/, (ws) => {
       const server = ws.connectToServer();
       serverWs = { client: ws, server };
 

@@ -10,16 +10,6 @@
 // Lobby / Welcome
 // =====================================================================
 
-function updateControllerModeUI(mode) {
-  var opts = document.querySelectorAll('#mode-selector .mode-option');
-  for (var i = 0; i < opts.length; i++) {
-    opts[i].classList.toggle('selected', opts[i].getAttribute('data-mode') === mode);
-  }
-  if (welcomeBg) welcomeBg.setMode(mode);
-  var link = document.querySelector('link[rel="icon"]');
-  if (link) link.href = mode === 'hex' ? '/favicon-hex.svg' : '/favicon-classic.svg';
-}
-
 function updateLevelDisplay() {
   if (levelDisplay) levelDisplay.textContent = startLevel;
   if (levelMinusBtn) levelMinusBtn.disabled = startLevel <= 1;
@@ -72,7 +62,6 @@ function onWelcome(data) {
   touchArea.setAttribute('data-player-name', playerName);
   if (data.startLevel != null) startLevel = data.startLevel;
 
-  if (data.gameMode) updateControllerModeUI(data.gameMode);
   if (data.locale) { setLocale(data.locale); translatePage(); }
 
   if (data.roomState === 'playing' || data.roomState === 'countdown') {
@@ -125,7 +114,6 @@ function onWelcome(data) {
 function onLobbyUpdate(data) {
   playerCount = data.playerCount;
   if (data.startLevel != null) startLevel = data.startLevel;
-  if (data.gameMode) updateControllerModeUI(data.gameMode);
   updateStartButton();
   if (currentScreen === 'lobby') updateLevelDisplay();
 }

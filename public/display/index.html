@@ -3,18 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Stacker Party</title>
-  <meta name="description" content="Multiplayer stacker — play on your TV, control with your phone.">
-  <meta property="og:title" content="Stacker Party">
-  <meta property="og:description" content="Multiplayer stacker — play on your TV, control with your phone.">
-  <meta property="og:image" content="https://couch-games.com/social-preview.png">
+  <title>HexStacker Party</title>
+  <meta name="description" content="Multiplayer hex stacker — play on your TV, control with your phone.">
+  <meta property="og:title" content="HexStacker Party">
+  <meta property="og:description" content="Multiplayer hex stacker — play on your TV, control with your phone.">
+  <meta property="og:image" content="https://hexstackerparty.com/social-preview.png">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Stacker Party">
-  <meta name="twitter:description" content="Multiplayer stacker — play on your TV, control with your phone.">
-  <meta name="twitter:image" content="https://couch-games.com/social-preview.png">
+  <meta name="twitter:title" content="HexStacker Party">
+  <meta name="twitter:description" content="Multiplayer hex stacker — play on your TV, control with your phone.">
+  <meta name="twitter:image" content="https://hexstackerparty.com/social-preview.png">
   <link rel="stylesheet" href="/shared/fonts/orbitron.css">
-  <link rel="icon" href="/favicon-classic.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/shared/theme.css">
   <link rel="stylesheet" href="/shared/results.css">
   <link rel="stylesheet" href="/shared/end-screen.css">
@@ -27,14 +28,14 @@
   <!-- End screen: shown on mobile devices visiting the display URL -->
   <div class="end-screen hidden" id="end-screen">
     <div class="end-brand">
-      <h1 class="gradient-title">STACKER PARTY</h1>
+      <h1 class="gradient-title">HEX STACKER<span class="gradient-title__sub">party</span></h1>
     </div>
     <div class="end-content">
       <img src="/artwork/gameplay-16x9.png" alt="" class="end-screenshot">
       <div class="end-steps-card">
         <p class="end-steps-card__title" data-i18n="end_how_to_play">How to play</p>
         <ol class="end-steps">
-          <li><span class="end-step-text" data-i18n-html="end_step_1">Open <a href="https://couch-games.com" id="end-step-1-link" class="end-link">couch-games.com</a> on a larger screen</span></li>
+          <li><span class="end-step-text" data-i18n-html="end_step_1">Open <a href="https://hexstackerparty.com" id="end-step-1-link" class="end-link">hexstackerparty.com</a> on a larger screen</span></li>
           <li><span class="end-step-text" data-i18n="end_step_2">Scan the QR code to use your phone as controller</span></li>
         </ol>
       </div>
@@ -43,7 +44,7 @@
       <button id="end-continue-btn" class="btn btn-secondary" data-i18n="continue_anyway">CONTINUE ANYWAY</button>
     </div>
     <div class="end-legal">
-      <a href="https://github.com/tim4724/Stacker-Party" target="_blank" rel="noopener" data-i18n="stacked_by">Stacked by Tim</a>
+      <a href="https://github.com/tim4724/HexStacker-Party" target="_blank" rel="noopener" data-i18n="stacked_by">Stacked by Tim</a>
       <span aria-hidden="true">&middot;</span>
       <a href="/privacy" data-i18n="privacy">Privacy</a>
       <span aria-hidden="true">&middot;</span>
@@ -53,12 +54,12 @@
 
   <!-- Welcome screen: unlocks audio via user gesture -->
   <div id="welcome-screen" class="screen">
-    <h1 class="gradient-title">STACKER PARTY</h1>
+    <h1 class="gradient-title">HEX STACKER<span class="gradient-title__sub">party</span></h1>
     <button id="new-game-btn" class="btn btn-primary" data-i18n="start_new_game">START NEW GAME</button>
     <div id="welcome-footer">
       <div class="footer-row">
         <span class="footer-group">
-          <a id="github-link" href="https://github.com/tim4724/Stacker-Party" target="_blank" rel="noopener" data-i18n="stacked_by">Stacked by Tim</a>
+          <a id="github-link" href="https://github.com/tim4724/HexStacker-Party" target="_blank" rel="noopener" data-i18n="stacked_by">Stacked by Tim</a>
           <span class="footer-dot">&middot;</span>
           <a href="https://opengameart.org/content/lunar-joyride-8-bit" target="_blank" rel="noopener" data-i18n="music_by">Music by FoxSynergy</a>
         </span>
@@ -75,28 +76,17 @@
 
   <!-- Lobby screen: QR code + player list + start button -->
   <div id="lobby-screen" class="screen hidden">
-    <h1 class="gradient-title">STACKER PARTY</h1>
+    <h1 class="gradient-title">HEX STACKER<span class="gradient-title__sub">party</span></h1>
     <div id="qr-container">
       <canvas id="qr-code"></canvas>
       <p id="qr-label" data-i18n="scan_to_join">Scan to join</p>
       <p id="join-url"></p>
     </div>
-    <div id="mode-selector">
-      <button class="mode-option selected" data-mode="classic">
-        <span class="mode-icon mode-icon--classic"></span>
-        <span data-i18n="square">SQUARE</span>
-      </button>
-      <button class="mode-option" data-mode="hex">
-        <span class="mode-icon mode-icon--hex"></span>
-        <span data-i18n="hex">HEX</span>
-        <span class="badge-new" data-i18n="new_badge">NEW</span>
-      </button>
-    </div>
     <div id="player-list"></div>
     <button id="start-btn" class="btn btn-primary" disabled data-i18n="waiting_for_players">Waiting for players...</button>
     <div id="lobby-footer">
       <div class="footer-row">
-        <a href="https://github.com/tim4724/Stacker-Party" target="_blank" rel="noopener" data-i18n="stacked_by">Stacked by Tim</a>
+        <a href="https://github.com/tim4724/HexStacker-Party" target="_blank" rel="noopener" data-i18n="stacked_by">Stacked by Tim</a>
         <span class="footer-dot">&middot;</span>
         <a href="https://opengameart.org/content/lunar-joyride-8-bit" target="_blank" rel="noopener" data-i18n="music_by">Music by FoxSynergy</a>
       </div>
@@ -142,15 +132,10 @@
   </div>
 
   <script src="/engine/constants.js"></script>
-  <script src="/engine/Piece.js"></script>
   <script src="/engine/Randomizer.js"></script>
-
   <script src="/engine/GarbageManager.js"></script>
-  <script src="/engine/BaseBoard.js"></script>
+  <script src="/engine/Piece.js"></script>
   <script src="/engine/PlayerBoard.js"></script>
-  <script src="/engine/HexConstants.js"></script>
-  <script src="/engine/HexPiece.js"></script>
-  <script src="/engine/HexPlayerBoard.js"></script>
   <script src="/engine/Game.js"></script>
   <script src="/shared/PartyConnection.js"></script>
   <script src="/shared/AirConsoleAdapter.js"></script>
@@ -161,10 +146,7 @@
   <script src="/shared/theme.js"></script>
   <script src="/shared/WelcomeBackground.js"></script>
   <script src="/display/BoardRenderer.js"></script>
-  <script src="/display/BaseUIRenderer.js"></script>
   <script src="/display/UIRenderer.js"></script>
-  <script src="/display/HexBoardRenderer.js"></script>
-  <script src="/display/HexUIRenderer.js"></script>
   <script src="/display/Animations.js"></script>
   <script src="/display/Music.js"></script>
   <script src="/display/DisplayState.js"></script>

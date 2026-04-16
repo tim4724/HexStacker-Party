@@ -198,7 +198,7 @@ describe('Game - garbage delivery during line clear animation', () => {
     board.spawnPiece();
 
     // Put board into clearing state with plenty of time remaining
-    board.clearingRows = [22, 23];
+    board.clearingCells = [[0, 20], [1, 20], [2, 20]];
     board.clearingTimer = 999999;
 
     // Queue garbage that expires this tick (msLeft <= LOGIC_TICK_MS)
@@ -223,7 +223,7 @@ describe('Game - garbage delivery during line clear animation', () => {
     const board = game.boards.get('p1');
     board.spawnPiece();
 
-    assert.strictEqual(board.clearingRows, null);
+    assert.strictEqual(board.clearingCells, null);
 
     const LOGIC_TICK_MS = require('../server/constants').LOGIC_TICK_MS;
     game.garbageManager.queues.get('p1').push(

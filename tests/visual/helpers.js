@@ -1,8 +1,5 @@
 // @ts-check
 
-const { buildPlayers, buildPlayerIds, buildGameState, buildStyleTierGameState, buildAllPiecesGhostState, buildResults } = require('./fixtures');
-
-
 async function waitForFont(page) {
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(100);
@@ -29,49 +26,6 @@ async function stopDisplayBackground(page) {
 // --- Display test injection helpers ---
 // These use window.__TEST__ API to inject state directly into the display,
 // avoiding any dependency on Party-Server for visual snapshot tests.
-
-async function injectPlayers(page, count) {
-  const playerList = buildPlayers(count);
-  await page.evaluate((players) => {
-    window.__TEST__.addPlayers(players);
-  }, playerList);
-}
-
-async function injectGameState(page, playerCount, options) {
-  const playerIds = buildPlayerIds(playerCount);
-  const state = buildGameState(playerIds, options || {});
-  await page.evaluate((s) => {
-    window.__TEST__.injectGameState(s);
-  }, state);
-  await waitForGameRender(page);
-}
-
-async function injectResults(page, playerCount) {
-  const playerIds = buildPlayerIds(playerCount);
-  const results = buildResults(playerIds);
-  await page.evaluate((r) => {
-    window.__TEST__.injectResults(r);
-  }, results);
-}
-
-async function injectStyleTierGameState(page, playerCount) {
-  const playerIds = buildPlayerIds(playerCount);
-  const state = buildStyleTierGameState(playerIds);
-  await page.evaluate((s) => {
-    window.__TEST__.injectGameState(s);
-  }, state);
-  await waitForGameRender(page);
-}
-
-async function injectAllPiecesGhostState(page, playerCount, tierLevel) {
-  const playerIds = buildPlayerIds(playerCount);
-  const result = buildAllPiecesGhostState(playerIds, tierLevel);
-  await page.evaluate(({ s, extraGhosts }) => {
-    window.__TEST__.setExtraGhosts(extraGhosts);
-    window.__TEST__.injectGameState(s);
-  }, { s: result.state, extraGhosts: result.extraGhostsPerPlayer });
-  await waitForGameRender(page);
-}
 
 async function injectPause(page) {
   await page.evaluate(() => {
@@ -174,7 +128,7 @@ async function stabilizeControllerUI(page) {
   }, STABLE_URL);
 }
 
-const STABLE_URL = 'https://couch-games.com/ABCD';
+const STABLE_URL = 'https://hexstackerparty.com/ABCD';
 
 async function stabilizeDisplayLobby(page) {
   var response = await page.request.get('/api/qr?text=' + encodeURIComponent(STABLE_URL));
@@ -211,14 +165,9 @@ async function waitForControllerResults(page) {
 module.exports = {
   createRoom,
   gotoDisplayTest,
-  injectGameState,
   injectGarbageSent,
   injectKO,
   injectPause,
-  injectPlayers,
-  injectResults,
-  injectAllPiecesGhostState,
-  injectStyleTierGameState,
   joinController,
   stabilizeControllerUI,
   stabilizeDisplayLobby,

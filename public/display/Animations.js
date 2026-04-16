@@ -9,93 +9,6 @@ class Animations {
     this.active = [];
   }
 
-  addLineClear(boardX, boardY, cellSize, rows, isQuad) {
-    if (!Array.isArray(rows) || rows.length === 0) return;
-
-    const duration = THEME.timing.lineClear;
-    const boardWidth = GameConstants.BOARD_WIDTH * cellSize;
-
-    // Main line clear effect — pre-compute color to avoid per-frame string allocation
-    var quadColor = isQuad ? THEME.color.quad : '#ffffff';
-
-    this.active.push({
-      type: 'lineClear',
-      startTime: performance.now(),
-      duration,
-      boardX,
-      boardY,
-      cellSize,
-      rows,
-      boardWidth,
-      quadColor,
-      render(ctx, progress) {
-        ctx.fillStyle = this.quadColor;
-        for (var ri = 0; ri < this.rows.length; ri++) {
-          var row = this.rows[ri];
-          if (row < 0) continue;
-          var ry = this.boardY + row * this.cellSize;
-          var rh = this.cellSize;
-
-          if (progress < 0.25) {
-            // Phase 1: Bright flash sweep from center
-            var flashProgress = progress / 0.25;
-            ctx.globalAlpha = 0.9 * (1 - flashProgress * 0.5);
-            var sweepWidth = flashProgress * this.boardWidth;
-            var sweepX = this.boardX + (this.boardWidth - sweepWidth) / 2;
-            ctx.fillRect(sweepX, ry, sweepWidth, rh);
-          } else {
-            // Phase 2: Scanline dissolve
-            var fadeProgress = (progress - 0.25) / 0.75;
-            var alpha = 0.5 * (1 - fadeProgress);
-            var stripeH = rh / 6;
-            for (var s = 0; s < 6; s++) {
-              var stripeAlpha = alpha * Math.max(0, 1 - (fadeProgress + s * 0.08));
-              if (stripeAlpha <= 0) continue;
-              ctx.globalAlpha = stripeAlpha;
-              // Stagger horizontal dissolve per stripe
-              var shrink = fadeProgress * (s % 2 === 0 ? 1 : -1) * this.boardWidth * 0.3;
-              var sx = this.boardX + (shrink > 0 ? shrink : 0);
-              var sw = this.boardWidth - Math.abs(shrink);
-              if (sw > 0) {
-                ctx.fillRect(sx, ry + s * stripeH, sw, stripeH * 0.6);
-              }
-            }
-          }
-        }
-        ctx.globalAlpha = 1;
-      }
-    });
-
-    // Sparkle particles for each cleared row
-    for (const row of rows) {
-      if (row < 0) continue;
-      const particleCount = isQuad ? 16 : 8;
-      for (let i = 0; i < particleCount; i++) {
-        this._addSparkle(
-          boardX + Math.random() * boardWidth,
-          boardY + row * cellSize + Math.random() * cellSize,
-          isQuad ? THEME.color.quad : THEME.color.text.white,
-          400 + Math.random() * 400,
-          cellSize
-        );
-      }
-    }
-
-    // Text popup for clears that send garbage
-    const firstRow = rows.find(r => r >= 0);
-    if (firstRow != null) {
-      const cx = boardX + 5 * cellSize;
-      const cy = boardY + firstRow * cellSize;
-      if (isQuad) {
-        this.addTextPopup(cx, cy, t('quad'), THEME.color.quad, true, cellSize);
-      } else if (rows.length === 3) {
-        this.addTextPopup(cx, cy, t('triple'), THEME.color.triple, true, cellSize);
-      } else if (rows.length === 2) {
-        this.addTextPopup(cx, cy, t('double'), THEME.color.text.white, false, cellSize);
-      }
-    }
-  }
-
   _addSparkle(x, y, color, duration, cellSize, sizeBase, sizeRange) {
     const vx = (Math.random() - 0.5) * 120;
     const vy = -Math.random() * 80 - 20;
@@ -122,33 +35,6 @@ class Animations {
     });
   }
 
-  addLockFlash(boardX, boardY, cellSize, blocks, pieceColor) {
-    if (!blocks || blocks.length === 0) return;
-
-    // Build a set of occupied cells to skip internal edges
-    const occupied = new Set();
-    for (const [col, row] of blocks) {
-      occupied.add(col + ',' + row);
-    }
-
-    // Colored sparkles only at exposed bottom edges
-    for (const [col, row] of blocks) {
-      if (row < 0 || row >= GameConstants.VISIBLE_HEIGHT) continue;
-      // Skip if another block from this piece is directly below
-      if (occupied.has(col + ',' + (row + 1))) continue;
-      for (let j = 0; j < 5; j++) {
-        this._addSparkle(
-          boardX + (col + Math.random()) * cellSize,
-          boardY + (row + 1) * cellSize,
-          pieceColor,
-          150 + Math.random() * 250,
-          cellSize,
-          0.08, 0.1
-        );
-      }
-    }
-  }
-
   addHexCellClear(br, cells, linesCleared) {
     if (!Array.isArray(cells) || cells.length === 0) return;
     var duration = THEME.timing.lineClear;
@@ -156,8 +42,7 @@ class Animations {
     var isTriple = linesCleared === 3;
 
     // Capture renderer values by value so the closure doesn't hold a stale br reference
-    // (calculateLayout clears animations.active before rebuilding renderers, so this is
-    // safe today, but capturing by value matches the classic addLineClear pattern).
+    // (calculateLayout clears animations.active before rebuilding renderers).
     var boardX = br.x, boardY = br.y, hexSize = br.hexSize;
     var hexH = br.hexH, colW = br.colW;
 
@@ -210,7 +95,7 @@ class Animations {
     // Text popup for multi-line clears
     var firstCell = cells.find(function(c) { return c[1] >= 0; });
     if (firstCell) {
-      var pos = hexCenter(Math.floor(HexConstants.HEX_COLS / 2), firstCell[1]);
+      var pos = hexCenter(Math.floor(GameConstants.COLS / 2), firstCell[1]);
       if (isQuad) {
         this.addTextPopup(pos.x, pos.y, t('quad'), THEME.color.quad, true, br.cellSize);
       } else if (isTriple) {
@@ -244,7 +129,7 @@ class Animations {
     for (var i = 0; i < blocks.length; i++) occupied.add(blocks[i][0] + ',' + blocks[i][1]);
     for (var k = 0; k < blocks.length; k++) {
       var col = blocks[k][0], row = blocks[k][1];
-      if (row < 0 || row >= HexConstants.HEX_VISIBLE_ROWS) continue;
+      if (row < 0 || row >= GameConstants.VISIBLE_ROWS) continue;
       if (occupied.has(col + ',' + (row + 1))) continue;
       var pos = br._hexCenter(col, row);
       for (var j = 0; j < 5; j++) {

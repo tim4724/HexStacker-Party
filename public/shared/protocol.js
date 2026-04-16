@@ -1,7 +1,7 @@
 'use strict';
 
 // Party-Server relay URL
-var RELAY_URL = 'wss://ws.couch-games.com';
+var RELAY_URL = 'wss://ws.hexstackerparty.com';
 
 // Message types for game communication (inside Party-Server data field)
 var MSG = {
@@ -16,7 +16,6 @@ var MSG = {
   RESUME_GAME: 'resume_game',
   LEAVE: 'leave',
   SET_LEVEL: 'set_level',
-  SET_MODE: 'set_mode',
   PING: 'ping',
 
   // Display -> Specific Controller

@@ -43,7 +43,7 @@ test.describe('Controller Landscape', () => {
     await page.evaluate(() => {
       document.getElementById('player-identity-name').textContent = 'Player 1';
       document.getElementById('player-identity-card').style.setProperty('--player-color', '#FF6B6B');
-      document.getElementById('lobby-title').textContent = 'STACKER PARTY';
+      // lobby-title is hidden in landscape (CSS display:none); leave the real markup in place.
       var startBtn = document.getElementById('start-btn');
       startBtn.classList.remove('hidden');
       startBtn.disabled = false;
@@ -60,12 +60,12 @@ test.describe('Controller Landscape', () => {
     await page.evaluate(() => {
       document.getElementById('player-identity-name').textContent = 'Late Joiner';
       document.getElementById('player-identity-card').style.setProperty('--player-color', '#4ECDC4');
-      document.getElementById('lobby-title').textContent = 'STACKER PARTY';
+      // lobby-title is hidden in landscape (CSS display:none); leave the real markup in place.
       var startBtn = document.getElementById('start-btn');
       startBtn.classList.add('hidden');
       var waitText = document.getElementById('waiting-action-text');
       waitText.classList.remove('hidden');
-      waitText.textContent = 'Game in progress — you will join next round';
+      waitText.textContent = 'Game in progress. Please wait for New Game.';
     });
     await page.waitForTimeout(100);
     await expect(page).toHaveScreenshot('02b-lobby-late-joiner.png');

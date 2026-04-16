@@ -53,9 +53,6 @@ function handleControllerMessage(fromId, msg) {
       case MSG.SET_LEVEL:
         onSetLevel(fromId, msg);
         break;
-      case MSG.SET_MODE:
-        onSetMode(fromId, msg);
-        break;
       case MSG.LEAVE:
         onPeerLeft(fromId);
         break;
@@ -99,7 +96,6 @@ function onHello(fromId, msg) {
       playerCount: players.size,
       roomState: roomState,
       startLevel: existing.startLevel || 1,
-      gameMode: gameMode,
       locale: getLocale()
     };
     if (!isLateJoiner) {
@@ -142,7 +138,6 @@ function onHello(fromId, msg) {
     playerCount: players.size,
     roomState: roomState,
     startLevel: 1,
-    gameMode: gameMode,
     locale: getLocale()
   };
   if (roomState === ROOM_STATE.RESULTS && lastResults) {
@@ -199,13 +194,6 @@ function onSetLevel(fromId, msg) {
     updatePlayerList();
     broadcastLobbyUpdate();
   }
-}
-
-function onSetMode(fromId, msg) {
-  if (roomState !== ROOM_STATE.LOBBY) return;
-  var mode = msg.mode;
-  if (mode !== 'classic' && mode !== 'hex') return;
-  setGameMode(mode);
 }
 
 function cleanupPlayerInput(clientId) {

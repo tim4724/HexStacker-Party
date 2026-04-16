@@ -4,43 +4,25 @@
 // Design Tokens — single source of truth for the visual layer
 // ============================================================
 
-// --- Classic piece colors (1=I…7=Z, garbage=8) ---
+// --- Piece colors (1=I, 2=O, 3=S, 4=Z, 5=q, 6=p, 7=L, 8=J, 9=garbage) ---
 const PIECE_COLORS = {
-  0: '#000000',    // empty
-  1: '#EE4444',    // I - red
-  2: '#00CED1',    // J - teal
-  3: '#FFD700',    // L - gold
-  4: '#7FFF00',    // O - lime
-  5: '#9B59F0',    // S - violet
-  6: '#FF1493',    // T - hot pink
-  7: '#FF8C00',    // Z - amber
-  8: '#33AAFF'     // classic garbage - sky blue
-};
-
-// --- Hex piece colors (1=I, 2=O, 3=S, 4=Z, 5=q, 6=p, 7=L, 8=J, 9=garbage) ---
-// Hex mode has a different piece set than classic, so it needs its own ID→color
-// map. IDs 1–4 share the classic hue family; 5–6 are the renamed q/p (same
-// colors as classic L/J). 7 and 8 are brand-new pieces.
-const HEX_PIECE_COLORS = {
   0: '#000000',    // empty
   1: '#EE4444',    // I - red
   2: '#7FFF00',    // O - lime
   3: '#9B59F0',    // S - violet
   4: '#FF8C00',    // Z - amber
-  5: '#FFD700',    // q - gold (was classic L)
-  6: '#00CED1',    // p - teal (was classic J)
-  7: '#FF1493',    // L (new) - hot pink
-  8: '#3377FF',    // J (new) - royal blue
-  9: '#808080'     // hex garbage - gray
+  5: '#FFD700',    // q - gold
+  6: '#00CED1',    // p - teal
+  7: '#FF1493',    // L - hot pink
+  8: '#3377FF',    // J - royal blue
+  9: '#808080'     // garbage - gray
 };
 
 // Ghost piece colors — computed from PIECE_COLORS via ghostColor() (CanvasUtils.js).
 // Requires CanvasUtils.js to be loaded first (see index.html script order).
 var GHOST_COLORS = {};
-var HEX_GHOST_COLORS = {};
 if (typeof ghostColor === 'function') {
-  for (var _i = 1; _i <= 8; _i++) GHOST_COLORS[_i] = ghostColor(PIECE_COLORS[_i]);
-  for (var _hi = 1; _hi <= 9; _hi++) HEX_GHOST_COLORS[_hi] = ghostColor(HEX_PIECE_COLORS[_hi]);
+  for (var _i = 1; _i <= 9; _i++) GHOST_COLORS[_i] = ghostColor(PIECE_COLORS[_i]);
 } else if (typeof document !== 'undefined') {
   console.warn('ghostColor() not available — CanvasUtils.js must load before theme.js');
 }
@@ -60,27 +42,17 @@ const PLAYER_COLORS = [
 const PLAYER_NAMES = ['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5', 'Player 6', 'Player 7', 'Player 8'];
 
 // Neon piece colors — brighter variants for visibility on dark background.
-// Falls back to PIECE_COLORS for entries not overridden.
 const NEON_PIECE_COLORS = Object.assign({}, PIECE_COLORS, {
-  2: '#33E8EC',    // J - brighter teal
-  5: '#B580FF',    // S - brighter violet
-  7: '#FFB340'     // Z - brighter amber
-});
-
-// Neon hex piece colors — hex-specific overrides for visibility on dark bg.
-const NEON_HEX_PIECE_COLORS = Object.assign({}, HEX_PIECE_COLORS, {
   3: '#B580FF',    // S - brighter violet
   4: '#FFB340',    // Z - brighter amber
-  6: '#33E8EC',    // p (was J) - brighter teal
-  8: '#5C9BFF'     // J (new) - brighter blue
+  6: '#33E8EC',    // p - brighter teal
+  8: '#5C9BFF'     // J - brighter blue
 });
 
 // Neon ghost colors — computed from NEON_PIECE_COLORS
 var NEON_GHOST_COLORS = {};
-var NEON_HEX_GHOST_COLORS = {};
 if (typeof ghostColor === 'function') {
-  for (var _n = 1; _n <= 8; _n++) NEON_GHOST_COLORS[_n] = ghostColor(NEON_PIECE_COLORS[_n]);
-  for (var _nh = 1; _nh <= 9; _nh++) NEON_HEX_GHOST_COLORS[_nh] = ghostColor(NEON_HEX_PIECE_COLORS[_nh]);
+  for (var _n = 1; _n <= 9; _n++) NEON_GHOST_COLORS[_n] = ghostColor(NEON_PIECE_COLORS[_n]);
 }
 
 // Level-based style tiers
@@ -219,18 +191,13 @@ if (typeof module !== 'undefined' && module.exports) {
       fill: 'rgba(' + r + ',' + g + ',' + b + ',' + fillA + ')'
     };
   };
-  for (var _k = 1; _k <= 8; _k++) {
+  for (var _k = 1; _k <= 9; _k++) {
     if (!GHOST_COLORS[_k]) GHOST_COLORS[_k] = _gc(PIECE_COLORS[_k]);
     if (!NEON_GHOST_COLORS[_k]) NEON_GHOST_COLORS[_k] = _gc(NEON_PIECE_COLORS[_k]);
-  }
-  for (var _hk = 1; _hk <= 9; _hk++) {
-    if (!HEX_GHOST_COLORS[_hk]) HEX_GHOST_COLORS[_hk] = _gc(HEX_PIECE_COLORS[_hk]);
-    if (!NEON_HEX_GHOST_COLORS[_hk]) NEON_HEX_GHOST_COLORS[_hk] = _gc(NEON_HEX_PIECE_COLORS[_hk]);
   }
   module.exports = {
     THEME,
     PIECE_COLORS, GHOST_COLORS, NEON_PIECE_COLORS, NEON_GHOST_COLORS,
-    HEX_PIECE_COLORS, HEX_GHOST_COLORS, NEON_HEX_PIECE_COLORS, NEON_HEX_GHOST_COLORS,
     STYLE_TIERS, getStyleTier, PLAYER_COLORS, PLAYER_NAMES
   };
 }

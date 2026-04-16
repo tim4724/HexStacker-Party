@@ -225,17 +225,6 @@ startBtn.addEventListener('click', function () {
   sendToDisplay(MSG.START_GAME);
 });
 
-// --- Mode selector ---
-var modeOptions = document.querySelectorAll('#mode-selector .mode-option');
-for (var mj = 0; mj < modeOptions.length; mj++) {
-  modeOptions[mj].addEventListener('click', function () {
-    var mode = this.getAttribute('data-mode');
-    vibrate(10);
-    updateControllerModeUI(mode);
-    sendToDisplay(MSG.SET_MODE, { mode: mode });
-  });
-}
-
 levelMinusBtn.addEventListener('click', function () {
   if (startLevel <= 1) return;
   vibrate(10);
@@ -297,7 +286,7 @@ window.addEventListener('pagehide', function () {
   if (party) party.close();
 });
 
-// Share couch-games.com via the Web Share API when the end-screen link is tapped.
+// Share hexstackerparty.com via the Web Share API when the end-screen link is tapped.
 // Delegated on document because i18n translatePage re-sets innerHTML and would
 // discard a direct listener.
 if (navigator.share) {
@@ -306,9 +295,9 @@ if (navigator.share) {
     if (!link) return;
     e.preventDefault();
     navigator.share({
-      title: 'Stacker Party',
-      text: 'Play Stacker Party with your friends',
-      url: 'https://couch-games.com'
+      title: 'HexStacker Party',
+      text: 'Play HexStacker Party with your friends',
+      url: 'https://hexstackerparty.com'
     }).catch(function(err) {
       // AbortError = user cancelled the sheet — do nothing.
       // Any other error = share was blocked (e.g. NotAllowedError when

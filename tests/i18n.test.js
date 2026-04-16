@@ -182,7 +182,7 @@ describe('i18n', function () {
     var requiredKeys = [
       'hold', 'next', 'level', 'lines', 'ko', 'go',
       'scan_to_rejoin', 'quad', 'triple', 'double',
-      'scan_to_join', 'square', 'hex', 'new_badge',
+      'scan_to_join',
       'waiting_for_players', 'start_n_players', 'start',
       'start_new_game', 'play_again', 'play_again_upper',
       'new_game', 'new_game_upper', 'continue_btn', 'continue_upper',

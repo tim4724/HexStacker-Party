@@ -7,8 +7,8 @@ const path = require('path');
 const fs = require('fs');
 // fixtures no longer needed — banner uses its own buildBannerGameState()
 const { PLAYER_COLORS } = require('../public/shared/theme.js');
-const { HexPiece } = require('../server/HexPiece.js');
-const { HEX_COLS, HEX_VISIBLE_ROWS } = require('../server/HexConstants.js');
+const { Piece } = require('../server/Piece.js');
+const { COLS: HEX_COLS, VISIBLE_ROWS: HEX_VISIBLE_ROWS } = require('../server/constants.js');
 
 const NAMES = ['Emma', 'Jake', 'Sofia', 'Liam'];
 const BANNER_DIR = __dirname;
@@ -126,7 +126,7 @@ function buildBannerGameState() {
 }
 
 // --- Hex banner state ---
-// Hex cell IDs follow the v2 game mapping (server/HexConstants.js):
+// Hex cell IDs follow the v2 game mapping (server/constants.js):
 //   1=I, 2=O, 3=S, 4=Z, 5=q, 6=p, 7=L, 8=J, 9=garbage.
 function hexBannerGrid1() {
   // Emma — Neon (level 13), busier board. Height ~9
@@ -196,7 +196,7 @@ function buildHexBannerGameState() {
   return {
     players: NAMES.map((name, i) => {
       const pieceType = HEX_BANNER_PIECE_TYPES[i];
-      const piece = new HexPiece(pieceType);
+      const piece = new Piece(pieceType);
       piece.anchorCol = 5;
       piece.anchorRow = 2;
       const blocks = piece.getAbsoluteBlocks();
@@ -250,9 +250,6 @@ function buildHexBannerGameState() {
   };
 }
 
-const SOCIAL_WIDTH = 1280;
-const SOCIAL_HEIGHT = 640;
-
 // Gameplay banner variants — same scene, different aspect ratios.
 const GAMEPLAY_VARIANTS = [
   { name: 'gameplay-2x1.png',  width: 1280, height: 640, phoneBottom: '18px', phoneHeight: '255px' },
@@ -268,16 +265,16 @@ async function waitForFont(page) {
 async function generate() {
   const browser = await chromium.launch();
 
-  // --- Phase 1: Capture display with injected game state (exciting boards) ---
-  console.log('Capturing display...');
-  const displayContext = await browser.newContext({
+  // --- Phase 1: Capture hex display with injected game state ---
+  console.log('Capturing hex display...');
+  const hexContext = await browser.newContext({
     viewport: { width: 1440, height: 608 },
     deviceScaleFactor: 4,
   });
-  const displayPage = await displayContext.newPage();
+  const hexPage = await hexContext.newPage();
 
   try {
-    await displayPage.goto(`${BASE_URL}/?test=1`, { timeout: 5000 });
+    await hexPage.goto(`${BASE_URL}/?test=1`, { timeout: 5000 });
   } catch {
     console.error(`Could not connect to ${BASE_URL}`);
     console.error('Start it with: PORT=4100 node server/index.js');
@@ -285,59 +282,24 @@ async function generate() {
     process.exit(1);
   }
 
-  await waitForFont(displayPage);
-
-  // Inject players with custom names
-  const players = NAMES.map((name, i) => ({ id: `player${i + 1}`, name }));
-  await displayPage.evaluate((p) => window.__TEST__.addPlayers(p), players);
-
-  // Build exciting banner state with busier boards spanning all style tiers
-  const gameState = buildBannerGameState();
-
-  await displayPage.evaluate((s) => {
-    window.__TEST__.injectGameState(s);
-    startRenderLoop();
-  }, gameState);
-
-  // Hide toolbar
-  await displayPage.evaluate(() => {
-    document.getElementById('game-toolbar').style.display = 'none';
-  });
-  await displayPage.waitForTimeout(300);
-
-  const displayBase64 = (await displayPage.screenshot()).toString('base64');
-  console.log('  Display captured (square)');
-
-  // --- Phase 1b: Capture hex display ---
-  console.log('Capturing hex display...');
-  const hexContext = await browser.newContext({
-    viewport: { width: 1440, height: 608 },
-    deviceScaleFactor: 4,
-  });
-  const hexPage = await hexContext.newPage();
-  await hexPage.goto(`${BASE_URL}/?test=1`, { timeout: 5000 });
   await waitForFont(hexPage);
 
-  // Inject players
   const hexPlayers = NAMES.map((name, i) => ({ id: `player${i + 1}`, name }));
   await hexPage.evaluate((p) => window.__TEST__.addPlayers(p), hexPlayers);
 
-  // Build hex state and inject
   const hexGameState = buildHexBannerGameState();
   await hexPage.evaluate((s) => {
-    window.__TEST__.setGameMode('hex');
     window.__TEST__.injectGameState(s);
     startRenderLoop();
   }, hexGameState);
 
-  // Hide toolbar
   await hexPage.evaluate(() => {
     document.getElementById('game-toolbar').style.display = 'none';
   });
   await hexPage.waitForTimeout(300);
 
   const hexDisplayBase64 = (await hexPage.screenshot()).toString('base64');
-  console.log('  Display captured (hex)');
+  console.log('  Display captured');
 
   // --- Phase 2: Capture real controllers via Party-Server ---
   console.log('Capturing controllers...');
@@ -425,11 +387,10 @@ async function generate() {
     await page.goto(`file://${path.resolve(BANNER_DIR, 'banner.html')}`);
     await page.waitForTimeout(200);
 
-    // Inject display screenshots (square + hex)
-    await page.evaluate(({ square, hex }) => {
-      document.getElementById('display-img').src = `data:image/png;base64,${square}`;
+    // Inject hex display screenshot
+    await page.evaluate((hex) => {
       document.getElementById('display-hex-img').src = `data:image/png;base64,${hex}`;
-    }, { square: displayBase64, hex: hexDisplayBase64 });
+    }, hexDisplayBase64);
 
     // Inject controller screenshots
     await page.evaluate((ctrls) => {
@@ -490,19 +451,9 @@ async function generate() {
   );
   console.log(`  ${path.resolve(publicDir, 'gameplay-16x9.png')} (copied for end screen)`);
 
-  // --- Phase 4: Name banner (title + falling pieces, no screenshots needed) ---
-  console.log('Generating name banner...');
-  const nameBannerCtx = await browser.newContext({
-    viewport: { width: SOCIAL_WIDTH, height: SOCIAL_HEIGHT },
-    deviceScaleFactor: 2,
-  });
-  const nameBannerPage = await nameBannerCtx.newPage();
-  await nameBannerPage.goto(`file://${path.resolve(BANNER_DIR, 'name-banner.html')}`);
-  await waitForFont(nameBannerPage);
-  await nameBannerPage.waitForTimeout(300);
-  const nameBannerPath = path.resolve(BANNER_DIR, '..', 'public', 'social-preview.png');
-  await nameBannerPage.screenshot({ path: nameBannerPath });
-  console.log(`  ${nameBannerPath} (${SOCIAL_WIDTH}x${SOCIAL_HEIGHT} @2x)`);
+  // Note: social-preview.png is now generated by `node artwork/generate-social.js`
+  // (which captures cover-builder.html?headless=social). Cover-art.png is
+  // generated by `node artwork/generate-cover.js`.
 
   await browser.close();
   console.log('Done!');

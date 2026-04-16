@@ -54,7 +54,6 @@ var garbageIndicatorEffects = new Map();
 var garbageDefenceEffects = new Map();
 var welcomeBg = null;
 var displayGame = null;
-var gameMode = 'classic';         // 'classic' or 'hex'
 var baseUrlOverride = null;    // LAN base URL from server (fetched on init)
 
 // Countdown state (display manages countdown since server no longer does)

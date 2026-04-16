@@ -52,9 +52,9 @@ jobs:
           NS="cg-${SAFE_BRANCH}"
 
           if [ "$BRANCH_RAW" = "main" ]; then
-            HOST="main.couch-games.com"
+            HOST="main.hexstackerparty.com"
           else
-            HOST="stacker-${SAFE_BRANCH}.couch-games.com"
+            HOST="preview-${SAFE_BRANCH}.hexstackerparty.com"
           fi
 
           kubectl get ns "$NS" >/dev/null 2>&1 || kubectl create ns "$NS"
@@ -122,14 +122,14 @@ jobs:
               - protocol: TCP
           NETPOL
 
-          TLS_CRT=$(kubectl get secret couch-games-wildcard-tls -n default -o jsonpath='{.data.tls\.crt}')
-          TLS_KEY=$(kubectl get secret couch-games-wildcard-tls -n default -o jsonpath='{.data.tls\.key}')
+          TLS_CRT=$(kubectl get secret hexstackerparty-wildcard-tls -n default -o jsonpath='{.data.tls\.crt}')
+          TLS_KEY=$(kubectl get secret hexstackerparty-wildcard-tls -n default -o jsonpath='{.data.tls\.key}')
 
           cat <<EOS | kubectl apply -n "$NS" -f -
           apiVersion: v1
           kind: Secret
           metadata:
-            name: couch-games-wildcard-tls
+            name: hexstackerparty-wildcard-tls
           type: kubernetes.io/tls
           data:
             tls.crt: ${TLS_CRT}
@@ -200,7 +200,7 @@ jobs:
                   - name: couch-games
                     port: 4000
             tls:
-              secretName: couch-games-wildcard-tls
+              secretName: hexstackerparty-wildcard-tls
           ---
           apiVersion: traefik.io/v1alpha1
           kind: IngressRoute
@@ -225,9 +225,9 @@ jobs:
         run: |
           SAFE_BRANCH=$(echo "$BRANCH_RAW" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9-]#-#g' | cut -c1-50 | sed 's/-*$//')
           if [ "$BRANCH_RAW" = "main" ]; then
-            HOST="main.couch-games.com"
+            HOST="main.hexstackerparty.com"
           else
-            HOST="stacker-${SAFE_BRANCH}.couch-games.com"
+            HOST="preview-${SAFE_BRANCH}.hexstackerparty.com"
           fi
           {
             echo "### Preview"
