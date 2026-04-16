@@ -4,6 +4,7 @@ const { defineConfig, devices } = require('@playwright/test');
 module.exports = defineConfig({
   fullyParallel: true,
   retries: 0,
+  workers: process.env.CI ? 4 : undefined,
   reporter: 'list',
   use: {
     baseURL: `http://localhost:${process.env.PW_PORT || '4100'}`,

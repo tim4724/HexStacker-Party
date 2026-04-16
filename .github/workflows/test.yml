@@ -35,6 +35,4 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - name: Run E2E tests
-        run: npm run test:e2e
-      - name: Run AirConsole E2E tests
-        run: npm run test:e2e:airconsole
+        run: npx playwright test --project=e2e --project=e2e-airconsole
