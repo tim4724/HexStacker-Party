@@ -49,6 +49,11 @@
 }
 
 .end-toast {
+  /* Always reserve one line of height so showing/hiding the toast
+     never changes surrounding layout (opacity-only transition). */
+  box-sizing: content-box;
+  min-height: 1.2em;
+  line-height: 1.2;
   padding: 8px 16px;
   border-radius: 999px;
   background: rgba(244, 114, 114, 0.15);
