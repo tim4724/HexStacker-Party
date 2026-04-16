@@ -214,13 +214,14 @@ test.describe.serial('AirConsole Integration', () => {
     );
 
     const result = await s.screenFrame.evaluate(() => {
-      const before = history.length;
+      const beforeLen = history.length;
+      const beforeState = history.state;
       history.pushState({ screen: 'game' }, '');
       history.replaceState({ screen: 'x' }, '');
       history.back();
       return {
-        lenUnchanged: history.length === before,
-        stateUnchanged: history.state === null || history.state === undefined,
+        lenUnchanged: history.length === beforeLen,
+        stateUnchanged: history.state === beforeState,
       };
     });
 
