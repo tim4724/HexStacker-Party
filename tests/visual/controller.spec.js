@@ -310,7 +310,7 @@ test.describe('Controller', () => {
       localStorage.removeItem('clientId_' + rc);
       // Neutralize the auto-hide timer so the toast stays visible
       var origSet = window.setTimeout;
-      window.setTimeout = function(fn, ms) { return ms >= 1000 ? 0 : origSet(fn, ms); };
+      window.setTimeout = function(fn, ms) { return ms >= 4000 ? 0 : origSet(fn, ms); };
     }, 'ZZZZ');
     await page.goto('/ZZZZ?test=1');
     await waitForFont(page);

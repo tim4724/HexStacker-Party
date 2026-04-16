@@ -175,7 +175,7 @@ function showEndScreen(toastKey, keepClientId) {
     setTimeout(function () {
       endToast.classList.add('hidden');
       endToast.setAttribute('aria-hidden', 'true');
-    }, 2000);
+    }, 5000);
   } else {
     endToast.classList.add('hidden');
     endToast.setAttribute('aria-hidden', 'true');

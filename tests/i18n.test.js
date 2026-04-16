@@ -190,7 +190,7 @@ describe('i18n', function () {
       'reconnecting', 'disconnected', 'connecting', 'connection_lost',
       'attempt_n_of_m', 'display_reconnecting', 'bad_connection',
       'paused', 'end_step_1', 'end_step_2',
-      'room_not_found', 'game_in_progress',
+      'room_not_found', 'game_ended', 'game_in_progress',
       'n_lines', 'level_n', 'player', 'level_heading',
       'enter_name', 'touchpad', 'privacy',
       'stacked_by', 'music_by', 'hex_lines_level',

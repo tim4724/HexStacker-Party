@@ -64,7 +64,7 @@ function handleMessage(data) {
         onGameResumed();
         break;
       case MSG.DISPLAY_CLOSED:
-        showEndScreen();
+        showEndScreen('game_ended');
         break;
       case MSG.RETURN_TO_LOBBY:
         waitingForNextGame = false;

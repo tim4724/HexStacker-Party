@@ -16,7 +16,7 @@
     radial-gradient(ellipse at 50% 30%, var(--glow-blue) 0%, transparent 50%),
     var(--bg-primary);
   text-align: center;
-  padding: calc(32px + env(safe-area-inset-top)) 1.25rem calc(16px + env(safe-area-inset-bottom));
+  padding: calc(32px + env(safe-area-inset-top)) 0.75rem calc(16px + env(safe-area-inset-bottom));
   overflow-y: auto;
 }
 
@@ -51,13 +51,14 @@
 .end-toast {
   padding: 8px 16px;
   border-radius: 999px;
-  background: var(--bg-board, rgba(255, 255, 255, 0.08));
-  color: var(--text-cyan);
+  background: rgba(244, 114, 114, 0.15);
+  color: #f47272;
   font-family: 'Orbitron', sans-serif;
   font-size: 0.95rem;
   letter-spacing: 0.08em;
   transition: opacity 0.3s ease;
   opacity: 1;
+  margin: 16px 0;
 }
 
 /* Hide via opacity (not display) so the toast's vertical slot stays
@@ -85,7 +86,6 @@
   flex-direction: column;
   gap: 10px;
   width: 100%;
-  max-width: 30ch;
 }
 
 .end-steps li {
@@ -142,7 +142,7 @@
 }
 
 #end-continue-btn {
-  margin-top: 8px;
+  margin: 16px 0;
   font-size: 0.9rem;
   padding: 12px 24px;
   letter-spacing: 0.1em;
