@@ -159,7 +159,6 @@ function resumeGame() {
 
 function returnToLobby() {
   if (roomState === ROOM_STATE.LOBBY) return;
-  clearCountdownTimers();
   countdown.callback = null;
   countdown.remaining = 0;
   paused = false;
@@ -167,7 +166,7 @@ function returnToLobby() {
   releaseWakeLock();
 
   if (music) music.stop();
-  stopDisplayGame();
+  stopDisplayGame(); // also calls clearCountdownTimers()
 
   // Remove disconnected players
   var disconnectedIds = [];
