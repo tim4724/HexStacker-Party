@@ -207,6 +207,161 @@ describe('sanitizePlayerName', () => {
 });
 
 // =========================================================================
+// getHostClientId — AirConsole master-controller rule (lowest playerIndex)
+// =========================================================================
+
+// Mirrors DisplayState.js getHostClientId — keep in sync.
+function getHostClientId(players, party, roomState, playerOrder) {
+  const restricted = (roomState === ROOM_STATE.PLAYING
+                   || roomState === ROOM_STATE.COUNTDOWN
+                   || roomState === ROOM_STATE.RESULTS)
+                  && playerOrder && playerOrder.length > 0;
+  const eligible = restricted ? new Set(playerOrder) : null;
+
+  if (party && typeof party.getMasterClientId === 'function') {
+    const acHost = party.getMasterClientId();
+    if (acHost && players.has(acHost) && (!restricted || eligible.has(acHost))) {
+      return acHost;
+    }
+  }
+  let hostId = null;
+  let hostIdx = Infinity;
+  for (const entry of players) {
+    if (restricted && !eligible.has(entry[0])) continue;
+    if (entry[1].playerIndex < hostIdx) {
+      hostIdx = entry[1].playerIndex;
+      hostId = entry[0];
+    }
+  }
+  return hostId;
+}
+
+describe('getHostClientId', () => {
+  it('returns null for empty lobby', () => {
+    assert.equal(getHostClientId(new Map()), null);
+  });
+
+  it('returns the only player', () => {
+    const players = new Map([['a', { playerIndex: 0 }]]);
+    assert.equal(getHostClientId(players), 'a');
+  });
+
+  it('returns lowest-index player regardless of insertion order', () => {
+    const players = new Map([
+      ['b', { playerIndex: 2 }],
+      ['a', { playerIndex: 0 }],
+      ['c', { playerIndex: 1 }]
+    ]);
+    assert.equal(getHostClientId(players), 'a');
+  });
+
+  it('handoff: next-lowest becomes host when current host leaves', () => {
+    const players = new Map([
+      ['a', { playerIndex: 0 }],
+      ['b', { playerIndex: 1 }],
+      ['c', { playerIndex: 2 }]
+    ]);
+    assert.equal(getHostClientId(players), 'a');
+    players.delete('a');
+    assert.equal(getHostClientId(players), 'b');
+  });
+
+  it('reclaim: a new low-slot joiner becomes host', () => {
+    // Slots 1 and 2 are filled; slot 0 opens up and a new player takes it.
+    const players = new Map([
+      ['b', { playerIndex: 1 }],
+      ['c', { playerIndex: 2 }]
+    ]);
+    assert.equal(getHostClientId(players), 'b');
+    players.set('newcomer', { playerIndex: 0 });
+    assert.equal(getHostClientId(players), 'newcomer');
+  });
+
+  it('AirConsole path: adapter-reported master wins over lowest slot', () => {
+    // A premium device in slot 2 would still be master — AC prioritizes premium.
+    const players = new Map([
+      ['a', { playerIndex: 0 }],
+      ['b', { playerIndex: 1 }],
+      ['c', { playerIndex: 2 }]
+    ]);
+    const party = { getMasterClientId: () => 'c' };
+    assert.equal(getHostClientId(players, party), 'c');
+  });
+
+  it('AirConsole path: falls back when master has not sent HELLO yet', () => {
+    // AC reports device 9 as master but we haven't received HELLO from them.
+    // Until players.has(9), use lowest-slot among known players.
+    const players = new Map([
+      ['a', { playerIndex: 0 }],
+      ['b', { playerIndex: 1 }]
+    ]);
+    const party = { getMasterClientId: () => '9' };
+    assert.equal(getHostClientId(players, party), 'a');
+  });
+
+  it('AirConsole path: null master falls through to slot rule', () => {
+    const players = new Map([['a', { playerIndex: 0 }]]);
+    const party = { getMasterClientId: () => null };
+    assert.equal(getHostClientId(players, party), 'a');
+  });
+
+  it('PLAYING: excludes late joiners not in playerOrder', () => {
+    // Alice and Bob are playing; Carol joined mid-game as slot 2 (not in
+    // playerOrder). Without the restriction the lowest-slot rule would
+    // pick Alice anyway, so set up Carol in slot 0 to prove the restriction
+    // is what's actually doing the work (simulates slot reclaim path).
+    const players = new Map([
+      ['carol', { playerIndex: 0 }],  // late joiner, not in playerOrder
+      ['alice', { playerIndex: 1 }],
+      ['bob',   { playerIndex: 2 }]
+    ]);
+    const playerOrder = ['alice', 'bob'];
+    assert.equal(getHostClientId(players, null, ROOM_STATE.PLAYING, playerOrder), 'alice');
+  });
+
+  it('PLAYING: AC master that is not in playerOrder is ignored', () => {
+    // AC promoted Carol (late joiner) to master, but she can't reach the
+    // pause overlay — host stays with an active participant to avoid
+    // deadlocking RETURN_TO_LOBBY.
+    const players = new Map([
+      ['carol', { playerIndex: 2 }],
+      ['alice', { playerIndex: 0 }],
+      ['bob',   { playerIndex: 1 }]
+    ]);
+    const playerOrder = ['alice', 'bob'];
+    const party = { getMasterClientId: () => 'carol' };
+    assert.equal(getHostClientId(players, party, ROOM_STATE.PLAYING, playerOrder), 'alice');
+  });
+
+  it('RESULTS: restriction also applies so late joiner cannot steal Play Again', () => {
+    const players = new Map([
+      ['carol', { playerIndex: 0 }],  // joined during RESULTS
+      ['bob',   { playerIndex: 1 }]   // original player, inherited host
+    ]);
+    const playerOrder = ['bob'];
+    assert.equal(getHostClientId(players, null, ROOM_STATE.RESULTS, playerOrder), 'bob');
+  });
+
+  it('LOBBY: restriction lifted — late joiner reclaiming slot 0 can be host', () => {
+    // After returnToLobby, all players are in playerOrder again, so the
+    // restriction is moot. But even a hypothetical player not in playerOrder
+    // should be eligible here (LOBBY is "everyone on equal footing").
+    const players = new Map([
+      ['newcomer', { playerIndex: 0 }],
+      ['existing', { playerIndex: 1 }]
+    ]);
+    assert.equal(getHostClientId(players, null, ROOM_STATE.LOBBY, []), 'newcomer');
+  });
+
+  it('fallback when playerOrder is unexpectedly empty during RESULTS', () => {
+    // Defensive: if playerOrder is empty during RESULTS (shouldn't happen),
+    // fall back to the full candidate set rather than returning null.
+    const players = new Map([['a', { playerIndex: 0 }]]);
+    assert.equal(getHostClientId(players, null, ROOM_STATE.RESULTS, []), 'a');
+  });
+});
+
+// =========================================================================
 // Input validation (from DisplayInput.js)
 // =========================================================================
 

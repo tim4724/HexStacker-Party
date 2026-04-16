@@ -77,6 +77,27 @@ class AirConsoleAdapter {
         }
       }
     };
+
+    // A premium upgrade can change which controller AirConsole considers the
+    // master (premium devices get priority). Signal the display so it can
+    // re-broadcast host info. onConnect / onDisconnect already do this via
+    // peer_joined / peer_left.
+    ac.onPremium = function() {
+      if (self.role === 'display' && self.onProtocol) {
+        self.onProtocol('master_changed', {});
+      }
+    };
+  }
+
+  /**
+   * Display-only: returns the AirConsole master controller device id as a
+   * string clientId, or null when no controller is connected or we're not in
+   * AirConsole mode. Premium devices are prioritized by AirConsole itself.
+   */
+  getMasterClientId() {
+    if (this.role !== 'display') return null;
+    var id = this.airconsole.getMasterControllerDeviceId();
+    return (id === undefined || id === null) ? null : String(id);
   }
 
   _fireReady() {
@@ -146,9 +167,16 @@ class AirConsoleAdapter {
     this._ready = false;
     // Clear adapter callbacks (prevents stale setTimeout self-echo from firing)
     this.onOpen = this.onClose = this.onError = this.onMessage = this.onProtocol = null;
-    // Clear SDK callbacks to prevent stale adapter from receiving events
+    // Neutralize SDK callbacks without nulling them — the AirConsole SDK
+    // invokes these on its own schedule (e.g. queued postMessage events that
+    // arrive between our close() and the next adapter's _wireAirConsole), and
+    // nulling `ac.onMessage` crashes the SDK with
+    // "TypeError: me.onMessage is not a function". No-op functions keep the
+    // SDK safe while still preventing this adapter's stale state from
+    // receiving events; the next adapter will overwrite them in turn.
     var ac = this.airconsole;
-    ac.onReady = ac.onConnect = ac.onDisconnect = ac.onMessage = null;
+    var noop = function() {};
+    ac.onReady = ac.onConnect = ac.onDisconnect = ac.onMessage = ac.onPremium = noop;
   }
 
   get connected() {
@@ -158,4 +186,8 @@ class AirConsoleAdapter {
 
 if (typeof window !== 'undefined') {
   window.AirConsoleAdapter = AirConsoleAdapter;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = AirConsoleAdapter;
 }

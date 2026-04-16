@@ -57,6 +57,18 @@ function connectAndCreateRoom() {
       case 'peer_left':
         onPeerLeft(msg.clientId);
         break;
+      case 'master_changed':
+        // AirConsole re-picked the master controller (e.g. premium upgrade).
+        // Fires in any room state by design: menu-gate checks query host live
+        // at message time, but controllers' isHost flags for their lobby /
+        // results banners only refresh via LOBBY_UPDATE. A mid-game onPremium
+        // is intentional — we always follow what getMasterClientId dictates.
+        // Dedupe: onConnect + onPremium can fire back-to-back for a new
+        // premium device; skip if the host ID is unchanged since last broadcast.
+        if (players.size > 0 && getHostClientId() !== _lastBroadcastedHostId) {
+          broadcastLobbyUpdate();
+        }
+        break;
       case 'error':
         if (msg.message === 'Room not found' || msg.message === 'Room is full') {
           console.error('Party-Server error:', msg.message);
@@ -113,6 +125,7 @@ function applyRoomCreated(partyRoomCode, newJoinUrl) {
   if (music) music.stop();
   players.clear();
   playerOrder = [];
+  _lastBroadcastedHostId = null;
   paused = false;
   gameState = null;
   boardRenderers = [];
@@ -140,6 +153,11 @@ function onDisplayRejoined(partyRoomCode, clients) {
 
   joinUrl = getBaseUrl() + '/' + roomCode;
   joinUrlEl.textContent = joinUrl;
+
+  // Reset the master_changed dedup sentinel — on rejoin we re-push WELCOME
+  // to everyone below, and any subsequent LOBBY_UPDATE / master_changed
+  // should broadcast regardless of what the sentinel held pre-disconnect.
+  _lastBroadcastedHostId = null;
 
   // Reset liveness for clients still in the room; handle missing ones
   var now = Date.now();
@@ -170,6 +188,10 @@ function onDisplayRejoined(partyRoomCode, clients) {
   }
 
   // Re-send WELCOME to all known players so controllers clear their reconnect overlay
+  var hostId = getHostClientId();
+  var hostPlayer = hostId ? players.get(hostId) : null;
+  var hostName = hostPlayer ? hostPlayer.playerName : null;
+  var hostColor = hostPlayer ? hostPlayer.playerColor : null;
   for (const entry of players) {
     const id = entry[0];
     const info = entry[1];
@@ -181,7 +203,10 @@ function onDisplayRejoined(partyRoomCode, clients) {
       playerColor: info.playerColor,
       playerCount: players.size,
       roomState: roomState,
-      startLevel: info.startLevel || 1
+      startLevel: info.startLevel || 1,
+      isHost: id === hostId,
+      hostName: hostName,
+      hostColor: hostColor
     };
     if (!isLateJoiner) {
       welcomeMsg.alive = lastAliveState[id] != null ? lastAliveState[id] : true;
@@ -263,6 +288,10 @@ function onPeerLeft(clientId) {
       broadcastLobbyUpdate();
       party.broadcast({ type: MSG.RETURN_TO_LOBBY, playerCount: players.size });
       returnToLobbyUI();
+    } else if (players.size > 0) {
+      // Host may have changed — let remaining controllers refresh their
+      // "waiting for host" banner on the results screen.
+      broadcastLobbyUpdate();
     }
   }
 }
@@ -283,13 +312,23 @@ function removeLobbyPlayer(clientId) {
 // Lobby Update Broadcast
 // =====================================================================
 
+var _lastBroadcastedHostId = null;
+
 function broadcastLobbyUpdate() {
+  var hostId = getHostClientId();
+  var hostPlayer = hostId ? players.get(hostId) : null;
+  var hostName = hostPlayer ? hostPlayer.playerName : null;
+  var hostColor = hostPlayer ? hostPlayer.playerColor : null;
+  _lastBroadcastedHostId = hostId;
   for (const entry of players) {
     const id = entry[0];
     party.sendTo(id, {
       type: MSG.LOBBY_UPDATE,
       playerCount: players.size,
-      startLevel: entry[1].startLevel || 1
+      startLevel: entry[1].startLevel || 1,
+      isHost: id === hostId,
+      hostName: hostName,
+      hostColor: hostColor
     });
   }
 }

@@ -36,13 +36,19 @@ function handleControllerMessage(fromId, msg) {
         onSoftDrop(fromId, msg.speed);
         break;
       case MSG.START_GAME:
-        startGame();
+        // Brief race window: a new host's START_GAME is accepted here as soon
+        // as the display's players map reflects them, even before the next
+        // broadcastLobbyUpdate() has shipped LOBBY_UPDATE to refresh the
+        // controllers' isHost flags. The new host's button is momentarily
+        // hidden on their screen but would be accepted — next LOBBY_UPDATE
+        // (always broadcast on peer_joined/peer_left) closes the window.
+        if (fromId === getHostClientId()) startGame();
         break;
       case MSG.PLAY_AGAIN:
-        playAgain();
+        if (fromId === getHostClientId()) playAgain();
         break;
       case MSG.RETURN_TO_LOBBY:
-        returnToLobby();
+        if (fromId === getHostClientId()) returnToLobby();
         break;
       case MSG.PAUSE_GAME:
         if (playerOrder.indexOf(fromId) >= 0) pauseGame();
@@ -73,7 +79,15 @@ function handleControllerMessage(fromId, msg) {
 }
 
 function onHello(fromId, msg) {
-  var name = typeof msg.name === 'string' ? msg.name.trim().slice(0, 16) : '';
+  // Strip control characters (incl. \x00) — defensive against names that would
+  // render weirdly in textContent or confuse downstream serialization.
+  // ControllerGame.js#renderHostBanner uses \x00 as a template-split sentinel;
+  // a \x00 in a player name would survive to the controller and reach that
+  // split. Stripping here is the single chokepoint — all inbound names pass
+  // through onHello.
+  var name = typeof msg.name === 'string'
+    ? msg.name.replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0, 16)
+    : '';
 
   // Player already registered (from peer_joined or reconnect)
   if (players.has(fromId)) {
@@ -89,6 +103,8 @@ function onHello(fromId, msg) {
       && playerOrder.indexOf(fromId) < 0;
 
     // Send welcome with current state
+    var hostId = getHostClientId();
+    var hostPlayer = hostId ? players.get(hostId) : null;
     var welcomeMsg = {
       type: MSG.WELCOME,
       playerName: existing.playerName,
@@ -96,7 +112,9 @@ function onHello(fromId, msg) {
       playerCount: players.size,
       roomState: roomState,
       startLevel: existing.startLevel || 1,
-      locale: getLocale()
+      isHost: fromId === hostId,
+      hostName: hostPlayer ? hostPlayer.playerName : null,
+      hostColor: hostPlayer ? hostPlayer.playerColor : null
     };
     if (!isLateJoiner) {
       welcomeMsg.alive = lastAliveState[fromId] != null ? lastAliveState[fromId] : true;
@@ -107,7 +125,11 @@ function onHello(fromId, msg) {
     }
     party.sendTo(fromId, welcomeMsg);
 
-    if (roomState === ROOM_STATE.LOBBY) broadcastLobbyUpdate();
+    // Refresh host info on the other controllers too — in RESULTS a
+    // reconnecting slot-0 player can reclaim host from whoever inherited it.
+    if (roomState === ROOM_STATE.LOBBY || roomState === ROOM_STATE.RESULTS) {
+      broadcastLobbyUpdate();
+    }
     return;
   }
 
@@ -131,6 +153,8 @@ function onHello(fromId, msg) {
     playerOrder.push(fromId);
   }
 
+  var hostId = getHostClientId();
+  var hostPlayer = hostId ? players.get(hostId) : null;
   var welcomeMsg = {
     type: MSG.WELCOME,
     playerName: playerName,
@@ -138,7 +162,9 @@ function onHello(fromId, msg) {
     playerCount: players.size,
     roomState: roomState,
     startLevel: 1,
-    locale: getLocale()
+    isHost: fromId === hostId,
+    hostName: hostPlayer ? hostPlayer.playerName : null,
+    hostColor: hostPlayer ? hostPlayer.playerColor : null
   };
   if (roomState === ROOM_STATE.RESULTS && lastResults) {
     welcomeMsg.results = lastResults.results;
@@ -149,6 +175,10 @@ function onHello(fromId, msg) {
     broadcastLobbyUpdate();
     updatePlayerList();
     updateStartButton();
+  } else if (roomState === ROOM_STATE.RESULTS) {
+    // A new low-slot player can become host — notify existing controllers so
+    // their "Waiting for {name}" banners and Play Again buttons stay accurate.
+    broadcastLobbyUpdate();
   }
 }
 
