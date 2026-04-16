@@ -1,7 +1,6 @@
 'use strict';
 
 // BoardRenderer: renders a flat-top hex grid board on canvas.
-// Same interface as BoardRenderer but with flat-top hex orientation.
 // Columns are vertically aligned (no zigzag on horizontal movement).
 
 var HEX_VIS_ROWS = GameConstants.VISIBLE_ROWS;

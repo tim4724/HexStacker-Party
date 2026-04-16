@@ -51,13 +51,7 @@ class WelcomeBackground {
 
   // Opacity boost derived from perceived luminance of the piece color.
   // Low-luminance colors get a boost so background pieces stay visible on
-  // the dark canvas. Derived at runtime so the logic auto-adjusts if the
-  // palette ever changes.
-  //
-  // Threshold rationale (ITU-R BT.601 luma weights: 0.299 R + 0.587 G + 0.114 B):
-  //   <115 → +0.06  hot pink / royal blue (darkest pieces)
-  //   <135 → +0.03  red, violet (medium-dark)
-  //   ≥135 →   0    teal, amber, lime, gold (already bright enough)
+  // the dark canvas. ITU-R BT.601 luma: 0.299R + 0.587G + 0.114B.
   static _opacityBoost(hex) {
     const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
     if (!m) return 0;
@@ -65,8 +59,8 @@ class WelcomeBackground {
     const g = parseInt(m[2], 16);
     const b = parseInt(m[3], 16);
     const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-    if (lum < 115) return 0.06;
-    if (lum < 135) return 0.03;
+    if (lum < 115) return 0.12;
+    if (lum < 135) return 0.06;
     return 0;
   }
 
@@ -175,7 +169,7 @@ class WelcomeBackground {
     const color = typeof PIECE_COLORS !== 'undefined' ? PIECE_COLORS[colorIdx] : '#4444ff';
 
     const boost = WelcomeBackground._opacityBoost(color);
-    const opacity = 0.05 + Math.random() * 0.04 + boost;
+    const opacity = 0.14 + Math.random() * 0.08 + boost;
 
     return {
       cells: cells,

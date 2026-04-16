@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 
-// Standalone social-preview generator — captures artwork/name-banner.html
-// at 1280×640 and writes public/social-preview.png. No server required.
+// Standalone social-preview generator — captures cover-builder.html in
+// headless mode at 1280×640 and writes public/social-preview.png.
+// No server required.
 // Usage: node artwork/generate-social.js
 
 const { chromium } = require('playwright');
@@ -20,7 +21,7 @@ const OUTPUT = path.resolve(BANNER_DIR, '..', 'public', 'social-preview.png');
     deviceScaleFactor: 2,
   });
   const page = await context.newPage();
-  await page.goto(`file://${path.resolve(BANNER_DIR, 'name-banner.html')}`);
+  await page.goto(`file://${path.resolve(BANNER_DIR, 'cover-builder.html')}?headless=social`);
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(300);
   await page.screenshot({ path: OUTPUT });

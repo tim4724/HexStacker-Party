@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
-// Standalone cover-art generator — captures artwork/cover-art.html at
-// 1024×1024 and writes both:
+// Standalone cover-art generator — captures cover-builder.html in headless
+// mode at 1024×1024 and writes both:
 //   - artwork/cover-art.png            (source-of-truth copy in /artwork)
 //   - public/artwork/cover-art.png     (HTTP-served copy used by HTML)
 // No server required.
@@ -25,7 +25,7 @@ const PUBLIC_OUT = path.resolve(ARTWORK_DIR, '..', 'public', 'artwork', 'cover-a
     deviceScaleFactor: 2,
   });
   const page = await context.newPage();
-  await page.goto(`file://${path.resolve(ARTWORK_DIR, 'cover-art.html')}`);
+  await page.goto(`file://${path.resolve(ARTWORK_DIR, 'cover-builder.html')}?headless=cover`);
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(300);
   await page.screenshot({ path: ARTWORK_OUT });

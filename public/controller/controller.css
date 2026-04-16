@@ -812,8 +812,13 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   padding: 4px;
 }
 
-/* --- Landscape layout --- */
-@media (orientation: landscape) {
+/* --- Landscape layout ---
+   min-aspect-ratio guards against false-landscape when a portrait device
+   opens the soft keyboard: interactive-widget=resizes-content shrinks the
+   layout viewport height so much that width > height on short phones
+   (e.g. iPhone SE 375x367 with keyboard open). 5/4 still matches real
+   landscape on phones (>1.7) and iPad (1.33). */
+@media (orientation: landscape) and (min-aspect-ratio: 5/4) {
   /* Shell screens: widen frame and reduce vertical spacing */
   .controller-shell__frame {
     width: min(100%, 520px);
@@ -1014,7 +1019,7 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
    Uses visibility+height instead of display:none to avoid replaying
    CSS entrance animations when the keyboard closes.
    iPhone 14 landscape = 390px, SE = 259px; keyboard leaves ~140-190px. */
-@media (orientation: landscape) and (max-height: 220px) {
+@media (orientation: landscape) and (min-aspect-ratio: 5/4) and (max-height: 220px) {
   .controller-shell__brand,
   .controller-shell__actions,
   .legal-links,
