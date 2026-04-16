@@ -1,5 +1,5 @@
 // @ts-check
-const { defineConfig } = require('@playwright/test');
+const { defineConfig, devices } = require('@playwright/test');
 
 module.exports = defineConfig({
   fullyParallel: true,
@@ -24,10 +24,44 @@ module.exports = defineConfig({
   },
   projects: [
     {
+      name: 'display',
+      testDir: './tests/visual',
+      testMatch: 'display.spec.js',
+      use: { viewport: { width: 1920, height: 1080 } },
+    },
+    {
       name: 'hex-display',
       testDir: './tests/visual',
       testMatch: 'hex-display.spec.js',
       use: { viewport: { width: 1920, height: 1080 } },
+    },
+    {
+      name: 'controller',
+      testDir: './tests/visual',
+      testMatch: 'controller.spec.js',
+      use: {
+        viewport: devices['iPhone 14'].screen,
+        deviceScaleFactor: devices['iPhone 14'].deviceScaleFactor,
+        isMobile: true,
+        hasTouch: true,
+      },
+      expect: {
+        toHaveScreenshot: { maxDiffPixelRatio: 0.001, scale: 'device' },
+      },
+    },
+    {
+      name: 'controller-landscape',
+      testDir: './tests/visual',
+      testMatch: 'controller-landscape.spec.js',
+      use: {
+        viewport: { width: 844, height: 390 },
+        deviceScaleFactor: devices['iPhone 14'].deviceScaleFactor,
+        isMobile: true,
+        hasTouch: true,
+      },
+      expect: {
+        toHaveScreenshot: { maxDiffPixelRatio: 0.001, scale: 'device' },
+      },
     },
     {
       name: 'e2e',

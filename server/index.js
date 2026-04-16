@@ -127,10 +127,6 @@ const server = http.createServer((req, res) => {
 
 
   // Serve SVG favicon for /favicon.ico requests
-  if (urlPath === '/favicon.ico') {
-    urlPath = '/favicon.svg';
-  }
-
   // AirConsole entry points at root
   if (urlPath === '/screen.html') {
     urlPath = '/display/screen.html';

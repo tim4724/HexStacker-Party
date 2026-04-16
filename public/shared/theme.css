@@ -181,6 +181,18 @@
   background-clip: text;
 }
 
+.gradient-title__sub {
+  display: block;
+  font-size: 0.42em;
+  font-weight: 600;
+  letter-spacing: 0.35em;
+  margin-top: 0.25em;
+  text-transform: uppercase;
+  /* Opt out of the parent's background-clip:text trick so the subtitle renders */
+  -webkit-text-fill-color: currentColor;
+  color: rgba(224, 224, 255, 0.78);
+}
+
 .pause-icon {
   display: flex;
   gap: 3px;

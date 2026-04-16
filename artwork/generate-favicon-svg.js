@@ -57,6 +57,9 @@ function generateHexSVG() {
 
 const publicDir = path.resolve(__dirname, '..', 'public');
 
-fs.writeFileSync(path.resolve(publicDir, 'favicon-hex.svg'), generateHexSVG());
+fs.writeFileSync(path.resolve(publicDir, 'favicon.svg'), generateHexSVG());
 
-console.log('Generated: public/favicon-hex.svg');
+console.log('Generated: public/favicon.svg');
+console.log('Run `magick` to regenerate favicon.ico from the SVG:');
+console.log('  magick -background none -density 384 public/favicon.svg -resize "48x48>" -gravity center -extent 48x48 /tmp/favicon-48.png');
+console.log('  (repeat for 16, 32, 64 and bundle: magick /tmp/favicon-*.png public/favicon.ico)');

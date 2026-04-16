@@ -10,12 +10,13 @@ const { chromium } = require('playwright');
 const path = require('path');
 
 const output = path.resolve(process.argv[2] || 'artwork/cover-art.png');
+const port = process.env.PORT || 4000;
 
 (async () => {
   const browser = await chromium.launch();
   const context = await browser.newContext({ acceptDownloads: true });
   const page = await context.newPage();
-  await page.goto('http://localhost:4000/artwork/builder.html');
+  await page.goto(`http://localhost:${port}/artwork/builder.html`);
   await page.waitForTimeout(1500); // fonts + render
 
   const [download] = await Promise.all([

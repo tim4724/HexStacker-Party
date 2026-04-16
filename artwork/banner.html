@@ -24,43 +24,6 @@
       width: 100%;
     }
 
-    .display-square {
-      clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%);
-    }
-
-    .display-hex {
-      clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);
-    }
-
-    /* Variation 2: Colored pill badges, no divider line */
-    .mode-pill {
-      position: absolute;
-      top: var(--pill-top, 10px);
-      padding: 5px 16px;
-      font-family: 'Orbitron', sans-serif;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 2.5px;
-      text-transform: uppercase;
-      border-radius: 20px;
-      z-index: 6;
-      transform: translateX(-50%);
-    }
-    .mode-pill.left {
-      left: 25%;
-      color: #fff;
-      background: linear-gradient(135deg, rgba(59,130,246,0.7), rgba(99,102,241,0.7));
-      border: 1px solid rgba(99,102,241,0.5);
-      box-shadow: 0 0 12px rgba(99,102,241,0.3);
-    }
-    .mode-pill.right {
-      left: 75%;
-      color: #fff;
-      background: linear-gradient(135deg, rgba(234,179,8,0.7), rgba(249,115,22,0.7));
-      border: 1px solid rgba(249,115,22,0.5);
-      box-shadow: 0 0 12px rgba(249,115,22,0.3);
-    }
-
     .overlay-gradient {
       position: absolute;
       inset: 0;
@@ -117,10 +80,7 @@
 </head>
 <body>
   <div class="banner">
-    <img class="display-img display-square" id="display-img" alt="">
-    <img class="display-img display-hex" id="display-hex-img" alt="">
-    <div class="mode-pill left">Square</div>
-    <div class="mode-pill right">Hex</div>
+    <img class="display-img" id="display-hex-img" alt="">
     <div class="overlay-gradient"></div>
 
     <div class="phone" id="phone-0" style="--phone-left: 16%">
