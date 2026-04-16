@@ -208,9 +208,10 @@ AirConsoleAdapter.neutralizeLocalStorage = function() {
 // setLocale, translatePage) being loaded by call time.
 AirConsoleAdapter.applyLocale = function(airconsole) {
   if (typeof airconsole.getLanguage !== 'function') return;
+  if (typeof LOCALES === 'undefined' || typeof setLocale !== 'function' || typeof translatePage !== 'function') return;
   var acLang = airconsole.getLanguage();
   var acCode = acLang && acLang.toLowerCase().split('-')[0];
-  if (acCode && typeof LOCALES !== 'undefined' && LOCALES[acCode]) {
+  if (acCode && LOCALES[acCode]) {
     setLocale(acLang);
     translatePage();
   }
