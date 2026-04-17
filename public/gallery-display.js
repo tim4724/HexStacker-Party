@@ -2,9 +2,10 @@
 
 // Scenarios that don't vary by style tier or player color.
 var SCREENS = [
-  { key: 'welcome',   title: 'Welcome' },
-  { key: 'lobby',     title: 'Lobby' },
-  { key: 'countdown', title: 'Countdown (3)' }
+  { key: 'welcome',          title: 'Welcome' },
+  { key: 'lobby',            title: 'Lobby' },
+  { key: 'airconsole-lobby', title: 'Lobby (AirConsole)' },
+  { key: 'countdown',        title: 'Countdown (3)' }
 ];
 
 // Gameplay scenarios — shown once per style tier so normal/pillow/neon

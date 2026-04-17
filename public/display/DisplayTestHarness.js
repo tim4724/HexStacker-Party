@@ -170,6 +170,16 @@ function initScenario(opts) {
     return;
   }
 
+  // AirConsole lobby variant — adds `body.airconsole` so the CSS overrides
+  // in display.css hide QR/join URL and collapse the player list into the
+  // compact AirConsole layout.
+  if (scenario === 'airconsole-lobby') {
+    document.body.classList.add('airconsole');
+    window.__TEST__.addPlayers(_buildDebugPlayers(playerCount, level));
+    showScreen(SCREEN.LOBBY);
+    return;
+  }
+
   // All other scenarios need players + some game state.
   var debugPlayers = _buildDebugPlayers(playerCount, level);
   window.__TEST__.addPlayers(debugPlayers);
