@@ -313,7 +313,10 @@ class UIRenderer {
     var dpr = window.devicePixelRatio || 1;
     var labelSize = this._labelSize;
     var labelGap = this.cellSize * 0.2;
-    var pad = 2;
+    // Rim stroke width is cellSize * THEME.stroke.border * 0.6; pad covers
+    // half that (outer edge) + 1px for anti-alias bleed. Matches the pad
+    // formula used for the board bg cache so larger cellSizes stay safe.
+    var pad = Math.max(2, Math.ceil(this.cellSize * THEME.stroke.border * 0.3) + 1);
     var cssW = boxW + pad * 2;
     var cssH = labelSize + labelGap + boxH + pad * 2;
     var pw = Math.ceil(cssW * dpr);
