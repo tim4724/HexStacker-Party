@@ -43,31 +43,16 @@ function updateHostVisibility() {
     }
   }
   // Results: host sees Play Again / New Game, non-host sees waiting banner.
+  // The 1.5s anti-misclick delay is handled by the #gameover-buttons CSS
+  // animation (pointer-events: none during the delay), so a concurrent
+  // LOBBY_UPDATE mid-delay can't flip the buttons to clickable early — the
+  // animation restarts whenever the element transitions from hidden to shown.
   if (currentScreen === 'gameover') {
     if (isHost) {
       gameoverStatus.textContent = '';
       gameoverStatus.style.color = '';
       gameoverButtons.classList.remove('hidden');
-      // If renderGameResults is still in its 2s anti-misclick delay, don't
-      // bypass it — a concurrent LOBBY_UPDATE (e.g. another player leaving)
-      // would otherwise flip the host's buttons live immediately after the
-      // results render. Only reveal unconditionally after the timer has
-      // fired or for a true host handoff (no timer is running on this
-      // controller).
-      if (!gameoverButtonsTimer) {
-        gameoverButtons.style.opacity = '';
-        gameoverButtons.style.pointerEvents = '';
-        gameoverButtonsReady = true;
-      }
     } else {
-      // Cancel any pending button-reveal timer from a prior host render so a
-      // mid-delay handoff can't flip gameoverButtonsReady on a hidden button.
-      clearTimeout(gameoverButtonsTimer);
-      gameoverButtonsTimer = null;
-      // Reset the ready flag so a host→non-host handoff can't leave stale
-      // "ready to click" state on a hidden button. Display-side gating would
-      // reject a stray click anyway, but keep controller-side state honest.
-      gameoverButtonsReady = false;
       gameoverButtons.classList.add('hidden');
       renderHostBanner(gameoverStatus, 'waiting_for_host_to_continue', hostName || t('player'), hostColor);
     }
@@ -79,8 +64,6 @@ function updateHostVisibility() {
 }
 
 function showLobbyUI() {
-  clearTimeout(gameoverButtonsTimer);
-  gameoverButtonsReady = false;
   playerIdentity.style.setProperty('--player-color', playerColor);
   playerIdentityName.textContent = playerName || t('player');
   updateLevelDisplay();
@@ -142,6 +125,7 @@ function renderHostBanner(element, key, name, color) {
 
 function onWelcome(data) {
   playerColor = data.playerColor || PLAYER_COLORS[0];
+  document.body.style.setProperty('--player-color', playerColor);
   playerCount = data.playerCount || 1;
   gameCancelled = false;
   waitingForNextGame = false;
@@ -271,8 +255,14 @@ function onError(data) {
 // Pause
 // =====================================================================
 
+var selfPausing = false;
+var selfPausingTimer = null;
+
 function onGamePaused() {
   gameScreen.classList.add('paused');
+  pauseOverlay.classList.toggle('pause-overlay--self', selfPausing);
+  selfPausing = false;
+  clearTimeout(selfPausingTimer);
   pauseOverlay.classList.remove('hidden');
   pauseBtn.disabled = true;
   pauseStatus.textContent = '';
@@ -282,6 +272,7 @@ function onGamePaused() {
 function onGameResumed() {
   gameScreen.classList.remove('paused');
   pauseOverlay.classList.add('hidden');
+  pauseOverlay.classList.remove('pause-overlay--self');
   pauseBtn.disabled = false;
 }
 
@@ -289,27 +280,17 @@ function onGameResumed() {
 // Results
 // =====================================================================
 
-var gameoverButtonsReady = false;
-var gameoverButtonsTimer = null;
-
+// The 1.5s anti-misclick delay and fade-in are purely CSS — see the
+// `resultsButtonsEnter` animation on #gameover-buttons. pointer-events stays
+// `none` until the animation fires, so stray taps before buttons are visible
+// can't reach the click handlers.
 function renderGameResults(results) {
   resultsList.innerHTML = '';
   gameoverStatus.textContent = '';
   gameoverStatus.style.color = '';
-  gameoverButtonsReady = false;
-  clearTimeout(gameoverButtonsTimer);
   if (isHost) {
     gameoverButtons.classList.remove('hidden');
-    gameoverButtons.style.opacity = '0';
-    gameoverButtons.style.pointerEvents = 'none';
-    gameoverButtonsTimer = setTimeout(function() {
-      gameoverButtonsTimer = null;
-      gameoverButtons.style.opacity = '';
-      gameoverButtons.style.pointerEvents = '';
-      gameoverButtonsReady = true;
-    }, 2000);
   } else {
-    gameoverButtonsTimer = null;
     gameoverButtons.classList.add('hidden');
     renderHostBanner(gameoverStatus, 'waiting_for_host_to_continue', hostName || t('player'), hostColor);
   }
@@ -344,7 +325,8 @@ function renderGameResults(results) {
     if (!solo) {
       var rankEl = document.createElement('span');
       rankEl.className = 'result-rank';
-      rankEl.textContent = tOrdinal(r.rank);
+      rankEl.textContent = String(r.rank);
+      rankEl.style.color = pColor;
       row.appendChild(rankEl);
     }
 

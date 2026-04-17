@@ -54,9 +54,12 @@ class BoardRenderer {
       this.x, this.y, this.hexSize, this.hexH, this.colW, HEX_COLS_N, HEX_VIS_ROWS, borderHalf
     );
 
-    // Cached rgba strings (stable between layout recalculations)
+    // Cached rgba strings (stable between layout recalculations).
+    // Board tint uses THEME.opacity.boardTint (stronger than generic
+    // THEME.opacity.tint) so the player color reads boldly against the
+    // card surface rather than blending into generic plum.
     var rgb = this._accentRgb;
-    this._tintFill = rgb ? 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + THEME.opacity.tint + ')' : null;
+    this._tintFill = rgb ? 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + THEME.opacity.boardTint + ')' : null;
     var gridAlpha = THEME.opacity.grid + (rgb ? (1 - (rgb.r * 0.299 + rgb.g * 0.587 + rgb.b * 0.114) / 255) * 0.08 : 0);
     this._gridAlpha = gridAlpha;
     this._gridStrokeOpaque = rgb ? 'rgb(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ')' : 'rgb(255,255,255)';
@@ -80,7 +83,9 @@ class BoardRenderer {
     var gc = oc.getContext('2d');
     gc.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    // 1. Clip to hex outline and fill board background + tint
+    // 1. Clip to hex outline and fill board background — tactile recipe:
+    //    vertical gradient (cardSoft → card), player-tint wash, top bevel
+    //    highlight inside the clipped zigzag shape.
     var bgv = this._bgOutlineVerts;
     var ox = this.x, oy = this.y;
     gc.save();
@@ -89,12 +94,20 @@ class BoardRenderer {
     for (var i = 1; i < bgv.length; i++) gc.lineTo(bgv[i][0] - ox, bgv[i][1] - oy);
     gc.closePath();
     gc.clip();
-    gc.fillStyle = THEME.color.bg.board;
-    gc.fill();
+
+    // Deeper plum base so the player tint adds identity without brightening
+    // the well (which would wash out piece contrast).
+    var bgGrad = gc.createLinearGradient(0, 0, 0, h);
+    bgGrad.addColorStop(0, THEME.color.bg.secondary);
+    bgGrad.addColorStop(1, THEME.color.bg.board);
+    gc.fillStyle = bgGrad;
+    gc.fillRect(0, 0, w, h);
+
     if (this._tintFill) {
       gc.fillStyle = this._tintFill;
-      gc.fill();
+      gc.fillRect(0, 0, w, h);
     }
+
     gc.restore();
 
     // 2. Grid lines — draw opaque on a temp canvas, then composite at target alpha.
@@ -127,7 +140,6 @@ class BoardRenderer {
     return oc;
   }
 
-  get styleTier() { return this._styleTier; }
   get hexW() { return 2 * this.hexSize; }
 
   // Pixel center of hex at (col, row) in visible coordinates.
@@ -179,13 +191,18 @@ class BoardRenderer {
     var hs = this.hexSize;
     var newTier = getStyleTier(playerState.level || 1);
     this._styleTier = newTier;
-    var isNeon = newTier === STYLE_TIERS.NEON_FLAT;
-    var colors = isNeon ? NEON_PIECE_COLORS : PIECE_COLORS;
-    var ghostColors = isNeon ? NEON_GHOST_COLORS : GHOST_COLORS;
-
     var sCell = this._sCell;
 
-    // 1. Board background + grid lines (cached, single blit).
+    // 1. Flat board background fill behind the hex outline.
+    ctx.fillStyle = THEME.color.bg.card;
+    ctx.beginPath();
+    var bgVerts = this._bgOutlineVerts;
+    ctx.moveTo(bgVerts[0][0], bgVerts[0][1]);
+    for (var vi = 1; vi < bgVerts.length; vi++) ctx.lineTo(bgVerts[vi][0], bgVerts[vi][1]);
+    ctx.closePath();
+    ctx.fill();
+
+    // 2. Board background + grid lines (cached, single blit).
     // Rebuild if missing or if DPR/board dimensions changed (monitor move).
     var _dpr = window.devicePixelRatio || 1;
     var _bgPw = Math.ceil(Math.ceil(this.boardWidth) * _dpr);
@@ -203,7 +220,7 @@ class BoardRenderer {
     if (playerState.grid) {
       var gv = playerState.gridVersion ?? -1;
       if (gv !== this._cachedGridVersion || newTier !== this._cachedGridTier) {
-        this._renderGridToCache(playerState.grid, colors, sCell);
+        this._renderGridToCache(playerState.grid, PIECE_COLORS, sCell);
         this._cachedGridVersion = gv;
         this._cachedGridTier = newTier;
       }
@@ -216,7 +233,7 @@ class BoardRenderer {
     // Ghost piece
     if (playerState.ghost && playerState.currentPiece && playerState.alive !== false) {
       var ghost = playerState.ghost;
-      var gc = ghostColors[playerState.currentPiece.typeId] || { outline: 'rgba(255,255,255,0.12)', fill: 'rgba(255,255,255,0.06)' };
+      var gc = GHOST_COLORS[playerState.currentPiece.typeId] || { outline: 'rgba(255,255,255,0.12)', fill: 'rgba(255,255,255,0.06)' };
       if (ghost.blocks) {
         for (var gi = 0; gi < ghost.blocks.length; gi++) {
           var gb = ghost.blocks[gi];
@@ -287,7 +304,7 @@ class BoardRenderer {
     // Current piece
     if (playerState.currentPiece && playerState.alive !== false) {
       var piece = playerState.currentPiece;
-      var pieceColor = colors[piece.typeId] || '#ffffff';
+      var pieceColor = PIECE_COLORS[piece.typeId] || '#ffffff';
       if (piece.blocks) {
         for (var pbi = 0; pbi < piece.blocks.length; pbi++) {
           var pb = piece.blocks[pbi];

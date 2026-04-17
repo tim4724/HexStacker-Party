@@ -2,7 +2,7 @@
 
 const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { t, tOrdinal, setLocale, getLocale, LOCALES } = require('../public/shared/i18n.js');
+const { t, setLocale, getLocale, LOCALES } = require('../public/shared/i18n.js');
 
 describe('i18n', function () {
 
@@ -98,62 +98,6 @@ describe('i18n', function () {
     });
   });
 
-  describe('tOrdinal()', function () {
-    it('formats English ordinals correctly', function () {
-      assert.equal(tOrdinal(1), '1st');
-      assert.equal(tOrdinal(2), '2nd');
-      assert.equal(tOrdinal(3), '3rd');
-      assert.equal(tOrdinal(4), '4th');
-      assert.equal(tOrdinal(11), '11th');
-      assert.equal(tOrdinal(21), '21st');
-      assert.equal(tOrdinal(22), '22nd');
-      assert.equal(tOrdinal(23), '23rd');
-    });
-
-    it('formats German ordinals with dot suffix', function () {
-      setLocale('de');
-      assert.equal(tOrdinal(1), '1.');
-      assert.equal(tOrdinal(3), '3.');
-    });
-
-    it('formats French ordinals', function () {
-      setLocale('fr');
-      assert.equal(tOrdinal(1), '1er');
-      assert.equal(tOrdinal(2), '2e');
-    });
-
-    it('formats Chinese ordinals', function () {
-      setLocale('zh');
-      assert.equal(tOrdinal(1), '第1名');
-      assert.equal(tOrdinal(5), '第5名');
-    });
-
-    it('formats Japanese ordinals', function () {
-      setLocale('ja');
-      assert.equal(tOrdinal(1), '1位');
-    });
-
-    it('formats Korean ordinals', function () {
-      setLocale('ko');
-      assert.equal(tOrdinal(1), '1위');
-    });
-
-    it('formats Russian ordinals', function () {
-      setLocale('ru');
-      assert.equal(tOrdinal(1), '1-й');
-    });
-
-    it('formats Portuguese ordinals', function () {
-      setLocale('pt');
-      assert.equal(tOrdinal(1), '1º');
-    });
-
-    it('formats Spanish ordinals', function () {
-      setLocale('es');
-      assert.equal(tOrdinal(1), '1º');
-    });
-  });
-
   describe('Russian plurals', function () {
     it('uses correct plural categories', function () {
       setLocale('ru');
@@ -189,15 +133,14 @@ describe('i18n', function () {
       'continue_anyway', 'reconnect', 'rejoin', 'join',
       'reconnecting', 'disconnected', 'connecting', 'connection_lost',
       'attempt_n_of_m', 'display_reconnecting', 'bad_connection',
-      'paused', 'end_step_1', 'end_step_2', 'end_how_to_play',
+      'paused', 'end_step_1', 'end_step_2',
       'room_not_found', 'game_ended', 'game_in_progress',
       'waiting_for_host_to_start', 'waiting_for_host_to_continue',
       'n_lines', 'level_n', 'player', 'level_heading',
-      'enter_name', 'touchpad', 'privacy',
+      'enter_name', 'copied', 'touchpad', 'privacy',
       'stacked_by', 'music_by', 'hex_lines_level',
       'swipe', 'tap', 'flick', 'gesture_move', 'gesture_rotate',
       'gesture_drop', 'gesture_hold',
-      '_ordinal'
     ];
 
     for (var locale of Object.keys(LOCALES)) {

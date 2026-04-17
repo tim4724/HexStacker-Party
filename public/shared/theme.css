@@ -1,5 +1,7 @@
 /* ==========================================================
    Design Tokens — CSS custom properties (mirrors theme.js)
+   Cocoa Arcade theme: warm-plum surfaces, palette-derived
+   accents, flat surfaces (no shadows/bevels/glows).
    ========================================================== */
 
 :root {
@@ -8,86 +10,78 @@
    *
    * Tokens that can appear inside rgba() (for translucent variants)
    * are defined as -rgb comma tuples and the solid form is derived
-   * via rgb(var(--X-rgb)). This keeps a single source of truth — edit
-   * the -rgb tuple and both the solid and translucent uses update.
+   * via rgb(var(--X-rgb)). Edit the -rgb tuple and both solid and
+   * translucent uses update.
    */
 
-  /* Backgrounds (dark → light) */
-  --bg-primary-rgb: 6, 6, 15;
+  /* Backgrounds — warm plum-dark */
+  --bg-primary-rgb: 30, 26, 43;          /* #1E1A2B */
   --bg-primary: rgb(var(--bg-primary-rgb));
-  --bg-board: #0c0c12;
-  --bg-secondary: #0c0c1a;
-  --bg-card-rgb: 18, 18, 42;
+  --bg-board: #15121F;                    /* deeper plum for the game board behind the canvas */
+  --bg-secondary: #181421;
+  --bg-card-rgb: 42, 37, 64;             /* #2A2540 */
   --bg-card: rgb(var(--bg-card-rgb));
-  --bg-glass: rgba(255, 255, 255, 0.06);
+  --bg-card-soft: #342E4D;
+  --bg-glass: rgba(255, 248, 236, 0.06);
 
-  /* Accents */
-  --accent-blue-rgb: 68, 68, 255;
-  --accent-blue: rgb(var(--accent-blue-rgb));
-  --accent-cyan-rgb: 0, 200, 255;
-  --accent-cyan: rgb(var(--accent-cyan-rgb));
-  --accent-green-rgb: 0, 255, 136;
-  --accent-green: rgb(var(--accent-green-rgb));
-  --accent-green-dark: #00dd77;
+  /* Accents — drawn from the party palette */
+  --accent-primary-rgb: 255, 107, 107;    /* Slot 1 Red */
+  --accent-primary: rgb(var(--accent-primary-rgb));
+  --accent-primary-dark: #E55A5A;
+  --accent-secondary-rgb: 255, 140, 66;   /* Slot 8 Tangerine */
+  --accent-secondary: rgb(var(--accent-secondary-rgb));
+  --accent-secondary-dark: #E67A33;
+  --accent-tertiary-rgb: 255, 209, 102;   /* Slot 3 Honey — toast/low-priority accent */
+  --accent-tertiary: rgb(var(--accent-tertiary-rgb));
 
-  /* Text */
-  --text-primary: #e0e0ff;
-  --text-secondary: rgba(240, 244, 255, 0.6);
-  --color-white: #ffffff;
-  --text-cyan: rgba(var(--accent-cyan-rgb), 0.9);
+  /* HEX STACKER wordmark gradient — independent of the UI accents so
+     the title reads red → honey → teal while buttons/links use their
+     own palette slots. */
+  --title-from: #FF6B6B;   /* Slot 1 Red */
+  --title-mid:  #FFD166;   /* Slot 3 Honey */
+  --title-to:   #4ECDC4;   /* Slot 2 Teal */
+
+  /* Text — warm cream */
+  --text-primary: #F7F1E8;
+  --text-secondary: rgba(247, 241, 232, 0.65);
+  --text-faint: rgba(247, 241, 232, 0.4);
 
   /* Semantic */
   --danger: #ff4444;
-  --garbage: #3a3a4e;
-  --border: #1e1e44;
-  --border-glass: rgba(255, 255, 255, 0.15);
+  --border: rgba(255, 248, 236, 0.08);
+  --border-strong: rgba(255, 248, 236, 0.16);
 
-  /* Medals */
-  --medal-gold-rgb: 255, 215, 0;
-  --medal-gold: rgb(var(--medal-gold-rgb));
-  --medal-silver-rgb: 192, 192, 192;
-  --medal-silver: rgb(var(--medal-silver-rgb));
-  --medal-bronze-rgb: 205, 127, 50;
-  --medal-bronze: rgb(var(--medal-bronze-rgb));
+  /* Medal — results-row fallback when color-mix() is unsupported */
+  --medal-silver: rgb(192, 192, 192);
 
-  /* Button text */
-  --btn-green-text: #003d1f;
+  /* Button text — Cocoa plum-dark. Every PARTY_PALETTE slot is bright
+     enough that dark text out-contrasts white (and passes WCAG AA on
+     most slots), so the host-tinted CTAs reuse this value regardless
+     of which player is host. */
+  --btn-primary-text: #1E1A2B;
 
   /* Ping indicators */
-  --ping-good: #66bb6a;
-  --ping-ok: #ffa726;
+  --ping-good: #7BED6F;                   /* mint */
+  --ping-ok: #FFD166;                     /* honey */
   --ping-bad: #e74856;
 
   /* Overlay */
   --overlay-bg: rgba(var(--bg-primary-rgb), 0.88);
 
-  /* Glows */
-  --glow-cyan: rgba(var(--accent-cyan-rgb), 0.15);
-  --glow-green: rgba(var(--accent-green-rgb), 0.3);
-  --glow-blue: rgba(var(--accent-blue-rgb), 0.06);
-
-  /* Opacities */
-  --opacity-faint: 0.04;
-  --opacity-tint: 0.06;
-  --opacity-subtle: 0.08;
-  --opacity-muted: 0.10;
-  --opacity-soft: 0.15;
-  --opacity-label: 0.6;
-  --opacity-overlay: 0.75;
+  /* Shadows */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.32);
 
   /* Transitions */
   --transition-fast: 0.15s ease;
   --transition-normal: 0.3s ease;
 
-  /* Animations */
-  --anim-fade: 0.5s ease-out both;
-  --anim-pulse: 2.5s ease-in-out infinite;
-
   /* Radii */
   --radius-xs: 4px;
   --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 12px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
+  --radius-pill: 999px;
 }
 
 /* ==========================================================
@@ -100,62 +94,212 @@
   font-family: 'Orbitron', sans-serif;
   font-weight: 700;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: transform var(--transition-fast), filter var(--transition-fast);
 }
 
 .btn-primary {
-  background: linear-gradient(180deg, var(--accent-green) 0%, var(--accent-green-dark) 100%);
-  color: var(--btn-green-text);
+  background: linear-gradient(180deg, var(--accent-primary) 0%, var(--accent-primary-dark) 100%);
+  color: var(--btn-primary-text);
+  box-shadow: var(--shadow-sm);
 }
 
-.btn-primary:hover {
-  box-shadow: 0 0 24px var(--glow-green);
+/* Brighten on hover — applies to the default red gradient and to all
+   host-tinted .btn-primary variants (via ID rules below) without needing
+   per-color hover rules. Matches the subtle lift of .btn-secondary:hover. */
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.1);
 }
 
 .btn-primary:active {
-  scale: 0.95;
-  box-shadow: 0 0 8px var(--glow-green);
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Player-tinted CTAs — match the lobby host (display) or the local player
+   (controller) so the primary action visually ties to their identity color.
+   --player-color is set on <body> by JS; when unset, these fall back to
+   --accent-primary (Red). Text always uses --btn-primary-text (Cocoa plum)
+   since every PARTY_PALETTE slot reads better with dark text. The
+   color-mix(in srgb, <color> 82%, black) darkening mirrors the shape
+   of --accent-primary → --accent-primary-dark. */
+#start-btn:not(:disabled),
+#pause-continue-btn,
+#play-again-btn,
+#reconnect-btn,
+#reconnect-rejoin-btn {
+  /* Two-declaration fallback: pre-color-mix browsers use the solid host
+     color; modern engines use the gradient. Same pattern as #touch-pad
+     in controller.css. */
+  background: var(--player-color, var(--accent-primary));
+  background: linear-gradient(
+    180deg,
+    var(--player-color, var(--accent-primary)) 0%,
+    color-mix(in srgb, var(--player-color, var(--accent-primary)) 82%, black) 100%
+  );
+  color: var(--btn-primary-text);
 }
 
 .btn-secondary {
-  background: transparent;
-  border: 1px solid var(--text-secondary);
-  color: var(--text-secondary);
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-secondary:hover {
-  border-color: var(--text-primary);
-  color: var(--text-primary);
+  background: var(--bg-card-soft);
 }
 
 .btn-secondary:active {
-  scale: 0.95;
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.btn-ghost:hover {
+  background: var(--bg-card-soft);
+  color: var(--text-primary);
+}
+
+.btn-ghost:active {
+  background: var(--bg-card);
+}
+
+/* Focus-visible ring — accessibility, matches palette secondary */
+.btn:focus-visible,
+.icon-btn:focus-visible,
+.input:focus-visible {
+  outline: 2px solid var(--accent-secondary);
+  outline-offset: 2px;
 }
 
 /* ==========================================================
    Shared Component Classes
    ========================================================== */
 
-.icon-btn {
-  border: 1px solid var(--text-secondary);
-  border-radius: var(--radius-md);
-  background: transparent;
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-card-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--text-secondary);
+}
+
+.pill--accent {
+  background: rgba(var(--accent-primary-rgb), 0.18);
+  border-color: rgba(var(--accent-primary-rgb), 0.35);
+  color: var(--accent-primary);
+}
+
+.input {
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  font-size: 16px;
+  color: var(--text-primary);
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 500;
+  outline: none;
+  width: 100%;
+  transition: border-color var(--transition-fast);
+}
+
+.input:focus {
+  border-color: var(--accent-secondary);
+}
+
+.input::placeholder {
+  color: var(--text-faint);
+}
+
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 28px 32px;
+  max-width: 320px;
+}
+
+.toast {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--accent-tertiary);
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-primary);
+}
+
+.toast__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent-tertiary);
+  animation: toastDot 1s ease-in-out infinite;
+}
+
+@keyframes toastDot {
+  0%, 100% { opacity: 0.4; transform: scale(0.9); }
+  50%      { opacity: 1;   transform: scale(1.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast__dot { animation: none; }
+}
+
+.icon-btn {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text-primary);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+  transition: background var(--transition-fast), transform var(--transition-fast);
 }
 
-.icon-btn:hover {
-  border-color: var(--text-primary);
-  color: var(--text-primary);
+.icon-btn:hover:not(:disabled) {
+  background: var(--bg-card-soft);
 }
 
 .icon-btn:active {
-  scale: 0.95;
+  transform: translateY(1px);
+  box-shadow: none;
 }
 
 .player-card {
@@ -163,22 +307,29 @@
   align-items: center;
   border-radius: var(--radius-md);
   background: var(--bg-card);
-  border: 2px solid var(--player-color, var(--border));
-  box-shadow: 0 0 16px -4px var(--player-color, transparent);
+  border: 2px solid var(--player-color, var(--border-strong));
   font-family: 'Orbitron', sans-serif;
   font-weight: 600;
   letter-spacing: 0.05em;
   color: var(--player-color, var(--text-primary));
 }
 
+/* Stop the body-level --player-color (set by applyHostTint for CTA tints)
+   from cascading into empty slots — otherwise their fallback branch would
+   pick up the host's color via inheritance. .empty overrides border/color
+   explicitly today so there's no visible bug, but this keeps the reset
+   defensive against future rules that read --player-color on empty cards. */
+.player-card.empty { --player-color: initial; }
+
 .gradient-title {
   font-family: 'Orbitron', sans-serif;
   font-weight: 900;
   letter-spacing: 0.08em;
-  background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan), var(--accent-green));
+  background: linear-gradient(135deg, var(--title-from), var(--title-mid), var(--title-to));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  color: transparent; /* Firefox: supports background-clip:text but not -webkit-text-fill-color */
 }
 
 .gradient-title__sub {
@@ -190,7 +341,7 @@
   text-transform: uppercase;
   /* Opt out of the parent's background-clip:text trick so the subtitle renders */
   -webkit-text-fill-color: currentColor;
-  color: rgba(224, 224, 255, 0.78);
+  color: var(--text-secondary);
 }
 
 .pause-icon {
@@ -203,7 +354,7 @@
   content: '';
   width: 4px;
   height: 18px;
-  background: var(--text-secondary);
+  background: var(--text-primary);
   border-radius: 1.5px;
 }
 
@@ -226,7 +377,9 @@
   to { opacity: 1; }
 }
 
-/* Game overlays (pause, reconnect) — shared between display and controller */
+/* Game overlays (pause, reconnect) — shared between display and controller.
+   Safe-area padding mirrors .controller-shell so overlay CTAs keep the
+   same edge breathing room as lobby/name screens on narrow viewports. */
 .game-overlay {
   position: fixed;
   top: 0;
@@ -239,6 +392,11 @@
   align-items: center;
   justify-content: center;
   gap: 20px;
+  padding:
+    max(env(safe-area-inset-top), 8px)
+    max(env(safe-area-inset-right), 12px)
+    calc(env(safe-area-inset-bottom) + 16px)
+    max(env(safe-area-inset-left), 12px);
   background: var(--overlay-bg);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);

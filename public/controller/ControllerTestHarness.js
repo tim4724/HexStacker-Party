@@ -24,17 +24,22 @@
   var scenario = params.get('scenario');
   var colorIdx = Math.max(0, Math.min(parseInt(params.get('color'), 10) || 0, 7));
   var levelParam = parseInt(params.get('level'), 10);
-  var fakeName = params.get('name') || ['Emma','Jake','Sofia','Liam','Mia','Noah','Ava','Leo'][colorIdx];
+  var FAKE_NAMES = ['Emma','Jake','Sofia','Liam','Mia','Noah','Ava','Leo'];
+  var fakeName = params.get('name') || FAKE_NAMES[colorIdx];
+  // Default non-host scenarios to a host at the next color slot so the
+  // player's own name never collides with the host being waited for.
+  var defaultHostIdx = (colorIdx + 1) % 8;
 
   // Apply identity + host info that scenarios depend on.
   function applyIdentity(opts) {
     opts = opts || {};
     playerColor = PLAYER_COLORS[colorIdx];
+    document.body.style.setProperty('--player-color', playerColor);
     playerName = fakeName;
     playerCount = opts.playerCount || 4;
     isHost = !!opts.isHost;
-    hostName = opts.hostName || (isHost ? playerName : 'Emma');
-    hostColor = opts.hostColor || (isHost ? playerColor : PLAYER_COLORS[0]);
+    hostName = opts.hostName || (isHost ? playerName : FAKE_NAMES[defaultHostIdx]);
+    hostColor = opts.hostColor || (isHost ? playerColor : PLAYER_COLORS[defaultHostIdx]);
     if (!isNaN(levelParam)) startLevel = levelParam;
     playerNameEl.textContent = playerName;
     touchArea.setAttribute('data-player-name', playerName);
@@ -43,12 +48,18 @@
 
   function buildFakeResults(myRank, count) {
     var ranks = [];
-    var names = ['Emma','Jake','Sofia','Liam','Mia','Noah','Ava','Leo'];
+    var names = FAKE_NAMES;
+    // Pick opponent slots that skip the player's own color so we don't
+    // show two entries sharing the player's identity.
+    var opponentSlot = 0;
     for (var i = 0; i < count; i++) {
+      var isMe = i === myRank - 1;
+      var slot = isMe ? colorIdx : (opponentSlot === colorIdx ? ++opponentSlot : opponentSlot);
+      if (!isMe) opponentSlot++;
       ranks.push({
-        playerId: i === myRank - 1 ? clientId : 'debug' + i,
-        playerName: i === myRank - 1 ? playerName : names[i],
-        playerColor: PLAYER_COLORS[i],
+        playerId: isMe ? clientId : 'debug' + i,
+        playerName: isMe ? playerName : names[slot % names.length],
+        playerColor: isMe ? playerColor : PLAYER_COLORS[slot % PLAYER_COLORS.length],
         rank: i + 1,
         lines: 30 - i * 3,
         level: 5 - i
@@ -75,10 +86,18 @@
   // --- Dispatch by scenario ---
   switch (scenario) {
     case 'name':
-      // Default controller init already shows the name screen; nothing to do.
+      // Gallery iframes share localStorage; if a prior scenario stored a
+      // clientId_<roomCode>, controller.js init takes the "reconnect"
+      // branch and leaves the JOIN button disabled with "CONNECTING…".
+      // Reset the name screen to its pristine first-visit state.
+      nameInput.value = '';
+      nameInput.disabled = false;
+      nameJoinBtn.disabled = false;
+      nameJoinBtn.textContent = t('join');
       break;
 
     case 'name-connecting':
+      nameInput.value = fakeName;
       nameJoinBtn.disabled = true;
       nameJoinBtn.textContent = t('connecting');
       nameInput.disabled = true;
@@ -155,19 +174,15 @@
       lastGameResults = resultsW;
       renderGameResults(resultsW);
       showScreen('gameover');
-      // Reveal buttons immediately for the gallery snapshot.
-      gameoverButtons.style.opacity = '';
-      gameoverButtons.style.pointerEvents = '';
-      gameoverButtonsReady = true;
-      clearTimeout(gameoverButtonsTimer);
-      gameoverButtonsTimer = null;
       break;
     }
 
     case 'results-loser': {
       var countL = Math.max(2, parseInt(params.get('players'), 10) || 3);
-      applyIdentity({ isHost: false, playerCount: countL, hostName: 'Emma', hostColor: PLAYER_COLORS[0] });
-      var rank = Math.min(countL, Math.max(2, parseInt(params.get('rank'), 10) || countL));
+      applyIdentity({ isHost: false, playerCount: countL });
+      // Rotate non-winner ranks (2..countL) across the 8 cards for variety.
+      var defaultRank = 2 + (colorIdx % Math.max(1, countL - 1));
+      var rank = Math.min(countL, Math.max(2, parseInt(params.get('rank'), 10) || defaultRank));
       var resultsL = buildFakeResults(rank, countL);
       lastGameResults = resultsL;
       renderGameResults(resultsL);

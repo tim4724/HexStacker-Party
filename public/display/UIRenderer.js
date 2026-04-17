@@ -10,10 +10,10 @@ var _getIndicatorColor = function(e) { return e.color; };
 var _getDefenceColor = function() { return THEME.color.text.white; };
 
 // Disconnected-overlay fallback tints (used when a player color is not
-// provided). Derived once from the theme accent-cyan token so the canvas
-// renderer stays in sync with CSS.
-var _DISCONNECT_TEXT_FALLBACK = rgbaFromHex(THEME.color.accent.cyan, 0.7);
-var _DISCONNECT_QR_BORDER = rgbaFromHex(THEME.color.accent.cyan, 0.15);
+// provided). Derived once from the theme secondary-accent token so the
+// canvas renderer stays in sync with CSS.
+var _DISCONNECT_TEXT_FALLBACK = rgbaFromHex(THEME.color.accent.secondary, 0.7);
+var _DISCONNECT_QR_BORDER = rgbaFromHex(THEME.color.accent.secondary, 0.15);
 
 // Compute bounding boxes for flat-top hex mini pieces using odd-q offset conversion.
 var HEX_MINI_BOUNDS = {};
@@ -42,7 +42,20 @@ var HEX_MINI_BOUNDS = {};
       sMinR = Math.min(sMinR, shifted[j].row);
       sMaxR = Math.max(sMaxR, shifted[j].row);
     }
-    HEX_MINI_BOUNDS[type] = { minC: sMinC, maxC: sMaxC, minR: sMinR, maxR: sMaxR, offsets: shifted };
+    // True vertical midpoint (hexH units, relative to oy) — accounts for the
+    // half-hex stagger on a per-cell basis so q/p/L/J (odd-column cells on
+    // the max-row side) don't sit ¼ hex below the slot center.
+    var vMin = Infinity, vMax = -Infinity;
+    for (var k = 0; k < shifted.length; k++) {
+      var yu = shifted[k].row + 0.5 * (shifted[k].col & 1);
+      if (yu < vMin) vMin = yu;
+      if (yu > vMax) vMax = yu;
+    }
+    HEX_MINI_BOUNDS[type] = {
+      minC: sMinC, maxC: sMaxC, minR: sMinR, maxR: sMaxR,
+      offsets: shifted,
+      visMidUnits: (vMin + vMax + 1) / 2,
+    };
   }
 })();
 
@@ -293,24 +306,50 @@ class UIRenderer {
     ctx.letterSpacing = '0px';
   }
 
+  // Flat panel recipe — mirrors the HTML card primitive:
+  //   top-to-bottom gradient + inset top bevel + thin player-tinted stroke.
   _drawPanel(x, y, w, h) {
     var ctx = this.ctx;
     var r = THEME.radius.panel(this.cellSize);
+    var cellSize = this.cellSize;
 
+    // 1. Gradient fill + optional player-color wash — same path, re-fill
+    //    with the tint fillStyle after the gradient. fill() doesn't consume
+    //    the current path, so the second fill reuses it.
+    var gradient = ctx.createLinearGradient(x, y, x, y + h);
+    gradient.addColorStop(0, THEME.color.bg.cardSoft);
+    gradient.addColorStop(1, THEME.color.bg.card);
     ctx.beginPath();
     _addRoundRectSubPath(ctx, x, y, w, h, r);
-
-    ctx.fillStyle = THEME.color.bg.board;
+    ctx.fillStyle = gradient;
     ctx.fill();
-
     if (this._panelTintFill) {
       ctx.fillStyle = this._panelTintFill;
       ctx.fill();
     }
 
-    ctx.strokeStyle = this._panelStroke;
-    ctx.lineWidth = this.cellSize * THEME.stroke.border;
+    // 3. Inset top bevel — thin bright horizontal line just inside the top rim.
+    ctx.save();
+    ctx.beginPath();
+    _addRoundRectSubPath(ctx, x, y, w, h, r);
+    ctx.clip();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+    ctx.lineWidth = Math.max(1, cellSize * 0.03);
+    ctx.beginPath();
+    var bevelInset = Math.max(1, cellSize * 0.015);
+    ctx.moveTo(x + r * 0.5, y + bevelInset);
+    ctx.lineTo(x + w - r * 0.5, y + bevelInset);
     ctx.stroke();
+    ctx.restore();
+
+    // 4. Thin player-tinted rim stroke for identity.
+    ctx.save();
+    ctx.strokeStyle = this._panelStroke;
+    ctx.lineWidth = Math.max(1, cellSize * THEME.stroke.border * 0.6);
+    ctx.beginPath();
+    _addRoundRectSubPath(ctx, x, y, w, h, r);
+    ctx.stroke();
+    ctx.restore();
   }
 
   drawGarbageMeter(pendingGarbage) {
@@ -431,20 +470,19 @@ class UIRenderer {
     var bounds = HEX_MINI_BOUNDS[pieceType];
     if (!bounds) return;
     var typeId = HEX_TYPE_TO_ID[pieceType];
-    var isNeon = this._styleTier === STYLE_TIERS.NEON_FLAT;
-    var color = (isNeon ? NEON_PIECE_COLORS[typeId] : PIECE_COLORS[typeId]) || '#ffffff';
+    var color = PIECE_COLORS[typeId] || '#ffffff';
 
-    var hexS = size * 0.45;
+    var hexS = size * 0.58;
     var drawS = hexS * (1 - THEME.size.blockGap * 2);
     var hexH = _SQRT3 * hexS;   // height of flat-top hex (layout spacing)
     var colW = 1.5 * hexS;            // column spacing
     var cols = bounds.maxC - bounds.minC + 1;
-    var rows = bounds.maxR - bounds.minR + 1;
     var totalW = colW * (cols - 1) + 2 * hexS;
-    // Total height: row spacing * (rows-1) + hex height + half hex for odd col stagger
-    var totalH = hexH * rows + hexH * 0.5;
     var ox = centerX - totalW / 2;
-    var oy = centerY - totalH / 2;
+    // Center on the piece's true visual midpoint (cell center-of-bounds in
+    // hexH units), not a bounding-box approximation — the stagger shifts
+    // some pieces' visual mass off-center otherwise.
+    var oy = centerY - hexH * bounds.visMidUnits;
 
     var stamp = getHexStamp(this._styleTier, color, _SQRT3 * drawS);
     var ctx = this.ctx;

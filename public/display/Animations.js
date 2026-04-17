@@ -3,6 +3,9 @@
 var _NO_SHAKE = Object.freeze({ x: 0, y: 0 });
 var _shakeResult = { x: 0, y: 0 };
 
+// Piece IDs 1..8 (skip 0=empty, 9=garbage) — palette hexes for confetti.
+var CONFETTI_IDS = Object.freeze([1, 2, 3, 4, 5, 6, 7, 8]);
+
 class Animations {
   constructor(ctx) {
     this.ctx = ctx;
@@ -15,22 +18,36 @@ class Animations {
     const cs = cellSize ?? 30;
     const base = sizeBase ?? 0.05;
     const range = sizeRange ?? 0.07;
+    const rotStart = Math.random() * Math.PI * 2;
+    const rotSpeed = (Math.random() - 0.5) * 6;  // radians/sec
 
     this.active.push({
       type: 'sparkle',
       startTime: performance.now(),
       duration,
-      x, y, vx, vy, color,
+      x, y, vx, vy, color, rotStart, rotSpeed,
       size: cs * (base + Math.random() * range),
       render(ctx, progress) {
         var t = progress * this.duration / 1000;
         var px = this.x + this.vx * t;
         var py = this.y + this.vy * t + 80 * t * t; // gravity
         var sz = this.size * (1 - progress * 0.5);
+        var rot = this.rotStart + this.rotSpeed * t;
+        ctx.save();
         ctx.globalAlpha = 1 - progress;
+        ctx.translate(px, py);
+        ctx.rotate(rot);
         ctx.fillStyle = this.color;
-        ctx.fillRect(px - sz / 2, py - sz / 2, sz, sz);
-        ctx.globalAlpha = 1;
+        // Hex-shaped confetti particle — fits the game's visual language.
+        ctx.beginPath();
+        for (var vi = 0; vi < 6; vi++) {
+          var a = Math.PI / 3 * vi;
+          var ux = Math.cos(a) * sz, uy = Math.sin(a) * sz;
+          if (vi === 0) ctx.moveTo(ux, uy); else ctx.lineTo(ux, uy);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
       }
     });
   }
@@ -82,7 +99,7 @@ class Animations {
           var fadeAlpha = 0.5 * (1 - (progress - 0.25) / 0.75);
           if (fadeAlpha <= 0) { ctx.globalAlpha = 1; return; }
           ctx.globalAlpha = fadeAlpha;
-          var shrink = hexSize * (1 - (progress - 0.25));
+          var shrink = Math.max(0, hexSize * (1 - (progress - 0.25)));
           for (var ci = 0; ci < cellPositions.length; ci++) {
             hexPath(ctx, cellPositions[ci].x, cellPositions[ci].y, shrink);
             ctx.fill();
@@ -105,17 +122,25 @@ class Animations {
       }
     }
 
-    // Sparkle particles
+    // Confetti particles — palette-colored hexes on quad, white on smaller clears.
     for (var si = 0; si < cells.length; si++) {
       var sc = cells[si][0], sr = cells[si][1];
       if (sr < 0) continue;
       var sparkPos = hexCenter(sc, sr);
-      var particleCount = isQuad ? 4 : 2;
+      var particleCount = isQuad ? 5 : isTriple ? 3 : 2;
       for (var j = 0; j < particleCount; j++) {
+        var pColor;
+        if (isQuad) {
+          pColor = PIECE_COLORS[CONFETTI_IDS[(Math.random() * CONFETTI_IDS.length) | 0]];
+        } else if (isTriple) {
+          pColor = THEME.color.triple;
+        } else {
+          pColor = '#ffffff';
+        }
         this._addSparkle(
           sparkPos.x + (Math.random() - 0.5) * hexSize * 2,
           sparkPos.y,
-          isQuad ? THEME.color.quad : '#ffffff',
+          pColor,
           200 + Math.random() * 400,
           hexSize
         );
@@ -171,7 +196,6 @@ class Animations {
     var duration = THEME.timing.textPopup;
     var cs = cellSize ?? 30;
     var fontStr = '900 ' + (cs * 0.73) + 'px ' + getDisplayFont();
-    var shadowSize = cs * 0.53;
     var highlightY = -cs * 0.03;
 
     this.active.push({
@@ -185,7 +209,6 @@ class Animations {
       hasGlow: hasGlow || false,
       fontStr,
       cs,
-      shadowSize,
       highlightY,
       render(ctx, progress) {
         // Ease out for smooth motion
@@ -197,20 +220,14 @@ class Animations {
         ctx.scale(progress < 0.15 ? 0.5 + (progress / 0.15) * 0.7 : 1.2 - ease * 0.2, progress < 0.15 ? 0.5 + (progress / 0.15) * 0.7 : 1.2 - ease * 0.2);
         ctx.globalAlpha = alpha;
 
-        if (this.hasGlow) {
-          ctx.shadowColor = this.color;
-          ctx.shadowBlur = this.shadowSize;
-        }
-
         ctx.fillStyle = this.color;
         ctx.font = this.fontStr;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(this.text, 0, 0);
 
-        // White inner highlight
+        // White inner highlight on the bigger-achievement popups.
         if (this.hasGlow) {
-          ctx.shadowBlur = 0;
           ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
           ctx.fillText(this.text, 0, this.highlightY);
         }
@@ -220,10 +237,11 @@ class Animations {
     });
   }
 
-  addKO(boardX, boardY, boardWidth, boardHeight, cellSize) {
+  addKO(boardX, boardY, boardWidth, boardHeight, cellSize, outlineVerts) {
     const duration = THEME.timing.ko;
 
-    // Red flash
+    // Red flash — clipped to the zigzag hex outline so the fill matches the
+    // board shape rather than the rectangular bounding box.
     this.active.push({
       type: 'ko',
       startTime: performance.now(),
@@ -232,20 +250,32 @@ class Animations {
       boardY,
       boardWidth,
       boardHeight,
+      outlineVerts,
       render(ctx, progress) {
+        var fill, alpha;
         if (progress < 0.15) {
-          // Initial white flash
-          ctx.globalAlpha = (1 - progress / 0.15) * 0.7;
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(this.boardX, this.boardY, this.boardWidth, this.boardHeight);
-          ctx.globalAlpha = 1;
+          fill = '#ffffff';
+          alpha = (1 - progress / 0.15) * 0.7;
         } else if (progress < 0.4) {
-          // Red vignette
-          ctx.globalAlpha = ((0.4 - progress) / 0.25) * 0.4;
-          ctx.fillStyle = '#ff0000';
-          ctx.fillRect(this.boardX, this.boardY, this.boardWidth, this.boardHeight);
-          ctx.globalAlpha = 1;
+          fill = '#ff0000';
+          alpha = ((0.4 - progress) / 0.25) * 0.4;
+        } else {
+          return;
         }
+        ctx.save();
+        if (this.outlineVerts && this.outlineVerts.length) {
+          ctx.beginPath();
+          ctx.moveTo(this.outlineVerts[0][0], this.outlineVerts[0][1]);
+          for (var i = 1; i < this.outlineVerts.length; i++) {
+            ctx.lineTo(this.outlineVerts[i][0], this.outlineVerts[i][1]);
+          }
+          ctx.closePath();
+          ctx.clip();
+        }
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = fill;
+        ctx.fillRect(this.boardX, this.boardY, this.boardWidth, this.boardHeight);
+        ctx.restore();
       }
     });
 

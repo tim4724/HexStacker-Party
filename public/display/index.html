@@ -3,16 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1E1A2B">
   <title>HexStacker Party</title>
   <meta name="description" content="Multiplayer hex stacker — play on your TV, control with your phone.">
   <meta property="og:title" content="HexStacker Party">
   <meta property="og:description" content="Multiplayer hex stacker — play on your TV, control with your phone.">
-  <meta property="og:image" content="https://hexstackerparty.com/social-preview.png">
+  <meta property="og:image" content="https://hexstackerparty.com/artwork/social-preview.png">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="HexStacker Party">
   <meta name="twitter:description" content="Multiplayer hex stacker — play on your TV, control with your phone.">
-  <meta name="twitter:image" content="https://hexstackerparty.com/social-preview.png">
+  <meta name="twitter:image" content="https://hexstackerparty.com/artwork/social-preview.png">
   <link rel="stylesheet" href="/shared/fonts/orbitron.css">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="32x32">
@@ -27,13 +28,18 @@
 
   <!-- End screen: shown on mobile devices visiting the display URL -->
   <div class="end-screen hidden" id="end-screen">
+    <canvas class="end-screen__bg" id="end-screen-bg" aria-hidden="true"></canvas>
     <div class="end-brand">
       <h1 class="gradient-title">HEX STACKER<span class="gradient-title__sub">party</span></h1>
     </div>
     <div class="end-content">
-      <img src="/artwork/gameplay-16x9.png" alt="" class="end-screenshot">
+      <picture>
+        <source media="(orientation: portrait)" type="image/webp" srcset="/artwork/gameplay-2p-1x1.webp">
+        <source media="(orientation: portrait)" type="image/jpeg" srcset="/artwork/gameplay-2p-1x1.jpg">
+        <source type="image/webp" srcset="/artwork/gameplay-16x9.webp">
+        <img src="/artwork/gameplay-16x9.jpg" alt="" class="end-screenshot">
+      </picture>
       <div class="end-steps-card">
-        <p class="end-steps-card__title" data-i18n="end_how_to_play">How to play</p>
         <ol class="end-steps">
           <li><span class="end-step-text" data-i18n-html="end_step_1">Open <a href="https://hexstackerparty.com" id="end-step-1-link" class="end-link">hexstackerparty.com</a> on a larger screen</span></li>
           <li><span class="end-step-text" data-i18n="end_step_2">Scan the QR code to use your phone as controller</span></li>
@@ -54,6 +60,7 @@
 
   <!-- Welcome screen: unlocks audio via user gesture -->
   <div id="welcome-screen" class="screen">
+    <span id="welcome-version-label"></span>
     <h1 class="gradient-title">HEX STACKER<span class="gradient-title__sub">party</span></h1>
     <button id="new-game-btn" class="btn btn-primary" data-i18n="start_new_game">START NEW GAME</button>
     <div id="welcome-footer">
@@ -70,19 +77,25 @@
           <a href="/imprint" data-i18n="imprint">Imprint</a>
         </span>
       </div>
-      <span id="version-label"></span>
     </div>
   </div>
 
   <!-- Lobby screen: QR code + player list + start button -->
   <div id="lobby-screen" class="screen hidden">
+    <span id="lobby-version-label"></span>
     <h1 class="gradient-title">HEX STACKER<span class="gradient-title__sub">party</span></h1>
-    <div id="qr-container">
-      <canvas id="qr-code"></canvas>
-      <p id="qr-label" data-i18n="scan_to_join">Scan to join</p>
-      <p id="join-url"></p>
+    <div id="lobby-body">
+      <div id="qr-container">
+        <canvas id="qr-code"></canvas>
+        <div id="qr-info">
+          <span id="qr-label" data-i18n="scan_to_join">Scan or visit</span>
+          <p id="join-url">
+            <span class="join-url__host"></span><span class="join-url__code"></span>
+          </p>
+        </div>
+      </div>
+      <div id="player-list"></div>
     </div>
-    <div id="player-list"></div>
     <button id="start-btn" class="btn btn-primary" disabled data-i18n="waiting_for_players">Waiting for players...</button>
     <div id="lobby-footer">
       <div class="footer-row">
@@ -90,7 +103,6 @@
         <span class="footer-dot">&middot;</span>
         <a href="https://opengameart.org/content/lunar-joyride-8-bit" target="_blank" rel="noopener" data-i18n="music_by">Music by FoxSynergy</a>
       </div>
-      <span id="lobby-version-label"></span>
     </div>
   </div>
 

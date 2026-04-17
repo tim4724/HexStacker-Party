@@ -39,25 +39,43 @@ html, body {
 
 #welcome-screen {
   background:
-    radial-gradient(ellipse at 50% 30%, var(--glow-blue) 0%, transparent 50%);
+    radial-gradient(ellipse at 50% 30%, rgba(var(--accent-primary-rgb), 0.06) 0%, transparent 55%);
   gap: clamp(2rem, 5vh, 4rem);
   padding-bottom: clamp(2.7rem, 6vh, 4rem);
+  position: relative;
 }
+
+#welcome-version-label,
+#lobby-version-label {
+  position: absolute;
+  top: clamp(1rem, 2.5vh, 1.5rem);
+  right: clamp(1rem, 2vw, 2rem);
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(11px, 1.3vw, 14px);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--text-secondary);
+  opacity: 0.55;
+  text-transform: uppercase;
+  animation: fadeIn 0.6s 0.3s ease-out both;
+}
+
+#lobby-version-label { display: none; }
+body.airconsole #lobby-version-label { display: block; }
 
 #welcome-screen h1 {
   font-size: clamp(2.5rem, 7vh, 6rem);
-  filter: drop-shadow(0 0 24px rgba(var(--accent-cyan-rgb), 0.35));
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.45));
   animation: fadeDown 0.6s ease-out both;
   text-align: center;
 }
 
 #new-game-btn {
-  min-width: clamp(9rem, 16vw, 14rem);
   padding: clamp(0.6rem, 1.2vh, 1.2rem) clamp(1rem, 2vw, 2rem);
   font-size: clamp(1rem, 2.2vh, 1.8rem);
   letter-spacing: 0.08em;
   text-align: center;
-  animation: fadeUp 0.6s 0.3s ease-out both, btnPulse 2.5s 1s ease-in-out infinite;
+  animation: fadeUp 0.6s 0.3s ease-out backwards;
 }
 
 #welcome-footer {
@@ -86,8 +104,10 @@ html, body {
   white-space: nowrap;
 }
 
+/* Shared footer text shape — welcome/lobby links + version label. */
 #welcome-footer a,
-#lobby-footer a {
+#lobby-footer a,
+#version-label {
   color: var(--text-secondary);
   font-family: system-ui, -apple-system, sans-serif;
   font-size: clamp(13px, 1.5vw, 16px);
@@ -99,7 +119,7 @@ html, body {
 
 #welcome-footer a:hover,
 #lobby-footer a:hover {
-  filter: drop-shadow(0 0 6px rgba(var(--accent-cyan-rgb), 0.2));
+  color: var(--text-primary);
 }
 
 .footer-dot {
@@ -107,13 +127,7 @@ html, body {
   opacity: 0.4;
 }
 
-#version-label,
-#lobby-version-label {
-  color: var(--text-secondary);
-  font-family: system-ui, -apple-system, sans-serif;
-  font-size: clamp(13px, 1.5vw, 16px);
-  font-weight: 500;
-  letter-spacing: 0.06em;
+#version-label {
   opacity: 0.6;
 }
 
@@ -128,84 +142,233 @@ html, body {
 
 
 /* ============================================
-   Lobby Screen
+   Lobby Screen — orientation-driven layout.
+   Portrait: vertical stack, QR on top, players below (full-width cards).
+   Landscape: QR left, players right.
+   Narrow (<600px) overrides: compact single column for player list sizing.
    ============================================ */
+
+/* --- Base (Medium tier) --- */
 #lobby-screen {
   background:
-    radial-gradient(ellipse at 50% 20%, var(--glow-blue) 0%, transparent 50%);
-  justify-content: space-evenly;
-  padding: 4vh 2rem 4vh;
+    radial-gradient(ellipse at 50% 20%, rgba(var(--accent-primary-rgb), 0.05) 0%, transparent 55%);
+  justify-content: space-around;
+  gap: 1.5rem;
+  padding: clamp(2rem, 5vh, 3.5rem) 1.5rem clamp(4rem, 8vh, 6.5rem);
+  position: relative;
 }
 
-
 #lobby-screen h1 {
-  font-size: clamp(2rem, 5vh, 5rem);
-  filter: drop-shadow(0 0 18px rgba(var(--accent-cyan-rgb), 0.3));
+  font-size: clamp(2rem, 6vh, 4.5rem);
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.4));
   animation: fadeDown 0.6s ease-out both;
   text-align: center;
+}
+
+/* At medium/wide tiers (≥600px) there's room for the title to grow to
+   match the welcome screen size. Below that the narrow lobby stays
+   compact so "HEX STACKER" doesn't wrap and push cards off-screen. */
+@media (min-width: 600px) {
+  #lobby-screen h1 {
+    font-size: clamp(2.5rem, 7vh, 6rem);
+  }
+}
+
+#lobby-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 720px;
+  animation: fadeUp 0.6s 0.15s ease-out both;
 }
 
 #qr-container {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  animation: fadeUp 0.6s 0.15s ease-out both, qrGlow 3s 1s ease-in-out infinite;
-}
-
-@keyframes qrGlow {
-  0%, 100% { filter: drop-shadow(0 0 8px rgba(var(--accent-cyan-rgb), 0.08)); }
-  50%      { filter: drop-shadow(0 0 16px rgba(var(--accent-cyan-rgb), 0.18)); }
-}
-
-#qr-label {
-  margin: clamp(4px, 0.8vh, 10px) 0 0;
-  font-size: clamp(14px, 2.4vh, 26px);
-  color: rgba(var(--accent-cyan-rgb), 0.7);
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
+  align-items: stretch;
+  gap: clamp(8px, 1.2vh, 14px);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: clamp(12px, 1.8vh, 20px);
+  width: clamp(180px, 34vh, 340px);
+  max-width: 90vw;
+  overflow: hidden;
 }
 
 #qr-code {
-  width: clamp(180px, 32vh, 400px);
-  height: clamp(180px, 32vh, 400px);
-  border: 1px solid rgba(var(--accent-cyan-rgb), 0.15);
-  border-radius: clamp(8px, 1vh, 16px);
-  background: var(--color-white);
-  padding: clamp(6px, 1vh, 14px);
-  box-shadow: 0 0 24px rgba(var(--accent-cyan-rgb), 0.08);
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  height: auto;
+  border-radius: var(--radius-lg);
+  background: #fff;
+  padding: 10px;
+  display: block;
 }
 
+#qr-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+#qr-label {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-faint);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Join URL — single line "host/CODE" with the code emphasized. Click to
+   copy the full URL; shows a brief toast via #join-url[data-copied]. */
 #join-url {
-  font-size: clamp(0.85rem, 2vh, 1.4rem);
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0;
+  margin: 0;
+  font-family: 'Orbitron', sans-serif;
+  line-height: 1.2;
+  max-width: 100%;
+  padding: 8px 14px;
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  position: relative;
+  transition: background var(--transition-fast);
+  user-select: none;
+}
+
+#join-url:hover {
+  background: rgba(0, 0, 0, 0.32);
+}
+
+#join-url:active {
+  background: rgba(0, 0, 0, 0.38);
+}
+
+#join-url::after {
+  content: attr(data-copied-label);
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  padding: 4px 10px;
+  background: var(--accent-secondary);
+  color: var(--bg-primary);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  white-space: nowrap;
+}
+
+#join-url[data-copied="1"]::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.join-url__host {
+  font-size: 1.1rem;
+  font-weight: 600;
   color: var(--text-secondary);
-  margin-top: 0.3rem;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  /* Long hostnames (e.g. preview-*.hexstackerparty.com) must be able to
+     break mid-string — URLs lack word boundaries, so `anywhere` is needed
+     to prevent overflow clipping against #qr-container's overflow: hidden. */
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.join-url__code {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: var(--accent-secondary);
+  letter-spacing: 0.18em;
+  padding-left: 0.18em;
 }
 
 #player-list {
-  display: grid;
-  grid-template-columns: repeat(4, auto);
-  gap: clamp(0.6rem, 1.2vw, 1.2rem);
+  --card-w: clamp(180px, 22vw, 230px);
+  --card-gap: clamp(10px, 1.5vw, 18px);
+  display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  justify-items: center;
-  min-height: clamp(50px, 8vh, 90px);
+  gap: var(--card-gap);
+  /* No width:100% and no auto side-margins — in row-direction lobby-body
+     either would expand the list's flex slot past its max-width and shove
+     it away from the QR card. Let the parent's justify-content:center
+     position the list, and the .pl--sm/--lg max-widths cap its size. */
   animation: fadeIn 0.4s 0.3s ease-out both;
 }
+/* Player-count buckets: ≤4 → 2×2, ≥5 → 2×4. Container is capped to
+   exactly N card widths so flex-wrap produces the intended row/col grid. */
+#player-list.pl--sm { max-width: calc(var(--card-w) * 2 + var(--card-gap)); }
+/* 5+ players: row 1 always fills 4 cards; left-align so the wrapped row
+   aligns with the first column instead of centering independently. */
+#player-list.pl--lg { max-width: calc(var(--card-w) * 4 + var(--card-gap) * 3); justify-content: flex-start; }
 
 .player-card {
+  display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(6px, 1vh, 10px);
   justify-content: center;
-  padding: clamp(0.6rem, 1.2vh, 1rem) clamp(1.2rem, 2vw, 2.2rem);
-  font-size: clamp(0.9rem, 2vh, 1.4rem);
-  min-width: clamp(100px, 12vw, 180px);
+  gap: clamp(6px, 1vh, 12px);
+  padding: clamp(12px, 2vh, 22px) clamp(14px, 1.6vw, 26px);
+  font-size: clamp(1rem, 1.8vh, 1.4rem);
+  width: 100%;
+  min-width: 0;
+}
+
+/* --- Landscape (width ≥ height): side-by-side, roomier.
+   Portrait viewports keep the vertical stack so the player list gets the
+   full width for its cards. --- */
+@media (orientation: landscape) {
+  #lobby-body {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    max-width: 1400px;
+    gap: clamp(2rem, 3vw, 3.5rem);
+  }
+  .join-url__host { font-size: 1.2rem; }
+  .join-url__code { font-size: 1.5rem; }
+}
+
+/* --- Narrow tier (<600px): force 2-col layout even with 5+ players (becomes 4×2) --- */
+@media (max-width: 599px) {
+  #player-list.pl--lg { max-width: calc(var(--card-w) * 2 + var(--card-gap)); }
+  .join-url__host { font-size: 0.95rem; }
+  .join-url__code { font-size: 1.2rem; }
+}
+
+/* --- AirConsole / no-QR overrides: just hide QR; player list sizing is class-driven --- */
+body.airconsole #qr-container,
+#lobby-screen.no-qr #qr-container {
+  display: none;
 }
 
 .player-card.empty {
   background: transparent;
   border: 2px dashed var(--text-secondary);
-  box-shadow: none;
   color: var(--text-secondary);
 }
 
@@ -230,6 +393,11 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  flex: 0 0 var(--card-w, 200px);
+  /* Override default min-width:auto on flex items — otherwise the slot
+     expands to card min-content width (level controls) and breaks the
+     2×2 / 2×4 grid by forcing items to wrap one per row. */
+  min-width: 0;
 }
 
 .level-controls {
@@ -256,8 +424,8 @@ html, body {
   font-size: clamp(0.9rem, 2vh, 1.4rem);
   font-weight: 700;
   color: var(--text-primary);
-  min-width: 2em;
   text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .level-btn {
@@ -289,17 +457,13 @@ html, body {
   padding: clamp(0.7rem, 1.4vh, 1.3rem) clamp(2rem, 4vw, 6rem);
   font-size: clamp(1rem, 2vh, 1.6rem);
   letter-spacing: 0.08em;
-  animation: fadeUp 0.5s 0.45s ease-out both;
+  animation: fadeUp 0.5s 0.45s ease-out backwards;
 }
 
 #start-btn:disabled {
   background: var(--bg-card);
   color: var(--text-secondary);
   cursor: not-allowed;
-}
-
-#start-btn:not(:disabled) {
-  animation: fadeUp 0.5s 0.45s ease-out both, btnPulse 2.5s 1.2s ease-in-out infinite;
 }
 
 /* ============================================
@@ -319,10 +483,7 @@ html, body {
 
 #countdown-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -330,15 +491,20 @@ html, body {
   font-size: clamp(6rem, 15vh, 14rem);
   font-weight: 900;
   letter-spacing: 0.05em;
-  color: var(--color-white);
-  text-shadow:
-    0 0 30px rgba(var(--accent-blue-rgb), 0.9),
-    0 0 60px rgba(var(--accent-blue-rgb), 0.5),
-    0 0 120px rgba(var(--accent-blue-rgb), 0.2);
+  /* Palette-gradient text with soft drop-shadow — no neon-blue glow stack. */
   background:
-    radial-gradient(ellipse at 50% 50%, rgba(var(--accent-blue-rgb), 0.08) 0%, transparent 60%),
-    rgba(var(--bg-primary-rgb), 0.8);
+    radial-gradient(ellipse at 50% 50%, rgba(var(--accent-primary-rgb), 0.08) 0%, transparent 60%),
+    rgba(var(--bg-primary-rgb), 0.85);
+  color: var(--accent-primary);
+  text-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
   z-index: 10;
+  animation: countdownBeat 1s ease-out infinite;
+}
+
+@keyframes countdownBeat {
+  0%   { transform: scale(1); }
+  20%  { transform: scale(1.06); }
+  100% { transform: scale(1); }
 }
 
 #countdown-overlay.hidden {
@@ -383,24 +549,19 @@ html, body {
   border-radius: 1px;
 }
 
-#pause-btn:hover .pause-icon::before,
-#pause-btn:hover .pause-icon::after {
-  background: rgba(255, 255, 255, 0.8);
+#pause-btn:hover:not(:disabled) .pause-icon::before,
+#pause-btn:hover:not(:disabled) .pause-icon::after {
+  background: #fff;
 }
 
 #pause-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+  transform: none;
 }
 
 #pause-btn:disabled:hover {
-  border-color: var(--text-secondary);
-  color: var(--text-secondary);
-}
-
-#pause-btn:disabled:hover .pause-icon::before,
-#pause-btn:disabled:hover .pause-icon::after {
-  background: var(--text-secondary);
+  transform: none;
 }
 
 #pause-overlay h1 {
@@ -411,12 +572,25 @@ html, body {
 #pause-buttons {
   display: flex;
   gap: clamp(0.8rem, 1.5vw, 1.5rem);
+  pointer-events: none; /* defensive: ensures gate holds even in engines where
+                           pointer-events isn't treated as a discrete keyframe prop */
+  animation: resultsButtonsEnter 0.4s ease 1.5s both;
 }
 
+/* Self-initiated pause: whoever clicked pause sees buttons immediately — no
+   misclick risk. Remote-triggered pause keeps the full 1.5s gate. */
+#pause-overlay.pause-overlay--self #pause-buttons {
+  animation: none;
+  pointer-events: auto;
+}
+
+/* Overlay action buttons — pause/reconnect/results share one sizing scale. */
 #pause-continue-btn,
 #pause-newgame-btn,
-#reconnect-btn {
-  min-width: clamp(9rem, 16vw, 14rem);
+#reconnect-btn,
+#play-again-btn,
+#new-game-results-btn {
+  min-width: clamp(180px, 22vh, 280px);
   padding: clamp(0.6rem, 1.2vh, 1.2rem) clamp(1rem, 2vw, 2rem);
   font-size: clamp(0.85rem, 1.6vh, 1.2rem);
   letter-spacing: 0.06em;
@@ -440,8 +614,7 @@ html, body {
    ============================================ */
 #results-screen {
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0;
   z-index: 20;
   background: radial-gradient(ellipse at 50% 30%, var(--winner-glow, rgba(255, 215, 0, 0.06)) 0%, transparent 60%),
               var(--overlay-bg);
@@ -454,7 +627,7 @@ html, body {
   font-size: clamp(1.6rem, 4vh, 3.5rem);
   letter-spacing: 0.15em;
   margin-bottom: clamp(1rem, 3vh, 3rem);
-  filter: drop-shadow(0 0 24px rgba(var(--accent-cyan-rgb), 0.35));
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.45));
 }
 
 #results-list {
@@ -472,9 +645,6 @@ html, body {
 
 .result-rank {
   font-size: clamp(1.2rem, 2.5vh, 2.2rem);
-  font-weight: 700;
-  width: 4rem;
-  flex-shrink: 0;
 }
 
 .result-info {
@@ -505,8 +675,6 @@ html, body {
 
 .result-stats span {
   white-space: nowrap;
-  display: inline-block;
-  min-width: 5em;
   text-align: right;
 }
 
@@ -514,23 +682,8 @@ html, body {
   display: flex;
   gap: clamp(0.8rem, 1.5vw, 1.5rem);
   margin-top: clamp(1.5rem, 3vh, 3rem);
-}
-
-#play-again-btn,
-#new-game-results-btn {
-  min-width: clamp(9rem, 16vw, 14rem);
-  padding: clamp(0.6rem, 1.2vh, 1.2rem) clamp(1rem, 2vw, 2rem);
-  font-size: clamp(0.85rem, 1.6vh, 1.2rem);
-  letter-spacing: 0.06em;
-  text-align: center;
-}
-
-#play-again-btn {
-  animation: resultsBtnIn 0.5s 0.6s ease-out both, btnPulse 2.5s 1.5s infinite;
-}
-
-#new-game-results-btn {
-  animation: resultsBtnIn 0.5s 0.7s ease-out both;
+  pointer-events: none;
+  animation: resultsButtonsEnter 0.4s ease 1.5s both;
 }
 
 /* ============================================
@@ -539,13 +692,21 @@ html, body {
    ID selector (1,0,0) intentionally beats .end-screen.hidden (0,2,0)
    so the element shows on mobile even with the `hidden` class present.
    "Continue anyway" removes the element from the DOM, not via .hidden.
-   ============================================ */
-@media (max-width: 768px) and (orientation: portrait) {
-  #end-screen { display: flex; }
-}
 
-@media (max-width: 568px) and (orientation: landscape) {
+   Triggers on touch-first devices (pointer: coarse + hover: none) that
+   are either narrow (≤950px — phone in any orientation + tablet portrait)
+   or short (≤500px — phone landscape). Desktop browsers resized narrow
+   are excluded because they retain pointer: fine + hover: hover.
+   ============================================ */
+@media (max-width: 950px) and (pointer: coarse) and (hover: none),
+       (max-height: 500px) and (pointer: coarse) and (hover: none) {
   #end-screen { display: flex; }
+  /* No .screen suppression needed here: the display page always keeps
+     .hidden on #end-screen (visibility is driven by the ID rule above
+     overriding the class selector), so :has(#end-screen:not(.hidden))
+     never matches. The end-screen's opaque background in end-screen.css
+     prevents any bleed-through. Controller suppression lives in
+     end-screen.css (where .hidden IS removed by JS). */
 }
 
 /* --- AirConsole overrides --- */
@@ -557,7 +718,3 @@ body.airconsole #welcome-screen { display: none !important; }
 body.airconsole #end-screen { display: none !important; }
 body.airconsole #fullscreen-btn { display: none !important; }
 body.airconsole .player-slot:has(.player-card.empty) { display: none !important; }
-body.airconsole #player-list {
-  display: flex !important; flex-wrap: wrap; justify-content: center;
-  align-content: center; min-height: 20vh;
-}

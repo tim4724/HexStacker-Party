@@ -4,18 +4,33 @@
 // Design Tokens — single source of truth for the visual layer
 // ============================================================
 
+// --- Party Palette — 8 slots, single source of truth for pieces, players,
+// and UI accents. Garbage (#808080) is intentionally off-palette to keep
+// its "not yours / threatening" read.
+const PARTY_PALETTE = Object.freeze([
+  '#FF6B6B', // 1 Red        ← UI accent (primary)
+  '#4ECDC4', // 2 Teal
+  '#FFD166', // 3 Honey      ← UI accent (tertiary)
+  '#A78BFA', // 4 Violet
+  '#7BED6F', // 5 Mint
+  '#FF6F9A', // 6 Pink
+  '#5B7FFF', // 7 Indigo
+  '#FF8C42'  // 8 Tangerine  ← UI accent (secondary)
+]);
+
 // --- Piece colors (1=I, 2=O, 3=S, 4=Z, 5=q, 6=p, 7=L, 8=J, 9=garbage) ---
+// Each piece maps to the palette slot matching its color family.
 const PIECE_COLORS = {
-  0: '#000000',    // empty
-  1: '#EE4444',    // I - red
-  2: '#7FFF00',    // O - lime
-  3: '#9B59F0',    // S - violet
-  4: '#FF8C00',    // Z - amber
-  5: '#FFD700',    // q - gold
-  6: '#00CED1',    // p - teal
-  7: '#FF1493',    // L - hot pink
-  8: '#3377FF',    // J - royal blue
-  9: '#808080'     // garbage - gray
+  0: '#000000',             // empty
+  1: PARTY_PALETTE[0],      // I - red
+  2: PARTY_PALETTE[4],      // O - mint
+  3: PARTY_PALETTE[3],      // S - violet
+  4: PARTY_PALETTE[7],      // Z - tangerine
+  5: PARTY_PALETTE[2],      // q - honey
+  6: PARTY_PALETTE[1],      // p - teal
+  7: PARTY_PALETTE[5],      // L - pink
+  8: PARTY_PALETTE[6],      // J - indigo
+  9: '#808080'              // garbage - neutral gray (intentionally off-palette)
 };
 
 // Ghost piece colors — computed from PIECE_COLORS via ghostColor() (CanvasUtils.js).
@@ -28,33 +43,10 @@ if (typeof ghostColor === 'function') {
   for (var _i = 1; _i <= 9; _i++) GHOST_COLORS[_i] = ghostColor(PIECE_COLORS[_i]);
 }
 
-// Player accent colors
-const PLAYER_COLORS = [
-  '#FF6B6B', // Player 1 - red
-  '#4ECDC4', // Player 2 - teal
-  '#FFE66D', // Player 3 - yellow
-  '#A78BFA', // Player 4 - purple
-  '#7BED6F', // Player 5 - green
-  '#FF44CC', // Player 6 - hot magenta
-  '#5B7FFF', // Player 7 - indigo
-  '#FF7F50'  // Player 8 - coral
-];
+// Player accent colors — direct 1:1 mapping with palette slots.
+const PLAYER_COLORS = Object.freeze(PARTY_PALETTE.slice());
 
 const PLAYER_NAMES = ['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5', 'Player 6', 'Player 7', 'Player 8'];
-
-// Neon piece colors — brighter variants for visibility on dark background.
-const NEON_PIECE_COLORS = Object.assign({}, PIECE_COLORS, {
-  3: '#B580FF',    // S - brighter violet
-  4: '#FFB340',    // Z - brighter amber
-  6: '#33E8EC',    // p - brighter teal
-  8: '#5C9BFF'     // J - brighter blue
-});
-
-// Neon ghost colors — computed from NEON_PIECE_COLORS
-var NEON_GHOST_COLORS = {};
-if (typeof ghostColor === 'function') {
-  for (var _n = 1; _n <= 9; _n++) NEON_GHOST_COLORS[_n] = ghostColor(NEON_PIECE_COLORS[_n]);
-}
 
 // Level-based style tiers
 const STYLE_TIERS = Object.freeze({
@@ -75,39 +67,42 @@ const THEME = Object.freeze({
   // ---- Colors ----
   color: Object.freeze({
     bg: Object.freeze({
-      primary:   '#06060f',
-      board:     '#0c0c12',
-      secondary: '#0c0c1a',
-      card:      '#12122a',
+      primary:   '#1E1A2B',    // Cocoa plum-dark
+      board:     '#15121F',    // deeper plum for board canvas
+      secondary: '#181421',
+      card:      '#2A2540',    // Cocoa surface
+      cardSoft:  '#342E4D',
     }),
     text: Object.freeze({
-      primary: '#e0e0ff',
-      white:   '#ffffff',
+      primary:   '#F7F1E8',    // warm cream
+      secondary: 'rgba(247, 241, 232, 0.65)',
+      white:     '#ffffff',
     }),
     accent: Object.freeze({
-      blue:      '#4444ff',
-      cyan:      '#00c8ff',
-      green:     '#00ff88',
-      greenDark: '#00dd77',
+      primary:      '#FF6B6B', // palette slot 1 Red — UI primary
+      primaryDark:  '#E55A5A',
+      secondary:    '#FF8C42', // palette slot 8 Tangerine — UI secondary
+      secondaryDark:'#E67A33',
+      tertiary:     '#FFD166', // palette slot 3 Honey — toast/low-priority accent
     }),
     danger:  '#ff4444',
-    garbage: '#3a3a4e',
     ko: Object.freeze({
       text: '#ff4444',
       glow: 'rgba(255, 50, 50, 0.6)',
     }),
     btn: Object.freeze({
-      greenText: '#003d1f',
+      primaryText: '#1E1A2B',  // mirrors --btn-primary-text in theme.css
     }),
-    // Animation-specific named colors
-    quad:    '#ee4444',
-    triple:  '#ffd700',
+    // Animation-specific named colors (palette-aligned)
+    quad:    '#FF6B6B',        // palette slot 1 Red
+    triple:  '#FFD166',        // palette slot 3 Honey
   }),
 
   // ---- Opacities ----
   opacity: Object.freeze({
     faint:     0.04,  // noise textures, barely-there tints
     tint:      0.06,  // player color surface tints
+    boardTint: 0.12,  // board-card player tint (bolder than generic tint)
     subtle:    0.08,  // ghost fills, inner shines, scanlines
     muted:     0.10,  // dot patterns
     grid:      0.18,  // grid lines
@@ -194,11 +189,12 @@ if (typeof module !== 'undefined' && module.exports) {
   };
   for (var _k = 1; _k <= 9; _k++) {
     if (!GHOST_COLORS[_k]) GHOST_COLORS[_k] = _gc(PIECE_COLORS[_k]);
-    if (!NEON_GHOST_COLORS[_k]) NEON_GHOST_COLORS[_k] = _gc(NEON_PIECE_COLORS[_k]);
   }
   module.exports = {
     THEME,
-    PIECE_COLORS, GHOST_COLORS, NEON_PIECE_COLORS, NEON_GHOST_COLORS,
-    STYLE_TIERS, getStyleTier, PLAYER_COLORS, PLAYER_NAMES
+    PARTY_PALETTE,
+    PIECE_COLORS, GHOST_COLORS,
+    STYLE_TIERS, getStyleTier, PLAYER_COLORS, PLAYER_NAMES,
+    rgbaFromHex
   };
 }

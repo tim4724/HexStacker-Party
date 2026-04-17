@@ -6,7 +6,7 @@
 // =====================================================================
 
 var Gallery = (function() {
-  var PLAYER_COLOR_NAMES = ['red', 'teal', 'yellow', 'purple', 'green', 'magenta', 'indigo', 'coral'];
+  var PLAYER_COLOR_NAMES = ['red', 'teal', 'honey', 'violet', 'mint', 'pink', 'indigo', 'tangerine'];
 
   var DISPLAY_AR_DIMS = {
     '16x9': { w: 1920, h: 1080 },
@@ -14,17 +14,47 @@ var Gallery = (function() {
     '4x3':  { w: 1600, h: 1200 },
     '1x1':  { w: 1200, h: 1200 }
   };
-  var CONTROLLER_AR_DIMS = {
-    'default':   { w: 390, h: 844 },
-    '9x16':      { w: 390, h: 693 },
-    '3x4':       { w: 390, h: 520 },
-    'landscape': { w: 844, h: 390 }
-  };
+
+  // Controller preview devices. Dimensions are CSS pixels in the device's
+  // native portrait orientation. Orientation + browser-chrome toggles in the
+  // UI derive the final iframe dims from these base values.
+  var CONTROLLER_DEVICES = [
+    { id: 'iphone15pm', label: 'iPhone 15 Pro Max', w: 430, h: 932 },
+    { id: 'iphone14',   label: 'iPhone 14',         w: 390, h: 844 },
+    { id: 'iphonese',   label: 'iPhone SE (3rd)',   w: 375, h: 667 },
+    { id: 'pixel8',     label: 'Pixel 8',           w: 412, h: 915 },
+    { id: 'galaxys23',  label: 'Galaxy S23',        w: 360, h: 780 },
+    { id: 'zfoldcover', label: 'Galaxy Z Fold cover', w: 280, h: 653 }
+  ];
+  // Approximate visible browser chrome (address bar + system UI) that steals
+  // viewport height when the page is not in fullscreen mode.
+  var BROWSER_CHROME = { portrait: 120, landscape: 48 };
+
+  function findDevice(id) {
+    for (var i = 0; i < CONTROLLER_DEVICES.length; i++) {
+      if (CONTROLLER_DEVICES[i].id === id) return CONTROLLER_DEVICES[i];
+    }
+    return CONTROLLER_DEVICES[1]; // iPhone 14 fallback
+  }
+  function computeControllerDims(state) {
+    var dev = findDevice(state.controllerDevice);
+    var w = dev.w, h = dev.h;
+    if (state.controllerOrientation === 'landscape') { var t = w; w = h; h = t; }
+    var chromePx = state.controllerBrowserChrome
+      ? BROWSER_CHROME[state.controllerOrientation === 'landscape' ? 'landscape' : 'portrait']
+      : 0;
+    // iframeH is the page's visible viewport (device minus chrome). chromePx
+    // renders as a gray bar above the iframe; the card's total aspect ratio
+    // stays at the device's physical dims so devices are comparable on-screen.
+    return { iframeW: w, iframeH: h - chromePx, chromePx: chromePx, label: dev.label };
+  }
 
   var STATE_KEY = 'hex_gallery_state_v1';
   var defaults = {
     displayAR: '16x9',
-    controllerAR: 'default',
+    controllerDevice: 'iphone14',
+    controllerOrientation: 'portrait',
+    controllerBrowserChrome: false,
     players: 4,
     level: 1,
     lang: 'en',
@@ -52,14 +82,16 @@ var Gallery = (function() {
     return parts.length ? '?' + parts.join('&') : '';
   }
 
-  function displayURL(state, scenario, nonce, levelOverride) {
-    return '/' + qs({
+  function displayURL(state, scenario, nonce, levelOverride, extra) {
+    var p = {
       test: 1, bg: 1, lang: state.lang,
       scenario: scenario,
       players: state.players,
       level: levelOverride !== undefined ? levelOverride : state.level,
       _r: nonce || undefined
-    });
+    };
+    if (extra) for (var k in extra) p[k] = extra[k];
+    return '/' + qs(p);
   }
 
   // Static pages (privacy, imprint) accept only ?lang and a cache-bust.
@@ -88,8 +120,27 @@ var Gallery = (function() {
   var MAX_CONCURRENT = 6;
   var active = 0;
   var queue = [];
+  // Paused while a header <select> popup is (or may be) open. Chrome closes
+  // open <select> popups whenever an iframe load completes in the same
+  // document, so we hold off starting new loads while the popup is visible.
+  var paused = false;
+  var pauseSafetyTimer = null;
+  var PAUSE_SAFETY_MS = 3000;
+  function setLoadingPaused(p) {
+    if (paused === p) return;
+    paused = p;
+    clearTimeout(pauseSafetyTimer);
+    pauseSafetyTimer = null;
+    if (paused) {
+      // Safety net: if a resume event is missed (focus stolen, devtools, etc.)
+      // never stay paused longer than PAUSE_SAFETY_MS.
+      pauseSafetyTimer = setTimeout(function() { setLoadingPaused(false); }, PAUSE_SAFETY_MS);
+    } else {
+      _drain();
+    }
+  }
   function _drain() {
-    while (active < MAX_CONCURRENT && queue.length) {
+    while (!paused && active < MAX_CONCURRENT && queue.length) {
       // Use `let` so each iteration closes over its own task/done/iframe.
       // With `var` (function-scoped), every concurrent `finish` would share
       // the same `done` and the first completion would silently no-op the rest.
@@ -118,6 +169,30 @@ var Gallery = (function() {
   // Drop pending work but let in-flight loads finish naturally — zeroing
   // `active` here would push it negative as their `finish` callbacks fire.
   function resetQueue() { queue = []; }
+
+  // Auto-pause loading while a header <select> popup is open. Only selects
+  // need this — buttons and number inputs have no popup that an iframe load
+  // can clobber, and pausing on them caused stuck-paused states (e.g. the
+  // reload button's pointerdown flipped pause=true but no focusout followed
+  // because buttons don't retain focus on click).
+  //
+  // pointerdown is wired because Chrome may open the popup before focus
+  // events fire, and we want the queue paused before any new load starts.
+  // change resumes immediately (spec: popup is closed by the time change
+  // fires), so the just-selected scenario renders without waiting for the
+  // user to click outside the header.
+  function autoPauseOnHeaderFocus() {
+    var hdr = document.querySelector('header');
+    if (!hdr) return;
+    var selects = hdr.querySelectorAll('select');
+    for (var i = 0; i < selects.length; i++) {
+      var sel = selects[i];
+      sel.addEventListener('pointerdown', function() { setLoadingPaused(true); });
+      sel.addEventListener('focus', function() { setLoadingPaused(true); });
+      sel.addEventListener('change', function() { setLoadingPaused(false); });
+      sel.addEventListener('blur', function() { setLoadingPaused(false); });
+    }
+  }
 
   // --- Card factory ---
   function makeCard(opts) {
@@ -148,18 +223,42 @@ var Gallery = (function() {
 
     var wrap = document.createElement('div');
     wrap.className = 'frame-wrap ' + opts.frameClass + ' pending';
+    var chromeBar = document.createElement('div');
+    chromeBar.className = 'chrome-bar';
+    wrap.appendChild(chromeBar);
     var iframe = document.createElement('iframe');
     iframe.setAttribute('title', opts.title);
-    iframe.style.width = opts.logical.w + 'px';
-    iframe.style.height = opts.logical.h + 'px';
     wrap.appendChild(iframe);
     card.appendChild(wrap);
 
+    // Mutable dim state — applyDims lets callers re-layout an existing card
+    // (device swap, orientation flip, chrome toggle) without rebuilding the
+    // iframe, preserving its loaded content.
+    var curW = opts.logical.w, curH = opts.logical.h, curChrome = opts.chromePx || 0;
+
+    function applyDims(logical, chromePx) {
+      curW = logical.w; curH = logical.h; curChrome = chromePx || 0;
+      var totalH = curH + curChrome;
+      wrap.style.aspectRatio = curW + ' / ' + totalH;
+      if (curChrome > 0) {
+        var pct = (curChrome / totalH * 100) + '%';
+        chromeBar.style.display = 'block';
+        chromeBar.style.height = pct;
+        iframe.style.top = pct;
+      } else {
+        chromeBar.style.display = 'none';
+        iframe.style.top = '0';
+      }
+      iframe.style.width = curW + 'px';
+      iframe.style.height = curH + 'px';
+      rescale();
+    }
     function rescale() {
       var rect = wrap.getBoundingClientRect();
       if (!rect.width) return;
-      iframe.style.transform = 'scale(' + (rect.width / opts.logical.w) + ')';
+      iframe.style.transform = 'scale(' + (rect.width / curW) + ')';
     }
+    applyDims(opts.logical, opts.chromePx || 0);
     requestAnimationFrame(rescale);
     new ResizeObserver(rescale).observe(wrap);
 
@@ -177,6 +276,7 @@ var Gallery = (function() {
 
     card._loadUrl = loadUrl;
     card._initialUrl = opts.url;
+    card._applyDims = applyDims;
     return card;
   }
 
@@ -223,11 +323,21 @@ var Gallery = (function() {
       state[key] = v; saveState(state); onChange();
     });
   }
+  function bindCheckbox(state, id, key, onChange) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.checked = !!state[key];
+    el.addEventListener('change', function(e) {
+      state[key] = !!e.target.checked; saveState(state); onChange();
+    });
+  }
 
   return {
     PLAYER_COLOR_NAMES: PLAYER_COLOR_NAMES,
     DISPLAY_AR_DIMS: DISPLAY_AR_DIMS,
-    CONTROLLER_AR_DIMS: CONTROLLER_AR_DIMS,
+    CONTROLLER_DEVICES: CONTROLLER_DEVICES,
+    BROWSER_CHROME: BROWSER_CHROME,
+    computeControllerDims: computeControllerDims,
     loadState: loadState,
     saveState: saveState,
     displayURL: displayURL,
@@ -236,7 +346,10 @@ var Gallery = (function() {
     makeCard: makeCard,
     lazyMount: lazyMount,
     resetQueue: resetQueue,
+    setLoadingPaused: setLoadingPaused,
+    autoPauseOnHeaderFocus: autoPauseOnHeaderFocus,
     bindSelect: bindSelect,
-    bindNumber: bindNumber
+    bindNumber: bindNumber,
+    bindCheckbox: bindCheckbox
   };
 })();

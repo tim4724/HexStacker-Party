@@ -112,6 +112,30 @@ function onRoomCreated(partyRoomCode) {
   applyRoomCreated(partyRoomCode, newJoinUrl);
 }
 
+var _copyTimer = null;
+
+// Render the join URL into the two-span pill (small host + big room code).
+// Called from both applyRoomCreated and onDisplayRejoined so the structure
+// is preserved after a reconnect.
+function renderJoinUrl(url) {
+  var hostEl = joinUrlEl.querySelector('.join-url__host');
+  var codeEl = joinUrlEl.querySelector('.join-url__code');
+  if (hostEl && codeEl) {
+    try {
+      var u = new URL(url);
+      // Trailing slash kept on the host span so it never wraps away from
+      // the hostname onto the code line.
+      hostEl.textContent = u.host + '/';
+      codeEl.textContent = u.pathname.replace(/^\//, '') || url;
+    } catch (e) {
+      hostEl.textContent = '';
+      codeEl.textContent = url;
+    }
+  } else {
+    joinUrlEl.textContent = url;
+  }
+}
+
 function applyRoomCreated(partyRoomCode, newJoinUrl) {
   roomCode = partyRoomCode;
   lastRoomCode = partyRoomCode;
@@ -119,7 +143,55 @@ function applyRoomCreated(partyRoomCode, newJoinUrl) {
   if (roomState !== ROOM_STATE.LOBBY) setRoomState(ROOM_STATE.LOBBY);
 
   joinUrl = newJoinUrl;
-  joinUrlEl.textContent = joinUrl;
+  renderJoinUrl(joinUrl);
+  // Click to copy the full join URL — handler is idempotent, attached
+  // once on the first room creation.
+  if (!joinUrlEl.dataset.copyBound) {
+    joinUrlEl.dataset.copyBound = '1';
+    joinUrlEl.setAttribute('role', 'button');
+    joinUrlEl.setAttribute('tabindex', '0');
+    joinUrlEl.setAttribute('aria-label', 'Copy join URL');
+    var showCopiedToast = function() {
+      var copiedLabel = t('copied') || 'Copied';
+      joinUrlEl.setAttribute('data-copied-label', copiedLabel);
+      joinUrlEl.setAttribute('data-copied', '1');
+      // Reflect the success state for screen readers — the ::after toast
+      // is purely visual, so aria-label is the only cue they see.
+      joinUrlEl.setAttribute('aria-label', copiedLabel);
+      clearTimeout(_copyTimer);
+      _copyTimer = setTimeout(function() {
+        joinUrlEl.removeAttribute('data-copied');
+        joinUrlEl.setAttribute('aria-label', 'Copy join URL');
+      }, 1600);
+    };
+    var copyToClipboard = function() {
+      if (!joinUrl) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(joinUrl).then(showCopiedToast, tryExecCommandFallback);
+      } else {
+        tryExecCommandFallback();
+      }
+    };
+    // Legacy fallback: offscreen textarea + execCommand('copy'). Reports
+    // success via document.execCommand's return value so the toast only
+    // shows when the copy actually landed.
+    var tryExecCommandFallback = function() {
+      var ta = document.createElement('textarea');
+      ta.value = joinUrl;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (_) {}
+      document.body.removeChild(ta);
+      if (ok) showCopiedToast();
+    };
+    joinUrlEl.addEventListener('click', copyToClipboard);
+    joinUrlEl.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copyToClipboard(); }
+    });
+  }
 
   // Reset local state
   resetRoomData();
@@ -141,7 +213,7 @@ function onDisplayRejoined(partyRoomCode, clients) {
   lastRoomCode = partyRoomCode;
 
   joinUrl = getBaseUrl() + '/' + roomCode;
-  joinUrlEl.textContent = joinUrl;
+  renderJoinUrl(joinUrl);
 
   // Reset the master_changed dedup sentinel — on rejoin we re-push WELCOME
   // to everyone below, and any subsequent LOBBY_UPDATE / master_changed
@@ -308,6 +380,7 @@ function broadcastLobbyUpdate() {
   var hostName = hostPlayer ? hostPlayer.playerName : null;
   var hostColor = hostPlayer ? hostPlayer.playerColor : null;
   _lastBroadcastedHostId = hostId;
+  applyHostTint();
   for (const entry of players) {
     const id = entry[0];
     party.sendTo(id, {

@@ -136,6 +136,13 @@ function updatePlayerList() {
   }
   var visibleSlots = Math.max(placeholderSlots, highestOccupied + 1);
 
+  // In AirConsole empty slots are hidden, so the layout bucket is driven by
+  // actual player count; elsewhere use the visible-slot count (incl. placeholders).
+  var isAirConsole = document.body.classList.contains('airconsole');
+  var bucketCount = isAirConsole ? players.size : visibleSlots;
+  playerListEl.classList.toggle('pl--sm', bucketCount <= 4);
+  playerListEl.classList.toggle('pl--lg', bucketCount > 4);
+
   for (var j = 0; j < totalSlots; j++) {
     var slot = playerListEl.children[j];
     var card = slot.querySelector('.player-card');
@@ -206,6 +213,27 @@ function updateStartButton() {
   startBtn.textContent = hasPlayers
     ? t('start_n_players', { count: players.size })
     : t('waiting_for_players');
+  applyHostTint();
+}
+
+// Tint primary CTAs (lobby start + pause/reconnect/results overlays) with the
+// current host's identity color. Setting on <body> lets every tinted button in
+// theme.css inherit without per-button wiring. Shared rule reads
+// --player-color, falling back to --accent-primary when unset. Called both
+// from the lobby flow (updateStartButton) and from broadcastLobbyUpdate so a
+// mid-game host handoff (AirConsole master_changed, player leaving during
+// RESULTS) refreshes the tint on the pause/results/reconnect overlays too.
+function applyHostTint() {
+  var hostId = getHostClientId();
+  var hostPlayer = hostId ? players.get(hostId) : null;
+  var hostColor = hostPlayer
+    ? (hostPlayer.playerColor || PLAYER_COLORS[hostPlayer.playerIndex])
+    : null;
+  if (hostColor) {
+    document.body.style.setProperty('--player-color', hostColor);
+  } else {
+    document.body.style.removeProperty('--player-color');
+  }
 }
 
 // Delegated click handler for level +/- buttons on display player cards
@@ -290,10 +318,14 @@ function renderResults(results) {
     row.className = solo ? 'result-row' : 'result-row rank-' + res.rank;
     row.style.setProperty('--row-delay', (0.2 + i * 0.08) + 's');
 
+    var pInfo = players.get(res.playerId);
+    var pColor = pInfo ? (pInfo.playerColor || PLAYER_COLORS[pInfo.playerIndex]) : null;
+
     if (!solo) {
       var rank = document.createElement('span');
       rank.className = 'result-rank';
-      rank.textContent = tOrdinal(res.rank);
+      rank.textContent = String(res.rank);
+      if (pColor) rank.style.color = pColor;
       row.appendChild(rank);
     }
 
@@ -302,11 +334,8 @@ function renderResults(results) {
 
     var nameEl = document.createElement('span');
     nameEl.className = 'result-name';
-    var pInfo = players.get(res.playerId);
     nameEl.textContent = res.playerName || pInfo?.playerName || t('player');
-    if (pInfo) {
-      nameEl.style.color = pInfo.playerColor || PLAYER_COLORS[pInfo.playerIndex];
-    }
+    if (pColor) nameEl.style.color = pColor;
 
     var stats = document.createElement('div');
     stats.className = 'result-stats';

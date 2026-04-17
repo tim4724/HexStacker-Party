@@ -4,57 +4,63 @@
 
 /* --- Keyframes --- */
 
-@keyframes btnPulse {
-  0%, 100% { box-shadow: 0 0 20px var(--glow-green); }
-  50% { box-shadow: 0 0 36px rgba(var(--accent-green-rgb), 0.5); }
-}
-
 @keyframes resultRowIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes resultsBtnIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+/* Anti-misclick gate for the results action row. pointer-events is a discrete
+   property, so it flips at the end of the animation delay — clicks are blocked
+   until the buttons have visibly appeared. */
+@keyframes resultsButtonsEnter {
+  from { opacity: 0; pointer-events: none; }
+  to { opacity: 1; pointer-events: auto; }
 }
 
-/* --- Result rows --- */
+/* If the user prefers reduced motion (OS setting, user stylesheet, some
+   browser extensions), the animation may be stripped and the base
+   `pointer-events: none` on the wrapper would strand the buttons
+   unclickable forever. Force the gate open in that case — the anti-misclick
+   concern is about fast accidental taps after the round ends, which matters
+   less when the user has already opted out of motion. */
+@media (prefers-reduced-motion: reduce) {
+  #gameover-buttons,
+  #pause-buttons,
+  #results-buttons {
+    animation: none;
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* --- Result rows — neutral card treatment; rank color is set via inline
+   style from the player's palette in JS (no medal podium). --- */
 
 .result-row {
   display: flex;
   align-items: center;
   border-radius: var(--radius-md);
-  background: rgba(var(--bg-card-rgb), 0.95);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   animation: resultRowIn 0.4s ease-out both;
   animation-delay: var(--row-delay, 0.2s);
 }
 
-.result-row.rank-1 {
-  border-color: rgba(var(--medal-gold-rgb), 0.4);
-  background: linear-gradient(135deg, rgba(var(--bg-card-rgb), 0.95), rgba(var(--medal-gold-rgb), 0.1));
-  box-shadow: 0 0 16px rgba(var(--medal-gold-rgb), 0.08);
-}
-
-.result-row.rank-2 {
-  border-color: rgba(var(--medal-silver-rgb), 0.3);
-}
-
-.result-row.rank-3 {
-  border-color: rgba(var(--medal-bronze-rgb), 0.3);
-}
-
-/* --- Rank ordinal --- */
+/* --- Rank ordinal — color set via inline style from JS; fallback keeps it
+   readable when no player color is available. --- */
 
 .result-rank {
   font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  /* Fixed digit geometry so "1" and "5" align the trailing name column
+     identically — Orbitron is proportional by default. */
+  font-variant-numeric: tabular-nums;
+  min-width: 1ch;
   text-align: center;
 }
-
-.rank-1 .result-rank { color: var(--medal-gold); }
-.rank-2 .result-rank { color: var(--medal-silver); }
-.rank-3 .result-rank { color: var(--medal-bronze); }
 
 /* --- Name --- */
 

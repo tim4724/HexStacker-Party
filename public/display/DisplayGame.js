@@ -103,7 +103,7 @@ function clearCountdownTimers() {
   if (countdown.overlayTimer) { clearTimeout(countdown.overlayTimer); countdown.overlayTimer = null; }
 }
 
-function pauseGame() {
+function pauseGame(selfInitiated) {
   if (paused) return;
   if (roomState !== ROOM_STATE.PLAYING && roomState !== ROOM_STATE.COUNTDOWN) return;
   paused = true;
@@ -111,7 +111,7 @@ function pauseGame() {
     clearCountdownTimers();
   }
   party.broadcast({ type: MSG.GAME_PAUSED });
-  onGamePaused();
+  onGamePaused(selfInitiated);
 }
 
 // Check if all game participants are disconnected — auto-pause if so
@@ -413,9 +413,7 @@ function onPieceLock(msg) {
   var idx = playerOrder.indexOf(msg.playerId);
   if (idx < 0 || !boardRenderers[idx]) return;
   var br = boardRenderers[idx];
-  var isNeon = br.styleTier === STYLE_TIERS.NEON_FLAT;
-  var colors = isNeon ? NEON_PIECE_COLORS : PIECE_COLORS;
-  var pieceColor = colors[msg.typeId] || '#ffffff';
+  var pieceColor = PIECE_COLORS[msg.typeId] || '#ffffff';
   animations.addHexLockFlash(br, msg.blocks, pieceColor);
 }
 
@@ -424,7 +422,7 @@ function onPlayerKO(msg) {
   var idx = playerOrder.indexOf(msg.playerId);
   if (idx < 0 || !boardRenderers[idx]) return;
   var br = boardRenderers[idx];
-  animations.addKO(br.x, br.y, br.boardWidth, br.boardHeight, br.cellSize);
+  animations.addKO(br.x, br.y, br.boardWidth, br.boardHeight, br.cellSize, br._bgOutlineVerts);
 }
 
 function onGameEnd(msg) {
@@ -439,8 +437,9 @@ function onGameEnd(msg) {
   showScreen(SCREEN.RESULTS);
 }
 
-function onGamePaused() {
+function onGamePaused(selfInitiated) {
   if (displayGame) displayGame.pause();
+  pauseOverlay.classList.toggle('pause-overlay--self', !!selfInitiated);
   pauseOverlay.classList.remove('hidden');
   gameToolbar.classList.add('hidden');
   if (music) music.pause();
@@ -448,6 +447,7 @@ function onGamePaused() {
 
 function onGameResumed() {
   if (displayGame) displayGame.resume();
+  pauseOverlay.classList.remove('pause-overlay--self');
   pauseOverlay.classList.add('hidden');
   if (currentScreen === SCREEN.GAME) {
     gameToolbar.classList.remove('hidden');

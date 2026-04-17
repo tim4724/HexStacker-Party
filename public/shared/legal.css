@@ -18,9 +18,9 @@ body {
   position: relative;
   width: 100%;
   max-width: 960px;
-  padding: clamp(2rem, 6vh, 4rem) 1.5rem clamp(2rem, 4vh, 3rem);
+  padding: clamp(4.5rem, 8vh, 5.5rem) 1.5rem clamp(2rem, 4vh, 3rem);
   background:
-    radial-gradient(ellipse at 50% 0%, var(--glow-blue) 0%, transparent 50%);
+    radial-gradient(ellipse at 50% 0%, rgba(var(--accent-primary-rgb), 0.04) 0%, transparent 55%);
 }
 
 .back-link {
@@ -32,18 +32,18 @@ body {
   text-decoration: none;
   padding: 8px 12px;
   border-radius: 4px;
-  opacity: var(--opacity-label);
+  opacity: 0.6;
   transition: color var(--transition-fast), opacity var(--transition-fast);
 }
 
 .back-link:hover,
 .back-link:focus-visible {
-  color: var(--accent-cyan);
+  color: var(--accent-secondary);
   opacity: 1;
 }
 
 .back-link:focus-visible {
-  outline: 2px solid var(--accent-cyan);
+  outline: 2px solid var(--accent-secondary);
   outline-offset: 2px;
 }
 
@@ -57,10 +57,6 @@ h1 {
 
 h1.gradient-title {
   display: inline-block;
-  background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan), var(--accent-green));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 dl {
@@ -87,23 +83,22 @@ dd {
 a {
   color: var(--text-secondary);
   text-decoration: none;
-  transition: filter var(--transition-fast);
+  transition: color var(--transition-fast);
 }
 
 a:hover,
 a:focus-visible {
-  color: var(--accent-cyan);
-  filter: drop-shadow(0 0 6px rgba(var(--accent-cyan-rgb), 0.3));
+  color: var(--accent-secondary);
 }
 
 a:focus-visible {
-  outline: 2px solid var(--accent-cyan);
+  outline: 2px solid var(--accent-secondary);
   outline-offset: 2px;
   border-radius: 2px;
 }
 
 ::selection {
-  background: rgba(var(--accent-cyan-rgb), 0.2);
+  background: rgba(var(--accent-secondary-rgb), 0.2);
   color: var(--text-primary);
 }
 
@@ -111,7 +106,7 @@ a:focus-visible {
   margin-top: 2.5rem;
   padding: 1.3rem 1.5rem;
   border: 1px solid var(--border);
-  border-left: 3px solid var(--accent-cyan);
+  border-left: 3px solid var(--accent-secondary);
   border-radius: 6px;
   animation: fadeUp 0.5s 0.25s ease-out both;
 }
@@ -139,6 +134,6 @@ a:focus-visible {
   padding-top: 1rem;
   border-top: 1px solid var(--border);
   font-size: 14px;
-  opacity: var(--opacity-label);
+  opacity: 0.6;
   animation: fadeUp 0.5s 0.3s ease-out both;
 }

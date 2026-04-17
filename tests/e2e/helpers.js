@@ -25,7 +25,7 @@ async function stopDisplayBackground(page) {
 
 // --- Display test injection helpers ---
 // These use window.__TEST__ API to inject state directly into the display,
-// avoiding any dependency on Party-Server for visual snapshot tests.
+// avoiding any dependency on Party-Server for e2e tests.
 
 async function injectPause(page) {
   await page.evaluate(() => {
@@ -66,14 +66,14 @@ async function createRoom(page) {
   await page.click('#new-game-btn');
   await page.waitForSelector('#lobby-screen:not(.hidden)', { timeout: 30000 });
   await page.waitForFunction(() => {
-    const joinUrl = document.getElementById('join-url');
+    const codeEl = document.querySelector('#join-url .join-url__code');
     const qrCanvas = document.getElementById('qr-code');
-    return joinUrl && joinUrl.textContent && joinUrl.textContent.length > 0
+    return codeEl && codeEl.textContent.trim().length > 0
       && qrCanvas && qrCanvas.width > 0;
   }, null, { timeout: 10000 });
 
   const joinUrl = (await page.textContent('#join-url')).trim();
-  const roomCode = joinUrl.split('/').pop();
+  const roomCode = (await page.textContent('#join-url .join-url__code')).trim();
   return { joinUrl, roomCode };
 }
 
@@ -136,7 +136,15 @@ async function stabilizeDisplayLobby(page) {
   // Wait for layout to settle before rendering QR at a fixed CSS size
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await page.evaluate(({ url, matrix }) => {
-    document.getElementById('join-url').textContent = url;
+    // Write to the host/code child spans — setting textContent on the
+    // parent would destroy them.
+    try {
+      var parsed = new URL(url);
+      var hostEl = document.querySelector('#join-url .join-url__host');
+      var codeEl = document.querySelector('#join-url .join-url__code');
+      if (hostEl) hostEl.textContent = parsed.host + '/';
+      if (codeEl) codeEl.textContent = parsed.pathname.replace(/^\//, '');
+    } catch (_) { /* keep existing content on parse failure */ }
     // Strip join-pop animations so scale transform doesn't cause anti-aliasing jitter
     document.querySelectorAll('.player-card.join-pop').forEach(function(el) {
       el.classList.remove('join-pop');
@@ -154,9 +162,11 @@ async function waitForControllerGame(page) {
 
 async function waitForControllerResults(page) {
   await page.waitForSelector('#gameover-screen:not(.hidden)', { timeout: 30000 });
-  // Buttons fade in after a 2s delay via opacity 0 → 1
+  // Buttons are gated by the resultsButtonsEnter CSS animation (1.5s delay
+  // then 0.4s fade). pointer-events flips to auto at the end of the
+  // animation, so polling it tells us the buttons are actually clickable.
   await page.waitForFunction(
-    () => document.getElementById('gameover-buttons').style.opacity !== '0',
+    () => getComputedStyle(document.getElementById('gameover-buttons')).pointerEvents === 'auto',
     { timeout: 5000 }
   );
   await page.waitForTimeout(200);

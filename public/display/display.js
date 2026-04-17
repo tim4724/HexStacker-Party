@@ -200,7 +200,7 @@ fullscreenBtn.addEventListener('click', function() {
 
 // --- Pause (display-side buttons) ---
 pauseBtn.addEventListener('click', function() {
-  pauseGame();
+  pauseGame(true);
 });
 
 pauseContinueBtn.addEventListener('click', function() {
@@ -226,7 +226,10 @@ fetch('/api/version').then(function(r) { return r.json(); }).then(function(data)
   if (!data.isProduction && data.commit) {
     label += ' (#' + data.commit + ')';
   }
-  document.getElementById('version-label').textContent = label;
+  var welcomeVersion = document.getElementById('welcome-version-label');
+  if (welcomeVersion) welcomeVersion.textContent = label;
+  var lobbyVersion = document.getElementById('lobby-version-label');
+  if (lobbyVersion) lobbyVersion.textContent = label;
 }).catch(function() {});
 
 var bgCanvas = document.getElementById('bg-canvas');
@@ -234,15 +237,42 @@ if (bgCanvas && (urlParams.get('test') !== '1' || urlParams.get('bg') === '1')) 
   welcomeBg = new WelcomeBackground(bgCanvas);
   welcomeBg.resize(window.innerWidth, window.innerHeight);
   welcomeBg.start();
+
+  // End-screen falling pieces — only animate on mobile devices where the
+  // end-screen is actually visible (see display.css media query). Desktop
+  // users never see the end-screen, so there's no reason to burn RAF on it.
+  var endScreenBgCanvas = document.getElementById('end-screen-bg');
+  if (endScreenBgCanvas) {
+    var endScreenBg = new WelcomeBackground(endScreenBgCanvas, 6);
+    var endScreenMql = window.matchMedia(
+      '(max-width: 950px) and (pointer: coarse) and (hover: none),' +
+      '(max-height: 500px) and (pointer: coarse) and (hover: none)'
+    );
+    var syncEndScreenBg = function() {
+      if (!endScreenBgCanvas.isConnected) return;
+      if (endScreenMql.matches) {
+        var rect = endScreenBgCanvas.getBoundingClientRect();
+        endScreenBg.resize(rect.width, rect.height);
+        endScreenBg.start();
+      } else {
+        endScreenBg.stop();
+      }
+    };
+    syncEndScreenBg();
+    endScreenMql.addEventListener('change', syncEndScreenBg);
+    window.addEventListener('resize', syncEndScreenBg);
+  }
 }
 
 // --- Debug or normal init ---
 var _scenarioParam = urlParams.get('scenario');
 if (window.__TEST__ && (debugCount > 0 || _scenarioParam)) {
+  var _hostParam = urlParams.get('host');
   initScenario({
     scenario: _scenarioParam || 'playing',
     players: debugCount || parseInt(urlParams.get('players'), 10) || 1,
-    level: parseInt(urlParams.get('level'), 10) || 1
+    level: parseInt(urlParams.get('level'), 10) || 1,
+    host: _hostParam === null ? null : parseInt(_hostParam, 10)
   });
 } else if (urlParams.get('test') === '1') {
   // Test mode: skip relay connection — tests inject state directly

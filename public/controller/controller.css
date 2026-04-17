@@ -67,7 +67,6 @@ html, body {
   justify-content: center;
 }
 
-
 .controller-shell__brand {
   width: 100%;
   display: flex;
@@ -77,7 +76,7 @@ html, body {
 
 .controller-shell__title {
   font-size: clamp(1.4rem, 7vw, 2.2rem);
-  filter: drop-shadow(0 0 8px var(--glow-cyan));
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
   animation: fadeDown 0.5s ease-out both;
   text-align: center;
 }
@@ -122,7 +121,7 @@ html, body {
 
 .join-url-hint {
   position: absolute;
-  bottom: max(env(safe-area-inset-bottom), 12px);
+  bottom: max(env(safe-area-inset-bottom), 8px);
   left: 12px;
   right: 12px;
   font-size: clamp(1rem, 4.5vw, 1.2rem);
@@ -134,7 +133,7 @@ html, body {
 
 .legal-links {
   position: absolute;
-  bottom: calc(env(safe-area-inset-bottom) + 16px);
+  bottom: calc(env(safe-area-inset-bottom) + 8px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -154,11 +153,11 @@ html, body {
 
 .legal-links a:hover,
 .legal-links a:focus-visible {
-  color: var(--accent-cyan);
+  color: var(--accent-secondary);
 }
 
 .legal-links a:focus-visible {
-  outline: 2px solid var(--accent-cyan);
+  outline: 2px solid var(--accent-secondary);
   outline-offset: 2px;
   border-radius: 2px;
 }
@@ -217,7 +216,7 @@ html, body {
   letter-spacing: 0.06em;
   text-align: center;
   outline: none;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: border-color var(--transition-fast);
   -webkit-appearance: none;
 }
 
@@ -228,17 +227,31 @@ html, body {
 }
 
 #name-input:focus {
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 12px rgba(var(--accent-cyan-rgb), 0.1);
+  border-color: var(--accent-secondary);
 }
 
+/* Unified sizing for every primary action button on the controller —
+   one shell geometry so lobby/pause/reconnect/results all match. Sized
+   off the pause CONTINUE button (14px/16px padding, 0.9rem, 0.1em).
+   Per-button rules below handle colors, animations, and disabled state. */
 #name-join-btn,
-#start-btn {
+#start-btn,
+#pause-continue-btn,
+#pause-newgame-btn,
+#reconnect-rejoin-btn,
+#play-again-btn,
+#new-game-btn {
   width: 100%;
-  padding: 14px 24px;
+  max-width: 280px;
+  padding: 14px 16px;
   font-size: 0.9rem;
   letter-spacing: 0.1em;
+  text-align: center;
 }
+
+/* Player-tinted CTA rule lives in theme.css so the display lobby can
+   reuse it. --player-color is set on <body> by the controller
+   (see ControllerGame.js). */
 
 #name-join-btn:disabled,
 #start-btn:disabled {
@@ -247,13 +260,9 @@ html, body {
   cursor: default;
 }
 
-#name-join-btn {
-  animation: fadeUp 0.5s 0.4s ease-out both;
-}
-
-#name-join-btn:not(:disabled),
-#start-btn:not(:disabled) {
-  animation: fadeUp 0.5s 0.4s ease-out both, btnPulse 2.5s 1s ease-in-out infinite;
+#name-join-btn,
+#start-btn {
+  animation: fadeUp 0.5s 0.4s ease-out backwards;
 }
 
 
@@ -270,10 +279,17 @@ html, body {
   align-items: center;
   gap: 12px;
   justify-content: center;
-  padding: 14px 36px 12px;
+  width: 100%;
+  max-width: 280px;
+  padding: 14px 16px;
   font-size: clamp(1.1rem, 5vw, 1.5rem);
-  min-width: min(70vw, 280px);
-  margin: 0 24px;
+}
+
+#player-identity-name {
+  max-width: 100%;
+  text-align: center;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
 }
 
 #level-selector {
@@ -354,7 +370,7 @@ html, body {
   font-size: clamp(1.2rem, 5.8vw, 1.85rem);
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: var(--text-cyan);
+  color: rgba(var(--accent-secondary-rgb), 0.9);
   text-align: center;
 }
 
@@ -435,7 +451,7 @@ html, body {
   flex-direction: column;
   align-items: center;
   gap: 5px;
-  color: #c0c0c0; /* fallback for old browsers */
+  color: var(--medal-silver); /* fallback for old browsers (no color-mix) */
   color: color-mix(in srgb, var(--player-color, #888) 55%, white);
 }
 
@@ -455,7 +471,7 @@ html, body {
   font-size: clamp(0.6rem, 3.2vw, 0.75rem);
   font-weight: 700;
   letter-spacing: 0.1em;
-  color: #b0b0b0; /* fallback for old browsers */
+  color: var(--medal-silver); /* fallback for old browsers (no color-mix) */
   color: color-mix(in srgb, var(--player-color, #888) 65%, white);
   text-transform: uppercase;
 }
@@ -487,22 +503,15 @@ html, body {
   position: relative;
   overflow: hidden;
   border-radius: var(--radius-lg);
-  /* Fallbacks for old browsers (no color-mix support) — neutral white accents */
-  box-shadow:
-    inset 0 0 0 2px rgba(255, 255, 255, 0.28),
-    inset 0 0 24px rgba(255, 255, 255, 0.09),
-    inset 0 2px 6px rgba(0, 0, 0, 0.5),
-    0 1px 0 rgba(255, 255, 255, 0.04);
-  background-color: var(--bg-board);
-  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.2px, transparent 1.8px);
-  /* Modern browsers: player-tinted accents */
-  box-shadow:
-    inset 0 0 0 2px color-mix(in srgb, var(--player-color, white) 70%, transparent),
-    inset 0 0 24px color-mix(in srgb, var(--player-color, white) 22%, transparent),
-    inset 0 2px 6px rgba(0, 0, 0, 0.5),
-    0 1px 0 rgba(255, 255, 255, 0.04);
-  background-color: color-mix(in srgb, var(--player-color, transparent) 10%, var(--bg-board));
-  background-image: radial-gradient(circle, color-mix(in srgb, var(--player-color, white) 28%, transparent) 1.2px, transparent 1.8px);
+  /* Outline roughly matches the display's board wall stroke — player-accent
+     color at ~70% opacity. Two-declaration fallback: the first line lands in
+     older browsers that drop the color-mix version below. */
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border: 2px solid color-mix(in srgb, var(--player-color, white) 70%, transparent);
+  background-color: var(--bg-card);
+  background-color: color-mix(in srgb, var(--player-color, transparent) 20%, var(--bg-board));
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.10) 1.2px, transparent 1.8px);
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--player-color, white) 32%, transparent) 1.2px, transparent 1.8px);
   background-size: 22px 22px;
   cursor: crosshair;
 }
@@ -526,10 +535,7 @@ html, body {
 
 #feedback-layer {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   pointer-events: none;
 }
 
@@ -545,14 +551,21 @@ html, body {
   background: var(--bg-board);
 }
 
-/* Gesture feedback — glow that follows finger */
+/* Gesture feedback — cushion-press dimple that follows the finger.
+   Dark radial inward to read as a depression, not a glow. A thin
+   player-colored rim at ~40% radius signals identity. */
 .feedback-glow {
   position: absolute;
-  width: 100px;
-  height: 100px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
-  background: radial-gradient(circle, var(--player-color, rgba(255,255,255,0.5)) 0%, transparent 80%);
-  filter: blur(10px);
+  background: radial-gradient(
+    circle,
+    rgba(0, 0, 0, 0.45) 0%,
+    rgba(0, 0, 0, 0.25) 35%,
+    transparent 70%
+  );
+  filter: blur(8px);
   pointer-events: none;
   opacity: 0;
   will-change: transform, opacity;
@@ -561,15 +574,12 @@ html, body {
 /* KO overlay */
 #ko-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: 'Orbitron', sans-serif;
-  font-size: 96px;
+  font-size: clamp(4rem, 20vw, 6rem);
   font-weight: 900;
   color: rgba(255, 255, 255, 0.25);
   letter-spacing: 0.1em;
@@ -592,32 +602,24 @@ html, body {
 }
 
 .result-row {
+  align-self: center;
+  width: 100%;
+  max-width: 320px;
   gap: 18px;
   padding: 14px 16px;
 }
 
-.result-row.is-me {
-  /* Fallback for old browsers — neutral white highlight */
-  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.4),
-              0 0 12px rgba(255, 255, 255, 0.1);
-  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--me-color, #888) 70%, transparent),
-              0 0 12px color-mix(in srgb, var(--me-color, #888) 15%, transparent);
-}
-
-.result-row.is-me.rank-1 {
-  /* Fallback for old browsers — neutral white highlight + gold */
-  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.4),
-              0 0 20px rgba(255, 215, 0, 0.08);
-  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--me-color, #888) 70%, transparent),
-              0 0 20px rgba(var(--medal-gold-rgb), 0.08);
-}
-
+/* Rank spans the full two-line height of name + stats, so it reads as
+   an integrated ordinal rather than a small tag above the name. */
 .result-rank {
-  font-size: clamp(1rem, 5vw, 1.4rem);
-  font-weight: 900;
-  width: 2.4rem;
-  flex-shrink: 0;
-  letter-spacing: -0.02em;
+  font-size: clamp(1.5rem, 7vw, 2.1rem);
+  line-height: 1;
+}
+
+/* "This is you" highlight */
+.result-row.is-me {
+  outline: 1.5px solid rgba(255, 255, 255, 0.4);
+  outline: 1.5px solid color-mix(in srgb, var(--me-color, #888) 70%, transparent);
 }
 
 .result-info {
@@ -651,41 +653,23 @@ html, body {
 }
 
 #gameover-actions {
-  max-width: 280px;
   margin-top: 24px;
 }
 
 #gameover-buttons {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 12px;
   width: 100%;
-  transition: opacity 0.4s ease;
-}
-
-#play-again-btn {
-  width: 100%;
-  padding: 14px 24px;
-  font-size: 0.9rem;
-  letter-spacing: 0.1em;
-  animation: resultsBtnIn 0.5s 0.6s ease-out both, btnPulse 2.5s 1.5s ease-in-out infinite;
-}
-
-#new-game-btn {
-  width: 100%;
-  padding: 14px 24px;
-  font-size: 0.9rem;
-  letter-spacing: 0.1em;
-  animation: resultsBtnIn 0.5s 0.7s ease-out both;
-}
-
-#new-game-btn:active {
-  border-color: var(--text-primary);
-  color: var(--text-primary);
+  pointer-events: none;
+  animation: resultsButtonsEnter 0.4s ease 1.5s both;
 }
 
 #gameover-status {
-  animation: resultsBtnIn 0.5s 0.6s ease-out both;
+  min-height: 0;
+  padding: 0.3rem 0.8rem;
+  animation: resultRowIn 0.5s 0.6s ease-out both;
 }
 
 
@@ -725,34 +709,20 @@ html, body {
 
 #pause-buttons {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   gap: 12px;
-  width: min(100%, 380px);
-  padding: 0 24px;
-  box-sizing: border-box;
+  width: 100%;
+  max-width: 280px;
+  pointer-events: none;
+  animation: resultsButtonsEnter 0.4s ease 1.5s both;
 }
 
-#pause-continue-btn,
-#pause-newgame-btn {
-  flex: 1 1 min(12rem, 45vw);
-  padding: 14px 16px;
-  font-size: 0.9rem;
-  letter-spacing: 0.1em;
-  text-align: center;
-}
-
-#reconnect-rejoin-btn {
-  padding: 14px 16px;
-  min-width: min(12rem, 45vw);
-  font-size: 0.9rem;
-  letter-spacing: 0.1em;
-  text-align: center;
-}
-
-#pause-newgame-btn:active {
-  border-color: var(--text-primary);
-  color: var(--text-primary);
+/* Self-initiated pause: the player tapped pause themselves so there's no
+   misclick risk — show buttons immediately without the 1.5s gate. */
+#pause-overlay.pause-overlay--self #pause-buttons {
+  animation: none;
+  pointer-events: auto;
 }
 
 /* Countdown state — neutral touch area, no player color */
@@ -785,18 +755,13 @@ html, body {
   filter: grayscale(0.7);
 }
 
-#game-screen.dead #game-top-bar {
-  opacity: 0.5;
-  filter: saturate(0.3);
-}
-
 /* --- AirConsole overrides --- */
 body.airconsole #name-screen { display: none !important; }
 body.airconsole #lobby-join-url { display: none !important; }
 body.airconsole #lobby-back-btn { display: none !important; }
 
 #ac-status-overlay {
-  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  position: fixed; inset: 0;
   display: none; align-items: center; justify-content: center;
   z-index: 9999; color: rgba(255,255,255,0.6);
   font: 600 16px var(--font-display, sans-serif);
@@ -806,10 +771,35 @@ body.airconsole #ac-status-overlay { display: flex; }
 body.airconsole #ac-status-overlay.hidden { display: none; }
 
 /* --- Results scrolling — scroll on the list, not the body,
-   so box-shadow glow on .is-me rows isn't clipped --- */
+   so the .is-me outline isn't clipped. Hide the scrollbar chrome since
+   desktop and mobile render it differently; swiping still works. --- */
 #results-list {
   overflow-y: auto;
   padding: 4px;
+  scrollbar-width: none; /* Firefox */
+}
+#results-list::-webkit-scrollbar {
+  display: none; /* WebKit */
+}
+
+/* Results portrait: with 8 players the stacked brand + list + actions can
+   exceed the frame height. `safe center` keeps the content centered when
+   it fits but anchors to the top when it overflows, so the title stays
+   visible below the safe-area inset instead of being clipped above it.
+   The extra brand padding gives the title a little breathing room from
+   the top edge in both cases. */
+.controller-shell__frame--results {
+  justify-content: center; /* fallback for iOS < 16 */
+  justify-content: safe center;
+}
+
+.controller-shell__frame--results .controller-shell__brand {
+  padding-top: 16px;
+}
+
+/* Keep "HEX STACKER" on one line on narrow phones rather than wrapping. */
+.controller-shell__frame--results .controller-shell__title {
+  white-space: nowrap;
 }
 
 /* --- Landscape layout ---
@@ -824,20 +814,33 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
     width: min(100%, 520px);
   }
 
+  /* Unified title size across all landscape shell screens (name, lobby,
+     results). The 5+ players results case overrides this with a smaller
+     value to fit its narrower right column. */
   .controller-shell__title {
-    display: none;
+    font-size: clamp(1rem, 3.4vw, 1.35rem);
   }
 
   .controller-shell__body {
     gap: 10px;
-    margin-top: 0;
   }
 
+  /* Actions keeps tighter cap but centers its button (width:100% capped at
+     280px) inside; name form matches the button width so input and JOIN
+     button line up. */
   .controller-shell__actions,
   #name-form {
-    max-width: 360px;
     margin-top: 8px;
     gap: 8px;
+  }
+
+  .controller-shell__actions {
+    max-width: 360px;
+    align-items: center;
+  }
+
+  #name-form {
+    max-width: 280px;
   }
 
   /* Status banners need breathing room for longer messages like
@@ -868,27 +871,34 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
     max-width: none;
   }
 
-  #lobby-join-url {
-    display: none;
-  }
-
-  /* Results: list left, buttons right.
-     .controller-shell already applies safe-area padding, so just use regular padding here. */
+  /* Results: list on the left half, title + buttons on the right half.
+     Each half gets 1fr so each column fills its side of the frame; the items
+     inside (rows/buttons) are centered within their half by their own
+     max-width + flex alignment. `.controller-shell` already applies safe-area
+     padding. */
   .controller-shell__frame--results {
-    flex-direction: row;
-    align-items: stretch;
-    width: 100%;
-    max-width: 100%;
-    gap: 16px;
+    width: min(100%, 620px);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    align-content: center;
+    column-gap: 16px;
+    row-gap: 12px;
     padding: 12px;
   }
 
   .controller-shell__frame--results .controller-shell__brand {
-    display: none;
+    grid-column: 2;
+    grid-row: 1;
+    padding-top: 0;
+    align-self: end;
+    max-width: 280px;
+    margin: 0 auto;
   }
 
   .controller-shell__body--results {
-    flex: 1;
+    grid-column: 1;
+    grid-row: 1 / 3;
     min-width: 0;
     justify-content: center;
   }
@@ -899,15 +909,91 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
 
   .result-row {
     gap: 10px;
-    padding: 10px 12px;
+    padding: 6px 12px;
+  }
+
+  /* Pack name + stats close together so all rows fit on short
+     landscape phones (e.g. iPhone SE 568×320). */
+  .result-info {
+    gap: 0;
+  }
+
+  .result-name {
+    font-size: clamp(0.95rem, 4.2vw, 1.15rem);
+    line-height: 1.15;
+  }
+
+  .result-stats {
+    font-size: clamp(0.78rem, 3.2vw, 0.95rem);
+    gap: 0.6rem;
+    line-height: 1.2;
   }
 
   #gameover-actions {
+    grid-column: 2;
+    grid-row: 2;
     max-width: none;
-    width: min(40vw, 220px);
+    width: 100%;
     margin-top: 0;
-    flex-shrink: 0;
     justify-content: center;
+    align-self: start;
+  }
+
+  /* 5+ players: widen the list column to hold two sub-columns of ranks, and
+     widen the frame so the three visible columns (ranks A + ranks B + actions)
+     fit packed together in the center (override the half-split from the 2-col
+     case). */
+  .controller-shell__frame--results:has(.result-row:nth-child(5)) {
+    width: min(100%, 920px);
+    grid-template-columns: minmax(0, 640px) minmax(0, 220px);
+    justify-content: center;
+  }
+
+  /* 5+ players: right column narrows to 220px — match the title to that
+     button width so it doesn't brush the column gap or screen edge. */
+  .controller-shell__frame--results:has(.result-row:nth-child(5)) .controller-shell__brand {
+    max-width: 220px;
+  }
+
+  .controller-shell__frame--results:has(.result-row:nth-child(5)) .controller-shell__title {
+    font-size: clamp(0.85rem, 2.6vw, 1.05rem);
+  }
+
+  #results-list:has(.result-row:nth-child(5)) {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: repeat(4, auto); /* 4 = MAX_PLAYERS(8) / 2 columns */
+    column-gap: 8px;
+    row-gap: 6px;
+    align-content: start;
+  }
+
+  /* 5+ players on narrow landscape: each sub-column is ~130px, so stats
+     must stay on one line or the row doubles in height. Shrink rank,
+     tighten gaps, and clip rather than wrap. */
+  #results-list:has(.result-row:nth-child(5)) .result-row {
+    gap: 6px;
+    padding: 5px 8px;
+  }
+
+  #results-list:has(.result-row:nth-child(5)) .result-rank {
+    font-size: clamp(0.75rem, 3.2vw, 1rem);
+  }
+
+  #results-list:has(.result-row:nth-child(5)) .result-name {
+    font-size: clamp(0.85rem, 3.6vw, 1rem);
+  }
+
+  #results-list:has(.result-row:nth-child(5)) .result-stats {
+    font-size: clamp(0.7rem, 2.8vw, 0.85rem);
+    gap: 0.4rem;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  #results-list:has(.result-row:nth-child(5)) .result-stats > span {
+    white-space: nowrap;
   }
 
   /* Game screen: 3-column grid — left column grows for long translations,
@@ -1010,6 +1096,58 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
     grid-row: 1;
     min-height: 0;
     padding: 6px 0;
+  }
+}
+
+/* ============================================================
+   Landscape height cascade (all gated by min-aspect-ratio: 5/4
+   to avoid matching portrait phones with the soft keyboard open):
+     base landscape (see ~line 810)   — all heights, full chrome
+     max-height: 499px                — short landscape, drop title + URL
+     min-height: 301px (inside ≤499)  — restore title for Name/Lobby
+     max-height: 220px                — extreme short (soft keyboard), hide brand
+   Each rule only layers on top of the previous one — the base rule
+   provides the full treatment, later rules shave away as height shrinks.
+   ============================================================ */
+
+/* Short landscape (phones) — drop the title + lobby URL so the name
+   input, player card, and primary button fit above the fold. Taller
+   landscape (tablets, desktop windows) keeps the full chrome. */
+@media (orientation: landscape) and (min-aspect-ratio: 5/4) and (max-height: 499px) {
+  .controller-shell__title {
+    display: none;
+  }
+
+  /* Results screen keeps the title — it sits in the right column above the
+     buttons (grid layout in the main landscape rule), so there's room. */
+  .controller-shell__frame--results .controller-shell__title {
+    display: block;
+  }
+
+  .controller-shell__body {
+    margin-top: 0;
+  }
+
+  #lobby-join-url {
+    display: none;
+  }
+}
+
+/* Short landscape with enough vertical room (> 300px):
+   bring the title back on Name + Lobby, compacted so it doesn't crowd the
+   input/card. The h ≤ 220 rule below still hides the whole brand when the
+   soft keyboard collapses the viewport. */
+@media (orientation: landscape) and (min-aspect-ratio: 5/4) and (max-height: 499px) and (min-height: 301px) {
+  .controller-shell__frame--name .controller-shell__title,
+  .controller-shell__frame--lobby .controller-shell__title {
+    display: block;
+    animation: none;
+  }
+
+  /* Restore portrait-style gap between title and input/card. */
+  .controller-shell__frame--name .controller-shell__body,
+  .controller-shell__frame--lobby .controller-shell__body {
+    margin-top: 24px;
   }
 }
 

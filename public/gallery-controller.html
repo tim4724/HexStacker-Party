@@ -13,23 +13,35 @@
   <h1>HEX STACKER · CONTROLLER</h1>
 
   <div class="group">
-    <span class="group-label">AR</span>
-    <select id="controller-ar">
-      <option value="default" selected>9:19.5</option>
-      <option value="9x16">9:16</option>
-      <option value="3x4">3:4</option>
+    <span class="group-label">Device</span>
+    <select id="controller-device">
+      <option value="iphone15pm">iPhone 15 Pro Max · 430×932</option>
+      <option value="iphone14" selected>iPhone 14 · 390×844</option>
+      <option value="iphonese">iPhone SE · 375×667</option>
+      <option value="pixel8">Pixel 8 · 412×915</option>
+      <option value="galaxys23">Galaxy S23 · 360×780</option>
+      <option value="zfoldcover">Z Fold cover · 280×653</option>
+    </select>
+  </div>
+
+  <div class="group">
+    <span class="group-label">Orient</span>
+    <select id="controller-orientation">
+      <option value="portrait" selected>Portrait</option>
       <option value="landscape">Landscape</option>
     </select>
   </div>
 
   <div class="group">
-    <span class="group-label">Players</span>
-    <input type="number" id="player-count" min="1" max="8" value="4">
+    <label class="group-label" for="controller-chrome" style="cursor:pointer;">
+      <input type="checkbox" id="controller-chrome">
+      Browser chrome
+    </label>
   </div>
 
   <div class="group">
-    <span class="group-label">Level</span>
-    <input type="number" id="level" min="1" max="15" value="1">
+    <span class="group-label">Players</span>
+    <input type="number" id="player-count" min="1" max="8" value="4">
   </div>
 
   <div class="group">

@@ -52,7 +52,6 @@ var LOCALES = {
     game_full: 'Room is Full',
     end_step_1: 'Open <a href="https://hexstackerparty.com" id="end-step-1-link" class="end-link">hexstackerparty.com</a> on a larger screen',
     end_step_2: 'Scan the QR code to use your phone as controller',
-    end_how_to_play: 'How to play',
     game_in_progress: 'Game in progress. Please wait for New Game.',
     waiting_for_host_to_start: 'Waiting for {name} to start the game',
     waiting_for_host_to_continue: 'Waiting for {name} to continue',
@@ -65,6 +64,7 @@ var LOCALES = {
     player: 'Player',
     level_heading: 'Level',
     enter_name: 'Enter name...',
+    copied: 'Copied',
     touchpad: 'Touchpad',
     privacy: 'Privacy',
     imprint: 'Imprint',
@@ -116,9 +116,6 @@ var LOCALES = {
     gesture_rotate: 'rotate',
     gesture_drop: 'drop',
     gesture_hold: 'hold',
-
-    // Ordinals (Intl.PluralRules ordinal categories)
-    _ordinal: { one: '{n}st', two: '{n}nd', few: '{n}rd', other: '{n}th' }
   },
 
   de: {
@@ -143,13 +140,12 @@ var LOCALES = {
     game_ended: 'Spiel beendet',
     end_step_1: 'Öffne <a href="https://hexstackerparty.com" id="end-step-1-link" class="end-link">hexstackerparty.com</a> auf einem größeren Bildschirm',
     end_step_2: 'Scanne den QR-Code, um dein Handy als Controller zu nutzen',
-    end_how_to_play: 'So wird gespielt',
     game_in_progress: 'Spiel läuft. Bitte auf neues Spiel warten.',
     waiting_for_host_to_start: 'Warte darauf, dass {name} das Spiel startet',
     waiting_for_host_to_continue: 'Warte darauf, dass {name} fortfährt',
     n_lines: { one: '{count} Zeile', other: '{count} Zeilen' },
     level_n: 'Level {level}', player: 'Spieler', level_heading: 'Level',
-    enter_name: 'Name eingeben...', touchpad: 'Touchpad', privacy: 'Datenschutz',
+    enter_name: 'Name eingeben...', copied: 'Kopiert', touchpad: 'Touchpad', privacy: 'Datenschutz',
     imprint: 'Impressum',
     imprint_title: 'IMPRESSUM',
     imprint_notice: 'Angaben gemäß § 5 DDG',
@@ -184,7 +180,6 @@ var LOCALES = {
     swipe: 'Wischen', tap: 'Tippen', flick: 'Schnippen',
     gesture_move: 'Bewegen', gesture_rotate: 'Drehen',
     gesture_drop: 'Fallen', gesture_hold: 'Halten',
-    _ordinal: '{n}.'
   },
 
   fr: {
@@ -209,20 +204,18 @@ var LOCALES = {
     game_ended: 'Partie terminée',
     end_step_1: 'Ouvre <a href="https://hexstackerparty.com" id="end-step-1-link" class="end-link">hexstackerparty.com</a> sur un plus grand écran',
     end_step_2: 'Scanne le QR code pour utiliser ton téléphone comme manette',
-    end_how_to_play: 'Comment jouer',
     game_in_progress: 'Partie en cours. Attends une nouvelle partie.',
     waiting_for_host_to_start: 'En attendant que {name} lance la partie',
     waiting_for_host_to_continue: 'En attendant que {name} continue',
     n_lines: { one: '{count} ligne', other: '{count} lignes' },
     level_n: 'Niveau {level}', player: 'Joueur', level_heading: 'Niveau',
-    enter_name: 'Entre ton nom...', touchpad: 'Pavé tactile',
+    enter_name: 'Entre ton nom...', copied: 'Copié', touchpad: 'Pavé tactile',
     privacy: 'Confidentialité', imprint: 'Mentions légales', back_to_game: '← Retour',
     hex_lines_level: 'Lignes {lines}  Niveau {level}',
     swipe: 'Glisser', tap: 'Appuyer', flick: 'Lancer',
     gesture_move: 'déplacer', gesture_rotate: 'tourner',
     stacked_by: 'Créé par Tim', music_by: 'Musique par FoxSynergy',
     gesture_drop: 'lâcher', gesture_hold: 'maintenir',
-    _ordinal: { one: '{n}er', other: '{n}e' }
   },
 
   pt: {
@@ -247,20 +240,18 @@ var LOCALES = {
     game_ended: 'Jogo encerrado',
     end_step_1: 'Abra <a href="https://hexstackerparty.com" id="end-step-1-link" class="end-link">hexstackerparty.com</a> em uma tela maior',
     end_step_2: 'Escaneie o QR code para usar seu celular como controle',
-    end_how_to_play: 'Como jogar',
     game_in_progress: 'Jogo em andamento. Aguarde um novo jogo.',
     waiting_for_host_to_start: 'Aguardando {name} iniciar o jogo',
     waiting_for_host_to_continue: 'Aguardando {name} continuar',
     n_lines: { one: '{count} linha', other: '{count} linhas' },
     level_n: 'Nível {level}', player: 'Jogador', level_heading: 'Nível',
-    enter_name: 'Digite o nome...', touchpad: 'Touchpad',
+    enter_name: 'Digite o nome...', copied: 'Copiado', touchpad: 'Touchpad',
     privacy: 'Privacidade', imprint: 'Aviso legal', back_to_game: '← Voltar',
     stacked_by: 'Criado por Tim', music_by: 'Música de FoxSynergy',
     hex_lines_level: 'Linhas {lines}  Nível {level}',
     swipe: 'Deslizar', tap: 'Tocar', flick: 'Lançar',
     gesture_move: 'mover', gesture_rotate: 'girar',
     gesture_drop: 'soltar', gesture_hold: 'segurar',
-    _ordinal: '{n}º'
   },
 
   es: {
@@ -285,20 +276,18 @@ var LOCALES = {
     game_ended: 'Partida finalizada',
     end_step_1: 'Abre <a href="https://hexstackerparty.com" id="end-step-1-link" class="end-link">hexstackerparty.com</a> en una pantalla más grande',
     end_step_2: 'Escanea el código QR para usar tu teléfono como control',
-    end_how_to_play: 'Cómo jugar',
     game_in_progress: 'Partida en curso. Espera a que empiece una nueva.',
     waiting_for_host_to_start: 'Esperando que {name} inicie la partida',
     waiting_for_host_to_continue: 'Esperando que {name} continúe',
     n_lines: { one: '{count} línea', other: '{count} líneas' },
     level_n: 'Nivel {level}', player: 'Jugador', level_heading: 'Nivel',
-    enter_name: 'Escribe tu nombre...', touchpad: 'Touchpad',
+    enter_name: 'Escribe tu nombre...', copied: 'Copiado', touchpad: 'Touchpad',
     privacy: 'Privacidad', imprint: 'Aviso legal', back_to_game: '← Volver',
     hex_lines_level: 'Líneas {lines}  Nivel {level}',
     swipe: 'Deslizar', tap: 'Tocar', flick: 'Lanzar',
     gesture_move: 'mover', gesture_rotate: 'girar',
     stacked_by: 'Creado por Tim', music_by: 'Música de FoxSynergy',
     gesture_drop: 'soltar', gesture_hold: 'guardar',
-    _ordinal: '{n}º'
   },
 
   zh: {
@@ -323,19 +312,17 @@ var LOCALES = {
     game_ended: '游戏已结束',
     end_step_1: '在更大的屏幕上打开 <a href="https://hexstackerparty.com" id="end-step-1-link" class="end-link">hexstackerparty.com</a>',
     end_step_2: '扫描二维码，把手机当作控制器',
-    end_how_to_play: '玩法',
     game_in_progress: '游戏进行中，请等待新游戏开始。',
     waiting_for_host_to_start: '等待 {name} 开始游戏',
     waiting_for_host_to_continue: '等待 {name} 继续',
     n_lines: { other: '{count} 行' },
     level_n: '等级 {level}', player: '玩家', level_heading: '等级',
-    enter_name: '输入名字...', touchpad: '触控板', privacy: '隐私', imprint: '法律声明', back_to_game: '← 返回',
+    enter_name: '输入名字...', copied: '已复制', touchpad: '触控板', privacy: '隐私', imprint: '法律声明', back_to_game: '← 返回',
     hex_lines_level: '行数 {lines}  等级 {level}',
     swipe: '滑动', tap: '点按', flick: '快划',
     gesture_move: '移动', gesture_rotate: '旋转',
     stacked_by: '开发：Tim', music_by: '音乐：FoxSynergy',
     gesture_drop: '落下', gesture_hold: '暂存',
-    _ordinal: '第{n}名'
   },
 
   ja: {
@@ -360,20 +347,18 @@ var LOCALES = {
     game_ended: 'ゲーム終了',
     end_step_1: 'より大きな画面で <a href="https://hexstackerparty.com" id="end-step-1-link" class="end-link">hexstackerparty.com</a> を開く',
     end_step_2: 'QRコードをスキャンして、スマートフォンをコントローラーとして使う',
-    end_how_to_play: '遊び方',
     game_in_progress: 'ゲーム進行中です。新しいゲームをお待ちください。',
     waiting_for_host_to_start: '{name}がゲームを開始するのを待っています',
     waiting_for_host_to_continue: '{name}が続けるのを待っています',
     n_lines: { other: '{count}ライン' },
     level_n: 'レベル {level}', player: 'プレイヤー', level_heading: 'レベル',
-    enter_name: '名前を入力...', touchpad: 'タッチパッド',
+    enter_name: '名前を入力...', copied: 'コピー完了', touchpad: 'タッチパッド',
     privacy: 'プライバシー', imprint: '運営者情報', back_to_game: '← 戻る',
     hex_lines_level: 'ライン {lines}  レベル {level}',
     swipe: 'スワイプ', tap: 'タップ', flick: 'フリック',
     gesture_move: '移動', gesture_rotate: '回転',
     stacked_by: '開発：Tim', music_by: '音楽：FoxSynergy',
     gesture_drop: 'ドロップ', gesture_hold: 'ホールド',
-    _ordinal: '{n}位'
   },
 
   ko: {
@@ -398,19 +383,17 @@ var LOCALES = {
     game_ended: '게임 종료',
     end_step_1: '더 큰 화면에서 <a href="https://hexstackerparty.com" id="end-step-1-link" class="end-link">hexstackerparty.com</a> 열기',
     end_step_2: 'QR 코드를 스캔하여 휴대폰을 컨트롤러로 사용하세요',
-    end_how_to_play: '플레이 방법',
     game_in_progress: '게임 진행 중입니다. 새 게임을 기다려주세요.',
     waiting_for_host_to_start: '{name}님이 게임을 시작하기를 기다리는 중',
     waiting_for_host_to_continue: '{name}님이 계속하기를 기다리는 중',
     n_lines: { other: '{count}줄' },
     level_n: '레벨 {level}', player: '플레이어', level_heading: '레벨',
-    enter_name: '이름 입력...', touchpad: '터치패드', privacy: '개인정보', imprint: '법적 고지', back_to_game: '← 돌아가기',
+    enter_name: '이름 입력...', copied: '복사됨', touchpad: '터치패드', privacy: '개인정보', imprint: '법적 고지', back_to_game: '← 돌아가기',
     hex_lines_level: '줄 {lines}  레벨 {level}',
     swipe: '스와이프', tap: '탭', flick: '플릭',
     gesture_move: '이동', gesture_rotate: '회전',
     stacked_by: '개발: Tim', music_by: '음악: FoxSynergy',
     gesture_drop: '드롭', gesture_hold: '홀드',
-    _ordinal: '{n}위'
   },
 
   ru: {
@@ -438,7 +421,6 @@ var LOCALES = {
     game_ended: 'Игра завершена',
     end_step_1: 'Откройте <a href="https://hexstackerparty.com" id="end-step-1-link" class="end-link">hexstackerparty.com</a> на большом экране',
     end_step_2: 'Отсканируйте QR-код, чтобы использовать телефон как контроллер',
-    end_how_to_play: 'Как играть',
     game_in_progress: 'Игра идёт. Дождитесь новой игры.',
     waiting_for_host_to_start: 'Ожидание, пока {name} начнёт игру',
     waiting_for_host_to_continue: 'Ожидание, пока {name} продолжит',
@@ -447,14 +429,13 @@ var LOCALES = {
       many: '{count} линий', other: '{count} линий'
     },
     level_n: 'Уровень {level}', player: 'Игрок', level_heading: 'Уровень',
-    enter_name: 'Введите имя...', touchpad: 'Тачпад',
+    enter_name: 'Введите имя...', copied: 'Скопировано', touchpad: 'Тачпад',
     privacy: 'Конфиденциальность', imprint: 'Выходные данные', back_to_game: '← Назад',
     hex_lines_level: 'Линии {lines}  Уровень {level}',
     swipe: 'Свайп', tap: 'Нажатие', flick: 'Смахивание',
     gesture_move: 'двигать', gesture_rotate: 'вращать',
     stacked_by: 'Разработка: Tim', music_by: 'Музыка: FoxSynergy',
     gesture_drop: 'бросать', gesture_hold: 'держать',
-    _ordinal: '{n}-й'
   },
 
   it: {
@@ -479,20 +460,18 @@ var LOCALES = {
     game_ended: 'Partita terminata',
     end_step_1: 'Apri <a href="https://hexstackerparty.com" id="end-step-1-link" class="end-link">hexstackerparty.com</a> su uno schermo più grande',
     end_step_2: 'Scansiona il QR code per usare il telefono come controller',
-    end_how_to_play: 'Come giocare',
     game_in_progress: 'Partita in corso. Attendi una nuova partita.',
     waiting_for_host_to_start: 'In attesa che {name} inizi la partita',
     waiting_for_host_to_continue: 'In attesa che {name} continui',
     n_lines: { one: '{count} linea', other: '{count} linee' },
     level_n: 'Livello {level}', player: 'Giocatore', level_heading: 'Livello',
-    enter_name: 'Inserisci nome...', touchpad: 'Touchpad',
+    enter_name: 'Inserisci nome...', copied: 'Copiato', touchpad: 'Touchpad',
     privacy: 'Privacy', imprint: 'Note legali', back_to_game: '← Indietro',
     stacked_by: 'Creato da Tim', music_by: 'Musica di FoxSynergy',
     hex_lines_level: 'Linee {lines}  Livello {level}',
     swipe: 'Scorrere', tap: 'Toccare', flick: 'Lanciare',
     gesture_move: 'muovere', gesture_rotate: 'ruotare',
     gesture_drop: 'rilasciare', gesture_hold: 'tenere',
-    _ordinal: '{n}°'
   },
 
   tr: {
@@ -517,20 +496,18 @@ var LOCALES = {
     game_ended: 'Oyun sona erdi',
     end_step_1: '<a href="https://hexstackerparty.com" id="end-step-1-link" class="end-link">hexstackerparty.com</a> adresini daha büyük bir ekranda aç',
     end_step_2: 'Telefonunu kumanda olarak kullanmak için QR kodu tara',
-    end_how_to_play: 'Nasıl oynanır',
     game_in_progress: 'Oyun devam ediyor. Yeni oyunu bekle.',
     waiting_for_host_to_start: '{name} oyunu başlatana kadar bekle',
     waiting_for_host_to_continue: '{name} devam edene kadar bekle',
     n_lines: { one: '{count} satır', other: '{count} satır' },
     level_n: 'Seviye {level}', player: 'Oyuncu', level_heading: 'Seviye',
-    enter_name: 'İsim gir...', touchpad: 'Touchpad',
+    enter_name: 'İsim gir...', copied: 'Kopyalandı', touchpad: 'Touchpad',
     privacy: 'Gizlilik', imprint: 'Künye', back_to_game: '← Geri',
     stacked_by: 'Yapımcı: Tim', music_by: 'Müzik: FoxSynergy',
     hex_lines_level: 'Satır {lines}  Seviye {level}',
     swipe: 'Kaydır', tap: 'Dokun', flick: 'Fırlat',
     gesture_move: 'hareket ettir', gesture_rotate: 'döndür',
     gesture_drop: 'bırak', gesture_hold: 'tut',
-    _ordinal: '{n}.'
   }
 };
 
@@ -538,16 +515,13 @@ var LOCALES = {
 var _locale = 'en';
 var _strings = LOCALES.en;
 var _pluralRules = null;
-var _ordinalRules = null;
 
 function _initRules() {
   if (typeof Intl !== 'undefined' && Intl.PluralRules) {
     try {
       _pluralRules = new Intl.PluralRules(_locale);
-      _ordinalRules = new Intl.PluralRules(_locale, { type: 'ordinal' });
     } catch (e) {
       _pluralRules = null;
-      _ordinalRules = null;
     }
   }
 }
@@ -596,29 +570,6 @@ function t(key, params) {
   }
 
   return val;
-}
-
-/**
- * Format a number as an ordinal string (1st, 2nd, 3rd, ... or locale equivalent).
- * @param {number} n
- * @returns {string}
- */
-function tOrdinal(n) {
-  var ord = _strings._ordinal || LOCALES.en._ordinal;
-
-  // Simple template string: '{n}.' → '1.'
-  if (typeof ord === 'string') {
-    return ord.replace('{n}', n);
-  }
-
-  // Object with plural categories: use Intl.PluralRules ordinal selection
-  if (typeof ord === 'object' && _ordinalRules) {
-    var cat = _ordinalRules.select(n);
-    var tmpl = ord[cat] || ord.other || '{n}';
-    return tmpl.replace('{n}', n);
-  }
-
-  return String(n);
 }
 
 /**
@@ -687,5 +638,5 @@ translatePage();
 
 // Export for both Node.js and browser
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { t: t, tOrdinal: tOrdinal, setLocale: setLocale, getLocale: getLocale, translatePage: translatePage, detectLocale: detectLocale, LOCALES: LOCALES };
+  module.exports = { t: t, setLocale: setLocale, getLocale: getLocale, translatePage: translatePage, detectLocale: detectLocale, LOCALES: LOCALES };
 }
