@@ -141,10 +141,13 @@ class WelcomeBackground {
       // Blit synchronously so the main canvas is valid before the first RAF
       // — otherwise the alpha:false opaque-black default paints over the
       // body's bg for ~16ms after each resize (visible flash in the gallery
-      // where iframes load the page fresh).
-      this.ctx.imageSmoothingEnabled = false;
-      this.ctx.drawImage(this.gradientBitmap, 0, 0, this.w, this.h);
-      this.ctx.imageSmoothingEnabled = true;
+      // where iframes load the page fresh). Guard for the zero-size case
+      // where _bakeGradient bails out without setting gradientBitmap.
+      if (this.gradientBitmap) {
+        this.ctx.imageSmoothingEnabled = false;
+        this.ctx.drawImage(this.gradientBitmap, 0, 0, this.w, this.h);
+        this.ctx.imageSmoothingEnabled = true;
+      }
     }
   }
 
