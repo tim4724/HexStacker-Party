@@ -55,7 +55,13 @@ function startLivenessCheck() {
         }
       }
     }
-    if (newDisconnect) checkAllPlayersDisconnected();
+    if (newDisconnect) {
+      checkAllPlayersDisconnected();
+      // A silent heartbeat timeout can take out the host — refresh isHost
+      // flags so the handoff reaches the remaining controllers. No-op when
+      // the lost player wasn't the host.
+      maybeBroadcastHostChange();
+    }
   }, 1000);
 }
 

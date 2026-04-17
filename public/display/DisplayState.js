@@ -153,6 +153,12 @@ function sanitizePlayerName(name, slotIndex) {
 // RETURN_TO_LOBBY on them would deadlock the game. Host opens back up to
 // everyone in LOBBY where late joiners have already been folded into
 // playerOrder (see DisplayGame.js#returnToLobby).
+//
+// Disconnected players (flagged via disconnectedQRs) are excluded so the
+// host role hands off to a present player when the host drops mid-game.
+// Otherwise the gone player stays "host" — remaining controllers see a
+// "Waiting for {name}…" banner on RESULTS that never clears, and the
+// pause-overlay Return-to-lobby button stays hidden for everyone.
 // NOTE: tests/display-state.test.js mirrors this algorithm — keep in sync.
 function getHostClientId() {
   var restricted = (roomState === ROOM_STATE.PLAYING
@@ -163,15 +169,18 @@ function getHostClientId() {
 
   if (party && typeof party.getMasterClientId === 'function') {
     var acHost = party.getMasterClientId();
-    // Only trust it if the device has completed HELLO and (when restricted) is
-    // an active participant; otherwise fall through until they qualify.
-    if (acHost && players.has(acHost) && (!restricted || eligible.has(acHost))) {
+    // Only trust it if the device has completed HELLO, is currently
+    // connected, and (when restricted) is an active participant; otherwise
+    // fall through until they qualify.
+    if (acHost && players.has(acHost) && !disconnectedQRs.has(acHost)
+        && (!restricted || eligible.has(acHost))) {
       return acHost;
     }
   }
   var hostId = null;
   var hostIdx = Infinity;
   for (const entry of players) {
+    if (disconnectedQRs.has(entry[0])) continue;
     if (restricted && !eligible.has(entry[0])) continue;
     if (entry[1].playerIndex < hostIdx) {
       hostIdx = entry[1].playerIndex;

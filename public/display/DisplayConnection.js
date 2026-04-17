@@ -63,11 +63,7 @@ function connectAndCreateRoom() {
         // at message time, but controllers' isHost flags for their lobby /
         // results banners only refresh via LOBBY_UPDATE. A mid-game onPremium
         // is intentional — we always follow what getMasterClientId dictates.
-        // Dedupe: onConnect + onPremium can fire back-to-back for a new
-        // premium device; skip if the host ID is unchanged since last broadcast.
-        if (players.size > 0 && getHostClientId() !== _lastBroadcastedHostId) {
-          broadcastLobbyUpdate();
-        }
+        maybeBroadcastHostChange();
         break;
       case 'error':
         if (msg.message === 'Room not found' || msg.message === 'Room is full') {
@@ -323,6 +319,10 @@ function onPeerLeft(clientId) {
       // Active game participant — keep in Map for seamless reconnect
       showDisconnectQR(clientId);
       checkAllPlayersDisconnected();
+      // Host may have handed off — refresh isHost flags so the pause-overlay
+      // Return-to-lobby button appears on the new host's controller and the
+      // gone player's stale flag clears before we reach RESULTS.
+      maybeBroadcastHostChange();
     } else {
       // Late joiner (never in the game) — remove silently
       players.delete(clientId);
@@ -373,6 +373,16 @@ function removeLobbyPlayer(clientId) {
 // =====================================================================
 
 var _lastBroadcastedHostId = null;
+
+// Re-broadcast LOBBY_UPDATE iff the host has changed since the last broadcast.
+// Called after events that can silently reshuffle the host (peer_left during
+// an active game, heartbeat-driven disconnect, AC master_changed). Skips when
+// there's no one to notify so we don't churn on the last-player-leaves path.
+function maybeBroadcastHostChange() {
+  if (players.size === 0) return;
+  if (getHostClientId() === _lastBroadcastedHostId) return;
+  broadcastLobbyUpdate();
+}
 
 function broadcastLobbyUpdate() {
   var hostId = getHostClientId();

@@ -127,6 +127,37 @@ test.describe('Reconnection', () => {
     expect(waitingMsg.length).toBeGreaterThan(0);
   });
 
+  test('host handoff: new host is promoted when original host disconnects mid-game', async ({ page, context }) => {
+    const { roomCode } = await createRoom(page);
+    const c1 = await joinController(context, roomCode, 'Alice');
+    const c2 = await joinController(context, roomCode, 'Bob');
+
+    await waitForDisplayPlayers(page, 2);
+
+    // Sanity: Alice is host (lowest-slot controller), Bob is not.
+    await c1.waitForFunction(() => typeof isHost !== 'undefined' && isHost === true, null, { timeout: 5000 });
+    await c2.waitForFunction(() => typeof isHost !== 'undefined' && isHost === false, null, { timeout: 5000 });
+
+    await c1.click('#start-btn');
+    await waitForDisplayGame(page);
+
+    // Alice (host) drops out mid-game.
+    const aliceId = await c1.evaluate(() => clientId);
+    await c1.close();
+
+    // Display should flag Alice as disconnected, and getHostClientId() should
+    // hand off to Bob (lowest-slot among connected playerOrder members).
+    await page.waitForFunction((id) => {
+      return typeof disconnectedQRs !== 'undefined'
+          && disconnectedQRs.has(id)
+          && typeof getHostClientId === 'function'
+          && getHostClientId() !== id;
+    }, aliceId, { timeout: 10000 });
+
+    // Bob's controller should receive the LOBBY_UPDATE and flip isHost.
+    await c2.waitForFunction(() => typeof isHost !== 'undefined' && isHost === true, null, { timeout: 5000 });
+  });
+
   test('display shows disconnected QR overlay for missing player', async ({ page, context }) => {
     const { roomCode } = await createRoom(page);
     const c1 = await joinController(context, roomCode, 'Alice');

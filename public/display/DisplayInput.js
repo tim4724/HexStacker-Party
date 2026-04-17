@@ -119,11 +119,12 @@ function onHello(fromId, msg) {
     }
     party.sendTo(fromId, welcomeMsg);
 
-    // Refresh host info on the other controllers too — in RESULTS a
-    // reconnecting slot-0 player can reclaim host from whoever inherited it.
-    if (roomState === ROOM_STATE.LOBBY || roomState === ROOM_STATE.RESULTS) {
-      broadcastLobbyUpdate();
-    }
+    // Refresh host info on the other controllers too. A reconnecting slot-0
+    // player can reclaim host from whoever inherited it while they were gone
+    // (see onPeerLeft's maybeBroadcastHostChange). Relevant in any non-WELCOME
+    // room state, since a mid-game reconnect also needs to flip the temp
+    // host's pause-overlay Return-to-lobby button off.
+    maybeBroadcastHostChange();
     return;
   }
 

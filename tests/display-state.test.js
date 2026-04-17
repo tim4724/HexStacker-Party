@@ -211,22 +211,25 @@ describe('sanitizePlayerName', () => {
 // =========================================================================
 
 // Mirrors DisplayState.js getHostClientId — keep in sync.
-function getHostClientId(players, party, roomState, playerOrder) {
+function getHostClientId(players, party, roomState, playerOrder, disconnectedQRs) {
   const restricted = (roomState === ROOM_STATE.PLAYING
                    || roomState === ROOM_STATE.COUNTDOWN
                    || roomState === ROOM_STATE.RESULTS)
                   && playerOrder && playerOrder.length > 0;
   const eligible = restricted ? new Set(playerOrder) : null;
+  const disconnected = disconnectedQRs || new Map();
 
   if (party && typeof party.getMasterClientId === 'function') {
     const acHost = party.getMasterClientId();
-    if (acHost && players.has(acHost) && (!restricted || eligible.has(acHost))) {
+    if (acHost && players.has(acHost) && !disconnected.has(acHost)
+        && (!restricted || eligible.has(acHost))) {
       return acHost;
     }
   }
   let hostId = null;
   let hostIdx = Infinity;
   for (const entry of players) {
+    if (disconnected.has(entry[0])) continue;
     if (restricted && !eligible.has(entry[0])) continue;
     if (entry[1].playerIndex < hostIdx) {
       hostIdx = entry[1].playerIndex;
@@ -358,6 +361,84 @@ describe('getHostClientId', () => {
     // fall back to the full candidate set rather than returning null.
     const players = new Map([['a', { playerIndex: 0 }]]);
     assert.equal(getHostClientId(players, null, ROOM_STATE.RESULTS, []), 'a');
+  });
+
+  it('PLAYING: disconnected host is skipped; next-lowest takes over', () => {
+    // Host (alice) dropped mid-game; DisplayConnection keeps her in the Map
+    // and in playerOrder for seamless reconnect and flags her via
+    // disconnectedQRs. Host role should hand off to bob.
+    const players = new Map([
+      ['alice', { playerIndex: 0 }],
+      ['bob',   { playerIndex: 1 }],
+      ['carol', { playerIndex: 2 }]
+    ]);
+    const playerOrder = ['alice', 'bob', 'carol'];
+    const disconnectedQRs = new Map([['alice', null]]);
+    assert.equal(
+      getHostClientId(players, null, ROOM_STATE.PLAYING, playerOrder, disconnectedQRs),
+      'bob'
+    );
+  });
+
+  it('RESULTS: disconnected host is skipped; Play Again gates to next-lowest', () => {
+    const players = new Map([
+      ['alice', { playerIndex: 0 }],
+      ['bob',   { playerIndex: 1 }]
+    ]);
+    const playerOrder = ['alice', 'bob'];
+    const disconnectedQRs = new Map([['alice', null]]);
+    assert.equal(
+      getHostClientId(players, null, ROOM_STATE.RESULTS, playerOrder, disconnectedQRs),
+      'bob'
+    );
+  });
+
+  it('re-promotes original host when they reconnect (disconnectedQRs entry cleared)', () => {
+    const players = new Map([
+      ['alice', { playerIndex: 0 }],
+      ['bob',   { playerIndex: 1 }]
+    ]);
+    const playerOrder = ['alice', 'bob'];
+    const disconnectedQRs = new Map([['alice', null]]);
+    assert.equal(
+      getHostClientId(players, null, ROOM_STATE.PLAYING, playerOrder, disconnectedQRs),
+      'bob'
+    );
+    // Alice reconnects — handleControllerMessage deletes her from the set.
+    disconnectedQRs.delete('alice');
+    assert.equal(
+      getHostClientId(players, null, ROOM_STATE.PLAYING, playerOrder, disconnectedQRs),
+      'alice'
+    );
+  });
+
+  it('AirConsole path: disconnected AC master falls through to next connected', () => {
+    // AC still reports alice as master (SDK update lag / stale query), but
+    // she's disconnected. Skip her and use the lowest-index connected player.
+    const players = new Map([
+      ['alice', { playerIndex: 0 }],
+      ['bob',   { playerIndex: 1 }]
+    ]);
+    const playerOrder = ['alice', 'bob'];
+    const party = { getMasterClientId: () => 'alice' };
+    const disconnectedQRs = new Map([['alice', null]]);
+    assert.equal(
+      getHostClientId(players, party, ROOM_STATE.PLAYING, playerOrder, disconnectedQRs),
+      'bob'
+    );
+  });
+
+  it('returns null when every eligible candidate is disconnected', () => {
+    const players = new Map([
+      ['alice', { playerIndex: 0 }],
+      ['bob',   { playerIndex: 1 }]
+    ]);
+    const playerOrder = ['alice', 'bob'];
+    const disconnectedQRs = new Map([['alice', null], ['bob', null]]);
+    assert.equal(
+      getHostClientId(players, null, ROOM_STATE.PLAYING, playerOrder, disconnectedQRs),
+      null
+    );
   });
 });
 
