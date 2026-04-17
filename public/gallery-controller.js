@@ -33,12 +33,8 @@ var nonce = 0;
 var CTRL_MAX_COLS = 8;
 var storedCols = parseInt(state.cardsPerRow, 10);
 var clampedCols = Math.max(1, Math.min(storedCols || CTRL_MAX_COLS, CTRL_MAX_COLS));
-if (clampedCols !== storedCols) {
-  state.cardsPerRow = clampedCols;
-  Gallery.saveState(state);
-} else {
-  state.cardsPerRow = clampedCols;
-}
+state.cardsPerRow = clampedCols;
+if (clampedCols !== storedCols) Gallery.saveState(state);
 
 function frameClass() {
   return ({ 'default': 'controller', '9x16': 'controller ar-9x16', '3x4': 'controller ar-3x4', 'landscape': 'controller landscape' })[state.controllerAR] || 'controller';

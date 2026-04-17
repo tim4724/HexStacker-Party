@@ -45,12 +45,8 @@ var nonce = 0;
 var DISPLAY_MAX_COLS = 5;
 var storedCols = parseInt(state.cardsPerRow, 10);
 var clampedCols = Math.max(1, Math.min(storedCols || DISPLAY_MAX_COLS, DISPLAY_MAX_COLS));
-if (clampedCols !== storedCols) {
-  state.cardsPerRow = clampedCols;
-  Gallery.saveState(state);
-} else {
-  state.cardsPerRow = clampedCols;
-}
+state.cardsPerRow = clampedCols;
+if (clampedCols !== storedCols) Gallery.saveState(state);
 
 function frameClass() {
   return ({ '16x9': 'display', '21x9': 'display ar-21x9', '4x3': 'display ar-4x3', '1x1': 'display ar-1x1' })[state.displayAR] || 'display';
