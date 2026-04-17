@@ -41,18 +41,6 @@ class WelcomeBackground {
     [63, 31, 55, 23, 61, 29, 53, 21],
   ];
 
-  // sRGB 8-bit → linear-light [0, 1]
-  static _srgbToLinear(c) {
-    const x = c / 255;
-    return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
-  }
-
-  // linear-light [0, 1] → sRGB 0–255 float (unclamped)
-  static _linearToSrgb(x) {
-    const s = x <= 0.0031308 ? 12.92 * x : 1.055 * Math.pow(x, 1 / 2.4) - 0.055;
-    return s * 255;
-  }
-
   // Generate all unique rotations of a hex piece via repeated 60° CW rotation.
   static _generateHexRotations(baseCells) {
     var rotations = [baseCells];
@@ -295,11 +283,14 @@ class WelcomeBackground {
           t = u * u * (3 - 2 * u);           // smoothstep
         }
         const a = peak * t;
-        // ±1 LSB Bayer dither, scaled to 2× the normalized [0,1) range
-        const dither = (brow[px & 7] - 31.5) / 32;
-        data[idx]     = (bR + dR * a + dither + 0.5) | 0;
-        data[idx + 1] = (bG + dG * a + dither + 0.5) | 0;
-        data[idx + 2] = (bB + dB * a + dither + 0.5) | 0;
+        // ±1 LSB Bayer dither, offset per channel so the three channels are
+        // not correlated — correlated dither shifts hue subtly.
+        const dR8 = (brow[px & 7] - 31.5) / 32;
+        const dG8 = (brow[(px + 3) & 7] - 31.5) / 32;
+        const dB8 = (brow[(px + 5) & 7] - 31.5) / 32;
+        data[idx]     = (bR + dR * a + dR8 + 0.5) | 0;
+        data[idx + 1] = (bG + dG * a + dG8 + 0.5) | 0;
+        data[idx + 2] = (bB + dB * a + dB8 + 0.5) | 0;
         data[idx + 3] = 255;
         idx += 4;
       }

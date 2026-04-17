@@ -238,8 +238,15 @@ if (bgCanvas && (urlParams.get('test') !== '1' || urlParams.get('bg') === '1')) 
   // the body's --bg-primary (which is what shows while the canvas is still
   // loading / mounting).
   var rootStyle = getComputedStyle(document.documentElement);
+  // Accepts both `R, G, B` and the modern space-separated `R G B` CSS syntax;
+  // falls back to black (visible, not silent) if the var is missing or malformed.
   var rgbVar = function(name) {
-    return rootStyle.getPropertyValue(name).trim().split(/\s*,\s*/).map(Number);
+    var v = rootStyle.getPropertyValue(name).trim().split(/[\s,]+/).map(Number);
+    if (v.length !== 3 || v.some(isNaN)) {
+      console.warn('rgbVar: invalid value for', name, '→', rootStyle.getPropertyValue(name));
+      return [0, 0, 0];
+    }
+    return v;
   };
   // Bake the radial tint into the canvas with Bayer dithering — CSS's
   // radial-gradient at this low alpha (~0.06 over the plum bg) bands visibly
