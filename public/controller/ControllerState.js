@@ -85,7 +85,8 @@ function syncViewportLayout() {
 // --- Background ---
 var bgCanvas = document.getElementById('bg-canvas');
 var welcomeBg = null;
-if (bgCanvas && new URLSearchParams(window.location.search).get('test') !== '1') {
+var _ctrlBgParams = new URLSearchParams(window.location.search);
+if (bgCanvas && (_ctrlBgParams.get('test') !== '1' || _ctrlBgParams.get('bg') === '1')) {
   welcomeBg = new WelcomeBackground(bgCanvas, 8);
   var metrics = getViewportMetrics();
   welcomeBg.resize(metrics.width, metrics.height);

@@ -1,7 +1,7 @@
 'use strict';
 
 // =====================================================================
-// Display Test Harness — window.__TEST__ API and debug state builders
+// Display Test Harness — window.__TEST__ API and scenario builders
 // Depends on: DisplayState.js (globals: urlParams, debugCount), DisplayUI.js, DisplayGame.js
 // Loaded before display.js; only active when ?test=1 or ?debug=N
 // =====================================================================
@@ -16,7 +16,8 @@ if (urlParams.get('test') === '1' || debugCount > 0) {
         players.set(p.id, {
           playerName: sanitizePlayerName(p.name, index),
           playerColor: color,
-          playerIndex: index
+          playerIndex: index,
+          startLevel: p.level || 1
         });
         playerOrder.push(p.id);
       }
@@ -72,7 +73,7 @@ if (urlParams.get('test') === '1' || debugCount > 0) {
 // Debug State Builder
 // =====================================================================
 
-function _buildHexDebugState(debugPlayers) {
+function _buildHexDebugState(debugPlayers, level) {
   var HC = GameConstants.COLS;
   var HV = GameConstants.VISIBLE_ROWS;
   var GC = GameConstants.GARBAGE_CELL;
@@ -95,7 +96,7 @@ function _buildHexDebugState(debugPlayers) {
     var ghostPiece = piece.clone(); ghostPiece.anchorRow = HV - 5;
     state.players.push({
       id: debugPlayers[dj].id, playerName: debugPlayers[dj].name,
-      grid: grid, lines: [24,16,10,5,20,12,8,3][dj % 8], level: [3,2,2,1,3,2,1,1][dj % 8],
+      grid: grid, lines: [24,16,10,5,20,12,8,3][dj % 8], level: level || [3,2,2,1,3,2,1,1][dj % 8],
       alive: true,
       currentPiece: { type: pt, typeId: piece.typeId, anchorCol: 5, anchorRow: 2, cells: piece.cells, blocks: blocks },
       ghost: { anchorCol: ghostPiece.anchorCol, anchorRow: ghostPiece.anchorRow, blocks: ghostPiece.getAbsoluteBlocks() },
@@ -107,19 +108,190 @@ function _buildHexDebugState(debugPlayers) {
   return state;
 }
 
+function _buildDebugPlayers(count, level) {
+  var names = ['Emma', 'Jake', 'Sofia', 'Liam', 'Mia', 'Noah', 'Ava', 'Leo'];
+  var list = [];
+  for (var i = 0; i < Math.min(count, 8); i++) {
+    list.push({ id: 'debug' + i, name: names[i] || ('P' + (i + 1)), level: level });
+  }
+  return list;
+}
+
+// Run an animation trigger after the iframe has painted its first frame.
+// BoardRenderers are created inside calculateLayout (via showScreen(GAME)),
+// so we need a tick before addHexCellClear/onGarbageSent can find them.
+function _delayTrigger(fn, ms) {
+  setTimeout(fn, ms || 500);
+}
+
+function _fireLineClear(playerIdx, lines) {
+  if (!animations || !boardRenderers[playerIdx]) return;
+  var HC = GameConstants.COLS;
+  var HV = GameConstants.VISIBLE_ROWS;
+  // addHexCellClear expects [col, row] tuples, not {col,row} objects.
+  var cells = [];
+  var rowCount = Math.max(1, Math.min(lines || 1, 4));
+  for (var r = 0; r < rowCount; r++) {
+    for (var c = 0; c < HC; c++) cells.push([c, HV - 1 - r]);
+  }
+  animations.addHexCellClear(boardRenderers[playerIdx], cells, rowCount);
+}
+
+function _fakeLobbyQR() {
+  if (joinUrlEl) joinUrlEl.textContent = 'hexstackerparty.com/TEST';
+  // Render a real QR for a fake URL so the lobby layout looks realistic.
+  fetch('/api/qr?text=' + encodeURIComponent('https://hexstackerparty.com/TEST12'))
+    .then(function(r) { return r.json(); })
+    .then(function(matrix) { if (qrCode) renderQR(qrCode, matrix); })
+    .catch(function() { /* gallery works without QR — ignore */ });
+}
+
 // =====================================================================
-// Debug Mode Init — called from display.js when ?debug=N
+// Scenario Init — called from display.js when ?debug=N or ?scenario=...
 // =====================================================================
 
-function initDebugMode(debugCount) {
-  var debugNames = ['Emma', 'Jake', 'Sofia', 'Liam', 'Mia', 'Noah', 'Ava', 'Leo'];
-  var debugPlayers = [];
-  for (var di = 0; di < Math.min(debugCount, 8); di++) {
-    debugPlayers.push({ id: 'debug' + di, name: debugNames[di] || ('P' + (di + 1)) });
+function initScenario(opts) {
+  opts = opts || {};
+  var scenario = opts.scenario || 'playing';
+  var playerCount = Math.max(1, Math.min(opts.players || 1, 8));
+  var level = opts.level || 1;
+
+  // Welcome: no players, stay on welcome screen.
+  if (scenario === 'welcome') {
+    showScreen(SCREEN.WELCOME);
+    return;
   }
+
+  // Lobby: populate players and show lobby screen.
+  if (scenario === 'lobby') {
+    window.__TEST__.addPlayers(_buildDebugPlayers(playerCount, level));
+    _fakeLobbyQR();
+    showScreen(SCREEN.LOBBY);
+    return;
+  }
+
+  // All other scenarios need players + some game state.
+  var debugPlayers = _buildDebugPlayers(playerCount, level);
   window.__TEST__.addPlayers(debugPlayers);
 
-  var debugState = _buildHexDebugState(debugPlayers);
-  window.__TEST__.injectGameState(debugState);
+  if (scenario === 'countdown') {
+    setRoomState(ROOM_STATE.COUNTDOWN);
+    showScreen(SCREEN.GAME);
+    calculateLayout();
+    countdownOverlay.classList.remove('hidden');
+    countdownOverlay.textContent = '3';
+    startRenderLoop();
+    return;
+  }
+
+  var state = _buildHexDebugState(debugPlayers, level);
+  window.__TEST__.injectGameState(state);
   startRenderLoop();
+
+  if (scenario === 'pause') {
+    window.__TEST__.injectPause();
+    return;
+  }
+  if (scenario === 'ko') {
+    // KO every player — grand-finale visual.
+    for (var kI = 0; kI < debugPlayers.length; kI++) {
+      window.__TEST__.injectKO(debugPlayers[kI].id);
+      state.players[kI].alive = false;
+    }
+    return;
+  }
+  if (scenario === 'line-clear') {
+    var HC_lc = GameConstants.COLS;
+    var HV_lc = GameConstants.VISIBLE_ROWS;
+    var types_lc = GameConstants.PIECE_TYPES;
+    // Wipe slot 0 clean so only the rows about to be cleared are filled —
+    // otherwise the debug state's checkerboard on row HV-3 stays visible
+    // after the clear and it looks like the clear didn't work.
+    for (var rClean = 0; rClean < HV_lc; rClean++) {
+      for (var cClean = 0; cClean < HC_lc; cClean++) {
+        state.players[0].grid[rClean][cClean] = 0;
+      }
+    }
+    for (var lr = HV_lc - 2; lr < HV_lc; lr++) {
+      for (var lc = 0; lc < HC_lc; lc++) {
+        state.players[0].grid[lr][lc] = ((lc + lr) % types_lc.length) + 1;
+      }
+    }
+    state.players[0].gridVersion = 0;
+    _delayTrigger(function() {
+      _fireLineClear(0, 2);
+      // After the animation's peak, zero the cells + bump gridVersion so the
+      // BoardRenderer cache invalidates and the rows visibly vanish.
+      setTimeout(function() {
+        for (var r2 = HV_lc - 2; r2 < HV_lc; r2++) {
+          for (var c2 = 0; c2 < HC_lc; c2++) state.players[0].grid[r2][c2] = 0;
+        }
+        state.players[0].gridVersion++;
+      }, 400);
+    });
+    return;
+  }
+  if (scenario === 'garbage-add') {
+    // Reset baseline pending so the incoming animation starts clean — the
+    // debug state seeds slot 0 with 3 pending, which would mask the effect.
+    for (var gi = 0; gi < state.players.length; gi++) state.players[gi].pendingGarbage = 0;
+    _delayTrigger(function() {
+      onGarbageSent({
+        toId: debugPlayers[0].id,
+        senderId: debugPlayers[Math.min(1, debugPlayers.length - 1)].id,
+        lines: 3
+      });
+      // Leave the meter filled in — the indicator animation is temporary but
+      // the pending count should persist so the "incoming garbage" state is
+      // visible after the effect fades.
+      state.players[0].pendingGarbage = 3;
+    });
+    return;
+  }
+  if (scenario === 'garbage-defend') {
+    // Seed pendingGarbage so onGarbageCancelled has something to cancel.
+    state.players[0].pendingGarbage = 3;
+    _delayTrigger(function() {
+      onGarbageCancelled({ playerId: debugPlayers[0].id, lines: 2 });
+      // Drop pending to reflect the cancellation in the next frame.
+      state.players[0].pendingGarbage = 1;
+    });
+    return;
+  }
+  if (scenario === 'reconnecting') {
+    reconnectOverlay.classList.remove('hidden');
+    reconnectHeading.textContent = t('reconnecting');
+    reconnectStatus.textContent = t('attempt_n_of_m', { attempt: 2, max: 5 });
+    reconnectBtn.classList.add('hidden');
+    return;
+  }
+  if (scenario === 'disconnected') {
+    reconnectOverlay.classList.remove('hidden');
+    reconnectHeading.textContent = t('disconnected');
+    reconnectStatus.textContent = '';
+    reconnectBtn.classList.remove('hidden');
+    return;
+  }
+  if (scenario === 'results') {
+    var results = { elapsed: 123456, results: [] };
+    for (var i = 0; i < debugPlayers.length; i++) {
+      var pInfo = players.get(debugPlayers[i].id);
+      results.results.push({
+        playerId: debugPlayers[i].id,
+        playerName: debugPlayers[i].name,
+        playerColor: pInfo && pInfo.playerColor,
+        rank: i + 1,
+        lines: 30 - i * 3,
+        level: level + (playerCount - 1 - i)
+      });
+    }
+    window.__TEST__.injectResults(results);
+    return;
+  }
+  // 'playing' is the default — already handled by injectGameState above.
+}
+
+// Backwards-compat shim for any old callers.
+function initDebugMode(count) {
+  initScenario({ scenario: 'playing', players: count });
 }
