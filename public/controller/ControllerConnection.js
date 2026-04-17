@@ -7,6 +7,11 @@
 // =====================================================================
 
 function connect() {
+  // Gallery iframes load with ?scenario=; never open a real relay socket
+  // for those, even if localStorage somehow holds a stored clientId for
+  // room "GALLERY". Visual tests use ?test=1 alone and still need connect().
+  if (new URLSearchParams(location.search).get('scenario')) return;
+
   if (party) party.close();
 
   party = new PartyConnection(RELAY_URL, { clientId: clientId });

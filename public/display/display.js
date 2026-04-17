@@ -230,15 +230,20 @@ fetch('/api/version').then(function(r) { return r.json(); }).then(function(data)
 }).catch(function() {});
 
 var bgCanvas = document.getElementById('bg-canvas');
-if (bgCanvas && urlParams.get('test') !== '1') {
+if (bgCanvas && (urlParams.get('test') !== '1' || urlParams.get('bg') === '1')) {
   welcomeBg = new WelcomeBackground(bgCanvas);
   welcomeBg.resize(window.innerWidth, window.innerHeight);
   welcomeBg.start();
 }
 
 // --- Debug or normal init ---
-if (debugCount > 0 && window.__TEST__) {
-  initDebugMode(debugCount);
+var _scenarioParam = urlParams.get('scenario');
+if (window.__TEST__ && (debugCount > 0 || _scenarioParam)) {
+  initScenario({
+    scenario: _scenarioParam || 'playing',
+    players: debugCount || parseInt(urlParams.get('players'), 10) || 1,
+    level: parseInt(urlParams.get('level'), 10) || 1
+  });
 } else if (urlParams.get('test') === '1') {
   // Test mode: skip relay connection — tests inject state directly
   fetchBaseUrl();

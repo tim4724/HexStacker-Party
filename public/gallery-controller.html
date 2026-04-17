@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Controller Gallery — HexStacker Party</title>
+<link rel="stylesheet" href="/shared/theme.css">
+<link rel="stylesheet" href="/gallery.css">
+</head>
+<body>
+<header>
+  <h1>HEX STACKER · CONTROLLER</h1>
+
+  <div class="group">
+    <span class="group-label">AR</span>
+    <select id="controller-ar">
+      <option value="default" selected>9:19.5</option>
+      <option value="9x16">9:16</option>
+      <option value="3x4">3:4</option>
+      <option value="landscape">Landscape</option>
+    </select>
+  </div>
+
+  <div class="group">
+    <span class="group-label">Players</span>
+    <input type="number" id="player-count" min="1" max="8" value="4">
+  </div>
+
+  <div class="group">
+    <span class="group-label">Level</span>
+    <input type="number" id="level" min="1" max="15" value="1">
+  </div>
+
+  <div class="group">
+    <span class="group-label">Language</span>
+    <select id="language">
+      <option value="en">English</option>
+      <option value="de">Deutsch</option>
+      <option value="fr">Français</option>
+      <option value="pt">Português</option>
+      <option value="es">Español</option>
+      <option value="it">Italiano</option>
+      <option value="tr">Türkçe</option>
+      <option value="ru">Русский</option>
+      <option value="zh">中文</option>
+      <option value="ja">日本語</option>
+      <option value="ko">한국어</option>
+    </select>
+  </div>
+
+  <div class="group">
+    <span class="group-label">Cards/row</span>
+    <select id="cards-per-row">
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+      <option value="6">6</option>
+      <option value="7">7</option>
+      <option value="8" selected>8</option>
+    </select>
+  </div>
+
+  <div class="group">
+    <button class="ctrl" id="reload-all">↻ Reload all</button>
+  </div>
+
+  <nav>
+    <a href="/gallery.html">Display</a>
+    <a href="/gallery-controller.html" class="active">Controller</a>
+  </nav>
+</header>
+
+<section class="rail">
+  <div id="controller-rows"></div>
+</section>
+
+<script src="/gallery-common.js"></script>
+<script src="/gallery-controller.js"></script>
+</body>
+</html>

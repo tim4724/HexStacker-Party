@@ -183,7 +183,19 @@ const server = http.createServer((req, res) => {
           "frame-ancestors https://www.airconsole.com" + (APP_ENV !== 'production' ? " http://http.airconsole.com" : ""),
         ].join('; ');
       } else {
-        headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' wss://ws.hexstackerparty.com; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'";
+        // Pages that are iframed by the UI gallery (/gallery.html and
+        // /gallery-controller.html) need `frame-ancestors 'self'`; the
+        // gallery pages themselves — and any other HTML — stay at 'none'.
+        // NOTE: this list pairs with the routing block above (/ → display,
+        //       / + single segment → controller). Keep them in sync if
+        //       those mappings ever change.
+        const iframeable =
+          urlPath === '/display/index.html' ||
+          urlPath === '/controller/index.html' ||
+          urlPath === '/privacy.html' ||
+          urlPath === '/imprint.html';
+        const frameAncestors = iframeable ? "'self'" : "'none'";
+        headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' wss://ws.hexstackerparty.com; img-src 'self' data:; object-src 'none'; frame-src 'self'; frame-ancestors " + frameAncestors;
       }
     }
 
