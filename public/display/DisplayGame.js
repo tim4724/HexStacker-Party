@@ -6,6 +6,10 @@
 // Called by: display.js (message handlers and UI buttons)
 // =====================================================================
 
+// Grace period before ending a game when all active players have disconnected
+// but late joiners are waiting — lets the host reconnect before we bail out.
+var LATE_JOINER_GRACE_MS = 5000;
+
 // Wake Lock — prevent screen sleep during active games
 function acquireWakeLock() {
   if (!navigator.wakeLock) return;
@@ -142,23 +146,14 @@ function clearLateJoinerGraceTimer() {
   }
 }
 
-// 5s grace before ending the game so a reconnecting host doesn't trigger it.
-// Cancelled in DisplayInput when any active player reconnects.
-var LATE_JOINER_GRACE_MS = 5000;
-
 function checkAllPlayersDisconnected() {
   // Don't auto-pause during COUNTDOWN — let it finish so disconnect QRs become visible.
   if (roomState !== ROOM_STATE.PLAYING) return;
-  if (paused) return;
   if (!allPlayersDisconnected()) return;
-  // Silent pause — no overlay, no broadcast (all controllers are gone)
-  paused = true;
-  setAutoPaused(true);
-  if (displayGame) displayGame.pause();
-  if (music) music.pause();
 
-  // Without this, a late joiner sits on a frozen waiting screen with no exit
-  // path (they can't control the paused game, and returnToLobby is host-gated).
+  // Start the grace timer regardless of pause state — a manually-paused host
+  // who then disconnects strands late joiners the same way an unpaused one
+  // does. Cancelled in DisplayInput when any active player reconnects.
   if (hasLateJoiners() && !lateJoinerGraceTimer) {
     lateJoinerGraceTimer = setTimeout(function() {
       lateJoinerGraceTimer = null;
@@ -167,6 +162,13 @@ function checkAllPlayersDisconnected() {
       }
     }, LATE_JOINER_GRACE_MS);
   }
+
+  if (paused) return;
+  // Silent pause — no overlay, no broadcast (all controllers are gone)
+  paused = true;
+  setAutoPaused(true);
+  if (displayGame) displayGame.pause();
+  if (music) music.pause();
 }
 
 function checkAutoResume() {
