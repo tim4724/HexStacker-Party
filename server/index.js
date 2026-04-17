@@ -183,10 +183,14 @@ const server = http.createServer((req, res) => {
           "frame-ancestors https://www.airconsole.com" + (APP_ENV !== 'production' ? " http://http.airconsole.com" : ""),
         ].join('; ');
       } else {
-        // Only the display and controller pages are ever iframed (by the
-        // UI gallery at /gallery.html). Every other page — gallery itself,
-        // privacy, imprint — keeps the strictest policy.
-        const iframeable = urlPath === '/display/index.html' || urlPath === '/controller/index.html';
+        // Pages that are iframed by the UI gallery (/gallery.html and
+        // /gallery-controller.html) need `frame-ancestors 'self'`; the
+        // gallery pages themselves — and any other HTML — stay at 'none'.
+        const iframeable =
+          urlPath === '/display/index.html' ||
+          urlPath === '/controller/index.html' ||
+          urlPath === '/privacy.html' ||
+          urlPath === '/imprint.html';
         const frameAncestors = iframeable ? "'self'" : "'none'";
         headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' wss://ws.hexstackerparty.com; img-src 'self' data:; object-src 'none'; frame-ancestors " + frameAncestors;
       }

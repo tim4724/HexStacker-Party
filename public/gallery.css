@@ -44,13 +44,6 @@ section.rail > h2 {
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
-/* Display cards: auto-fill grid */
-.display-grid {
-  display: grid;
-  gap: 24px;
-  grid-template-columns: repeat(auto-fill, minmax(var(--card-min, 440px), 1fr));
-}
-
 /* Controller scenarios: one row per scenario, 8 player colors horizontally */
 .scenario-row { margin-bottom: 22px; }
 .scenario-row > h3 {
