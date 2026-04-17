@@ -193,6 +193,12 @@ muteBtn.addEventListener('click', function () {
 
 pauseBtn.addEventListener('click', function () {
   vibrate(10);
+  // Mark the upcoming GAME_PAUSED as self-initiated so onGamePaused can skip
+  // the pause-overlay's anti-misclick gate. Timeout guards against a dropped
+  // PAUSE_GAME leaving the flag sticky for a later unrelated pause.
+  selfPausing = true;
+  clearTimeout(selfPausingTimer);
+  selfPausingTimer = setTimeout(function () { selfPausing = false; }, 2000);
   sendToDisplay(MSG.PAUSE_GAME);
 });
 
@@ -242,13 +248,11 @@ levelPlusBtn.addEventListener('click', function () {
 });
 
 playAgainBtn.addEventListener('click', function () {
-  if (!gameoverButtonsReady) return;
   vibrate(10);
   sendToDisplay(MSG.PLAY_AGAIN);
 });
 
 newGameBtn.addEventListener('click', function () {
-  if (!gameoverButtonsReady) return;
   vibrate(10);
   sendToDisplay(MSG.RETURN_TO_LOBBY);
 });

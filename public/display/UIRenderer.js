@@ -42,7 +42,20 @@ var HEX_MINI_BOUNDS = {};
       sMinR = Math.min(sMinR, shifted[j].row);
       sMaxR = Math.max(sMaxR, shifted[j].row);
     }
-    HEX_MINI_BOUNDS[type] = { minC: sMinC, maxC: sMaxC, minR: sMinR, maxR: sMaxR, offsets: shifted };
+    // True vertical midpoint (hexH units, relative to oy) — accounts for the
+    // half-hex stagger on a per-cell basis so q/p/L/J (odd-column cells on
+    // the max-row side) don't sit ¼ hex below the slot center.
+    var vMin = Infinity, vMax = -Infinity;
+    for (var k = 0; k < shifted.length; k++) {
+      var yu = shifted[k].row + 0.5 * (shifted[k].col & 1);
+      if (yu < vMin) vMin = yu;
+      if (yu > vMax) vMax = yu;
+    }
+    HEX_MINI_BOUNDS[type] = {
+      minC: sMinC, maxC: sMaxC, minR: sMinR, maxR: sMaxR,
+      offsets: shifted,
+      visMidUnits: (vMin + vMax + 1) / 2,
+    };
   }
 })();
 
@@ -293,22 +306,14 @@ class UIRenderer {
     ctx.letterSpacing = '0px';
   }
 
-  // Tactile panel recipe — mirrors the HTML card primitive:
-  //   soft outer shadow + top-to-bottom gradient + inset top bevel + thin
-  //   player-tinted stroke. Each layer is applied separately so shadow
-  //   state doesn't leak into subsequent strokes/fills.
+  // Flat panel recipe — mirrors the HTML card primitive:
+  //   top-to-bottom gradient + inset top bevel + thin player-tinted stroke.
   _drawPanel(x, y, w, h) {
     var ctx = this.ctx;
     var r = THEME.radius.panel(this.cellSize);
     var cellSize = this.cellSize;
 
-    // 1. Soft outer shadow + gradient fill (shadow cast below the panel).
-    ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-    ctx.shadowBlur = cellSize * 0.55;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = cellSize * 0.15;
-
+    // 1. Gradient fill.
     var gradient = ctx.createLinearGradient(x, y, x, y + h);
     gradient.addColorStop(0, THEME.color.bg.cardSoft);
     gradient.addColorStop(1, THEME.color.bg.card);
@@ -317,7 +322,6 @@ class UIRenderer {
     ctx.beginPath();
     _addRoundRectSubPath(ctx, x, y, w, h, r);
     ctx.fill();
-    ctx.restore();
 
     // 2. Player-color wash for identity (very subtle, no shadow).
     if (this._panelTintFill) {
@@ -477,12 +481,12 @@ class UIRenderer {
     var hexH = _SQRT3 * hexS;   // height of flat-top hex (layout spacing)
     var colW = 1.5 * hexS;            // column spacing
     var cols = bounds.maxC - bounds.minC + 1;
-    var rows = bounds.maxR - bounds.minR + 1;
     var totalW = colW * (cols - 1) + 2 * hexS;
-    // Total height: row spacing * (rows-1) + hex height + half hex for odd col stagger
-    var totalH = hexH * rows + hexH * 0.5;
     var ox = centerX - totalW / 2;
-    var oy = centerY - totalH / 2;
+    // Center on the piece's true visual midpoint (cell center-of-bounds in
+    // hexH units), not a bounding-box approximation — the stagger shifts
+    // some pieces' visual mass off-center otherwise.
+    var oy = centerY - hexH * bounds.visMidUnits;
 
     var stamp = getHexStamp(this._styleTier, color, _SQRT3 * drawS);
     var ctx = this.ctx;

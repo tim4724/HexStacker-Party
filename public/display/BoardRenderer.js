@@ -108,15 +108,6 @@ class BoardRenderer {
       gc.fillRect(0, 0, w, h);
     }
 
-    // Top bevel — horizontal white line just inside the top edge of the hex.
-    gc.strokeStyle = 'rgba(255, 255, 255, 0.10)';
-    gc.lineWidth = Math.max(1, this.cellSize * 0.04);
-    var bevelY = Math.max(2, this.cellSize * 0.08);
-    gc.beginPath();
-    gc.moveTo(0, bevelY);
-    gc.lineTo(w, bevelY);
-    gc.stroke();
-
     gc.restore();
 
     // 2. Grid lines — draw opaque on a temp canvas, then composite at target alpha.

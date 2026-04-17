@@ -174,12 +174,6 @@
       lastGameResults = resultsW;
       renderGameResults(resultsW);
       showScreen('gameover');
-      // Reveal buttons immediately for the gallery snapshot.
-      gameoverButtons.style.opacity = '';
-      gameoverButtons.style.pointerEvents = '';
-      gameoverButtonsReady = true;
-      clearTimeout(gameoverButtonsTimer);
-      gameoverButtonsTimer = null;
       break;
     }
 

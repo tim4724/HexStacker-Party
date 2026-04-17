@@ -574,6 +574,13 @@ body.airconsole #qr-container,
 #pause-buttons {
   display: flex;
   gap: clamp(0.8rem, 1.5vw, 1.5rem);
+  animation: resultsButtonsEnter 0.4s ease 1.5s both;
+}
+
+/* Self-initiated pause: whoever clicked pause sees buttons immediately — no
+   misclick risk. Remote-triggered pause keeps the full 1.5s gate. */
+#pause-overlay.pause-overlay--self #pause-buttons {
+  animation: none;
 }
 
 /* Overlay action buttons — pause/reconnect/results share one sizing scale. */
@@ -675,14 +682,7 @@ body.airconsole #qr-container,
   display: flex;
   gap: clamp(0.8rem, 1.5vw, 1.5rem);
   margin-top: clamp(1.5rem, 3vh, 3rem);
-}
-
-#play-again-btn {
-  animation: resultsBtnIn 0.5s 0.6s ease-out backwards;
-}
-
-#new-game-results-btn {
-  animation: resultsBtnIn 0.5s 0.7s ease-out backwards;
+  animation: resultsButtonsEnter 0.4s ease 1.5s both;
 }
 
 /* ============================================

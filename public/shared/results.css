@@ -14,6 +14,14 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Anti-misclick gate for the results action row. pointer-events is a discrete
+   property, so it flips at the end of the animation delay — clicks are blocked
+   until the buttons have visibly appeared. */
+@keyframes resultsButtonsEnter {
+  from { opacity: 0; pointer-events: none; }
+  to { opacity: 1; pointer-events: auto; }
+}
+
 /* --- Result rows — neutral card treatment; rank color is set via inline
    style from the player's palette in JS (no medal podium). --- */
 

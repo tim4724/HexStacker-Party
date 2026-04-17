@@ -143,29 +143,36 @@ function applyRoomCreated(partyRoomCode, newJoinUrl) {
     joinUrlEl.dataset.copyBound = '1';
     joinUrlEl.setAttribute('role', 'button');
     joinUrlEl.setAttribute('tabindex', '0');
+    var showCopiedToast = function() {
+      joinUrlEl.setAttribute('data-copied-label', t('copied') || 'Copied');
+      joinUrlEl.setAttribute('data-copied', '1');
+      clearTimeout(joinUrlEl._copyTimer);
+      joinUrlEl._copyTimer = setTimeout(function() {
+        joinUrlEl.removeAttribute('data-copied');
+      }, 1600);
+    };
     var copyToClipboard = function() {
       if (!joinUrl) return;
-      var write = navigator.clipboard && navigator.clipboard.writeText
-        ? navigator.clipboard.writeText(joinUrl)
-        : Promise.reject();
-      write.catch(function() {
-        // Fallback: offscreen textarea + execCommand('copy') for old browsers
-        var ta = document.createElement('textarea');
-        ta.value = joinUrl;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        try { document.execCommand('copy'); } catch (_) {}
-        document.body.removeChild(ta);
-      }).finally(function() {
-        joinUrlEl.setAttribute('data-copied-label', t('copied') || 'Copied');
-        joinUrlEl.setAttribute('data-copied', '1');
-        clearTimeout(joinUrlEl._copyTimer);
-        joinUrlEl._copyTimer = setTimeout(function() {
-          joinUrlEl.removeAttribute('data-copied');
-        }, 1600);
-      });
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(joinUrl).then(showCopiedToast, tryExecCommandFallback);
+      } else {
+        tryExecCommandFallback();
+      }
+    };
+    // Legacy fallback: offscreen textarea + execCommand('copy'). Reports
+    // success via document.execCommand's return value so the toast only
+    // shows when the copy actually landed.
+    var tryExecCommandFallback = function() {
+      var ta = document.createElement('textarea');
+      ta.value = joinUrl;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (_) {}
+      document.body.removeChild(ta);
+      if (ok) showCopiedToast();
     };
     joinUrlEl.addEventListener('click', copyToClipboard);
     joinUrlEl.addEventListener('keydown', function(e) {

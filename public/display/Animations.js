@@ -196,7 +196,6 @@ class Animations {
     var duration = THEME.timing.textPopup;
     var cs = cellSize ?? 30;
     var fontStr = '900 ' + (cs * 0.73) + 'px ' + getDisplayFont();
-    var shadowSize = cs * 0.53;
     var highlightY = -cs * 0.03;
 
     this.active.push({
@@ -210,7 +209,6 @@ class Animations {
       hasGlow: hasGlow || false,
       fontStr,
       cs,
-      shadowSize,
       highlightY,
       render(ctx, progress) {
         // Ease out for smooth motion
@@ -222,20 +220,14 @@ class Animations {
         ctx.scale(progress < 0.15 ? 0.5 + (progress / 0.15) * 0.7 : 1.2 - ease * 0.2, progress < 0.15 ? 0.5 + (progress / 0.15) * 0.7 : 1.2 - ease * 0.2);
         ctx.globalAlpha = alpha;
 
-        if (this.hasGlow) {
-          ctx.shadowColor = this.color;
-          ctx.shadowBlur = this.shadowSize;
-        }
-
         ctx.fillStyle = this.color;
         ctx.font = this.fontStr;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(this.text, 0, 0);
 
-        // White inner highlight
+        // White inner highlight on the bigger-achievement popups.
         if (this.hasGlow) {
-          ctx.shadowBlur = 0;
           ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
           ctx.fillText(this.text, 0, this.highlightY);
         }

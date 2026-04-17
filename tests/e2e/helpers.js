@@ -162,9 +162,11 @@ async function waitForControllerGame(page) {
 
 async function waitForControllerResults(page) {
   await page.waitForSelector('#gameover-screen:not(.hidden)', { timeout: 30000 });
-  // Buttons fade in after a 2s delay via opacity 0 → 1
+  // Buttons are gated by the resultsButtonsEnter CSS animation (1.5s delay
+  // then 0.4s fade). pointer-events flips to auto at the end of the
+  // animation, so polling it tells us the buttons are actually clickable.
   await page.waitForFunction(
-    () => document.getElementById('gameover-buttons').style.opacity !== '0',
+    () => getComputedStyle(document.getElementById('gameover-buttons')).pointerEvents === 'auto',
     { timeout: 5000 }
   );
   await page.waitForTimeout(200);

@@ -137,7 +137,8 @@
    --player-color is set on <body> by JS; when unset, these fall back to
    --accent-primary (Red). Text always uses --btn-primary-text (Cocoa plum)
    since every PARTY_PALETTE slot reads better with dark text. The
-   color-mix(82%, black) darkening mirrors --accent-primary → --accent-primary-dark. */
+   color-mix(in srgb, <color> 82%, black) darkening mirrors the shape
+   of --accent-primary → --accent-primary-dark. */
 #start-btn:not(:disabled),
 #pause-continue-btn,
 #play-again-btn,
