@@ -86,7 +86,6 @@ const THEME = Object.freeze({
       tertiary:     '#FFD166', // palette slot 3 Honey — toast/low-priority accent
     }),
     danger:  '#ff4444',
-    garbage: '#3A2F4A',         // plum-gray, in-palette
     ko: Object.freeze({
       text: '#ff4444',
       glow: 'rgba(255, 50, 50, 0.6)',
