@@ -15,22 +15,36 @@ class Animations {
     const cs = cellSize ?? 30;
     const base = sizeBase ?? 0.05;
     const range = sizeRange ?? 0.07;
+    const rotStart = Math.random() * Math.PI * 2;
+    const rotSpeed = (Math.random() - 0.5) * 6;  // radians/sec
 
     this.active.push({
       type: 'sparkle',
       startTime: performance.now(),
       duration,
-      x, y, vx, vy, color,
+      x, y, vx, vy, color, rotStart, rotSpeed,
       size: cs * (base + Math.random() * range),
       render(ctx, progress) {
         var t = progress * this.duration / 1000;
         var px = this.x + this.vx * t;
         var py = this.y + this.vy * t + 80 * t * t; // gravity
         var sz = this.size * (1 - progress * 0.5);
+        var rot = this.rotStart + this.rotSpeed * t;
+        ctx.save();
         ctx.globalAlpha = 1 - progress;
+        ctx.translate(px, py);
+        ctx.rotate(rot);
         ctx.fillStyle = this.color;
-        ctx.fillRect(px - sz / 2, py - sz / 2, sz, sz);
-        ctx.globalAlpha = 1;
+        // Hex-shaped confetti particle — fits the game's visual language.
+        ctx.beginPath();
+        for (var vi = 0; vi < 6; vi++) {
+          var a = Math.PI / 3 * vi;
+          var ux = Math.cos(a) * sz, uy = Math.sin(a) * sz;
+          if (vi === 0) ctx.moveTo(ux, uy); else ctx.lineTo(ux, uy);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
       }
     });
   }
@@ -105,17 +119,27 @@ class Animations {
       }
     }
 
-    // Sparkle particles
+    // Confetti particles — palette-colored hexes on quad, white on smaller clears.
+    // PIECE_COLORS is 1..8 (skip 0=empty, 9=garbage) for the party palette.
+    var CONFETTI_IDS = [1, 2, 3, 4, 5, 6, 7, 8];
     for (var si = 0; si < cells.length; si++) {
       var sc = cells[si][0], sr = cells[si][1];
       if (sr < 0) continue;
       var sparkPos = hexCenter(sc, sr);
-      var particleCount = isQuad ? 4 : 2;
+      var particleCount = isQuad ? 5 : isTriple ? 3 : 2;
       for (var j = 0; j < particleCount; j++) {
+        var pColor;
+        if (isQuad) {
+          pColor = PIECE_COLORS[CONFETTI_IDS[(Math.random() * CONFETTI_IDS.length) | 0]];
+        } else if (isTriple) {
+          pColor = THEME.color.triple;
+        } else {
+          pColor = '#ffffff';
+        }
         this._addSparkle(
           sparkPos.x + (Math.random() - 0.5) * hexSize * 2,
           sparkPos.y,
-          isQuad ? THEME.color.quad : '#ffffff',
+          pColor,
           200 + Math.random() * 400,
           hexSize
         );

@@ -10,10 +10,10 @@ var _getIndicatorColor = function(e) { return e.color; };
 var _getDefenceColor = function() { return THEME.color.text.white; };
 
 // Disconnected-overlay fallback tints (used when a player color is not
-// provided). Derived once from the theme accent-cyan token so the canvas
-// renderer stays in sync with CSS.
-var _DISCONNECT_TEXT_FALLBACK = rgbaFromHex(THEME.color.accent.cyan, 0.7);
-var _DISCONNECT_QR_BORDER = rgbaFromHex(THEME.color.accent.cyan, 0.15);
+// provided). Derived once from the theme secondary-accent token so the
+// canvas renderer stays in sync with CSS.
+var _DISCONNECT_TEXT_FALLBACK = rgbaFromHex(THEME.color.accent.secondary, 0.7);
+var _DISCONNECT_QR_BORDER = rgbaFromHex(THEME.color.accent.secondary, 0.15);
 
 // Compute bounding boxes for flat-top hex mini pieces using odd-q offset conversion.
 var HEX_MINI_BOUNDS = {};
@@ -293,23 +293,59 @@ class UIRenderer {
     ctx.letterSpacing = '0px';
   }
 
+  // Tactile panel recipe — mirrors the HTML card primitive:
+  //   soft outer shadow + top-to-bottom gradient + inset top bevel + thin
+  //   player-tinted stroke. Each layer is applied separately so shadow
+  //   state doesn't leak into subsequent strokes/fills.
   _drawPanel(x, y, w, h) {
     var ctx = this.ctx;
     var r = THEME.radius.panel(this.cellSize);
+    var cellSize = this.cellSize;
+
+    // 1. Soft outer shadow + gradient fill (shadow cast below the panel).
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+    ctx.shadowBlur = cellSize * 0.55;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = cellSize * 0.15;
+
+    var gradient = ctx.createLinearGradient(x, y, x, y + h);
+    gradient.addColorStop(0, THEME.color.bg.cardSoft);
+    gradient.addColorStop(1, THEME.color.bg.card);
+    ctx.fillStyle = gradient;
 
     ctx.beginPath();
     _addRoundRectSubPath(ctx, x, y, w, h, r);
-
-    ctx.fillStyle = THEME.color.bg.board;
     ctx.fill();
+    ctx.restore();
 
+    // 2. Player-color wash for identity (very subtle, no shadow).
     if (this._panelTintFill) {
       ctx.fillStyle = this._panelTintFill;
+      ctx.beginPath();
+      _addRoundRectSubPath(ctx, x, y, w, h, r);
       ctx.fill();
     }
 
+    // 3. Inset top bevel — thin bright horizontal line just inside the top rim.
+    ctx.save();
+    ctx.beginPath();
+    _addRoundRectSubPath(ctx, x, y, w, h, r);
+    ctx.clip();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+    ctx.lineWidth = Math.max(1, cellSize * 0.03);
+    ctx.beginPath();
+    var bevelInset = Math.max(1, cellSize * 0.015);
+    ctx.moveTo(x + r * 0.5, y + bevelInset);
+    ctx.lineTo(x + w - r * 0.5, y + bevelInset);
+    ctx.stroke();
+    ctx.restore();
+
+    // 4. Thin player-tinted rim stroke for identity.
     ctx.strokeStyle = this._panelStroke;
-    ctx.lineWidth = this.cellSize * THEME.stroke.border;
+    ctx.lineWidth = Math.max(1, cellSize * THEME.stroke.border * 0.6);
+    ctx.beginPath();
+    _addRoundRectSubPath(ctx, x, y, w, h, r);
     ctx.stroke();
   }
 

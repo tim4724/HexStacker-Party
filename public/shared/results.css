@@ -5,8 +5,9 @@
 /* --- Keyframes --- */
 
 @keyframes btnPulse {
-  0%, 100% { box-shadow: 0 0 20px var(--glow-green); }
-  50% { box-shadow: 0 0 36px rgba(var(--accent-green-rgb), 0.5); }
+  /* Cushion-breathe: shadow depth pulses without a neon glow. */
+  0%, 100% { box-shadow: var(--shadow-md), var(--bevel-btn); }
+  50%      { box-shadow: var(--shadow-lg), var(--bevel-btn); }
 }
 
 @keyframes resultRowIn {

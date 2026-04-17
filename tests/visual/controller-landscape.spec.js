@@ -120,7 +120,7 @@ test.describe('Controller Landscape', () => {
       var gs = document.getElementById('game-screen');
       gs.classList.remove('countdown', 'paused');
       gs.classList.add('dead');
-      gs.style.setProperty('--player-color', '#FFE66D');
+      gs.style.setProperty('--player-color', '#FFD166');
       document.getElementById('player-name').textContent = 'Player 3';
       document.getElementById('touch-area').setAttribute('data-player-name', 'Player 3');
       document.getElementById('pause-btn').classList.remove('hidden');
