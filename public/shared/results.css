@@ -14,8 +14,8 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* --- Result rows — neutral card treatment; rank colors come from the
-   player's own palette via --row-rank-color (no medal podium). --- */
+/* --- Result rows — neutral card treatment; rank color is set via inline
+   style from the player's palette in JS (no medal podium). --- */
 
 .result-row {
   display: flex;
@@ -28,15 +28,15 @@
   animation-delay: var(--row-delay, 0.2s);
 }
 
-/* --- Rank ordinal — plain text tinted by the player's color.
-   Per-surface rules set font-size, margin, and alignment. --- */
+/* --- Rank ordinal — color set via inline style from JS; fallback keeps it
+   readable when no player color is available. --- */
 
 .result-rank {
   font-family: 'Orbitron', sans-serif;
   font-weight: 900;
   letter-spacing: -0.02em;
   flex-shrink: 0;
-  color: var(--row-rank-color, var(--text-secondary));
+  color: var(--text-secondary);
 }
 
 /* --- Name --- */

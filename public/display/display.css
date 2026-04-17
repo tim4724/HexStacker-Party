@@ -324,10 +324,9 @@ body.airconsole #lobby-version-label { display: block; }
 /* Player-count buckets: ≤4 → 2×2, ≥5 → 2×4. Container is capped to
    exactly N card widths so flex-wrap produces the intended row/col grid. */
 #player-list.pl--sm { max-width: calc(var(--card-w) * 2 + var(--card-gap)); }
-#player-list.pl--lg { max-width: calc(var(--card-w) * 4 + var(--card-gap) * 3); }
 /* 5+ players: row 1 always fills 4 cards; left-align so the wrapped row
    aligns with the first column instead of centering independently. */
-#player-list.pl--lg { justify-content: flex-start; }
+#player-list.pl--lg { max-width: calc(var(--card-w) * 4 + var(--card-gap) * 3); justify-content: flex-start; }
 
 .player-card {
   display: flex;
@@ -713,7 +712,7 @@ body.airconsole #qr-container,
      so falling pieces still show through. "Continue Anyway" removes
      #end-screen from the DOM, so :has stops matching and the screens
      reappear via their normal display logic. */
-  body:has(#end-screen) .screen { display: none !important; }
+  body:has(#end-screen:not(.hidden)) .screen { display: none !important; }
 }
 
 /* --- AirConsole overrides --- */

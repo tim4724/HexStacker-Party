@@ -130,7 +130,7 @@ html, body {
 
 .join-url-hint {
   position: absolute;
-  bottom: max(env(safe-area-inset-bottom), 12px);
+  bottom: max(env(safe-area-inset-bottom), 4px);
   left: 12px;
   right: 12px;
   font-size: clamp(1rem, 4.5vw, 1.2rem);
@@ -142,7 +142,7 @@ html, body {
 
 .legal-links {
   position: absolute;
-  bottom: calc(env(safe-area-inset-bottom) + 16px);
+  bottom: calc(env(safe-area-inset-bottom) + 4px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -874,14 +874,11 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
 
   .controller-shell__actions {
     max-width: 360px;
+    align-items: center;
   }
 
   #name-form {
     max-width: 280px;
-  }
-
-  .controller-shell__actions {
-    align-items: center;
   }
 
   /* Status banners need breathing room for longer messages like
