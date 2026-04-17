@@ -136,7 +136,15 @@ async function stabilizeDisplayLobby(page) {
   // Wait for layout to settle before rendering QR at a fixed CSS size
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await page.evaluate(({ url, matrix }) => {
-    document.getElementById('join-url').textContent = url;
+    // Write to the host/code child spans — setting textContent on the
+    // parent would destroy them.
+    try {
+      var parsed = new URL(url);
+      var hostEl = document.querySelector('#join-url .join-url__host');
+      var codeEl = document.querySelector('#join-url .join-url__code');
+      if (hostEl) hostEl.textContent = parsed.host + '/';
+      if (codeEl) codeEl.textContent = parsed.pathname.replace(/^\//, '');
+    } catch (_) { /* keep existing content on parse failure */ }
     // Strip join-pop animations so scale transform doesn't cause anti-aliasing jitter
     document.querySelectorAll('.player-card.join-pop').forEach(function(el) {
       el.classList.remove('join-pop');

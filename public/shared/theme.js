@@ -18,11 +18,6 @@ const PARTY_PALETTE = Object.freeze([
   '#FF8C42'  // 8 Tangerine
 ]);
 
-const UI_ACCENT = Object.freeze({
-  primary:   PARTY_PALETTE[5],  // Pink
-  secondary: PARTY_PALETTE[1],  // Teal
-});
-
 // --- Piece colors (1=I, 2=O, 3=S, 4=Z, 5=q, 6=p, 7=L, 8=J, 9=garbage) ---
 // Each piece maps to the palette slot matching its color family.
 const PIECE_COLORS = {
@@ -224,7 +219,7 @@ if (typeof module !== 'undefined' && module.exports) {
   }
   module.exports = {
     THEME,
-    PARTY_PALETTE, UI_ACCENT,
+    PARTY_PALETTE,
     PIECE_COLORS, GHOST_COLORS, NEON_PIECE_COLORS, NEON_GHOST_COLORS,
     STYLE_TIERS, getStyleTier, PLAYER_COLORS, PLAYER_NAMES,
     rgbaFromHex, onColor
