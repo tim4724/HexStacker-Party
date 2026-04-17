@@ -39,14 +39,12 @@ var LEGAL = [
 var state = Gallery.loadState();
 var nonce = 0;
 
-// Default + clamp cardsPerRow to this page's range (1..5). The controller
-// page allows up to 8; when switching back, clamp so the dropdown and grid
-// stay in sync.
+// Display uses its own cards-per-row key so switching between display
+// and controller pages doesn't clobber each other's preference (the
+// ranges differ: 1–5 vs 1–8).
 var DISPLAY_MAX_COLS = 5;
-var storedCols = parseInt(state.cardsPerRow, 10);
-var clampedCols = Math.max(1, Math.min(storedCols || DISPLAY_MAX_COLS, DISPLAY_MAX_COLS));
-state.cardsPerRow = clampedCols;
-if (clampedCols !== storedCols) Gallery.saveState(state);
+var stored = parseInt(state.displayCardsPerRow, 10);
+state.displayCardsPerRow = Math.max(1, Math.min(stored || DISPLAY_MAX_COLS, DISPLAY_MAX_COLS));
 
 function frameClass() {
   return ({ '16x9': 'display', '21x9': 'display ar-21x9', '4x3': 'display ar-4x3', '1x1': 'display ar-1x1' })[state.displayAR] || 'display';
@@ -71,7 +69,7 @@ function buildRow(label, scenarios, levelOverride) {
 
   var strip = document.createElement('div');
   strip.className = 'scenario-strip wrap';
-  strip.style.setProperty('--row-cols', state.cardsPerRow);
+  strip.style.setProperty('--row-cols', state.displayCardsPerRow);
 
   var cards = [];
   for (var i = 0; i < scenarios.length; i++) {
@@ -115,13 +113,13 @@ Gallery.bindSelect(state, 'display-ar', 'displayAR', render);
 Gallery.bindNumber(state, 'player-count', 'players', 1, 8, render);
 Gallery.bindNumber(state, 'level', 'level', 1, 15, render);
 Gallery.bindSelect(state, 'language', 'lang', render);
-Gallery.bindSelect(state, 'cards-per-row', 'cardsPerRow', render, function(v) { return parseInt(v, 10) || 5; });
+Gallery.bindSelect(state, 'cards-per-row', 'displayCardsPerRow', render, function(v) { return parseInt(v, 10) || 5; });
 document.getElementById('reload-all').addEventListener('click', function() {
   nonce = Date.now(); render();
 });
 
 state.players = parseInt(state.players, 10) || 4;
 state.level = parseInt(state.level, 10) || 1;
-state.cardsPerRow = parseInt(state.cardsPerRow, 10) || 5;
+state.displayCardsPerRow = parseInt(state.displayCardsPerRow, 10) || 5;
 
 render();

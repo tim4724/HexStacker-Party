@@ -29,12 +29,11 @@ var PER_COLOR_SCENARIOS = [
 var state = Gallery.loadState();
 var nonce = 0;
 
-// Controller accepts 1..8 cards per row. Same clamp pattern as display.
+// Controller uses its own cards-per-row key so switching pages doesn't
+// clobber the display page's preference (display caps at 5, controller at 8).
 var CTRL_MAX_COLS = 8;
-var storedCols = parseInt(state.cardsPerRow, 10);
-var clampedCols = Math.max(1, Math.min(storedCols || CTRL_MAX_COLS, CTRL_MAX_COLS));
-state.cardsPerRow = clampedCols;
-if (clampedCols !== storedCols) Gallery.saveState(state);
+var stored = parseInt(state.controllerCardsPerRow, 10);
+state.controllerCardsPerRow = Math.max(1, Math.min(stored || CTRL_MAX_COLS, CTRL_MAX_COLS));
 
 function frameClass() {
   return ({ 'default': 'controller', '9x16': 'controller ar-9x16', '3x4': 'controller ar-3x4', 'landscape': 'controller landscape' })[state.controllerAR] || 'controller';
@@ -60,7 +59,7 @@ function buildSharedRow() {
 
   var strip = document.createElement('div');
   strip.className = 'scenario-strip wrap';
-  strip.style.setProperty('--row-cols', state.cardsPerRow);
+  strip.style.setProperty('--row-cols', state.controllerCardsPerRow);
 
   var cards = [];
   for (var i = 0; i < SHARED_SCENARIOS.length; i++) {
@@ -92,7 +91,7 @@ function buildPerColorRow(s) {
 
   var strip = document.createElement('div');
   strip.className = 'scenario-strip wrap';
-  strip.style.setProperty('--row-cols', state.cardsPerRow);
+  strip.style.setProperty('--row-cols', state.controllerCardsPerRow);
 
   var cards = [];
   for (var c = 0; c < 8; c++) {
@@ -133,13 +132,13 @@ Gallery.bindSelect(state, 'controller-ar', 'controllerAR', render);
 Gallery.bindNumber(state, 'player-count', 'players', 1, 8, render);
 Gallery.bindNumber(state, 'level', 'level', 1, 15, render);
 Gallery.bindSelect(state, 'language', 'lang', render);
-Gallery.bindSelect(state, 'cards-per-row', 'cardsPerRow', render, function(v) { return parseInt(v, 10) || 8; });
+Gallery.bindSelect(state, 'cards-per-row', 'controllerCardsPerRow', render, function(v) { return parseInt(v, 10) || 8; });
 document.getElementById('reload-all').addEventListener('click', function() {
   nonce = Date.now(); render();
 });
 
 state.players = parseInt(state.players, 10) || 4;
 state.level = parseInt(state.level, 10) || 1;
-state.cardsPerRow = parseInt(state.cardsPerRow, 10) || 8;
+state.controllerCardsPerRow = parseInt(state.controllerCardsPerRow, 10) || 8;
 
 render();
