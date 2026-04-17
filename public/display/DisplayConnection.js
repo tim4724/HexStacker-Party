@@ -321,8 +321,9 @@ function onPeerLeft(clientId) {
       checkAllPlayersDisconnected();
       // Host may have handed off — refresh isHost flags so the pause-overlay
       // Return-to-lobby button appears on the new host's controller and the
-      // gone player's stale flag clears before we reach RESULTS.
-      maybeBroadcastHostChange();
+      // gone player's stale flag clears before we reach RESULTS. Skip when
+      // everyone is gone (nobody left to notify).
+      if (!allPlayersDisconnected()) maybeBroadcastHostChange();
     } else {
       // Late joiner (never in the game) — remove silently
       players.delete(clientId);
