@@ -123,9 +123,7 @@ function allPlayersDisconnected() {
 }
 
 function checkAllPlayersDisconnected() {
-  // Only auto-pause once the game is actually running. During COUNTDOWN we let
-  // the countdown finish so the game starts and the disconnect QRs become
-  // visible — then auto-pause kicks in at the PLAYING transition.
+  // Don't auto-pause during COUNTDOWN — let it finish so disconnect QRs become visible.
   if (roomState !== ROOM_STATE.PLAYING) return;
   if (paused) return;
   if (!allPlayersDisconnected()) return;
