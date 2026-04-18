@@ -147,7 +147,18 @@ var reconnectHeading = document.getElementById('reconnect-heading');
 var reconnectStatus = document.getElementById('reconnect-status');
 var reconnectRejoinBtn = document.getElementById('reconnect-rejoin-btn');
 var pingDisplay = document.getElementById('ping-display');
-var muteBtn = document.getElementById('mute-btn');
+var settingsBtn = document.getElementById('settings-btn');
+var lobbySettingsBtn = document.getElementById('lobby-settings-btn');
+var settingsOverlay = document.getElementById('settings-overlay');
+var settingsCloseBtn = document.getElementById('settings-close');
+var rowMuteDisplay = document.getElementById('row-mute-display');
+var toggleMuteDisplay = document.getElementById('toggle-mute-display');
+var toggleMuteController = document.getElementById('toggle-mute-controller');
+var rowHaptics = document.getElementById('row-haptics');
+var sensitivitySlider = document.getElementById('sensitivity-slider');
+var sensitivityValueEl = document.getElementById('sensitivity-value');
+var sensitivityPreview = document.getElementById('sensitivity-preview');
+var settingsVersionEl = document.getElementById('settings-version');
 var levelDisplay = document.getElementById('level-display');
 var levelMinusBtn = document.getElementById('level-minus-btn');
 var levelPlusBtn = document.getElementById('level-plus-btn');
@@ -193,6 +204,12 @@ function showScreen(name) {
 // --- Helpers ---
 function vibrate(pattern) {
   if (!navigator.vibrate) return;
+  if (typeof ControllerSettings !== 'undefined' && ControllerSettings.scaleVibration) {
+    var scaled = ControllerSettings.scaleVibration(pattern);
+    if (scaled === null) return;
+    navigator.vibrate(scaled);
+    return;
+  }
   navigator.vibrate(pattern);
 }
 

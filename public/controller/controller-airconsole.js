@@ -115,7 +115,23 @@ performDisconnect = function() {};
 // may still block silently. Accepted tradeoff: the SDK path covers the common
 // single-duration cases; the array fallback is best-effort.
 function _acVibrate(pattern) {
-  if (typeof pattern === 'number') {
+  // Respect the user's haptic-strength setting (off/light/medium/strong).
+  if (typeof ControllerSettings !== 'undefined' && ControllerSettings.scaleVibration) {
+    pattern = ControllerSettings.scaleVibration(pattern);
+    if (pattern === null) return;
+  }
+  // AirConsole SDK takes only a single duration. Collapse array patterns
+  // (hard drop's [5, 5, 5]) by summing the on-durations — even indices are
+  // vibrate, odd are pauses — so the total energy survives even though the
+  // rhythm is lost. Without this, navigator.vibrate fires inside the AC
+  // iframe and is usually blocked by permissions policy, leaving hard
+  // drop completely silent haptically.
+  if (Array.isArray(pattern)) {
+    var total = 0;
+    for (var i = 0; i < pattern.length; i += 2) total += pattern[i];
+    pattern = total;
+  }
+  if (typeof pattern === 'number' && pattern > 0) {
     airconsole.vibrate(pattern);
   } else if (navigator.vibrate) {
     navigator.vibrate(pattern);

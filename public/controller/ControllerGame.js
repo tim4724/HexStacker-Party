@@ -23,6 +23,7 @@ function applyHostInfo(data) {
   if (data.hostName !== undefined) hostName = data.hostName;
   if (data.hostColor !== undefined) hostColor = data.hostColor;
   updateHostVisibility();
+  if (typeof updateSettingsHostUI === 'function') updateSettingsHostUI();
 }
 
 function updateHostVisibility() {
@@ -257,13 +258,17 @@ function onError(data) {
 
 var selfPausing = false;
 var selfPausingTimer = null;
+// Set by controller.js when settings is opened during gameplay. The PAUSE_GAME
+// is really a side-effect of entering settings — the settings panel is on top
+// and we don't want the pause overlay flashing behind it.
+var pausedBySettings = false;
 
 function onGamePaused() {
   gameScreen.classList.add('paused');
   pauseOverlay.classList.toggle('pause-overlay--self', selfPausing);
   selfPausing = false;
   clearTimeout(selfPausingTimer);
-  pauseOverlay.classList.remove('hidden');
+  if (!pausedBySettings) pauseOverlay.classList.remove('hidden');
   pauseBtn.disabled = true;
   pauseStatus.textContent = '';
   pauseButtons.classList.remove('hidden');

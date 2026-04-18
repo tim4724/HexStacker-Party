@@ -6,19 +6,22 @@ class TouchInput {
     this.onInput = onInput;
     this.onProgress = onProgress || null;
 
-    // Config constants
-    this.RATCHET_THRESHOLD = 48;
-    this.TAP_MAX_DISTANCE = 15;
+    // Time-, rate-, and trackpad-wheel thresholds: fixed, independent of
+    // the sensitivity slider.
     this.TAP_MAX_DURATION = 300;
-    this.FLICK_VELOCITY_THRESHOLD = 0.8;
-    this.SOFT_DROP_DEAD_ZONE = 96;
     this.SOFT_DROP_MIN_SPEED = 3;
     this.SOFT_DROP_MAX_SPEED = 10;
-    this.SOFT_DROP_MAX_DIST = 200;
-    // Wheel config (for trackpad two-finger scroll)
     this.WHEEL_H_THRESHOLD = 60;
     this.WHEEL_V_THRESHOLD = 120;
     this.WHEEL_RESET_MS = 150;
+
+    // Distance + flick-velocity thresholds: derived from the sensitivity
+    // slider so raising sensitivity tightens the whole gesture space
+    // proportionally. See _applySensitivity() for the ratios.
+    var initial = (typeof ControllerSettings !== 'undefined' && ControllerSettings.getSensitivity)
+      ? ControllerSettings.getSensitivity()
+      : 48;
+    this._applySensitivity(initial);
 
     // Soft drop interval config
     this.SOFT_DROP_INTERVAL_MS = 50;
@@ -70,6 +73,19 @@ class TouchInput {
     this.el.style.touchAction = 'none';
   }
 
+  // Re-derive every slider-tied threshold from the current sensitivity
+  // value. Called once from the constructor and live from Settings.js on
+  // slider change so changes take effect without rebuilding TouchInput.
+  // Ratios calibrated so the default 48px keeps each constant at its
+  // pre-slider value (TAP=15, DEAD_ZONE=96, MAX_DIST=200, FLICK=0.8/ms).
+  _applySensitivity(ratchet) {
+    this.RATCHET_THRESHOLD = ratchet;
+    this.TAP_MAX_DISTANCE = Math.max(5, Math.round(ratchet * 0.3));
+    this.SOFT_DROP_DEAD_ZONE = ratchet * 2;
+    this.SOFT_DROP_MAX_DIST = ratchet * 4;
+    this.FLICK_VELOCITY_THRESHOLD = ratchet / 60;
+  }
+
   _resetState() {
     this.activeId = null;
     this.anchorX = 0;
@@ -107,6 +123,12 @@ class TouchInput {
 
   _haptic(pattern) {
     if (!navigator.vibrate) return;
+    if (typeof ControllerSettings !== 'undefined' && ControllerSettings.scaleVibration) {
+      const scaled = ControllerSettings.scaleVibration(pattern);
+      if (scaled === null) return;
+      navigator.vibrate(scaled);
+      return;
+    }
     navigator.vibrate(pattern);
   }
 
