@@ -82,7 +82,7 @@ function startCountdown(onComplete, startFrom) {
   countdown.callback = onComplete;
   countdown.remaining = count;
 
-  // On resume (startFrom truthy), the current number is already on screen —
+  // On resume (startFrom is set), the current number is already on screen —
   // skip the redundant broadcast/beep.
   if (!startFrom) {
     party.broadcast({ type: MSG.COUNTDOWN, value: count });
