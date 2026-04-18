@@ -115,6 +115,31 @@ if (rejoinId) {
   clientId = hadStoredId || generateClientId();
 }
 
+// Probe the relay for an existence check so an invalid room code surfaces
+// immediately instead of only after the user types a name and hits JOIN.
+// AirConsole parses /controller.html into roomCode and owns its own identity
+// (skipNameScreen); gallery iframes carry ?scenario= and never hit a relay.
+var isScenario = !!new URLSearchParams(location.search).get('scenario');
+if (!skipNameScreen && !isScenario) {
+  var isNewClient = !hadStoredId && !rejoinId;
+  var relayHttpUrl = RELAY_URL.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
+  fetch(relayHttpUrl + '/room/' + encodeURIComponent(roomCode))
+    .then(function (res) {
+      // Bail if the user has already moved past the name screen — a slow
+      // probe arriving after a successful join would otherwise evict them.
+      if (currentScreen !== 'name') return;
+      if (res.status === 404) return showEndScreen('room_not_found');
+      // Only treat full as fatal for fresh joiners — reconnects with a
+      // stored clientId swap into their existing slot on the relay.
+      if (!isNewClient) return;
+      return res.json().then(function (info) {
+        if (currentScreen !== 'name') return;
+        if (info && info.clients >= info.maxClients) showEndScreen('game_full');
+      });
+    })
+    .catch(function () { /* network error — connect() will surface it */ });
+}
+
 // =====================================================================
 // Name Input
 // =====================================================================
