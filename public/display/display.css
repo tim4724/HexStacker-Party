@@ -543,6 +543,10 @@ body.airconsole #qr-container,
   animation: countdownBeat 1s ease-out infinite;
 }
 
+#countdown-overlay.paused #countdown-number {
+  animation-play-state: paused;
+}
+
 /* SVG-noise overlay to dither the radial gradient below. CSS gradients at
    very low alpha band visibly on 8-bit displays; adding a tiled grayscale
    noise pattern on top breaks the bands perceptually. Pointer-transparent

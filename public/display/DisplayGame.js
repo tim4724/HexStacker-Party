@@ -484,6 +484,7 @@ function onGamePaused(selfInitiated) {
   pauseOverlay.classList.toggle('pause-overlay--self', !!selfInitiated);
   pauseOverlay.classList.remove('hidden');
   gameToolbar.classList.add('hidden');
+  countdownOverlay.classList.add('paused');
   if (music) music.pause();
 }
 
@@ -491,6 +492,7 @@ function onGameResumed() {
   if (displayGame) displayGame.resume();
   pauseOverlay.classList.remove('pause-overlay--self');
   pauseOverlay.classList.add('hidden');
+  countdownOverlay.classList.remove('paused');
   if (currentScreen === SCREEN.GAME) {
     gameToolbar.classList.remove('hidden');
   }
