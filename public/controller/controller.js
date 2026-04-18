@@ -120,10 +120,10 @@ if (rejoinId) {
 // AirConsole parses /controller.html into roomCode and owns its own identity
 // (skipNameScreen); gallery iframes carry ?scenario= and never hit a relay.
 var isScenario = !!new URLSearchParams(location.search).get('scenario');
-var isAirConsole = typeof window !== 'undefined' && !!window.airconsole;
-if (roomCode && !skipNameScreen && !isScenario && !isAirConsole) {
+if (!skipNameScreen && !isScenario) {
   var isNewClient = !hadStoredId && !rejoinId;
-  fetch(RELAY_URL.replace(/^ws/, 'http') + '/room/' + encodeURIComponent(roomCode))
+  var httpRelay = RELAY_URL.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
+  fetch(httpRelay + '/room/' + encodeURIComponent(roomCode))
     .then(function (res) {
       if (res.status === 404) return showEndScreen('room_not_found');
       // Only treat full as fatal for fresh joiners — reconnects with a
