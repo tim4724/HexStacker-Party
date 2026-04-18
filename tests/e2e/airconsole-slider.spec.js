@@ -57,6 +57,10 @@ test('sensitivity slider drag updates value in iframe', async () => {
     });
     await frame.waitForSelector('#sensitivity-slider', { state: 'visible' });
 
+    // getBoundingClientRect returns iframe-relative coords; CDP touch events
+    // are dispatched in outer-page coords. They align here because the outer
+    // body has margin/padding 0 and the iframe sits flush at (0,0) — if the
+    // wrapper layout ever changes, add an offset before the CDP calls.
     const rect = await frame.evaluate(() => {
       const r = document.getElementById('sensitivity-slider').getBoundingClientRect();
       return { x: r.x, y: r.y, w: r.width, h: r.height };
