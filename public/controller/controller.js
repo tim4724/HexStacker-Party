@@ -125,11 +125,15 @@ if (!skipNameScreen && !isScenario) {
   var httpRelay = RELAY_URL.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
   fetch(httpRelay + '/room/' + encodeURIComponent(roomCode))
     .then(function (res) {
+      // Bail if the user has already moved past the name screen — a slow
+      // probe arriving after a successful join would otherwise evict them.
+      if (currentScreen !== 'name') return;
       if (res.status === 404) return showEndScreen('room_not_found');
       // Only treat full as fatal for fresh joiners — reconnects with a
       // stored clientId swap into their existing slot on the relay.
       if (!isNewClient) return;
       return res.json().then(function (info) {
+        if (currentScreen !== 'name') return;
         if (info && info.clients >= info.maxClients) showEndScreen('game_full');
       });
     })
