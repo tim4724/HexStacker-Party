@@ -133,7 +133,8 @@
 #pause-continue-btn,
 #play-again-btn,
 #reconnect-btn,
-#reconnect-rejoin-btn {
+#reconnect-rejoin-btn,
+#settings-close {
   /* Two-declaration fallback: pre-color-mix browsers use the solid host
      color; modern engines use the gradient. Same pattern as #touch-pad
      in controller.css. */

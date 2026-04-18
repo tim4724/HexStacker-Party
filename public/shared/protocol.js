@@ -16,6 +16,7 @@ var MSG = {
   RESUME_GAME: 'resume_game',
   LEAVE: 'leave',
   SET_LEVEL: 'set_level',
+  SET_DISPLAY_MUTE: 'set_display_mute',
   PING: 'ping',
 
   // Display -> Specific Controller
@@ -27,6 +28,7 @@ var MSG = {
 
   // Display -> All Controllers (broadcast)
   COUNTDOWN: 'countdown',
+  DISPLAY_MUTED: 'display_muted',
   GAME_START: 'game_start',
   GAME_END: 'game_end',
   GAME_PAUSED: 'game_paused',

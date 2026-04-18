@@ -56,6 +56,9 @@ function handleControllerMessage(fromId, msg) {
       case MSG.LEAVE:
         onPeerLeft(fromId);
         break;
+      case MSG.SET_DISPLAY_MUTE:
+        onSetDisplayMute(fromId, msg);
+        break;
       case MSG.PING:
         party.sendTo(fromId, { type: MSG.PONG, t: msg.t });
         break;
@@ -109,7 +112,8 @@ function onHello(fromId, msg) {
       startLevel: existing.startLevel || 1,
       isHost: fromId === hostId,
       hostName: hostPlayer ? hostPlayer.playerName : null,
-      hostColor: hostPlayer ? hostPlayer.playerColor : null
+      hostColor: hostPlayer ? hostPlayer.playerColor : null,
+      displayMuted: !!muted
     };
     if (!isLateJoiner) {
       welcomeMsg.alive = lastAliveState[fromId] != null ? lastAliveState[fromId] : true;
@@ -208,6 +212,18 @@ function onSoftDrop(fromId, speed) {
     softDropTimers.delete(fromId);
     if (displayGame) displayGame.handleSoftDropEnd(fromId);
   }, GameConstants.SOFT_DROP_TIMEOUT_MS));
+}
+
+function onSetDisplayMute(fromId, msg) {
+  // Host-only: non-host controllers can't mute the shared display.
+  var hostId = getHostClientId();
+  if (fromId !== hostId) {
+    console.warn('[input] non-host SET_DISPLAY_MUTE rejected from', fromId);
+    return;
+  }
+  if (typeof setDisplayMuted === 'function') {
+    setDisplayMuted(msg.muted === true);
+  }
 }
 
 function onSetLevel(fromId, msg) {

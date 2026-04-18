@@ -179,6 +179,10 @@ html, body {
   z-index: 1;
 }
 
+#lobby-settings-btn {
+  margin-left: auto;
+}
+
 .controller-shell__frame--lobby {
   flex: 1;
   height: auto;
@@ -521,6 +525,9 @@ html, body {
     linear-gradient(color-mix(in srgb, var(--player-color, transparent) 12%, transparent), color-mix(in srgb, var(--player-color, transparent) 12%, transparent)),
     linear-gradient(var(--bg-secondary), var(--bg-board));
   background-size: 22px 22px, auto, auto;
+  /* Center the tile origin so leftover width/height after the 22px grid
+     splits evenly on both sides instead of piling up on the right/bottom. */
+  background-position: center;
   cursor: crosshair;
 }
 
@@ -707,9 +714,271 @@ html, body {
 .ping-bad { color: var(--ping-bad); }
 
 
-/* Mute button */
-#mute-btn {
+/* Settings button pushes the [settings pause] cluster to the right of
+   the top bar; pause stays the far-right icon. */
+#settings-btn {
   margin-left: auto;
+}
+
+/* Settings overlay */
+/* Narrow the overlay's safe-area padding so the panel hugs the viewport
+   edges. Other .game-overlay instances (pause, reconnect) keep the wider
+   padding — this override is scoped to #settings-overlay only. The goal
+   is to bring the preview canvas closer to the real touchpad's width.
+   Bottom override also drops the shared rule's extra +16px (that belonged
+   to pause/reconnect's single-CTA layout); the settings panel has its own
+   internal padding already. */
+#settings-overlay {
+  padding-left: max(env(safe-area-inset-left), 8px);
+  padding-right: max(env(safe-area-inset-right), 8px);
+  padding-bottom: max(env(safe-area-inset-bottom), 8px);
+}
+
+.settings-panel {
+  width: 100%;
+  max-width: 400px;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 22px 14px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.settings-panel::-webkit-scrollbar { display: none; }
+
+/* In portrait the left-column wrapper disappears via display:contents so
+   its children flow as direct children of the panel's flex column. The
+   landscape media query re-promotes it to a real flex container. */
+.settings-body-left {
+  display: contents;
+}
+
+#settings-overlay h1 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(1.2rem, 5vw, 1.5rem);
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.settings-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-row--switch {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-row__label {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  flex: 1;
+}
+
+.settings-row__value {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.settings-row__hint {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 2px;
+  letter-spacing: 0.03em;
+}
+
+.settings-row[hidden] {
+  display: none;
+}
+
+.settings-row[data-disabled="true"] {
+  opacity: 0.45;
+}
+
+.settings-row[data-disabled="true"] .settings-segmented,
+.settings-row[data-disabled="true"] .settings-switch,
+.settings-row[data-disabled="true"] input[type="range"] {
+  pointer-events: none;
+}
+
+/* Toggle switch */
+.settings-switch {
+  width: 52px;
+  height: 30px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  position: relative;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--transition-fast);
+}
+
+.settings-switch[aria-checked="true"] {
+  background: var(--player-color, var(--accent-secondary));
+}
+
+.settings-switch__thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform var(--transition-fast);
+}
+
+.settings-switch[aria-checked="true"] .settings-switch__thumb {
+  transform: translateX(22px);
+}
+
+/* Segmented control (haptic strength) */
+.settings-segmented {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 3px;
+}
+
+.settings-segmented__btn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 8px 4px;
+  border-radius: calc(var(--radius-md) - 3px);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.settings-segmented__btn[aria-checked="true"] {
+  background: var(--player-color, var(--accent-secondary));
+  color: var(--btn-primary-text);
+}
+
+/* Slider */
+#sensitivity-slider {
+  margin-top: 12px;
+  margin-bottom: 16px;
+  display: block;
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  /* Center-marker painted into the track itself so the thumb (native
+     pseudo-element) always renders on top of it — no stacking tricks
+     needed. Position comes from --center-pct (set in JS) so the tick
+     lands on the real 1.00 value: bounds are linear [min, max] but 1.00
+     sits at (1 - min) / (max - min) which isn't exactly 50%. */
+  background:
+    linear-gradient(to right,
+      transparent calc(var(--center-pct, 50%) - 1px),
+      rgba(255, 255, 255, 0.55) calc(var(--center-pct, 50%) - 1px) calc(var(--center-pct, 50%) + 1px),
+      transparent calc(var(--center-pct, 50%) + 1px)
+    ),
+    rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+
+#sensitivity-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--player-color, var(--accent-secondary));
+  cursor: pointer;
+  border: none;
+}
+
+#sensitivity-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--player-color, var(--accent-secondary));
+  cursor: pointer;
+  border: none;
+}
+
+/* Preview canvas — mirrors the real touchpad (controller.css:#touch-pad)
+   so the user sees a miniature of the surface they'll actually drag on.
+   Uses --player-color via color-mix for the border, dot tint, and surface
+   wash, falling back to the plain treatment on browsers without color-mix
+   (two-declaration fallback, same pattern as #touch-pad). Dot pattern and
+   gradient come from CSS so the canvas only paints test indicators on top
+   (clearRect reveals the background). */
+.settings-preview {
+  width: 100%;
+  height: 140px;
+  display: block;
+  touch-action: none;
+  cursor: crosshair;
+  border-radius: var(--radius-lg);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border: 2px solid color-mix(in srgb, var(--player-color, white) 70%, transparent);
+  background-color: var(--bg-board);
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.10) 1.2px, transparent 1.8px),
+    linear-gradient(var(--bg-secondary), var(--bg-board));
+  background-image:
+    radial-gradient(circle, color-mix(in srgb, var(--player-color, white) 32%, transparent) 1.2px, transparent 1.8px),
+    linear-gradient(color-mix(in srgb, var(--player-color, transparent) 12%, transparent), color-mix(in srgb, var(--player-color, transparent) 12%, transparent)),
+    linear-gradient(var(--bg-secondary), var(--bg-board));
+  background-size: 22px 22px, auto, auto;
+  background-position: center;
+}
+
+.settings-preview:active {
+  cursor: grabbing;
+}
+
+/* About footer — sits below the DONE button as a quiet credit line. */
+.settings-about {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.06em;
+  font-family: 'Orbitron', sans-serif;
+  margin-top: -4px;
+  opacity: 0.7;
+}
+
+#settings-close {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 0.9rem;
+  letter-spacing: 0.1em;
 }
 
 
@@ -1046,8 +1315,70 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
     display: none;
   }
 
-  #mute-btn {
+  #settings-btn {
     margin-left: 0;
+  }
+
+  /* Landscape Settings popup — grid: left column holds music/touch/haptics
+     stacked in a flex wrapper; right column holds the sensitivity block with
+     its preview. Title centered at the top, DONE centered at the bottom,
+     version pinned next to DONE at the bottom-left of the panel. */
+  .settings-panel {
+    position: relative;
+    max-width: 720px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "title title"
+      "left  sens"
+      "done  done";
+    column-gap: 16px;
+    /* Match the portrait panel's flex gap (see .settings-panel { gap: 16px })
+       so swapping orientation doesn't change the vertical rhythm. */
+    row-gap: 16px;
+    padding: 16px 14px;
+  }
+  #settings-overlay h1 {
+    grid-area: title;
+    /* Inherits margin-bottom: 4px from the base rule — matches portrait. */
+  }
+  /* Flex wrapper keeps music/touch/haptics packed to the top without the
+     rowspan-stretch that a shared grid column would introduce. In portrait
+     display:contents hides the wrapper so the rows flow directly in the
+     panel's flex column. */
+  .settings-body-left {
+    grid-area: left;
+    align-self: start;
+    display: flex;
+    flex-direction: column;
+    /* Matches the portrait panel's 16px gap between rows so switching
+       orientations doesn't change the visual rhythm of the left column. */
+    gap: 16px;
+  }
+  #row-sensitivity {
+    grid-area: sens;
+    align-self: start;
+  }
+  /* DONE spans both columns and centers under the two-column body. */
+  #settings-close {
+    grid-area: done;
+    justify-self: center;
+    width: auto;
+    min-width: 220px;
+    max-width: 320px;
+  }
+  /* Version pulled out of the grid and anchored to the panel's bottom-right
+     corner so the centered DONE button has symmetric blank space on both
+     sides. Brand prefix is dropped (just the version number) to keep the
+     footer compact. */
+  .settings-about {
+    position: absolute;
+    bottom: 28px;
+    right: 16px;
+    margin: 0;
+  }
+  .settings-about__brand {
+    display: none;
   }
 
   /* Player name: shown center-top inside touch area via data attribute.
@@ -1145,6 +1476,20 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
 
   #lobby-join-url {
     display: none;
+  }
+}
+
+/* Short landscape — settings panel drops its SETTINGS heading to claw back
+   vertical room. The grid areas are rewritten so the now-empty "title" row
+   doesn't leave a phantom row-gap at the top of the panel. */
+@media (orientation: landscape) and (min-aspect-ratio: 5/4) and (max-height: 342px) {
+  #settings-overlay h1 {
+    display: none;
+  }
+  .settings-panel {
+    grid-template-areas:
+      "left sens"
+      "done done";
   }
 }
 

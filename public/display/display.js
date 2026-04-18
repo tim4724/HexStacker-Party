@@ -175,8 +175,11 @@ newGameResultsBtn.addEventListener('click', function() {
 
 // --- Mute ---
 if (muted) muteBtn.querySelector('.sound-waves').style.display = 'none';
-muteBtn.addEventListener('click', function() {
-  muted = !muted;
+
+function setDisplayMuted(next) {
+  next = !!next;
+  if (next === muted) return;
+  muted = next;
   try { localStorage.setItem('stacker_muted', muted ? '1' : '0'); } catch (e) { /* iframe sandbox */ }
   muteBtn.querySelector('.sound-waves').style.display = muted ? 'none' : '';
   if (music) {
@@ -187,6 +190,16 @@ muteBtn.addEventListener('click', function() {
       music.masterGain.gain.linearRampToValueAtTime(muted ? 0 : Music.MASTER_VOLUME, music.ctx.currentTime + 0.05);
     }
   }
+  // Broadcast so the host controller's Game Music toggle reflects changes
+  // made via the display's own mute button (and so a new host seeing the
+  // settings popup sees the correct state without a page reload).
+  if (party && typeof party.broadcast === 'function') {
+    try { party.broadcast({ type: MSG.DISPLAY_MUTED, muted: muted }); } catch (e) { /* ignore */ }
+  }
+}
+
+muteBtn.addEventListener('click', function() {
+  setDisplayMuted(!muted);
 });
 
 // --- Fullscreen ---

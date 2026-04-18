@@ -17,6 +17,8 @@ var PER_COLOR_SCENARIOS = [
   { key: 'lobby-latejoiner', title: 'Lobby (late joiner)' },
   { key: 'countdown',        title: 'Countdown' },
   { key: 'playing',          title: 'Playing' },
+  { key: 'playing-settings', title: 'Playing + Settings (non-host)', extra: { host: '' } },
+  { key: 'playing-settings', title: 'Playing + Settings (host)',     extra: { host: '1' } },
   { key: 'paused',           title: 'Paused (non-host)',  extra: { host: '' } },
   { key: 'paused',           title: 'Paused (host)',      extra: { host: '1' } },
   { key: 'ko',               title: 'KO' },
@@ -109,13 +111,18 @@ function buildPerColorRow(s) {
   var cards = [];
   var d = dims();
   for (var c = 0; c < count; c++) {
+    var extra = s.extra ? Object.assign({}, s.extra) : {};
+    if (typeof s.extraPerColor === 'function') {
+      var perColor = s.extraPerColor(c) || {};
+      Object.assign(extra, perColor);
+    }
     var card = Gallery.makeCard({
       title: 'P' + (c + 1),
       tag: Gallery.PLAYER_COLOR_NAMES[c],
       frameClass: frameClass(),
       logical: d.logical,
       chromePx: d.chromePx,
-      url: Gallery.controllerURL(state, s.key, c, s.extra, nonce || undefined)
+      url: Gallery.controllerURL(state, s.key, c, extra, nonce || undefined)
     });
     strip.appendChild(card);
     cards.push(card);

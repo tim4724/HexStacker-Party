@@ -136,6 +136,14 @@
       showPlaying();
       break;
 
+    case 'playing-settings':
+      applyIdentity({ isHost: !!params.get('host') });
+      showPlaying();
+      // openSettings() itself calls updateSettingsHostUI, which hides/shows
+      // the Music (display-mute) row based on isHost.
+      window.openSettings();
+      break;
+
     case 'paused':
       applyIdentity({ isHost: !!params.get('host') });
       showPlaying();

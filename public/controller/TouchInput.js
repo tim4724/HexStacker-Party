@@ -6,19 +6,22 @@ class TouchInput {
     this.onInput = onInput;
     this.onProgress = onProgress || null;
 
-    // Config constants
-    this.RATCHET_THRESHOLD = 48;
-    this.TAP_MAX_DISTANCE = 15;
+    // Time-, rate-, and trackpad-wheel thresholds: fixed, independent of
+    // the sensitivity slider.
     this.TAP_MAX_DURATION = 300;
-    this.FLICK_VELOCITY_THRESHOLD = 0.8;
-    this.SOFT_DROP_DEAD_ZONE = 96;
     this.SOFT_DROP_MIN_SPEED = 3;
     this.SOFT_DROP_MAX_SPEED = 10;
-    this.SOFT_DROP_MAX_DIST = 200;
-    // Wheel config (for trackpad two-finger scroll)
     this.WHEEL_H_THRESHOLD = 60;
     this.WHEEL_V_THRESHOLD = 120;
     this.WHEEL_RESET_MS = 150;
+
+    // Distance + flick-velocity thresholds: derived from the sensitivity
+    // slider so raising sensitivity tightens the whole gesture space
+    // proportionally. See _applySensitivity() for the ratios.
+    var initial = (typeof ControllerSettings !== 'undefined' && ControllerSettings.getSensitivity)
+      ? ControllerSettings.getSensitivity()
+      : 48;
+    this._applySensitivity(initial);
 
     // Soft drop interval config
     this.SOFT_DROP_INTERVAL_MS = 50;
@@ -70,6 +73,25 @@ class TouchInput {
     this.el.style.touchAction = 'none';
   }
 
+  // Re-derive every slider-tied threshold from the current sensitivity
+  // value. Called once from the constructor and live from Settings.js on
+  // slider change so changes take effect without rebuilding TouchInput.
+  // Ratios calibrated so the default 48px keeps each constant close to
+  // its pre-slider value (TAP=15, DEAD_ZONE=96, MAX_DIST=200, FLICK=0.8/ms,
+  // SWIPE_HARD_DROP=48 ~= old 50, SWIPE_HOLD=29 ~= old 30).
+  _applySensitivity(ratchet) {
+    this.RATCHET_THRESHOLD = ratchet;
+    this.TAP_MAX_DISTANCE = Math.max(5, Math.round(ratchet * 0.3));
+    this.SOFT_DROP_DEAD_ZONE = ratchet * 2;
+    this.SOFT_DROP_MAX_DIST = ratchet * 4;
+    this.FLICK_VELOCITY_THRESHOLD = ratchet / 60;
+    // Fallback swipe distances (pointerup classifier when velocity didn't
+    // trigger a fresh fling). Asymmetric: hard drop demands more downward
+    // travel than hold demands upward, matching the thumb ergonomics.
+    this.SWIPE_HARD_DROP_DY = ratchet;
+    this.SWIPE_HOLD_DY = Math.max(10, Math.round(ratchet * 0.6));
+  }
+
   _resetState() {
     this.activeId = null;
     this.anchorX = 0;
@@ -107,6 +129,12 @@ class TouchInput {
 
   _haptic(pattern) {
     if (!navigator.vibrate) return;
+    if (typeof ControllerSettings !== 'undefined' && ControllerSettings.scaleVibration) {
+      const scaled = ControllerSettings.scaleVibration(pattern);
+      if (scaled === null) return;
+      navigator.vibrate(scaled);
+      return;
+    }
     navigator.vibrate(pattern);
   }
 
@@ -150,14 +178,14 @@ class TouchInput {
 
     if (vy > 0 && totalDy > this.TAP_MAX_DISTANCE) {
       this.onInput(INPUT.HARD_DROP);
-      this._haptic([5, 5, 5]);
+      this._haptic([8, 8, 8]);
       this._resetState();
       return true;
     }
 
     if (vy < 0 && totalDy < -this.TAP_MAX_DISTANCE) {
       this.onInput(INPUT.HOLD);
-      this._haptic(15);
+      this._haptic(23);
       this._resetState();
       return true;
     }
@@ -229,7 +257,7 @@ class TouchInput {
       for (let i = 0, n = Math.abs(steps); i < n; i++) {
         this.onInput(action);
       }
-      this._haptic(10);
+      this._haptic(15);
       this.anchorX += steps * this.RATCHET_THRESHOLD;
       this.hasMovedHorizontally = true;
     }
@@ -244,7 +272,7 @@ class TouchInput {
       if (!this.isSoftDropping && !this.hasMovedHorizontally) {
         this.isSoftDropping = true;
         this.hasSoftDropped = true;
-        this._haptic(15);
+        this._haptic(23);
         this._startSoftDropInterval();
       }
     } else if (this.isSoftDropping) {
@@ -295,7 +323,7 @@ class TouchInput {
     // 1. Tap: minimal movement + short duration → rotate
     if (totalDist < this.TAP_MAX_DISTANCE && duration < this.TAP_MAX_DURATION) {
       this.onInput(INPUT.ROTATE_CW);
-      this._haptic(10);
+      this._haptic(15);
       this._resetState();
       return;
     }
@@ -313,17 +341,17 @@ class TouchInput {
     }
 
     // 2. Short downward swipe fallback → hard drop
-    if (totalDy > 50 && duration < 300 && Math.abs(totalDy) > Math.abs(totalDx) * 1.5) {
+    if (totalDy > this.SWIPE_HARD_DROP_DY && duration < 300 && Math.abs(totalDy) > Math.abs(totalDx) * 1.5) {
       this.onInput(INPUT.HARD_DROP);
-      this._haptic([5, 5, 5]);
+      this._haptic([8, 8, 8]);
       this._resetState();
       return;
     }
 
     // 3. Short upward swipe fallback → hold
-    if (totalDy < -30 && duration < 400 && Math.abs(totalDy) > Math.abs(totalDx) * 1.5) {
+    if (totalDy < -this.SWIPE_HOLD_DY && duration < 400 && Math.abs(totalDy) > Math.abs(totalDx) * 1.5) {
       this.onInput(INPUT.HOLD);
-      this._haptic(15);
+      this._haptic(23);
       this._resetState();
       return;
     }

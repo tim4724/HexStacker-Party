@@ -165,7 +165,14 @@ const server = http.createServer((req, res) => {
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
     const headers = { 'Content-Type': contentType };
 
-    const noCache = ext === '.html' || ext === '.js';
+    // Non-production: never cache — file edits take effect on the next
+    // request with no hard-reload needed. Production: HTML + JS are
+    // already uncached to avoid stale-version mismatches (see commit
+    // b08563d); other static files (CSS, images, fonts) keep a 24h cache
+    // for bandwidth. The /engine/ route sends its own no-store header
+    // above, so its dev/prod behavior matches what we set here.
+    var isNonProd = APP_ENV !== 'production';
+    var noCache = isNonProd || ext === '.html' || ext === '.js';
     headers['Cache-Control'] = noCache ? 'no-store' : 'public, max-age=86400';
 
     if (ext === '.html') {
