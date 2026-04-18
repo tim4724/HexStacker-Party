@@ -93,7 +93,7 @@ const server = http.createServer((req, res) => {
         if (err) { res.writeHead(404); res.end('Not Found'); return; }
         res.writeHead(200, {
           'Content-Type': 'text/javascript',
-          'Cache-Control': 'public, max-age=86400'
+          'Cache-Control': 'no-store'
         });
         res.end(data);
       });
@@ -165,7 +165,8 @@ const server = http.createServer((req, res) => {
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
     const headers = { 'Content-Type': contentType };
 
-    headers['Cache-Control'] = 'public, max-age=86400';
+    const noCache = ext === '.html' || ext === '.js';
+    headers['Cache-Control'] = noCache ? 'no-store' : 'public, max-age=86400';
 
     if (ext === '.html') {
       const isAirConsole = urlPath === '/display/screen.html' || urlPath === '/controller/controller.html';
