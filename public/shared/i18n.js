@@ -693,6 +693,11 @@ function translatePage() {
     phs[j].placeholder = t(phs[j].getAttribute('data-i18n-placeholder'));
   }
 
+  var arias = document.querySelectorAll('[data-i18n-aria-label]');
+  for (var a = 0; a < arias.length; a++) {
+    arias[a].setAttribute('aria-label', t(arias[a].getAttribute('data-i18n-aria-label')));
+  }
+
   // data-i18n-html renders the locale string as HTML. Only use for trusted
   // locale content — never pass user input through this attribute.
   var htmlEls = document.querySelectorAll('[data-i18n-html]');
