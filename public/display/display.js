@@ -88,7 +88,7 @@ if (navigator.share) {
     e.preventDefault();
     navigator.share({
       title: 'HexStacker Party',
-      text: 'Play HexStacker Party with your friends',
+      text: t('share_text'),
       url: 'https://hexstacker.com'
     }).catch(function(err) {
       // AbortError = user cancelled the sheet — do nothing.

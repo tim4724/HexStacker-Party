@@ -131,7 +131,7 @@
        from lobby or game without the ancestor screen hiding it. -->
   <div id="settings-overlay" class="game-overlay hidden">
     <div class="settings-panel">
-      <h1>SETTINGS</h1>
+      <h1 data-i18n="settings_title">SETTINGS</h1>
       <!-- Left-column cluster. In portrait it's display:contents (invisible),
            so the three rows flow as direct children of the panel's flex
            column. In landscape it becomes a flex column stacking music /
@@ -139,33 +139,33 @@
            from stretching the rows apart via rowspan. -->
       <div class="settings-body-left">
         <div class="settings-row settings-row--switch" id="row-mute-display" hidden>
-          <span class="settings-row__label">Game Music</span>
+          <span class="settings-row__label" data-i18n="settings_game_music">Game Music</span>
           <button class="settings-switch" id="toggle-mute-display" role="switch" aria-checked="true" aria-label="Game music on display"><span class="settings-switch__thumb"></span></button>
         </div>
         <div class="settings-row settings-row--switch">
-          <span class="settings-row__label">Touch Sounds</span>
+          <span class="settings-row__label" data-i18n="settings_touch_sounds">Touch Sounds</span>
           <button class="settings-switch" id="toggle-mute-controller" role="switch" aria-checked="true" aria-label="Controller touch sounds"><span class="settings-switch__thumb"></span></button>
         </div>
         <div class="settings-row" id="row-haptics">
-          <span class="settings-row__label">Haptics</span>
+          <span class="settings-row__label" data-i18n="settings_haptics">Haptics</span>
           <div class="settings-segmented" role="radiogroup" aria-label="Haptic strength">
-            <button class="settings-segmented__btn" data-haptic="off" role="radio" aria-checked="false">Off</button>
-            <button class="settings-segmented__btn" data-haptic="light" role="radio" aria-checked="false">Light</button>
-            <button class="settings-segmented__btn" data-haptic="medium" role="radio" aria-checked="true">Med</button>
-            <button class="settings-segmented__btn" data-haptic="strong" role="radio" aria-checked="false">Strong</button>
+            <button class="settings-segmented__btn" data-haptic="off" role="radio" aria-checked="false" data-i18n="settings_haptic_off">Off</button>
+            <button class="settings-segmented__btn" data-haptic="light" role="radio" aria-checked="false" data-i18n="settings_haptic_light">Light</button>
+            <button class="settings-segmented__btn" data-haptic="medium" role="radio" aria-checked="true" data-i18n="settings_haptic_medium">Med</button>
+            <button class="settings-segmented__btn" data-haptic="strong" role="radio" aria-checked="false" data-i18n="settings_haptic_strong">Strong</button>
           </div>
-          <p class="settings-row__hint">Vibration may not work on all devices</p>
+          <p class="settings-row__hint" data-i18n="settings_haptics_hint">Vibration may not work on all devices</p>
         </div>
       </div>
       <div class="settings-row" id="row-sensitivity">
         <span class="settings-row__label">
-          <span id="sensitivity-label-text">Sensitivity</span>
+          <span id="sensitivity-label-text" data-i18n="settings_sensitivity">Sensitivity</span>
           <span class="settings-row__value" id="sensitivity-value">1.00</span>
         </span>
         <input type="range" id="sensitivity-slider" min="0.55" max="1.75" step="0.05" value="1" aria-label="Touch sensitivity (scaled multiplier, 1.0 is default)">
         <canvas id="sensitivity-preview" class="settings-preview" width="280" height="120" aria-label="Sensitivity preview"></canvas>
       </div>
-      <button id="settings-close" class="btn btn-primary">DONE</button>
+      <button id="settings-close" class="btn btn-primary" data-i18n="settings_done">DONE</button>
       <footer class="settings-about">
         <span class="settings-about__brand">HexStacker</span> <span id="settings-version"></span>
       </footer>

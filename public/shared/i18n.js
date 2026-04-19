@@ -113,6 +113,26 @@ var LOCALES = {
     gesture_rotate: 'rotate',
     gesture_drop: 'drop',
     gesture_hold: 'hold',
+
+    // Settings overlay
+    settings_title: 'SETTINGS',
+    settings_done: 'DONE',
+    settings_game_music: 'Game Music',
+    settings_touch_sounds: 'Touch Sounds',
+    settings_haptics: 'Haptics',
+    settings_haptics_hint: 'Vibration may not work on all devices',
+    settings_haptic_off: 'Off',
+    settings_haptic_light: 'Light',
+    settings_haptic_medium: 'Med',
+    settings_haptic_strong: 'Strong',
+    settings_sensitivity: 'Sensitivity',
+
+    // Display toolbar tooltips
+    display_mute_tooltip: 'Toggle mute',
+    display_fullscreen_tooltip: 'Toggle fullscreen',
+
+    // Web Share API
+    share_text: 'Play HexStacker Party with your friends',
   },
 
   de: {
@@ -177,6 +197,14 @@ var LOCALES = {
     swipe: 'Wischen', tap: 'Tippen', flick: 'Schnippen',
     gesture_move: 'Bewegen', gesture_rotate: 'Drehen',
     gesture_drop: 'Fallen', gesture_hold: 'Halten',
+    settings_title: 'EINSTELLUNGEN', settings_done: 'FERTIG',
+    settings_game_music: 'Spielmusik', settings_touch_sounds: 'Touch-Sounds',
+    settings_haptics: 'Vibration', settings_haptics_hint: 'Klappt nicht auf jedem Gerät',
+    settings_haptic_off: 'Aus', settings_haptic_light: 'Leicht',
+    settings_haptic_medium: 'Mittel', settings_haptic_strong: 'Stark',
+    settings_sensitivity: 'Empfindlichkeit',
+    display_mute_tooltip: 'Stumm schalten', display_fullscreen_tooltip: 'Vollbild',
+    share_text: 'Spiel HexStacker Party mit deinen Freunden',
   },
 
   fr: {
@@ -213,6 +241,14 @@ var LOCALES = {
     gesture_move: 'déplacer', gesture_rotate: 'tourner',
     stacked_by: 'Créé par Tim', music_by: 'Musique par FoxSynergy',
     gesture_drop: 'lâcher', gesture_hold: 'maintenir',
+    settings_title: 'RÉGLAGES', settings_done: 'OK',
+    settings_game_music: 'Musique', settings_touch_sounds: 'Sons tactiles',
+    settings_haptics: 'Vibration', settings_haptics_hint: 'Peut ne pas marcher partout',
+    settings_haptic_off: 'Off', settings_haptic_light: 'Léger',
+    settings_haptic_medium: 'Moyen', settings_haptic_strong: 'Fort',
+    settings_sensitivity: 'Sensibilité',
+    display_mute_tooltip: 'Couper le son', display_fullscreen_tooltip: 'Plein écran',
+    share_text: 'Joue à HexStacker Party avec tes amis',
   },
 
   pt: {
@@ -249,6 +285,14 @@ var LOCALES = {
     swipe: 'Deslizar', tap: 'Tocar', flick: 'Lançar',
     gesture_move: 'mover', gesture_rotate: 'girar',
     gesture_drop: 'soltar', gesture_hold: 'segurar',
+    settings_title: 'AJUSTES', settings_done: 'PRONTO',
+    settings_game_music: 'Música do jogo', settings_touch_sounds: 'Sons de toque',
+    settings_haptics: 'Vibração', settings_haptics_hint: 'Pode não funcionar em todos os aparelhos',
+    settings_haptic_off: 'Off', settings_haptic_light: 'Fraca',
+    settings_haptic_medium: 'Média', settings_haptic_strong: 'Forte',
+    settings_sensitivity: 'Sensibilidade',
+    display_mute_tooltip: 'Silenciar', display_fullscreen_tooltip: 'Tela cheia',
+    share_text: 'Joga HexStacker Party com seus amigos',
   },
 
   es: {
@@ -285,6 +329,14 @@ var LOCALES = {
     gesture_move: 'mover', gesture_rotate: 'girar',
     stacked_by: 'Creado por Tim', music_by: 'Música de FoxSynergy',
     gesture_drop: 'soltar', gesture_hold: 'guardar',
+    settings_title: 'AJUSTES', settings_done: 'LISTO',
+    settings_game_music: 'Música', settings_touch_sounds: 'Sonidos táctiles',
+    settings_haptics: 'Vibración', settings_haptics_hint: 'Puede no funcionar en todos los dispositivos',
+    settings_haptic_off: 'Off', settings_haptic_light: 'Suave',
+    settings_haptic_medium: 'Media', settings_haptic_strong: 'Fuerte',
+    settings_sensitivity: 'Sensibilidad',
+    display_mute_tooltip: 'Silenciar', display_fullscreen_tooltip: 'Pantalla completa',
+    share_text: 'Juega a HexStacker Party con tus amigos',
   },
 
   zh: {
@@ -320,6 +372,14 @@ var LOCALES = {
     gesture_move: '移动', gesture_rotate: '旋转',
     stacked_by: '开发：Tim', music_by: '音乐：FoxSynergy',
     gesture_drop: '落下', gesture_hold: '暂存',
+    settings_title: '设置', settings_done: '完成',
+    settings_game_music: '游戏音乐', settings_touch_sounds: '触控声音',
+    settings_haptics: '振动', settings_haptics_hint: '部分设备可能不支持',
+    settings_haptic_off: '关', settings_haptic_light: '弱',
+    settings_haptic_medium: '中', settings_haptic_strong: '强',
+    settings_sensitivity: '灵敏度',
+    display_mute_tooltip: '静音切换', display_fullscreen_tooltip: '全屏切换',
+    share_text: '和朋友一起玩 HexStacker Party',
   },
 
   ja: {
@@ -356,6 +416,14 @@ var LOCALES = {
     gesture_move: '移動', gesture_rotate: '回転',
     stacked_by: '開発：Tim', music_by: '音楽：FoxSynergy',
     gesture_drop: 'ドロップ', gesture_hold: 'ホールド',
+    settings_title: '設定', settings_done: 'OK',
+    settings_game_music: 'ゲーム音楽', settings_touch_sounds: 'タッチ音',
+    settings_haptics: '振動', settings_haptics_hint: '端末によっては効かないかも',
+    settings_haptic_off: 'オフ', settings_haptic_light: '弱',
+    settings_haptic_medium: '中', settings_haptic_strong: '強',
+    settings_sensitivity: '感度',
+    display_mute_tooltip: 'ミュート切替', display_fullscreen_tooltip: '全画面切替',
+    share_text: '友達と HexStacker Party で遊ぼう',
   },
 
   ko: {
@@ -391,6 +459,14 @@ var LOCALES = {
     gesture_move: '이동', gesture_rotate: '회전',
     stacked_by: '개발: Tim', music_by: '음악: FoxSynergy',
     gesture_drop: '드롭', gesture_hold: '홀드',
+    settings_title: '설정', settings_done: '완료',
+    settings_game_music: '게임 음악', settings_touch_sounds: '터치 소리',
+    settings_haptics: '진동', settings_haptics_hint: '일부 기기에서는 안 될 수 있어',
+    settings_haptic_off: '끔', settings_haptic_light: '약',
+    settings_haptic_medium: '중', settings_haptic_strong: '강',
+    settings_sensitivity: '감도',
+    display_mute_tooltip: '음소거 전환', display_fullscreen_tooltip: '전체화면 전환',
+    share_text: '친구들과 HexStacker Party 해봐',
   },
 
   ru: {
@@ -433,6 +509,14 @@ var LOCALES = {
     gesture_move: 'двигать', gesture_rotate: 'вращать',
     stacked_by: 'Разработка: Tim', music_by: 'Музыка: FoxSynergy',
     gesture_drop: 'бросать', gesture_hold: 'держать',
+    settings_title: 'НАСТРОЙКИ', settings_done: 'ГОТОВО',
+    settings_game_music: 'Музыка', settings_touch_sounds: 'Звуки касаний',
+    settings_haptics: 'Вибрация', settings_haptics_hint: 'Работает не на всех устройствах',
+    settings_haptic_off: 'Выкл', settings_haptic_light: 'Слабо',
+    settings_haptic_medium: 'Средне', settings_haptic_strong: 'Сильно',
+    settings_sensitivity: 'Чувствительность',
+    display_mute_tooltip: 'Без звука', display_fullscreen_tooltip: 'Полный экран',
+    share_text: 'Играй в HexStacker Party с друзьями',
   },
 
   it: {
@@ -469,6 +553,14 @@ var LOCALES = {
     swipe: 'Scorrere', tap: 'Toccare', flick: 'Lanciare',
     gesture_move: 'muovere', gesture_rotate: 'ruotare',
     gesture_drop: 'rilasciare', gesture_hold: 'tenere',
+    settings_title: 'IMPOSTAZIONI', settings_done: 'OK',
+    settings_game_music: 'Musica', settings_touch_sounds: 'Suoni touch',
+    settings_haptics: 'Vibrazione', settings_haptics_hint: 'Potrebbe non funzionare su tutti i dispositivi',
+    settings_haptic_off: 'Off', settings_haptic_light: 'Lieve',
+    settings_haptic_medium: 'Media', settings_haptic_strong: 'Forte',
+    settings_sensitivity: 'Sensibilità',
+    display_mute_tooltip: 'Muto', display_fullscreen_tooltip: 'Schermo intero',
+    share_text: 'Gioca a HexStacker Party con i tuoi amici',
   },
 
   tr: {
@@ -505,6 +597,14 @@ var LOCALES = {
     swipe: 'Kaydır', tap: 'Dokun', flick: 'Fırlat',
     gesture_move: 'hareket ettir', gesture_rotate: 'döndür',
     gesture_drop: 'bırak', gesture_hold: 'tut',
+    settings_title: 'AYARLAR', settings_done: 'TAMAM',
+    settings_game_music: 'Oyun müziği', settings_touch_sounds: 'Dokunma sesleri',
+    settings_haptics: 'Titreşim', settings_haptics_hint: 'Her cihazda çalışmayabilir',
+    settings_haptic_off: 'Kapalı', settings_haptic_light: 'Hafif',
+    settings_haptic_medium: 'Orta', settings_haptic_strong: 'Güçlü',
+    settings_sensitivity: 'Hassasiyet',
+    display_mute_tooltip: 'Sesi kapat', display_fullscreen_tooltip: 'Tam ekran',
+    share_text: 'Arkadaşlarınla HexStacker Party oyna',
   }
 };
 
@@ -600,9 +700,17 @@ function translatePage() {
     htmlEls[h].innerHTML = t(htmlEls[h].getAttribute('data-i18n-html'));
   }
 
-  var titleEl = document.querySelector('title[data-i18n-title]');
-  if (titleEl) {
-    titleEl.textContent = t(titleEl.getAttribute('data-i18n-title'));
+  // data-i18n-title: sets textContent on the <title> element, sets the
+  // `title` attribute (hover tooltip) on any other element.
+  var titleEls = document.querySelectorAll('[data-i18n-title]');
+  for (var ti = 0; ti < titleEls.length; ti++) {
+    var titleEl = titleEls[ti];
+    var translated = t(titleEl.getAttribute('data-i18n-title'));
+    if (titleEl.tagName === 'TITLE') {
+      titleEl.textContent = translated;
+    } else {
+      titleEl.setAttribute('title', translated);
+    }
   }
 
   document.documentElement.lang = _locale;
