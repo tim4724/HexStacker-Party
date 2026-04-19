@@ -36,7 +36,6 @@ var stored = parseInt(state.displayCardsPerRow, 10);
 state.displayCardsPerRow = Math.max(1, Math.min(stored || DISPLAY_DEFAULT_COLS, DISPLAY_MAX_COLS));
 state.displayPlayers = parseInt(state.displayPlayers, 10) || DISPLAY_DEFAULT_PLAYERS;
 state.players = state.displayPlayers;
-state.viewAs = clampViewAs(parseInt(state.viewAs, 10) || 0);
 
 // viewAs picks any of the 8 player slots — DisplayTestHarness resolves the
 // host by stubbed clientId, so host tint works for slots beyond the active
@@ -44,6 +43,8 @@ state.viewAs = clampViewAs(parseInt(state.viewAs, 10) || 0);
 function clampViewAs(v) {
   return Math.max(0, Math.min(v || 0, 7));
 }
+
+state.viewAs = clampViewAs(parseInt(state.viewAs, 10) || 0);
 
 function dims() { return Gallery.DISPLAY_AR_DIMS[state.displayAR] || Gallery.DISPLAY_AR_DIMS['16x9']; }
 
@@ -99,7 +100,13 @@ function render() {
 // viewAs swaps the `host` param on each host-variant card's iframe in place.
 // Non-host-variant cards are left alone.
 function updateViewAs() {
-  var tag = Gallery.PLAYER_COLOR_NAMES[state.viewAs];
+  var c = state.viewAs;
+  var tag = Gallery.PLAYER_COLOR_NAMES[c];
+  // If bindSelect's parse fn clamped the picked value, the <select> still
+  // shows the raw pick; keep it in sync with state.viewAs so the dropdown
+  // snaps back to the clamped option.
+  var viewAsEl = document.getElementById('view-as-player');
+  if (viewAsEl && viewAsEl.value !== String(c)) viewAsEl.value = String(c);
   for (var i = 0; i < hostVariantCards.length; i++) {
     var item = hostVariantCards[i];
     item.card._setUrl(cardURL(item.scenario));

@@ -17,11 +17,11 @@ var CONTROLLER_CARDS = [
   { key: 'lobby-latejoiner', title: 'Lobby (late joiner)', perColor: true },
   { key: 'countdown',        title: 'Countdown',           perColor: true },
   { key: 'playing',          title: 'Playing',             perColor: true },
+  { key: 'ko',               title: 'KO',                  perColor: true },
   { key: 'playing-settings', title: 'Settings (host)',     perColor: true, extra: { host: '1' } },
   { key: 'playing-settings', title: 'Settings (non-host)', perColor: true, extra: { host: '' } },
   { key: 'paused',           title: 'Paused (host)',       perColor: true, extra: { host: '1' }, replayable: true },
   { key: 'paused',           title: 'Paused (non-host)',   perColor: true, extra: { host: '' } },
-  { key: 'ko',               title: 'KO',                  perColor: true },
   { key: 'reconnecting',     title: 'Reconnecting',        perColor: true },
   { key: 'disconnected',     title: 'Disconnected',        perColor: true },
   { key: 'results-winner',   title: 'Results (host)',      perColor: true, replayable: true },
@@ -45,11 +45,12 @@ var stored = parseInt(state.controllerCardsPerRow, 10);
 state.controllerCardsPerRow = Math.max(1, Math.min(stored || CTRL_MAX_COLS, CTRL_MAX_COLS));
 state.controllerPlayers = parseInt(state.controllerPlayers, 10) || CTRL_DEFAULT_PLAYERS;
 state.players = state.controllerPlayers;
-state.viewAs = clampViewAs(parseInt(state.viewAs, 10) || 0);
 
 function clampViewAs(v) {
   return Math.max(0, Math.min(v || 0, state.controllerPlayers - 1));
 }
+
+state.viewAs = clampViewAs(parseInt(state.viewAs, 10) || 0);
 
 function dims() {
   var d = Gallery.computeControllerDims(state);
@@ -107,7 +108,13 @@ function render() {
 // viewAs swaps the `color` param on each per-color card's iframe in place —
 // non-per-color cards (name input, legal, end screens) are left alone.
 function updateViewAs() {
-  var tag = Gallery.PLAYER_COLOR_NAMES[state.viewAs];
+  var c = state.viewAs;
+  var tag = Gallery.PLAYER_COLOR_NAMES[c];
+  // If bindSelect's parse fn clamped the picked value, the <select> still
+  // shows the raw pick; keep it in sync with state.viewAs so the dropdown
+  // snaps back to the clamped option.
+  var viewAsEl = document.getElementById('view-as-player');
+  if (viewAsEl && viewAsEl.value !== String(c)) viewAsEl.value = String(c);
   for (var i = 0; i < perColorCards.length; i++) {
     var item = perColorCards[i];
     item.card._setUrl(cardURL(item.scenario));

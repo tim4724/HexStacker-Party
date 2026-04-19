@@ -358,15 +358,6 @@ var Gallery = (function() {
       saveState(state); onChange();
     });
   }
-  function bindNumber(state, id, key, min, max, onChange) {
-    var el = document.getElementById(id);
-    if (!el) return;
-    el.value = String(state[key]);
-    el.addEventListener('input', function(e) {
-      var v = Math.max(min, Math.min(parseInt(e.target.value, 10) || min, max));
-      state[key] = v; saveState(state); onChange();
-    });
-  }
   function bindCheckbox(state, id, key, onChange) {
     var el = document.getElementById(id);
     if (!el) return;
@@ -394,7 +385,6 @@ var Gallery = (function() {
     autoPauseOnHeaderFocus: autoPauseOnHeaderFocus,
     initMobileOptionsToggle: initMobileOptionsToggle,
     bindSelect: bindSelect,
-    bindNumber: bindNumber,
     bindCheckbox: bindCheckbox
   };
 })();
