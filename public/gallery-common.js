@@ -56,10 +56,9 @@ var Gallery = (function() {
     controllerOrientation: 'portrait',
     controllerBrowserChrome: false,
     players: 4,
+    viewAs: 0,
     level: 1,
-    lang: 'en',
-    cardWidth: 440,
-    rowCardWidth: 180
+    lang: 'en'
   };
   function loadState() {
     try {
@@ -82,31 +81,28 @@ var Gallery = (function() {
     return parts.length ? '?' + parts.join('&') : '';
   }
 
-  function displayURL(state, scenario, nonce, levelOverride, extra) {
+  function displayURL(state, scenario, levelOverride, extra) {
     var p = {
       test: 1, bg: 1, lang: state.lang,
       scenario: scenario,
       players: state.players,
-      level: levelOverride !== undefined ? levelOverride : state.level,
-      _r: nonce || undefined
+      level: levelOverride !== undefined ? levelOverride : state.level
     };
     if (extra) for (var k in extra) p[k] = extra[k];
     return '/' + qs(p);
   }
 
-  // Static pages (privacy, imprint) accept only ?lang and a cache-bust.
-  function staticURL(state, path, nonce) {
-    return path + qs({ lang: state.lang, _r: nonce || undefined });
+  function staticURL(state, path) {
+    return path + qs({ lang: state.lang });
   }
 
-  function controllerURL(state, scenario, colorIdx, extra, nonce) {
+  function controllerURL(state, scenario, colorIdx, extra) {
     var p = {
       test: 1, bg: 1, lang: state.lang,
       scenario: scenario,
       color: colorIdx,
       level: state.level,
-      players: state.players,
-      _r: nonce || undefined
+      players: state.players
     };
     if (extra) for (var k in extra) p[k] = extra[k];
     // First path segment is the controller's roomCode — any value works in test mode.
@@ -203,17 +199,36 @@ var Gallery = (function() {
     var head = document.createElement('div');
     head.className = 'card-title';
     var title = document.createElement('span');
-    title.textContent = opts.title;
-    if (opts.tag) {
-      var sp = document.createElement('span'); sp.className = 'tag'; sp.textContent = ' ' + opts.tag;
-      title.appendChild(sp);
-    }
+    var titleText = document.createTextNode(opts.title);
+    title.appendChild(titleText);
+    // Appended even when opts.tag is falsy — _setLabel writes to this node
+    // unconditionally when viewAs changes, so it has to exist from the start.
+    // Empty span is a harmless no-op in layout (the .tag rule has no box
+    // properties that would render with empty content).
+    var tagEl = document.createElement('span');
+    tagEl.className = 'tag';
+    tagEl.textContent = opts.tag ? ' ' + opts.tag : '';
+    title.appendChild(tagEl);
     head.appendChild(title);
 
     var actions = document.createElement('div'); actions.className = 'actions';
-    var reload = document.createElement('button');
-    reload.className = 'card-btn'; reload.textContent = '↻'; reload.title = 'Reload this card';
-    actions.appendChild(reload);
+    // Replay button calls window.__TEST__.replay() inside the iframe so
+    // animated scenarios (countdown, effects, entrance animations) can be
+    // re-run without reloading the iframe. Scenarios that don't expose
+    // __TEST__.replay silently no-op if the button is somehow clicked.
+    if (opts.replayable) {
+      var replayBtn = document.createElement('button');
+      replayBtn.className = 'card-btn'; replayBtn.textContent = '▶';
+      replayBtn.title = 'Replay animation';
+      replayBtn.addEventListener('click', function() {
+        try {
+          var win = iframe.contentWindow;
+          var fn = win && win.__TEST__ && win.__TEST__.replay;
+          if (typeof fn === 'function') fn();
+        } catch (_) { /* cross-origin or iframe not ready */ }
+      });
+      actions.appendChild(replayBtn);
+    }
     var link = document.createElement('a');
     link.className = 'open-link'; link.target = '_blank'; link.rel = 'noopener';
     link.textContent = 'open ↗'; link.href = opts.url;
@@ -262,21 +277,57 @@ var Gallery = (function() {
     requestAnimationFrame(rescale);
     new ResizeObserver(rescale).observe(wrap);
 
+    // Generation counter — each loadUrl bumps it, and onDone early-exits if
+    // it no longer matches. Needed because rapid _setUrl calls on an already-
+    // loaded card queue multiple concurrent loadUrl calls whose `load` event
+    // listeners all fire against the same iframe once the final src settles.
+    // Without this guard, a superseded onDone would still run its
+    // _pendingUrl chase + pending-class toggle logic against stale state.
+    var _loadGen = 0;
     function loadUrl(url) {
+      var gen = ++_loadGen;
       link.href = url;
-      enqueueLoad(iframe, url, function() { wrap.classList.remove('pending'); });
+      enqueueLoad(iframe, url, function() {
+        if (gen !== _loadGen) return;
+        wrap.classList.remove('pending');
+        card._loaded = true;
+        // Chase the latest URL if _setUrl stashed one while this load was
+        // in flight (common during the IntersectionObserver → first-load
+        // window). Always clear _pendingUrl afterwards — even when pending
+        // === url — so a later _setUrl can't mistake a stale stash for a
+        // fresh chase request and bounce back to the prior URL.
+        var pending = card._pendingUrl;
+        card._pendingUrl = null;
+        if (pending && pending !== url) {
+          wrap.classList.add('pending');
+          loadUrl(pending);
+        }
+      });
     }
-
-    reload.addEventListener('click', function() {
-      var u = new URL(iframe.src || opts.url, location.origin);
-      u.searchParams.set('_r', Date.now());
-      wrap.classList.add('pending');
-      loadUrl(u.pathname + u.search);
-    });
 
     card._loadUrl = loadUrl;
     card._initialUrl = opts.url;
     card._applyDims = applyDims;
+    card._setLabel = function(newTitle, newTag) {
+      titleText.nodeValue = newTitle;
+      tagEl.textContent = newTag ? ' ' + newTag : '';
+      iframe.setAttribute('title', newTitle);
+    };
+    // Retarget the card to a new URL. For already-mounted cards this swaps
+    // the iframe src in place (no DOM rebuild); for cards still awaiting
+    // lazy-mount it updates _initialUrl so lazyMount picks the new target,
+    // and also stashes a _pendingUrl that the in-flight onDone (if any)
+    // will chase after it settles.
+    card._setUrl = function(url) {
+      card._initialUrl = url;
+      link.href = url;
+      if (card._loaded) {
+        wrap.classList.add('pending');
+        loadUrl(url);
+      } else {
+        card._pendingUrl = url;
+      }
+    };
     return card;
   }
 
@@ -302,6 +353,21 @@ var Gallery = (function() {
     for (var j = 0; j < cards.length; j++) io.observe(cards[j]);
   }
 
+  // --- Mobile options toggle ---
+  // Collapses the option groups behind a toggle on narrow screens. The button
+  // is hidden at wider widths via CSS, so this handler is a no-op there.
+  function initMobileOptionsToggle() {
+    var toggle = document.getElementById('options-toggle');
+    var hdr = document.querySelector('header');
+    if (!toggle || !hdr) return;
+    toggle.addEventListener('click', function() {
+      var open = hdr.classList.toggle('options-open');
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      toggle.textContent = open ? '✕' : '⚙';
+      toggle.setAttribute('aria-label', open ? 'Close options' : 'Options');
+    });
+  }
+
   // --- Shared control binders ---
   // state is mutated in place so all consumers observe the updated value
   // without an explicit get/set dance.
@@ -312,15 +378,6 @@ var Gallery = (function() {
     el.addEventListener('change', function(e) {
       state[key] = parse ? parse(e.target.value) : e.target.value;
       saveState(state); onChange();
-    });
-  }
-  function bindNumber(state, id, key, min, max, onChange) {
-    var el = document.getElementById(id);
-    if (!el) return;
-    el.value = String(state[key]);
-    el.addEventListener('input', function(e) {
-      var v = Math.max(min, Math.min(parseInt(e.target.value, 10) || min, max));
-      state[key] = v; saveState(state); onChange();
     });
   }
   function bindCheckbox(state, id, key, onChange) {
@@ -348,8 +405,8 @@ var Gallery = (function() {
     resetQueue: resetQueue,
     setLoadingPaused: setLoadingPaused,
     autoPauseOnHeaderFocus: autoPauseOnHeaderFocus,
+    initMobileOptionsToggle: initMobileOptionsToggle,
     bindSelect: bindSelect,
-    bindNumber: bindNumber,
     bindCheckbox: bindCheckbox
   };
 })();
