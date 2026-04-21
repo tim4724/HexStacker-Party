@@ -756,9 +756,14 @@ body.airconsole #qr-container,
    we intentionally catch any cramped viewport, including a narrow
    desktop browser window. The overlay's "play on a bigger screen OR
    continue here" message applies regardless of input type, and the
-   continue button is one tap away. */
+   continue button is one tap away.
+
+   `html.in-session` is set by showScreen() whenever the display is past
+   the welcome screen (lobby/game/results). Resizing during active play
+   must not resurface the overlay on top of the board — the user has
+   already committed to this device. */
 @media (max-width: 950px), (max-height: 500px) {
-  html:not(.device-choice-dismissed) #device-choice { display: flex; }
+  html:not(.device-choice-dismissed):not(.in-session) #device-choice { display: flex; }
 }
 
 /* --- AirConsole overrides --- */

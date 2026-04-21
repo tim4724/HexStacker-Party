@@ -96,7 +96,7 @@ if (deviceChoiceContinueBtn) {
 
 if (deviceChoiceShareBtn) {
   deviceChoiceShareBtn.addEventListener('click', function() {
-    shareHexstacker(t('share_text'));
+    HexStacker.share(t('share_text'));
   });
 }
 
@@ -189,8 +189,8 @@ newGameResultsBtn.addEventListener('click', function() {
 });
 
 // --- Mute ---
-if (muted) muteBtn.querySelector('.sound-waves').style.display = 'none';
-muteBtn.setAttribute('aria-checked', muted ? 'false' : 'true');
+// Initial DOM state synced at module load time so it reflects the
+// stored mute setting before the toolbar is revealed.
 
 function setDisplayMuted(next) {
   next = !!next;

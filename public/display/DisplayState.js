@@ -220,9 +220,24 @@ var reconnectStatus = document.getElementById('reconnect-status');
 var reconnectBtn = document.getElementById('reconnect-btn');
 var muteBtn = document.getElementById('mute-btn');
 
+// Reflect stored mute state on the toolbar's mute button immediately —
+// the HTML default (aria-checked="true", sound-waves visible) matches
+// the unmuted case; for a user with stacker_muted=1 persisted, this
+// syncs the DOM before AT reads it and before the toolbar is revealed.
+if (muteBtn) {
+  if (muted) muteBtn.querySelector('.sound-waves').style.display = 'none';
+  muteBtn.setAttribute('aria-checked', muted ? 'false' : 'true');
+}
+
 // --- Screen Management ---
 function showScreen(name) {
   currentScreen = name;
+  // Suppress the mobile-hint overlay once the user is past the welcome
+  // screen. Without this, narrowing a desktop browser during an active
+  // lobby/game/results session would re-fire the size-based media query
+  // in display.css and cover the board. Returning to WELCOME clears it
+  // so the overlay can reappear for the next visitor on that device.
+  document.documentElement.classList.toggle('in-session', name !== SCREEN.WELCOME);
   welcomeScreen.classList.toggle('hidden', name !== SCREEN.WELCOME);
   lobbyScreen.classList.toggle('hidden', name !== SCREEN.LOBBY);
   gameScreen.classList.toggle('hidden', name !== SCREEN.GAME && name !== SCREEN.RESULTS);
