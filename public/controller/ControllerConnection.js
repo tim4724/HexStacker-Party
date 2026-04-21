@@ -200,6 +200,10 @@ function showDeviceChoice(toastKey, keepClientId) {
       deviceChoiceToast.classList.add('hidden');
     }, 5000);
   } else {
+    // Clear the text too so a stale message from a prior invocation
+    // can't be announced by AT on the way to `hidden`, and doesn't
+    // linger in the DOM.
+    deviceChoiceToast.textContent = '';
     deviceChoiceToast.classList.add('hidden');
   }
   showScreen('device-choice');

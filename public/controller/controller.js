@@ -108,7 +108,7 @@ function handleMessage(data) {
 // Alt-A: share/open hexstacker.com (handler in /shared/share-helper.js).
 if (deviceChoiceShareBtn) {
   deviceChoiceShareBtn.addEventListener('click', function () {
-    shareHexstacker(t('share_text'));
+    HexStacker.share(t('share_text'));
   });
 }
 // Alt-B: hand off to the display root with a flag that suppresses the

@@ -5,7 +5,12 @@
 // first, falls back to opening hexstacker.com in a new tab. AbortError
 // (user cancelled the sheet) is silent; any other rejection means the
 // browser blocked the share and we drop to the fallback.
-function shareHexstacker(shareText) {
+//
+// Exposed under a `HexStacker` namespace (rather than a bare global) so
+// the short name can't collide with third-party scripts loaded on the
+// page. Additional shared helpers can attach here in future.
+var HexStacker = window.HexStacker || {};
+HexStacker.share = function (shareText) {
   // The URL is hardcoded to the canonical production host deliberately
   // (not `location.origin`) so shares from preview / local servers
   // still point people to the real app rather than a transient URL.
@@ -28,4 +33,5 @@ function shareHexstacker(shareText) {
   } else {
     window.open('https://hexstacker.com', '_blank', 'noopener,noreferrer');
   }
-}
+};
+window.HexStacker = HexStacker;
