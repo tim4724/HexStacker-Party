@@ -214,11 +214,11 @@
     }
 
     case 'end':
-      showEndScreen('game_ended', true);
+      showDeviceChoice('game_ended', true);
       break;
 
     case 'end-full':
-      showEndScreen('game_full', true);
+      showDeviceChoice('game_full', true);
       break;
 
     default:

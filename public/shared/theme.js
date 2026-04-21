@@ -93,7 +93,6 @@ const THEME = Object.freeze({
       primaryDark:  '#E55A5A',
       secondary:    '#FF8C42', // palette slot 8 Tangerine — UI secondary
       secondaryDark:'#E67A33',
-      tertiary:     '#FFE066', // palette slot 3 Honey — toast/low-priority accent
     }),
     danger:  '#ff4444',
     ko: Object.freeze({

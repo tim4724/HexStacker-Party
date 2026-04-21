@@ -59,9 +59,9 @@ async function createRoom(page) {
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto('/?test=1', { waitUntil: 'networkidle' });
   await waitForFont(page);
-  const continueAnyway = page.locator('#end-continue-btn');
-  if (await continueAnyway.isVisible()) {
-    await continueAnyway.click();
+  const continueBtn = page.locator('#device-choice-continue');
+  if (await continueBtn.isVisible()) {
+    await continueBtn.click();
   }
   await page.click('#new-game-btn');
   await page.waitForSelector('#lobby-screen:not(.hidden)', { timeout: 30000 });

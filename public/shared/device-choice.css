@@ -1,0 +1,391 @@
+/* ============================================
+   Device Choice — shared overlay between display (mobile-hint) and
+   controller (session-ended / room-error). Presents the game, four
+   feature chips, a bigger-screen CTA, and a share button; "Continue
+   on this device" is an understated link-style fallback. Self-contained.
+
+   Structure (two visual groups spaced by `space-around` on the outer
+   flex container — the toast floats absolute, the legal footer is
+   anchored to the bottom):
+     .device-choice
+       .device-choice__toast          — controller error (absolute, no reserve)
+       .device-choice__intro          — title + hero (tight block)
+         .device-choice__brand          — title
+         .device-choice__hero           — screenshot + chips
+           picture                        — screenshot
+           .device-choice__chips          — 4 feature chips (2x2 on narrow)
+       .device-choice__cta            — banner + continue (tight block)
+         .device-choice__banner         — tappable hexstacker.com + share icon
+         .device-choice__continue       — link-style "Continue on this device"
+       .device-choice__legal          — footer (anchored to bottom)
+   ============================================ */
+
+.device-choice {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* `space-around` distributes leftover vertical space evenly around the
+     two main groups (intro, cta) so each reads as its own block separated
+     by visible whitespace. `gap` stays as a floor so items keep breathing
+     room even when the viewport shrinks and free space collapses.
+     `overflow-y: auto` (below) handles overflow — without it, items
+     could overlap the safe-area edges on tiny viewports. The `safe`
+     space-around keyword is avoided because it falls back to `center`
+     in some browser engines. */
+  justify-content: space-around;
+  gap: clamp(14px, 2.5vh, 24px);
+  /* Fully opaque so the safe-area strips (status bar, home indicator)
+     stay a consistent solid color for OS nav-bar sampling. */
+  background: var(--bg-primary);
+  text-align: center;
+  padding:
+    calc(clamp(20px, 4vh, 40px) + env(safe-area-inset-top))
+    0.75rem
+    calc(48px + env(safe-area-inset-bottom)); /* reserve space for absolute __legal */
+  overflow-y: auto;
+}
+
+.device-choice.hidden { display: none; }
+
+/* While device-choice is overlaid, hide the underlying DOM screens so the
+   translucent background doesn't leak welcome/lobby/game UI through.
+   #bg-canvas is not a .screen, so the falling-pieces animation still
+   shows through. Covers the controller flow (`.hidden` toggled in JS).
+   The display's mobile-hint flow keeps `.hidden` on #device-choice but
+   forces it visible via media query — handled in display.css.
+
+   No fallback for browsers without `:has()` (Firefox < 121, Chrome
+   < 105, Safari < 15.4). On those engines the .screen rules stay
+   visible underneath the overlay, but the overlay's fully opaque
+   background (--bg-primary) covers them — visually identical, slightly
+   more paint work. Fine as-is. */
+body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
+
+/* --- Brand title --- */
+.device-choice__brand h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 7vw, 2.2rem);
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
+}
+
+/* Two visual groups — .device-choice__intro (title + screenshot + chips)
+   and .device-choice__cta (banner + continue) — sit as flex siblings
+   under .device-choice. The outer `space-around` distributes leftover
+   vertical space evenly around both, giving the rhythm:
+   space · [title + hero] · SPACE · [banner + continue] · space · footer.
+   Title sits tight with the hero it's introducing, not floating alone. */
+.device-choice__intro,
+.device-choice__hero,
+.device-choice__cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(10px, 2vh, 16px);
+  width: min(100%, 440px);
+}
+/* Title↔screenshot gap slightly wider than screenshot↔chips so the
+   title still gets a little breathing room without feeling detached. */
+.device-choice__intro {
+  gap: clamp(14px, 3vh, 22px);
+}
+
+/* --- Footer: anchored to the overlay's padding-box bottom. The
+       responsive breakpoints below drop content aggressively before the
+       column could actually overflow, so the absolute positioning (rather
+       than sticky) is fine in practice — but on a viewport that DID
+       overflow, the footer would scroll with the content instead of
+       pinning to the visible bottom. --- */
+.device-choice__legal {
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom) + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: clamp(0.85rem, 4vw, 1rem);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  /* Cap + clip on very narrow viewports with longer locale strings —
+     max-width keeps the footer inside the safe-area, overflow prevents
+     `translateX(-50%)` from pushing anything past that cap. */
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+}
+.device-choice__legal a {
+  color: inherit;
+  text-decoration: none;
+  padding: 8px 4px;
+  transition: color var(--transition-fast, 0.15s);
+}
+.device-choice__legal a:hover,
+.device-choice__legal a:focus-visible,
+.device-choice__legal a:active { color: var(--accent-secondary); }
+
+/* --- Screenshot --- */
+.device-choice__hero picture {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  line-height: 0;
+}
+/* 2:1 cinematic crop — short enough that the whole overlay fits above
+   the fold on typical phones while still showing all four player
+   boards. At ≤640h the chips collapse and `max-height` below grows. */
+.device-choice__screenshot {
+  display: block;
+  width: 100%;
+  max-height: 28vh;
+  height: auto;
+  object-fit: contain;
+}
+
+/* --- Chip grid: 2x2 — each chip has a bold label and a small subtitle
+       on a subtle colored surface. --- */
+.device-choice__chips {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  /* All chips share the tallest row height so a wrapping title doesn't
+     make its row look oversized next to the others. */
+  grid-auto-rows: 1fr;
+  gap: 8px;
+  width: 100%;
+}
+
+.device-choice__chips li {
+  box-sizing: border-box;
+  /* Metric-hero layout: the title is the visual hero, rendered big in
+     the chip's accent color; the caption drops to small uppercase
+     Orbitron small-caps below. No medallion — the title carries the
+     identity. */
+  /* rgba fallback for browsers without color-mix() support
+     (pre-Safari 16.2, pre-Chrome 111). Tuned to the default
+     --chip-accent (cream --text-primary #F7F1E8) at ~10% alpha. */
+  background: rgba(247, 241, 232, 0.1);
+  background: color-mix(in srgb, var(--chip-accent) 10%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+  line-height: 1.1;
+  cursor: default;
+}
+
+/* One accent color across all four chips — cream-white reads as
+   neutral/informational (no color claim) so the red banner below stays
+   the unambiguous CTA. */
+.device-choice__chips li { --chip-accent: var(--text-primary); }
+
+.device-choice__chips strong {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: clamp(1rem, 4.2vw, 1.2rem);
+  letter-spacing: 0.02em;
+  color: var(--chip-accent);
+  line-height: 1.05;
+}
+
+/* Caption voice: Orbitron thin-tracked small-caps, muted cream. Clearly
+   subordinate to the accent-colored hero above, same typographic family
+   so the chip has one voice, not two. */
+.device-choice__chips span {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(0.6rem, 2.5vw, 0.7rem);
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* --- Banner: the primary CTA. Red gradient filling matches .btn-primary
+       so the hierarchy reads instantly. The URL + share icon sit on the
+       first row, the subtitle on the second. Clicking anywhere on the
+       banner triggers the Web Share API. --- */
+.device-choice__banner {
+  box-sizing: border-box;
+  width: 100%;
+  /* Primary-gradient CTA — reserved for the strongest action on the
+     screen. Matches .btn-primary so the hierarchy reads instantly. */
+  background: linear-gradient(180deg, var(--accent-primary) 0%, var(--accent-primary-dark) 100%);
+  color: var(--btn-primary-text);
+  border: none;
+  border-radius: var(--radius-md);
+  /* Symmetric padding so URL + subtitle stay horizontally centered across
+     the full banner width; the share icon floats on top at the right edge. */
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  line-height: 1.25;
+  font: inherit;
+  cursor: pointer;
+  position: relative;
+  /* Inset top highlight adds a subtle bevel so the gradient reads as a
+     raised panel, not a flat fill — plus the standard drop-shadow. */
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+    var(--shadow-sm);
+  transition: transform var(--transition-fast, 0.15s),
+              filter var(--transition-fast, 0.15s),
+              box-shadow var(--transition-fast, 0.15s);
+}
+.device-choice__banner:hover,
+.device-choice__banner:focus-visible {
+  filter: brightness(1.08);
+  outline: none;
+}
+.device-choice__banner:active {
+  transform: translateY(1px);
+  /* Compress the drop-shadow and inset highlight on press — the button
+     visibly "sits down" onto its shadow instead of just scaling. */
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.device-choice__banner-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.device-choice__banner-url {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  font-size: clamp(1.15rem, 5.4vw, 1.42rem);
+  /* URLs read better tight-tracked — users scan them as a whole word,
+     not individual letters. */
+  letter-spacing: 0.01em;
+  color: var(--btn-primary-text);
+}
+/* Host + TLD both in the button's dark plum so the URL reads as one
+   solid unit — no split-color treatment. */
+.device-choice__banner-host,
+.device-choice__banner-tld { color: var(--btn-primary-text); }
+
+/* Icon floats at the right edge, vertically centered across the whole
+   banner (not just the URL row). Keeps the URL visually centered while
+   giving the button a clear "tap to share" affordance. */
+.device-choice__banner-icon {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  color: var(--btn-primary-text);
+  opacity: 0.85;
+}
+
+/* Subtitle voice: Orbitron small-caps with wide tracking — matches the
+   "button label" treatment used on .btn elsewhere (uppercase + letter-
+   spacing), just smaller. Drops the italic that felt out-of-vocabulary
+   on a button surface. */
+.device-choice__banner-sub {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(0.64rem, 2.5vw, 0.72rem);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  /* rgba fallback for browsers without color-mix() support. Tuned to
+     --btn-primary-text (plum-dark #1E1A2B) at ~72% alpha. */
+  color: rgba(30, 26, 43, 0.72);
+  color: color-mix(in srgb, var(--btn-primary-text) 72%, transparent);
+  margin-top: 2px;
+}
+
+/* --- Continue on this device: understated link-style fallback. No button
+       chrome — matches the Cocoa Arcade link treatment used in the footer. --- */
+.device-choice__continue {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 6px 4px;
+  font-family: inherit;
+  font-size: clamp(0.85rem, 3.6vw, 0.95rem);
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color var(--transition-fast, 0.15s);
+}
+.device-choice__continue:hover,
+.device-choice__continue:focus-visible,
+.device-choice__continue:active { color: var(--accent-secondary); }
+
+/* --- Toast (controller error only). Floats absolute in the lower half
+       at top: 85%. Brief overlap with whatever's underneath is fine —
+       it's a 5s auto-hide error. --- */
+.device-choice__toast {
+  position: absolute;
+  top: 85%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  max-width: calc(100% - 24px);
+  line-height: 1.3;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  background: var(--bg-card-soft);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+  z-index: 1;
+}
+/* Hide completely when inactive — no reserved space (layout won't shift). */
+.device-choice__toast.hidden { display: none; }
+
+/* Responsive behaviour is driven by viewport HEIGHT, not orientation:
+   the vertical column stays in place regardless of aspect, and
+   non-essential content is dropped in priority order as vertical space
+   shrinks. Banner + Continue link + footer are always preserved — they
+   carry the interaction. Chips drop before the screenshot because the
+   screenshot shows the product at a glance, while the chips repeat the
+   selling points the banner's CTA already implies. */
+
+/* Tight height (~≤640px): trim spacing and hide the chips. The
+   screenshot + banner together still communicate what the app is.
+   With chips gone, the screenshot gets more vertical room (up from
+   28vh → 45vh) so it reads as the hero. */
+@media (max-height: 640px) {
+  .device-choice {
+    gap: clamp(10px, 2vh, 18px);
+    padding-top: calc(clamp(12px, 2vh, 24px) + env(safe-area-inset-top));
+  }
+  .device-choice__chips { display: none; }
+  .device-choice__screenshot { max-height: 45vh; }
+  .device-choice__banner { padding: 10px 14px; }
+}
+
+/* Very tight (~≤460px): drop the screenshot too — banner + link + title
+   only. Toast is inline and stays visible at every breakpoint (it used
+   to be absolute-positioned and hidden here). */
+@media (max-height: 460px) {
+  .device-choice__hero picture { display: none; }
+  .device-choice { gap: clamp(8px, 2vh, 14px); }
+}
+
+/* Absolute minimum (~≤320px, e.g. iPhone SE landscape): drop the title
+   too — banner + link + footer only. */
+@media (max-height: 320px) {
+  .device-choice__brand { display: none; }
+}
+
+/* AirConsole: never show the device-choice overlay */
+body.airconsole .device-choice { display: none !important; }

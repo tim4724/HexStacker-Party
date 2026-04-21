@@ -83,10 +83,6 @@ function syncViewportLayout() {
     if (welcomeBg) {
       welcomeBg.resize(metrics.width, metrics.height);
     }
-    if (endScreenBg && currentScreen === 'end') {
-      var endRect = endScreenBgCanvas.getBoundingClientRect();
-      endScreenBg.resize(endRect.width, endRect.height);
-    }
     // iOS Safari doesn't support interactive-widget=resizes-content,
     // so the CSS media query won't fire. Use visualViewport as fallback.
     var isLandscape = metrics.width > metrics.height;
@@ -98,8 +94,6 @@ function syncViewportLayout() {
 // --- Background ---
 var bgCanvas = document.getElementById('bg-canvas');
 var welcomeBg = null;
-var endScreenBgCanvas = document.getElementById('end-screen-bg');
-var endScreenBg = null;
 if (bgCanvas && (function() {
   var p = new URLSearchParams(window.location.search);
   return p.get('test') !== '1' || p.get('bg') === '1';
@@ -108,9 +102,6 @@ if (bgCanvas && (function() {
   var metrics = getViewportMetrics();
   welcomeBg.resize(metrics.width, metrics.height);
   welcomeBg.start();
-  if (endScreenBgCanvas) {
-    endScreenBg = new WelcomeBackground(endScreenBgCanvas, 6);
-  }
 }
 window.addEventListener('resize', syncViewportLayout);
 if (window.visualViewport) {
@@ -130,8 +121,10 @@ var lobbyBackBtn = document.getElementById('lobby-back-btn');
 var waitingActionText = document.getElementById('waiting-action-text');
 var gameScreen = document.getElementById('game-screen');
 var gameoverScreen = document.getElementById('gameover-screen');
-var endScreen = document.getElementById('end-screen');
-var endToast = document.getElementById('end-toast');
+var deviceChoice = document.getElementById('device-choice');
+var deviceChoiceToast = document.getElementById('device-choice-toast');
+var deviceChoiceShareBtn = document.getElementById('device-choice-share');
+var deviceChoiceContinueBtn = document.getElementById('device-choice-continue');
 var playerIdentity = document.getElementById('player-identity');
 var startBtn = document.getElementById('start-btn');
 var statusText = document.getElementById('status-text');
@@ -173,7 +166,7 @@ var levelMinusBtn = document.getElementById('level-minus-btn');
 var levelPlusBtn = document.getElementById('level-plus-btn');
 
 // --- Screen Management ---
-var SCREEN_ORDER = { name: 0, lobby: 1, game: 1, gameover: 1, end: 0 };
+var SCREEN_ORDER = { name: 0, lobby: 1, game: 1, gameover: 1, 'device-choice': 0 };
 
 function showScreen(name) {
   var prev = currentScreen;
@@ -182,7 +175,7 @@ function showScreen(name) {
   lobbyScreen.classList.toggle('hidden', name !== 'lobby');
   gameScreen.classList.toggle('hidden', name !== 'game');
   gameoverScreen.classList.toggle('hidden', name !== 'gameover');
-  endScreen.classList.toggle('hidden', name !== 'end');
+  deviceChoice.classList.toggle('hidden', name !== 'device-choice');
 
   if (welcomeBg) {
     if (name === 'name' || name === 'lobby') {
@@ -193,16 +186,6 @@ function showScreen(name) {
       bgCanvas.classList.add('hidden');
     }
   }
-  if (endScreenBg) {
-    if (name === 'end') {
-      var rect = endScreenBgCanvas.getBoundingClientRect();
-      endScreenBg.resize(rect.width, rect.height);
-      endScreenBg.start();
-    } else {
-      endScreenBg.stop();
-    }
-  }
-
   if ((SCREEN_ORDER[name] || 0) > (SCREEN_ORDER[prev] || 0)) {
     history.pushState({ screen: name }, '');
   }

@@ -1,6 +1,10 @@
 .DS_Store
 node_modules/
+# Local-only Claude Code state — keeps the .claude/ root committable for
+# shared project settings/hooks while excluding per-user runtime files.
 .claude/worktrees/
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
 .playwright-mcp/
 .codex-run/
 output/
@@ -10,6 +14,8 @@ public/preview-settle.*
 public/artwork/*
 !public/artwork/gameplay-16x9.jpg
 !public/artwork/gameplay-16x9.webp
+!public/artwork/gameplay-2x1.jpg
+!public/artwork/gameplay-2x1.webp
 !public/artwork/gameplay-2p-1x1.jpg
 !public/artwork/gameplay-2p-1x1.webp
 !public/artwork/social-preview.png

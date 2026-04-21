@@ -70,8 +70,8 @@ function handleMessage(data) {
       case MSG.DISPLAY_CLOSED:
         // Don't surface "Game ended" if the user hasn't actually joined a
         // game yet (still on name screen, e.g. race during lobby→game).
-        if (currentScreen === 'name') showEndScreen();
-        else showEndScreen('game_ended');
+        if (currentScreen === 'name') showDeviceChoice();
+        else showDeviceChoice('game_ended');
         break;
       case MSG.RETURN_TO_LOBBY:
         waitingForNextGame = false;
@@ -100,12 +100,32 @@ function handleMessage(data) {
 }
 
 // =====================================================================
+// Device-choice listeners (registered unconditionally — `showDeviceChoice()`
+// can fire on the !roomCode path below, so the buttons must be wired up
+// regardless of whether a room code is present)
+// =====================================================================
+
+// Alt-A: share/open hexstacker.com (handler in /shared/share-helper.js).
+if (deviceChoiceShareBtn) {
+  deviceChoiceShareBtn.addEventListener('click', function () {
+    shareHexstacker(t('share_text'));
+  });
+}
+// Alt-B: hand off to the display root with a flag that suppresses the
+// mobile-hint overlay so the user lands straight on the welcome screen.
+if (deviceChoiceContinueBtn) {
+  deviceChoiceContinueBtn.addEventListener('click', function () {
+    location.href = '/?continue=1';
+  });
+}
+
+// =====================================================================
 // Room Code & Client ID
 // =====================================================================
 
 roomCode = location.pathname.split('/').filter(Boolean)[0] || null;
 if (!roomCode) {
-  showEndScreen();
+  showDeviceChoice();
 } else {
 
 // Check for stored clientId BEFORE generating a new one (used for auto-reconnect)
@@ -131,13 +151,13 @@ if (!skipNameScreen && !isScenario) {
       // Bail if the user has already moved past the name screen — a slow
       // probe arriving after a successful join would otherwise evict them.
       if (currentScreen !== 'name') return;
-      if (res.status === 404) return showEndScreen('room_not_found');
+      if (res.status === 404) return showDeviceChoice('room_not_found');
       // Only treat full as fatal for fresh joiners — reconnects with a
       // stored clientId swap into their existing slot on the relay.
       if (!isNewClient) return;
       return res.json().then(function (info) {
         if (currentScreen !== 'name') return;
-        if (info && info.clients >= info.maxClients) showEndScreen('game_full');
+        if (info && info.clients >= info.maxClients) showDeviceChoice('game_full');
       });
     })
     .catch(function () { /* network error — connect() will surface it */ });
@@ -397,7 +417,7 @@ if (lobbySettingsBtn) lobbySettingsBtn.addEventListener('click', openSettings);
 window.openSettings = openSettings;
 
 // Silently hide the popup and clear the pause-by-settings flag WITHOUT
-// sending RESUME_GAME. Called from onGameEnd / showEndScreen to prevent
+// sending RESUME_GAME. Called from onGameEnd / showDeviceChoice to prevent
 // a stale flag or a post-transition resume from reaching the display.
 window.closeSettingsOverlay = function () {
   if (!settingsOverlay) return;
@@ -724,27 +744,6 @@ window.addEventListener('popstate', function () {
 window.addEventListener('pagehide', function () {
   if (party) party.close();
 });
-
-// Share hexstacker.com via the Web Share API when the end-screen link is tapped.
-// Delegated on document because i18n translatePage re-sets innerHTML and would
-// discard a direct listener.
-if (navigator.share) {
-  document.addEventListener('click', function(e) {
-    var link = e.target.closest && e.target.closest('#end-step-1-link');
-    if (!link) return;
-    e.preventDefault();
-    navigator.share({
-      title: 'HexStacker Party',
-      text: 'Play HexStacker Party with your friends',
-      url: 'https://hexstacker.com'
-    }).catch(function(err) {
-      // AbortError = user cancelled the sheet — do nothing.
-      // Any other error = share was blocked (e.g. NotAllowedError when
-      // document isn't focused) — fall back to normal navigation.
-      if (err && err.name !== 'AbortError') window.open(link.href, '_blank');
-    });
-  });
-}
 
 // =====================================================================
 // Initialize
