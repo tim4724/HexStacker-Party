@@ -6,6 +6,11 @@
 // Called by: controller.js (init, event handlers)
 // =====================================================================
 
+// Handle for the 5s toast auto-hide timer, stored at module scope so
+// successive showDeviceChoice() calls can cancel a previous timer
+// before arming a new one.
+var deviceChoiceToastTimer = null;
+
 function connect() {
   // Gallery iframes load with ?scenario=; never open a real relay socket
   // for those, even if localStorage somehow holds a stored clientId for
@@ -39,11 +44,11 @@ function connect() {
       }
     } else if (type === 'error') {
       if (msg.message === 'Room not found') {
-        showEndScreen('room_not_found');
+        showDeviceChoice('room_not_found');
       } else if (msg.message === 'Room is full') {
-        showEndScreen('game_full');
+        showDeviceChoice('game_full');
       } else {
-        showEndScreen();
+        showDeviceChoice();
       }
     }
   };
@@ -60,7 +65,7 @@ function connect() {
     if (meta && meta.replaced) {
       // keepClientId=true: the newer tab that evicted us now owns the
       // localStorage clientId — clearing it would orphan that session.
-      showEndScreen(undefined, true);
+      showDeviceChoice(undefined, true);
       return;
     }
     if (currentScreen !== 'game') return;
@@ -165,7 +170,7 @@ function performDisconnect() {
   nameInput.focus();
 }
 
-function showEndScreen(toastKey, keepClientId) {
+function showDeviceChoice(toastKey, keepClientId) {
   // Guard against double-invocation (e.g. relay close + DISPLAY_CLOSED in
   // flight): don't reset the toast timer or re-null party.
   if (gameCancelled) return;
@@ -179,22 +184,31 @@ function showEndScreen(toastKey, keepClientId) {
   // Clean up the settings popup state so a close-button after
   // reconnect doesn't RESUME_GAME a long-gone display. Guarded: this
   // function is only defined on the !roomCode branch in controller.js,
-  // and showEndScreen() also runs on the falsy-roomCode early-return
+  // and showDeviceChoice() also runs on the falsy-roomCode early-return
   // before that branch's assignment runs.
   if (typeof closeSettingsOverlay === 'function') closeSettingsOverlay();
   if (party) { party.close(); party = null; }
 
+  // The toast element has role="status" + aria-live="polite", so changing
+  // textContent is enough to announce it via screen readers — no manual
+  // aria-hidden juggling needed.
+  clearTimeout(deviceChoiceToastTimer);
   if (toastKey) {
-    endToast.textContent = t(toastKey);
-    endToast.classList.remove('hidden');
-    endToast.removeAttribute('aria-hidden');
-    setTimeout(function () {
-      endToast.classList.add('hidden');
-      endToast.setAttribute('aria-hidden', 'true');
+    deviceChoiceToast.textContent = t(toastKey);
+    deviceChoiceToast.classList.remove('hidden');
+    deviceChoiceToastTimer = setTimeout(function () {
+      deviceChoiceToast.classList.add('hidden');
     }, 5000);
   } else {
-    endToast.classList.add('hidden');
-    endToast.setAttribute('aria-hidden', 'true');
+    deviceChoiceToast.classList.add('hidden');
   }
-  showScreen('end');
+  showScreen('device-choice');
+  // role="dialog" — move focus into the overlay so keyboard and
+  // screen-reader users land on the primary action, not outside it.
+  // Using a rect-width probe rather than `offsetParent` because Firefox
+  // returns null for offsetParent under position:fixed ancestors.
+  if (deviceChoiceShareBtn &&
+      deviceChoiceShareBtn.getBoundingClientRect().width > 0) {
+    try { deviceChoiceShareBtn.focus(); } catch (_) { /* old browsers */ }
+  }
 }

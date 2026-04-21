@@ -31,9 +31,6 @@
   --accent-secondary-rgb: 255, 140, 66;   /* Slot 8 Tangerine */
   --accent-secondary: rgb(var(--accent-secondary-rgb));
   --accent-secondary-dark: #E67A33;
-  --accent-tertiary-rgb: 255, 209, 102;   /* Slot 3 Honey — toast/low-priority accent */
-  --accent-tertiary: rgb(var(--accent-tertiary-rgb));
-
   /* HEX STACKER wordmark gradient — independent of the UI accents so
      the title reads red → honey → teal while buttons/links use their
      own palette slots. */
@@ -247,38 +244,6 @@
   border-radius: var(--radius-xl);
   padding: 28px 32px;
   max-width: 320px;
-}
-
-.toast {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--bg-card);
-  border: 1px solid var(--accent-tertiary);
-  border-radius: var(--radius-md);
-  padding: 10px 18px;
-  font-family: 'Orbitron', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: var(--text-primary);
-}
-
-.toast__dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--accent-tertiary);
-  animation: toastDot 1s ease-in-out infinite;
-}
-
-@keyframes toastDot {
-  0%, 100% { opacity: 0.4; transform: scale(0.9); }
-  50%      { opacity: 1;   transform: scale(1.1); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .toast__dot { animation: none; }
 }
 
 .icon-btn {

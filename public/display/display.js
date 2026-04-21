@@ -67,34 +67,36 @@ document.addEventListener('visibilitychange', function() {
   }
 });
 
-// --- End Screen (mobile hint) ---
-// Note: on mobile the display.css media query (#end-screen { display: flex })
-// overrides the .hidden class via higher specificity, so dismissing the hint
-// requires removing the element rather than just adding `.hidden`.
-var endContinueBtn = document.getElementById('end-continue-btn');
-if (endContinueBtn) {
-  endContinueBtn.addEventListener('click', function() {
-    var endScreen = document.getElementById('end-screen');
-    if (endScreen) endScreen.remove();
-  });
+// --- Device Choice overlay ---
+// Visibility on the display page is driven by html.device-choice-dismissed
+// + the size-based media query in display.css. The element keeps its
+// .hidden class permanently — dismiss/restore only toggle the root class.
+var deviceChoice = document.getElementById('device-choice');
+var deviceChoiceShareBtn = document.getElementById('device-choice-share');
+var deviceChoiceContinueBtn = document.getElementById('device-choice-continue');
+
+function dismissDeviceChoice() {
+  document.documentElement.classList.add('device-choice-dismissed');
+  history.pushState({ dcDismissed: true }, '');
 }
 
-// Share hexstacker.com via the Web Share API when the link is tapped on mobile.
-// Delegated on document so i18n re-translations don't discard the listener.
-if (navigator.share) {
-  document.addEventListener('click', function(e) {
-    var link = e.target.closest && e.target.closest('#end-step-1-link');
-    if (!link) return;
-    e.preventDefault();
-    navigator.share({
-      title: 'HexStacker Party',
-      text: t('share_text'),
-      url: 'https://hexstacker.com'
-    }).catch(function(err) {
-      // AbortError = user cancelled the sheet — do nothing.
-      // Any other error = share was blocked — fall back to normal navigation.
-      if (err && err.name !== 'AbortError') window.open(link.href, '_blank');
-    });
+function restoreDeviceChoice() {
+  document.documentElement.classList.remove('device-choice-dismissed');
+  // Firefox returns null for offsetParent on position:fixed descendants,
+  // so use getBoundingClientRect to detect visibility before focusing.
+  if (deviceChoiceShareBtn &&
+      deviceChoiceShareBtn.getBoundingClientRect().width > 0) {
+    try { deviceChoiceShareBtn.focus(); } catch (_) { /* old browsers */ }
+  }
+}
+
+if (deviceChoiceContinueBtn) {
+  deviceChoiceContinueBtn.addEventListener('click', dismissDeviceChoice);
+}
+
+if (deviceChoiceShareBtn) {
+  deviceChoiceShareBtn.addEventListener('click', function() {
+    shareHexstacker(t('share_text'));
   });
 }
 
@@ -127,6 +129,16 @@ window.addEventListener('popstate', function(e) {
     suppressPopstate = false;
     return;
   }
+
+  // Sync the device-choice overlay with history state.
+  var wasDismissed = document.documentElement.classList.contains('device-choice-dismissed');
+  var nowDismissed = !!(e.state && e.state.dcDismissed);
+  if (wasDismissed && !nowDismissed) {
+    restoreDeviceChoice();
+  } else if (!wasDismissed && nowDismissed) {
+    document.documentElement.classList.add('device-choice-dismissed');
+  }
+
   var target = e.state && e.state.screen;
   if (currentScreen === SCREEN.WELCOME && target === SCREEN.LOBBY) {
     suppressPopstate = true;
@@ -281,31 +293,6 @@ if (bgCanvas && (urlParams.get('test') !== '1' || urlParams.get('bg') === '1')) 
   });
   welcomeBg.resize(window.innerWidth, window.innerHeight);
   welcomeBg.start();
-
-  // End-screen falling pieces — only animate on mobile devices where the
-  // end-screen is actually visible (see display.css media query). Desktop
-  // users never see the end-screen, so there's no reason to burn RAF on it.
-  var endScreenBgCanvas = document.getElementById('end-screen-bg');
-  if (endScreenBgCanvas) {
-    var endScreenBg = new WelcomeBackground(endScreenBgCanvas, 6);
-    var endScreenMql = window.matchMedia(
-      '(max-width: 950px) and (pointer: coarse) and (hover: none),' +
-      '(max-height: 500px) and (pointer: coarse) and (hover: none)'
-    );
-    var syncEndScreenBg = function() {
-      if (!endScreenBgCanvas.isConnected) return;
-      if (endScreenMql.matches) {
-        var rect = endScreenBgCanvas.getBoundingClientRect();
-        endScreenBg.resize(rect.width, rect.height);
-        endScreenBg.start();
-      } else {
-        endScreenBg.stop();
-      }
-    };
-    syncEndScreenBg();
-    endScreenMql.addEventListener('change', syncEndScreenBg);
-    window.addEventListener('resize', syncEndScreenBg);
-  }
 }
 
 // --- Debug or normal init ---

@@ -145,12 +145,16 @@ function buildHexBannerGameState(playerCount = NAMES.length) {
 // Gameplay banner variants — same scene, different aspect ratios.
 // gameplay-2x1.png is GitHub's social preview (configured in repo Settings).
 const GAMEPLAY_VARIANTS = [
-  { name: 'gameplay-2x1.png',  width: 1280, height: 640, phoneBottom: '18px', phoneHeight: '255px' },
-  { name: 'gameplay-21x9.png', width: 1280, height: 640, phoneBottom: '18px', phoneHeight: '255px', clipHeight: 540 },
-  { name: 'gameplay-16x9.png', width: 1280, height: 720, phoneBottom: '18px', phoneHeight: '255px', displayTop: '40px', pillTop: '30px' },
+  // Phone frame 120 × 245 (aspect 1:2.04). Controller capture viewport
+  // below (300 × 600) is tuned to the inner phone-screen area (114 × 228
+  // after the 3px frame + 14px notch padding) so `object-fit: cover`
+  // fills the screen without side-bars or bottom clipping.
+  { name: 'gameplay-2x1.png',  width: 1280, height: 640, phoneBottom: '18px', phoneHeight: '245px' },
+  { name: 'gameplay-21x9.png', width: 1280, height: 640, phoneBottom: '18px', phoneHeight: '245px', clipHeight: 540 },
+  { name: 'gameplay-16x9.png', width: 1280, height: 720, phoneBottom: '18px', phoneHeight: '245px', displayTop: '40px', pillTop: '30px' },
 ];
 
-// Portrait 2-player variant — used as the end-screen hero image on
+// Portrait 2-player variant — used as the device-choice hero image on
 // phone-width viewports, where 16:9 is too squat. 3:4 (720×960) balances
 // display-on-top + 2 phones-at-bottom without cramping either.
 const PORTRAIT_VARIANT = {
@@ -245,8 +249,8 @@ async function generate() {
   await roomPage.goto(BASE_URL);
   await waitForFont(roomPage);
 
-  const continueAnyway = roomPage.locator('#end-continue-btn');
-  if (await continueAnyway.isVisible()) await continueAnyway.click();
+  const continueBtn = roomPage.locator('#device-choice-continue');
+  if (await continueBtn.isVisible()) await continueBtn.click();
 
   await roomPage.click('#new-game-btn');
   await roomPage.waitForSelector('#lobby-screen:not(.hidden)', { timeout: 10000 });
@@ -260,10 +264,14 @@ async function generate() {
   console.log(`  Room created: ${roomCode}`);
 
   // Join 4 controllers
+  // Viewport aspect 300 × 600 (1:2) matches the inner phone-screen area
+  // in banner.html (114 × 228 after the 3px frame + 14px notch padding).
+  // Matching aspects means `object-fit: cover` on the inner <img>
+  // produces no side-bars and no bottom clipping.
   const controllers = [];
   for (let i = 0; i < NAMES.length; i++) {
     const ctrlContext = await browser.newContext({
-      viewport: { width: 300, height: 650 },
+      viewport: { width: 300, height: 600 },
       deviceScaleFactor: 2,
     });
     const page = await ctrlContext.newPage();
@@ -294,11 +302,15 @@ async function generate() {
   }, null, { timeout: 10000 });
   await host.waitForTimeout(300);
 
-  // Hide pause/mute buttons so they don't distract in the banner
+  // Hide pause/settings/ping so they don't distract in the banner.
+  // Guarded — controller UI evolves over time, missing IDs shouldn't
+  // break artwork generation.
   for (const ctrl of controllers) {
     await ctrl.evaluate(() => {
-      document.getElementById('mute-btn').style.display = 'none';
-      document.getElementById('pause-btn').style.display = 'none';
+      ['pause-btn', 'settings-btn', 'ping-display'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
     });
   }
 
@@ -399,13 +411,17 @@ async function generate() {
   const portraitPngTmp = path.join(os.tmpdir(), `hexstacker-${PORTRAIT_VARIANT.name}`);
   await renderPortraitBanner(portraitPngTmp);
 
-  // Produce end-screen hero images in public/artwork/ as WebP (primary)
+  // Produce device-choice hero images in public/artwork/ as WebP (primary)
   // and JPEG (fallback for browsers without WebP). JPEG is ~6-10x smaller
   // at q=85 and visually identical for these screenshots.
   const publicDir = path.resolve(BANNER_DIR, '..', 'public', 'artwork');
   fs.mkdirSync(publicDir, { recursive: true });
+  // 16x9 is the social-preview / OG image. 2x1 is the device-choice
+  // hero. 2p-1x1 is the portrait overlay. The 21x9 PNG is used by the
+  // README only, so it's generated above but not shipped as webp/jpg.
   const heroSources = [
     { srcPng: path.resolve(BANNER_DIR, 'gameplay-16x9.png'), base: 'gameplay-16x9' },
+    { srcPng: path.resolve(BANNER_DIR, 'gameplay-2x1.png'), base: 'gameplay-2x1' },
     { srcPng: portraitPngTmp, base: PORTRAIT_VARIANT.name.replace(/\.png$/, '') },
   ];
   for (const { srcPng, base } of heroSources) {

@@ -738,27 +738,19 @@ body.airconsole #qr-container,
   animation: resultsButtonsEnter 0.4s ease 1.5s both;
 }
 
-/* ============================================
-   End Screen visibility (mobile devices viewing display URL)
-   Styles defined in /shared/end-screen.css.
-   ID selector (1,0,0) intentionally beats .end-screen.hidden (0,2,0)
-   so the element shows on mobile even with the `hidden` class present.
-   "Continue anyway" removes the element from the DOM, not via .hidden.
+/* Device-choice visibility on cramped viewports. Styles in
+   /shared/device-choice.css. The ID+root-class selector (1,1,1) beats
+   .device-choice.hidden (0,2,0) so the element shows even with the
+   `hidden` class present; dismissing adds `html.device-choice-dismissed`
+   to exclude the match.
 
-   Triggers on touch-first devices (pointer: coarse + hover: none) that
-   are either narrow (≤950px — phone in any orientation + tablet portrait)
-   or short (≤500px — phone landscape). Desktop browsers resized narrow
-   are excluded because they retain pointer: fine + hover: hover.
-   ============================================ */
-@media (max-width: 950px) and (pointer: coarse) and (hover: none),
-       (max-height: 500px) and (pointer: coarse) and (hover: none) {
-  #end-screen { display: flex; }
-  /* No .screen suppression needed here: the display page always keeps
-     .hidden on #end-screen (visibility is driven by the ID rule above
-     overriding the class selector), so :has(#end-screen:not(.hidden))
-     never matches. The end-screen's opaque background in end-screen.css
-     prevents any bleed-through. Controller suppression lives in
-     end-screen.css (where .hidden IS removed by JS). */
+   Size-only triggers (no `pointer: coarse` / `hover: none` filters):
+   we intentionally catch any cramped viewport, including a narrow
+   desktop browser window. The overlay's "play on a bigger screen OR
+   continue here" message applies regardless of input type, and the
+   continue button is one tap away. */
+@media (max-width: 950px), (max-height: 500px) {
+  html:not(.device-choice-dismissed) #device-choice { display: flex; }
 }
 
 /* --- AirConsole overrides --- */
@@ -767,6 +759,5 @@ body.airconsole #join-url,
 body.airconsole #welcome-footer { display: none !important; }
 body.airconsole #lobby-footer { display: flex !important; }
 body.airconsole #welcome-screen { display: none !important; }
-body.airconsole #end-screen { display: none !important; }
 body.airconsole #fullscreen-btn { display: none !important; }
 body.airconsole .player-slot:has(.player-card.empty) { display: none !important; }

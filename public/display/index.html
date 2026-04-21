@@ -7,51 +7,78 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <title>HexStacker Party</title>
-  <meta name="description" content="Multiplayer hex stacker — play on your TV, control with your phone.">
+  <meta name="description" content="Multiplayer hex stacker — phones become controllers, a shared screen shows the action.">
   <meta property="og:title" content="HexStacker Party">
-  <meta property="og:description" content="Multiplayer hex stacker — play on your TV, control with your phone.">
+  <meta property="og:description" content="Multiplayer hex stacker — phones become controllers, a shared screen shows the action.">
   <meta property="og:image" content="https://hexstacker.com/artwork/social-preview.png">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="HexStacker Party">
-  <meta name="twitter:description" content="Multiplayer hex stacker — play on your TV, control with your phone.">
+  <meta name="twitter:description" content="Multiplayer hex stacker — phones become controllers, a shared screen shows the action.">
   <meta name="twitter:image" content="https://hexstacker.com/artwork/social-preview.png">
   <link rel="stylesheet" href="/shared/fonts/orbitron.css">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="32x32">
   <link rel="stylesheet" href="/shared/theme.css">
   <link rel="stylesheet" href="/shared/results.css">
-  <link rel="stylesheet" href="/shared/end-screen.css">
+  <link rel="stylesheet" href="/shared/device-choice.css">
   <link rel="stylesheet" href="/display/display.css">
+  <!-- Must load before <body> is parsed so the #device-choice overlay
+       doesn't flash when redirected from a controller's "Continue" button. -->
+  <script src="/shared/device-choice-bypass.js"></script>
 </head>
 <body>
   <!-- Shared falling piece background (visible on welcome + lobby) -->
   <canvas id="bg-canvas"></canvas>
 
-  <!-- End screen: shown on mobile devices visiting the display URL -->
-  <div class="end-screen hidden" id="end-screen">
-    <canvas class="end-screen__bg" id="end-screen-bg" aria-hidden="true"></canvas>
-    <div class="end-brand">
-      <h1 class="gradient-title">HEX STACKER<span class="gradient-title__sub">party</span></h1>
-    </div>
-    <div class="end-content">
-      <picture>
-        <source media="(orientation: portrait)" type="image/webp" srcset="/artwork/gameplay-2p-1x1.webp">
-        <source media="(orientation: portrait)" type="image/jpeg" srcset="/artwork/gameplay-2p-1x1.jpg">
-        <source type="image/webp" srcset="/artwork/gameplay-16x9.webp">
-        <img src="/artwork/gameplay-16x9.jpg" alt="" class="end-screenshot">
-      </picture>
-      <div class="end-steps-card">
-        <ol class="end-steps">
-          <li><span class="end-step-text" data-i18n-html="end_step_1">Open <a href="https://hexstacker.com" id="end-step-1-link" class="end-link">hexstacker.com</a> on a larger screen</span></li>
-          <li><span class="end-step-text" data-i18n="end_step_2">Scan the QR code to use your phone as controller</span></li>
-        </ol>
+  <!-- Device choice: shown on mobile devices visiting the display URL.
+       NOTE: this block is mirrored in /controller/index.html. Keep both
+       in sync — chip copy, data-i18n keys, aria, and structure must
+       match. The toast element below is unused on the display (nothing
+       calls it from display.js) but included so the two files stay
+       structurally identical. -->
+  <!-- role="dialog" (without aria-modal) — conveys dialog semantics to
+       screen readers without promising the focus-containment behaviour
+       that aria-modal="true" requires. Adding a proper focus trap is
+       more than this overlay needs: tabbing out lands on benign inert
+       background (welcome/lobby screens suppressed by :has()). -->
+  <div class="device-choice hidden" id="device-choice" role="dialog" aria-labelledby="device-choice-title">
+    <!-- `aria-live="off"` because the display never calls this toast; it
+         exists only to keep the two index.html files structurally
+         identical. (The controller copy uses `aria-live="polite"`.) -->
+    <p id="device-choice-toast" class="device-choice__toast hidden" aria-live="off"></p>
+    <div class="device-choice__intro">
+      <div class="device-choice__brand">
+        <h1 id="device-choice-title" class="gradient-title">HEX STACKER<span class="gradient-title__sub">party</span></h1>
+      </div>
+      <div class="device-choice__hero">
+        <picture>
+          <source type="image/webp" srcset="/artwork/gameplay-2x1.webp">
+          <img src="/artwork/gameplay-2x1.jpg" alt="" class="device-choice__screenshot" loading="lazy">
+        </picture>
+        <ul class="device-choice__chips">
+          <li><strong data-i18n="chip_players">1&ndash;8</strong><span data-i18n="chip_players_sub">Players</span></li>
+          <li><strong data-i18n="chip_install">No install</strong><span data-i18n="chip_install_sub">Any device</span></li>
+          <li><strong data-i18n="chip_controller">Phone</strong><span data-i18n="chip_controller_sub">As controller</span></li>
+          <li><strong data-i18n="chip_rounds">3 min</strong><span data-i18n="chip_rounds_sub">Per match</span></li>
+        </ul>
       </div>
     </div>
-    <div class="end-action">
-      <button id="end-continue-btn" class="btn btn-secondary" data-i18n="continue_anyway">CONTINUE ANYWAY</button>
+    <div class="device-choice__cta">
+      <button id="device-choice-share" type="button" class="device-choice__banner" data-i18n-aria-label="share_aria" aria-label="Share hexstacker.com">
+        <span class="device-choice__banner-row">
+          <span class="device-choice__banner-url"><span class="device-choice__banner-host">hexstacker</span><span class="device-choice__banner-tld">.com</span></span>
+          <svg class="device-choice__banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+            <polyline points="16 6 12 2 8 6"/>
+            <line x1="12" y1="2" x2="12" y2="15"/>
+          </svg>
+        </span>
+        <span class="device-choice__banner-sub" data-i18n="banner_open_large">Open on a large screen</span>
+      </button>
+      <button id="device-choice-continue" type="button" class="device-choice__continue" data-i18n="device_choice_continue">Continue on this device</button>
     </div>
-    <div class="end-legal">
+    <div class="device-choice__legal">
       <a href="https://github.com/tim4724/HexStacker-Party" target="_blank" rel="noopener" data-i18n="stacked_by">Stacked by Tim</a>
       <span aria-hidden="true">&middot;</span>
       <a href="/privacy" data-i18n="privacy">Privacy</a>
@@ -159,6 +186,7 @@
   <script src="/shared/CanvasUtils.js"></script>
   <script src="/shared/theme.js"></script>
   <script src="/shared/WelcomeBackground.js"></script>
+  <script src="/shared/share-helper.js"></script>
   <script src="/display/BoardRenderer.js"></script>
   <script src="/display/UIRenderer.js"></script>
   <script src="/display/Animations.js"></script>

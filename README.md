@@ -2,7 +2,7 @@
 
 ![HexStacker Party gameplay banner](artwork/gameplay-21x9.png)
 
-Browser-based multiplayer hex stacker where phones become controllers and a shared screen shows the action.
+Multiplayer hex stacker where phones become controllers and a shared screen shows the action.
 
 **Play now at [hexstacker.com](https://hexstacker.com)**
 

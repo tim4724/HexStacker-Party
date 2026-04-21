@@ -253,14 +253,14 @@ function onGameEnd(data) {
 
 function onError(data) {
   if (data.message === 'Room not found') {
-    showEndScreen('room_not_found');
+    showDeviceChoice('room_not_found');
     return;
   }
   if (data.message === 'Room is full') {
-    showEndScreen('game_full');
+    showDeviceChoice('game_full');
     return;
   }
-  showEndScreen();
+  showDeviceChoice();
 }
 
 // =====================================================================
