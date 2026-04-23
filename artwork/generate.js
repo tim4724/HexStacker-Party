@@ -217,7 +217,9 @@ async function generate() {
       document.getElementById('game-toolbar').style.display = 'none';
     });
     await page.waitForTimeout(300);
-    return (await page.screenshot()).toString('base64');
+    const base64 = (await page.screenshot()).toString('base64');
+    await ctx.close();
+    return base64;
   }
 
   // --- Phase 1: Capture hex display per variant ---
@@ -254,7 +256,6 @@ async function generate() {
   const roomCode = joinUrl.split('/').pop();
   console.log(`  Room created: ${roomCode}`);
 
-  // Join 4 controllers
   // Viewport aspect 300 × 600 (1:2) matches the inner phone-screen area
   // in banner.html (114 × 228 after the 3px frame + 14px notch padding).
   // Matching aspects means `object-fit: cover` on the inner <img>
