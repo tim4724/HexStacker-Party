@@ -408,6 +408,14 @@ function openSettings() {
   resizePreviewCanvas();
   syncSensitivityControls();
   updateSettingsHostUI();
+  // Push a history entry so the browser back button closes the overlay
+  // instead of popping the underlying screen (which would disconnect).
+  // Guarded against re-push if somehow opened twice without closing.
+  // In AirConsole mode pushState is neutralized (see controller-airconsole.js),
+  // so this is a no-op there — AC users lack a back gesture on this iframe.
+  if (!history.state || history.state.modal !== 'settings') {
+    history.pushState({ modal: 'settings' }, '');
+  }
 }
 
 settingsBtn.addEventListener('click', openSettings);
@@ -416,21 +424,38 @@ if (lobbySettingsBtn) lobbySettingsBtn.addEventListener('click', openSettings);
 // `else` block are block-scoped under strict mode and not otherwise reachable.
 window.openSettings = openSettings;
 
-// Silently hide the popup and clear the pause-by-settings flag WITHOUT
-// sending RESUME_GAME. Called from onGameEnd / showDeviceChoice to prevent
-// a stale flag or a post-transition resume from reaching the display.
-window.closeSettingsOverlay = function () {
+// Shared close logic. `resume` controls whether we RESUME_GAME if the
+// open paused the display; silent callers (onGameEnd, showDeviceChoice)
+// pass false so they don't resume a display that has already moved on.
+function hideSettings(resume) {
   if (!settingsOverlay) return;
   settingsOverlay.classList.add('hidden');
+  if (resume && pausedBySettings) {
+    sendToDisplay(MSG.RESUME_GAME);
+  }
   pausedBySettings = false;
+}
+
+// Silently hide the popup and clear the pause-by-settings flag WITHOUT
+// sending RESUME_GAME. Called from onGameEnd / showDeviceChoice.
+// Intentionally does not unwind the pushed history entry: showDeviceChoice
+// is about to replaceState() the current entry to '/', and onGameEnd just
+// leaves the orphan (next back press falls through to the existing
+// gameover→disconnect path unchanged). Calling history.back() here would
+// race that replaceState and the async popstate against each other.
+window.closeSettingsOverlay = function () {
+  hideSettings(false);
 };
 
 settingsCloseBtn.addEventListener('click', function () {
   vibrate(15);
-  settingsOverlay.classList.add('hidden');
-  if (pausedBySettings) {
-    pausedBySettings = false;
-    sendToDisplay(MSG.RESUME_GAME);
+  // Route Done through history.back() so the browser back button and
+  // Done share a single close path (the popstate handler). Fallback for
+  // AC mode / legacy openings where no state was pushed.
+  if (history.state && history.state.modal === 'settings') {
+    history.back();
+  } else {
+    hideSettings(true);
   }
 });
 
@@ -731,7 +756,16 @@ document.addEventListener('visibilitychange', function () {
   }
 });
 
-window.addEventListener('popstate', function () {
+window.addEventListener('popstate', function (e) {
+  // Forward into a stale modal entry after the user already closed
+  // settings — no-op so we don't disconnect.
+  if (e.state && e.state.modal === 'settings') return;
+  // Modal-first: close settings instead of falling through to a
+  // screen-level back (which would disconnect).
+  if (settingsOverlay && !settingsOverlay.classList.contains('hidden')) {
+    hideSettings(true);
+    return;
+  }
   if (currentScreen === 'lobby' || currentScreen === 'game' || currentScreen === 'gameover') {
     performDisconnect();
   }
