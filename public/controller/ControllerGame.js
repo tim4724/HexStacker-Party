@@ -116,6 +116,8 @@ function renderColorPicker() {
     btn.classList.toggle('selected', isMine);
     btn.classList.toggle('taken', isTaken);
     btn.setAttribute('aria-checked', isMine ? 'true' : 'false');
+    if (isTaken) btn.setAttribute('aria-disabled', 'true');
+    else btn.removeAttribute('aria-disabled');
     var stampColor = isTaken ? COLOR_PICKER_TAKEN_HEX : PLAYER_COLORS[idx];
     paintColorSwatch(btn, tier, stampColor);
   }
