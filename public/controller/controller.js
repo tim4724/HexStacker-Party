@@ -695,6 +695,7 @@ levelMinusBtn.addEventListener('click', function () {
   vibrate(15);
   startLevel = Math.max(1, startLevel - 1);
   updateLevelDisplay();
+  renderColorPicker();
   sendToDisplay(MSG.SET_LEVEL, { level: startLevel });
 });
 
@@ -703,6 +704,7 @@ levelPlusBtn.addEventListener('click', function () {
   vibrate(15);
   startLevel = Math.min(15, startLevel + 1);
   updateLevelDisplay();
+  renderColorPicker();
   sendToDisplay(MSG.SET_LEVEL, { level: startLevel });
 });
 

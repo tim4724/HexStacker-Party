@@ -355,49 +355,83 @@ html, body {
    players get .taken (disabled); the player's own current color gets a ring.
    Hidden on game/gameover screens — visible on the lobby even while a late
    joiner is waiting for the next round. --- */
+/* --- Color picker — zigzag row of flat-top hexes, rendered to per-swatch
+   canvases. The hex shape and the level-matched style tier (NORMAL / PILLOW
+   / NEON_FLAT) are stamped via getHexStamp() so swatches preview exactly
+   what the player's blocks will look like in-game. Even-indexed swatches
+   sit at the bottom of the strip, odd at the top, producing the classic
+   honeycomb zigzag. The `.taken` and `.selected` states stack on top of
+   the canvas via CSS (no re-blit needed). --- */
 #color-picker {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-auto-rows: 1fr;
-  gap: 10px;
-  justify-items: center;
-  width: 100%;
-  max-width: 240px;
-  margin-top: 12px;
+  --hex-w: clamp(34px, 9vw, 44px);
+  --hex-h: calc(var(--hex-w) * 0.866); /* sqrt(3)/2 * width → flat-top hex aspect */
+  --hex-overlap: calc(var(--hex-w) * -0.25); /* interlocks columns at 1.5 × circumradius */
+  display: flex;
+  align-items: stretch;
+  height: calc(var(--hex-h) * 1.5);
+  margin-top: 14px;
   animation: fadeUp 0.5s 0.35s ease-out both;
 }
 
 .color-swatch {
   appearance: none;
   -webkit-appearance: none;
-  /* Square box → circle. Clamping by vw so two rows still fit on the
-     narrowest phones without stretching into ellipses on roomier ones. */
-  width: clamp(32px, 9vw, 40px);
-  height: clamp(32px, 9vw, 40px);
-  border: none;
-  border-radius: 50%;
+  width: var(--hex-w);
+  height: var(--hex-h);
+  margin-left: var(--hex-overlap);
   padding: 0;
+  border: 0;
+  background: transparent;
   cursor: pointer;
-  background: var(--swatch-color, #888);
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08) inset;
+  /* Enlarge the hit target without changing the visual hex size. */
+  position: relative;
+  transition: transform var(--transition-fast), filter var(--transition-fast);
+}
+
+.color-swatch:first-child {
+  margin-left: 0;
+}
+
+/* Odd children (2nd, 4th, …) ride high; even children (1st, 3rd, …) ride low.
+   The container's 1.5 × hex-h height accommodates both lanes so the zigzag
+   lives entirely within one row without pushing siblings. */
+.color-swatch:nth-child(even) {
+  align-self: flex-end;
+}
+
+.color-swatch:nth-child(odd) {
+  align-self: flex-start;
+}
+
+.color-swatch > canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* drop-shadow follows the hex alpha, not the button rect — so the
+     selection glow hugs the shape instead of bleeding into a halo square. */
+  transition: filter var(--transition-fast);
 }
 
 .color-swatch:active:not(.taken):not(.selected) {
-  transform: scale(0.9);
+  transform: scale(0.92);
 }
 
 .color-swatch.selected {
-  box-shadow:
-    0 0 0 3px var(--bg-primary),
-    0 0 0 5px var(--swatch-color, #fff);
-  transform: scale(1.05);
+  transform: scale(1.12);
+  z-index: 1;
+}
+
+.color-swatch.selected > canvas {
+  filter: drop-shadow(0 0 4px var(--swatch-color, #fff)) drop-shadow(0 0 10px var(--swatch-color, #fff));
 }
 
 .color-swatch.taken {
-  opacity: 0.25;
   pointer-events: none;
   cursor: default;
+}
+
+.color-swatch.taken > canvas {
+  filter: grayscale(1) brightness(0.55) opacity(0.55);
 }
 
 .status-banner {

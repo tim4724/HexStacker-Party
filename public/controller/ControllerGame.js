@@ -70,37 +70,73 @@ function showLobbyUI() {
   playerIdentity.style.setProperty('--player-color', playerColor);
   playerIdentityName.textContent = playerName || t('player');
   updateLevelDisplay();
-  renderColorPicker();
 
   updateStartButton();
   statusText.textContent = '';
   statusDetail.textContent = '';
 
   showScreen('lobby');
+  // Paint the picker after the lobby is visible so the swatch canvases
+  // can measure their rects. Inside .hidden (display:none) they report 0.
+  renderColorPicker();
   // Must run after showScreen so currentScreen === 'lobby' when we gate UI.
   updateHostVisibility();
 }
 
-// Repaint the 8-swatch color picker. Palette is static (built once in
-// buildColorPicker at init); this only refreshes `.selected` / `.taken`
-// based on the local playerColorIndex and the taken-set broadcast from
-// the display. Idempotent — safe to call on every WELCOME / LOBBY_UPDATE.
+// Grey used for the "taken" hex stamp. One fixed value so the stamp cache
+// reuses a single offscreen canvas across all taken swatches. The CSS also
+// applies grayscale+opacity to flatten any remaining color variation.
+var COLOR_PICKER_TAKEN_HEX = '#4a4a4a';
+
+// Repaint the 8-swatch color picker. Each swatch is a <button> containing a
+// <canvas>; we redraw the canvas on every call so the style tier follows
+// the current startLevel (NORMAL / PILLOW / NEON_FLAT) and swatches preview
+// exactly what the player's blocks will look like in-game.
 function renderColorPicker() {
   if (!colorPickerEl) return;
   var taken = new Set(takenColorIndices || []);
+  var tier = (typeof getStyleTier === 'function') ? getStyleTier(startLevel || 1) : STYLE_TIERS.NORMAL;
   var btns = colorPickerEl.children;
   for (var i = 0; i < btns.length; i++) {
     var btn = btns[i];
     var idx = parseInt(btn.dataset.idx, 10);
     var isMine = idx === playerColorIndex;
+    var isTaken = !isMine && taken.has(idx);
     btn.classList.toggle('selected', isMine);
-    btn.classList.toggle('taken', !isMine && taken.has(idx));
+    btn.classList.toggle('taken', isTaken);
     btn.setAttribute('aria-checked', isMine ? 'true' : 'false');
+    var stampColor = isTaken ? COLOR_PICKER_TAKEN_HEX : PLAYER_COLORS[idx];
+    paintColorSwatch(btn, tier, stampColor);
   }
 }
 
-// One-time palette paint — creates 8 swatches and sets each background color.
-// Called from controller.js init. Click wiring also happens there.
+// Draw a single flat-top hex into the swatch's canvas. The source stamp is
+// cached per (tier, color, size) by getHexStamp; we just blit it centered.
+// Early-returns (no-op) when CanvasUtils isn't loaded yet — the fadeUp CSS
+// animation on the container keeps the empty boxes from flashing.
+function paintColorSwatch(btn, tier, color) {
+  var canvas = btn.firstChild;
+  if (!canvas || typeof getHexStamp !== 'function') return;
+  var dpr = window.devicePixelRatio || 1;
+  var rect = btn.getBoundingClientRect();
+  var w = rect.width, h = rect.height;
+  if (w <= 0 || h <= 0) return;
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  var ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  var stamp = getHexStamp(tier, color, h);
+  var sw = stamp.cssW || (stamp.width / dpr);
+  var sh = stamp.cssH || (stamp.height / dpr);
+  ctx.drawImage(stamp, (w - sw) / 2, (h - sh) / 2, sw, sh);
+  btn.style.setProperty('--swatch-color', color);
+}
+
+// One-time palette paint — creates 8 button+canvas pairs and wires aria.
+// Called from controller.js init. Click delegation happens at the container.
 function buildColorPicker() {
   if (!colorPickerEl || colorPickerEl.children.length) return;
   for (var i = 0; i < PLAYER_COLORS.length; i++) {
@@ -108,10 +144,11 @@ function buildColorPicker() {
     btn.type = 'button';
     btn.className = 'color-swatch';
     btn.dataset.idx = String(i);
-    btn.style.setProperty('--swatch-color', PLAYER_COLORS[i]);
     btn.setAttribute('role', 'radio');
     btn.setAttribute('aria-checked', 'false');
     btn.setAttribute('aria-label', t('color_choose', { n: i + 1 }));
+    var canvas = document.createElement('canvas');
+    btn.appendChild(canvas);
     colorPickerEl.appendChild(btn);
   }
 }
