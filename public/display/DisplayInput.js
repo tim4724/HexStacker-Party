@@ -170,7 +170,8 @@ function onHello(fromId, msg) {
     isHost: fromId === hostId,
     hostName: hostPlayer ? hostPlayer.playerName : null,
     hostColorIndex: hostPlayer ? hostPlayer.playerIndex : null,
-    takenColorIndices: collectTakenColorIndices()
+    takenColorIndices: collectTakenColorIndices(),
+    displayMuted: !!muted
   };
   if (roomState === ROOM_STATE.RESULTS && lastResults) {
     welcomeMsg.results = lastResults.results;
