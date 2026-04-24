@@ -18,6 +18,10 @@
 // on the newer tab still owning clientId_<room>, and stale entries from
 // dead rooms are harmless (the relay rejects unknown clientIds on join).
 function bailToWelcome(toastKey) {
+  // Set gameCancelled before navigating so the onClose handler (which
+  // usually fires right after a relay-rejecting close) early-exits and
+  // doesn't flash the reconnect overlay during the navigation window.
+  gameCancelled = true;
   location.replace(toastKey ? '/?bail=' + encodeURIComponent(toastKey) : '/');
 }
 

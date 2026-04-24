@@ -118,6 +118,11 @@ if (deviceChoiceShareBtn) {
   params.delete('bail');
   var qs = params.toString();
   try { history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '')); } catch (_) { /* sandboxed */ }
+  // Move focus into the overlay so keyboard / screen-reader users land on
+  // the primary action when the bail lands them on the mobile overlay.
+  // Only fires when the overlay is actually visible (getBoundingClientRect
+  // width > 0), which is desktop-safe — the media query hides it there.
+  restoreDeviceChoice();
 })();
 
 // --- Button Event Listeners ---
