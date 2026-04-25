@@ -128,11 +128,19 @@ function onHello(fromId, msg) {
     }
     party.sendTo(fromId, welcomeMsg);
 
-    // Refresh host info on the other controllers too. A reconnecting slot-0
-    // player can reclaim host from whoever inherited it while they were gone
-    // (see onPeerLeft's maybeBroadcastHostChange). Relevant in any non-WELCOME
-    // room state, since a mid-game reconnect also needs to flip the temp
-    // host's pause-overlay Return-to-lobby button off.
+    // Refresh host info on the other controllers too.
+    //
+    // - Standard mode: a reconnecting ex-host does NOT reclaim — onPeerLeft
+    //   already handed hostClientId off via electNextHost when they dropped.
+    //   The call is still useful here to flip the temp host's Return-to-
+    //   lobby button visibility back, since getHostClientId's read-only
+    //   fallback (oldest-joined) was the host while the slot's owner was
+    //   disconnected, and now resolves cleanly to the stored hostClientId.
+    // - AirConsole mode: getMasterClientId() takes priority in
+    //   getHostClientId, so the platform CAN re-elect the reconnecting
+    //   player as master if they were the AC master before. The dedup
+    //   sentinel inside maybeBroadcastHostChange suppresses the broadcast
+    //   when nothing actually changed.
     maybeBroadcastHostChange();
     return;
   }
