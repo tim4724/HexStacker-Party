@@ -6,34 +6,14 @@
 // Called by: controller.js (init, event handlers)
 // =====================================================================
 
-// Any unrecoverable controller-side end state (dead/full room, game over,
-// tab replacement, unknown relay error) → send the user to the display
-// root. Desktop viewports land on the welcome screen directly; mobile
-// viewports see the display's device-choice overlay via its CSS media
-// query, which is the right onboarding surface for someone who just
-// fell out of a session on a phone. Optional toastKey is forwarded as
-// `?bail=<key>` so the display can surface context ("Room Not Found",
-// "Game ended") on the overlay; desktop lands silently since the overlay
-// isn't shown there.
-//
-// Sets gameCancelled before navigating so the onClose handler (which
-// usually fires right after a relay-rejecting close) early-exits and
-// doesn't flash the reconnect overlay during the navigation window. The
-// `if (gameCancelled) return;` guard makes the function safe against
-// double-invocation when two error paths fire in the same tick.
-//
-// Clears the per-room clientId from localStorage so a future visit to
-// the same room URL starts fresh. The exception is tab-replacement
-// (`keepClientId`): the newer tab is using that clientId as its
-// auto-reconnect anchor — removing it would orphan that session.
+// Send the user to the display root on any unrecoverable end state.
+// `?bail=<key>` carries optional context for the display's mobile
+// overlay toast. `keepClientId=true` is used by the tab-replacement
+// path: the newer tab is still using that localStorage entry as its
+// auto-reconnect anchor, so we mustn't clear it.
 function bailToWelcome(toastKey, keepClientId) {
   if (gameCancelled) return;
   gameCancelled = true;
-  // location.replace tears down the page (and with it the WebSocket and
-  // ping timer), so the explicit cleanup here is defense in depth — it
-  // prevents a stray ping firing in the navigation window from logging
-  // a confusing "no party" warning, and lets test harnesses that stub
-  // location.replace observe the cleanup.
   stopPing();
   if (party) { party.close(); party = null; }
   if (!keepClientId) {
