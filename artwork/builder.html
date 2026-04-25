@@ -831,11 +831,15 @@
     }
   }
 
-  function titleGradient(ctx, W, fromColor, midColor, toColor) {
+  function titleGradient(ctx, W) {
+    // Mirrors .gradient-title in public/shared/theme.css — 5-stop rainbow
+    // sweep across the party palette (red → honey → mint → teal → violet).
     const g = ctx.createLinearGradient(60, 0, W - 60, 0);
-    g.addColorStop(0,   fromColor || '#FF6B6B');
-    g.addColorStop(0.5, midColor  || '#FFE066');
-    g.addColorStop(1,   toColor   || '#4ECDC4');
+    g.addColorStop(0,    '#FF6B6B');
+    g.addColorStop(0.25, '#FFD93D');
+    g.addColorStop(0.5,  '#7BED6F');
+    g.addColorStop(0.75, '#4ECDC4');
+    g.addColorStop(1,    '#A78BFA');
     return g;
   }
 

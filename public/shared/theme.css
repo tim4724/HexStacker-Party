@@ -31,12 +31,6 @@
   --accent-secondary-rgb: 255, 140, 66;   /* Slot 8 Tangerine */
   --accent-secondary: rgb(var(--accent-secondary-rgb));
   --accent-secondary-dark: #E67A33;
-  /* HEX STACKER wordmark gradient — independent of the UI accents so
-     the title reads red → honey → teal while buttons/links use their
-     own palette slots. */
-  --title-from: #FF6B6B;   /* Slot 1 Red */
-  --title-mid:  #FFE066;   /* Slot 3 Honey */
-  --title-to:   #4ECDC4;   /* Slot 2 Teal */
 
   /* Text — warm cream */
   --text-primary: #F7F1E8;
@@ -288,11 +282,14 @@
    defensive against future rules that read --player-color on empty cards. */
 .player-card.empty { --player-color: initial; }
 
+/* HEX STACKER wordmark — 5-stop rainbow sweep across the party palette.
+   Mirrored by titleGradient() in artwork/builder.html for canvas-rendered
+   PNGs (cover-art, social-preview). */
 .gradient-title {
   font-family: 'Orbitron', sans-serif;
   font-weight: 900;
   letter-spacing: 0.08em;
-  background: linear-gradient(135deg, var(--title-from), var(--title-mid), var(--title-to));
+  background: linear-gradient(135deg, #FF6B6B, #FFD93D, #7BED6F, #4ECDC4, #A78BFA);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -306,9 +303,10 @@
   letter-spacing: 0.35em;
   margin-top: 0.25em;
   text-transform: uppercase;
-  /* Opt out of the parent's background-clip:text trick so the subtitle renders */
+  /* Opt out of the parent's background-clip:text trick so the subtitle renders.
+     Color matches the social-preview PARTY subtitle (artwork/builder.html). */
   -webkit-text-fill-color: currentColor;
-  color: var(--text-secondary);
+  color: #fff3c2;
 }
 
 .pause-icon {
