@@ -221,6 +221,25 @@ function initScenario(opts) {
     return;
   }
 
+  // Bail-toast variants. Display gallery iframes are wider than the
+  // mobile-only media-query that normally reveals the overlay, so force
+  // it visible by removing `.hidden` (the base `.device-choice` rule
+  // already sets display: flex). showBailToast handles the 5s auto-hide.
+  var bailScenarios = {
+    'bail-room-not-found': 'room_not_found',
+    'bail-game-full': 'game_full',
+    'bail-game-ended': 'game_ended'
+  };
+  if (bailScenarios[scenario]) {
+    var key = bailScenarios[scenario];
+    var deviceChoiceEl = document.getElementById('device-choice');
+    if (deviceChoiceEl) deviceChoiceEl.classList.remove('hidden');
+    showScreen(SCREEN.WELCOME);
+    showBailToast(key);
+    window.__TEST__.replay = function() { showBailToast(key); };
+    return;
+  }
+
   // All other scenarios need players + some game state.
   var debugPlayers = _buildDebugPlayers(playerCount, level, hostSlot);
   window.__TEST__.addPlayers(debugPlayers);

@@ -100,6 +100,22 @@ if (deviceChoiceShareBtn) {
   });
 }
 
+// Show a bail toast inside the device-choice overlay. Auto-hides after
+// 5s so the overlay doesn't keep advertising a stale reason after the
+// user has had a chance to read it. Re-callable: each call resets the
+// timer (used by the gallery replay button).
+var _bailToastTimer = null;
+function showBailToast(key) {
+  var toast = document.getElementById('device-choice-toast');
+  if (!toast) return;
+  toast.textContent = t(key);
+  toast.classList.remove('hidden');
+  clearTimeout(_bailToastTimer);
+  _bailToastTimer = setTimeout(function() {
+    toast.classList.add('hidden');
+  }, 5000);
+}
+
 // Controller-side errors navigate here with `?bail=<i18n_key>` so the
 // device-choice overlay (mobile-visible via CSS media query) surfaces
 // context like "Room Not Found" or "Game ended". Desktop viewports hide
@@ -110,11 +126,7 @@ if (deviceChoiceShareBtn) {
   var params = new URLSearchParams(location.search);
   var bailKey = params.get('bail');
   if (!bailKey) return;
-  var toast = document.getElementById('device-choice-toast');
-  if (toast) {
-    toast.textContent = t(bailKey);
-    toast.classList.remove('hidden');
-  }
+  showBailToast(bailKey);
   params.delete('bail');
   var qs = params.toString();
   try { history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '')); } catch (_) { /* sandboxed */ }
