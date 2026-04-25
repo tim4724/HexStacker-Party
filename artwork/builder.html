@@ -252,6 +252,13 @@
           </select>
         </div>
         <div class="field">
+          <label>Subtitle color</label>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <input type="color" id="p-subtitle-color" value="#f7f1e8" style="width:40px; height:24px; padding:0; border:1px solid var(--b-border); background:var(--b-bg);">
+            <button type="button" id="p-subtitle-color-auto" style="background:var(--b-panel-2); color:var(--b-fg); border:1px solid var(--b-border); border-radius:3px; padding:3px 10px; font-size:11px; cursor:pointer;">Auto</button>
+          </div>
+        </div>
+        <div class="field">
           <label>Subtitle size</label>
           <div class="range-wrap">
             <input type="range" id="p-subtitle-size" min="20" max="200" step="2" value="60">
@@ -853,6 +860,10 @@
     const { size, style, subSpace, params } = opts;
     const y = (opts.y || 0) + ((params && params.subtitleYOffset) || 0);
     const s = style || 'letterSpaced';
+    // Optional override — when set, replaces the fill/stroke color of the
+    // text-based styles. For 'pill' it recolors the pill background; for
+    // 'bold' it replaces the title gradient with a solid color.
+    const sc = (params && params.subtitleColor) || null;
 
     // Letter-spaced helper that auto-widens spacing so glyphs never overlap
     // at large sizes — Orbitron caps need ~0.7em of width, so the requested
@@ -876,31 +887,31 @@
     ctx.textBaseline = 'alphabetic';
 
     if (s === 'letterSpaced') {
-      drawLetterSpaced(`700 ${size}px Orbitron, sans-serif`, 'rgba(247,241,232,0.80)', 0.5);
+      drawLetterSpaced(`700 ${size}px Orbitron, sans-serif`, sc || 'rgba(247,241,232,0.80)', 0.5);
     } else if (s === 'compact') {
       ctx.font = `700 ${size}px Orbitron, sans-serif`;
-      ctx.fillStyle = 'rgba(247,241,232,0.88)';
+      ctx.fillStyle = sc || 'rgba(247,241,232,0.88)';
       ctx.shadowColor = 'rgba(0,0,0,0.5)';
       ctx.shadowBlur = 8;
       ctx.fillText(text, W/2, y);
     } else if (s === 'bold') {
       const big = Math.round(size * 1.35);
       ctx.font = `900 ${big}px Orbitron, sans-serif`;
-      ctx.fillStyle = titleGradient(ctx, W);
+      ctx.fillStyle = sc || titleGradient(ctx, W);
       ctx.shadowColor = 'rgba(0,0,0,0.55)';
       ctx.shadowBlur = 18;
       ctx.shadowOffsetY = 6;
       ctx.fillText(text, W/2, y);
     } else if (s === 'italic') {
       ctx.font = `italic 700 ${size}px Orbitron, sans-serif`;
-      ctx.fillStyle = 'rgba(247,241,232,0.88)';
+      ctx.fillStyle = sc || 'rgba(247,241,232,0.88)';
       ctx.shadowColor = 'rgba(0,0,0,0.5)';
       ctx.shadowBlur = 8;
       ctx.fillText(text, W/2, y);
     } else if (s === 'outline') {
       ctx.font = `900 ${size}px Orbitron, sans-serif`;
       ctx.lineWidth = 3;
-      ctx.strokeStyle = 'rgba(247,241,232,0.92)';
+      ctx.strokeStyle = sc || 'rgba(247,241,232,0.92)';
       ctx.strokeText(text, W/2, y);
     } else if (s === 'pill') {
       // Text on a rounded accent-colored pill — badge feel.
@@ -910,7 +921,7 @@
       const pillW = w + padX * 2, pillH = size * 0.85 + padY * 2;
       const px = W/2 - pillW/2, py = y - size * 0.78 - padY;
       const r = pillH / 2;
-      const accent = (getPalette()[2]) || '#FFD400';
+      const accent = sc || getPalette()[2] || '#FFD400';
       ctx.save();
       ctx.fillStyle = accent;
       ctx.shadowColor = 'rgba(0,0,0,0.45)';
@@ -1471,6 +1482,14 @@
     document.getElementById('p-subtitle-y-v').textContent = STATE.subtitleYOffset;
     render();
   });
+  document.getElementById('p-subtitle-color').addEventListener('input', (e) => {
+    STATE.subtitleColor = e.target.value;
+    render();
+  });
+  document.getElementById('p-subtitle-color-auto').addEventListener('click', () => {
+    STATE.subtitleColor = null;
+    render();
+  });
   document.getElementById('p-bg-style').addEventListener('change', (e) => { STATE.bgStyle = e.target.value; render(); });
   document.getElementById('p-palette').addEventListener('change', (e) => {
     STATE.palette = e.target.value;
@@ -1541,6 +1560,7 @@
     document.getElementById('p-subtitle-size-v').textContent = STATE.subtitleSize ?? 60;
     document.getElementById('p-subtitle-y').value = STATE.subtitleYOffset ?? 0;
     document.getElementById('p-subtitle-y-v').textContent = STATE.subtitleYOffset ?? 0;
+    document.getElementById('p-subtitle-color').value = STATE.subtitleColor || '#f7f1e8';
     document.getElementById('p-bg-style').value = STATE.bgStyle ?? 'radial';
     document.getElementById('p-palette').value = STATE.palette ?? 'classic';
     document.getElementById('p-cell-style').value = STATE.cellStyle ?? 'normal';
