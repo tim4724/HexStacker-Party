@@ -116,8 +116,9 @@ function renderColorPicker() {
     if (isTaken) {
       btn.setAttribute('aria-disabled', 'true');
       // Pull taken swatches out of tab order so keyboard users don't
-      // land on a focusable-but-inert button. CSS already blocks mouse
-      // taps via pointer-events: none.
+      // land on a focusable-but-inert button. Mouse taps are blocked by
+      // .color-swatch.taken .color-swatch__hit { pointer-events: none }
+      // in controller.css, with the JS guard in controller.js as backup.
       btn.setAttribute('tabindex', '-1');
     } else {
       btn.removeAttribute('aria-disabled');
@@ -199,11 +200,14 @@ function persistColorIndex(idx) {
 
 // If the previous session's color differs from what the display just
 // assigned, ask for it back. Same-index is a no-op on the display side;
-// collisions are silently rejected.
+// collisions are silently rejected. Skip the round-trip when our preferred
+// color is already taken (takenColorIndices is set from the same WELCOME
+// just before this fires).
 function reclaimPreferredColor() {
   if (_previousSessionColorIndex == null) return;
   if (_previousSessionColorIndex === playerColorIndex) return;
   if (typeof sendToDisplay !== 'function' || playerColorIndex == null) return;
+  if (takenColorIndices && takenColorIndices.indexOf(_previousSessionColorIndex) >= 0) return;
   sendToDisplay(MSG.SET_COLOR, { colorIndex: _previousSessionColorIndex });
 }
 

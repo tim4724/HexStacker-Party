@@ -448,15 +448,21 @@ html, body {
 }
 
 /* Press feedback — quick scale-down on tap, springs back when released.
-   Excludes taken swatches (which already have pointer-events: none, so
-   :active never fires there in practice — belt-and-braces). */
+   :not(.taken) is belt-and-braces alongside the hit-area pointer-events
+   block below. */
 .color-swatch:not(.taken):active > canvas {
   transform: scale(0.93);
 }
 
+/* Block taps on taken swatches at the hit-area level. The button itself
+   already has pointer-events: none (see .color-swatch above), but its
+   .color-swatch__hit child has pointer-events: auto, and a parent's
+   `none` does NOT override an explicit `auto` on a descendant. */
 .color-swatch.taken {
-  pointer-events: none;
   cursor: default;
+}
+.color-swatch.taken .color-swatch__hit {
+  pointer-events: none;
 }
 
 .status-banner {
