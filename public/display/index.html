@@ -39,7 +39,6 @@
        more than this overlay needs: tabbing out lands on benign inert
        background (welcome/lobby screens suppressed by :has()). -->
   <div class="device-choice hidden" id="device-choice" role="dialog" aria-labelledby="device-choice-title">
-    <p id="device-choice-toast" class="device-choice__toast hidden" role="status" aria-live="polite"></p>
     <div class="device-choice__intro">
       <div class="device-choice__brand">
         <h1 id="device-choice-title" class="gradient-title">HEX STACKER<span class="gradient-title__sub">party</span></h1>
@@ -58,6 +57,7 @@
       </div>
     </div>
     <div class="device-choice__cta">
+      <p id="device-choice-toast" class="device-choice__toast hidden" role="status" aria-live="polite"></p>
       <button id="device-choice-share" type="button" class="device-choice__banner" data-i18n-aria-label="share_aria" aria-label="Share hexstacker.com">
         <span class="device-choice__banner-row">
           <span class="device-choice__banner-url"><span class="device-choice__banner-host">hexstacker</span><span class="device-choice__banner-tld">.com</span></span>

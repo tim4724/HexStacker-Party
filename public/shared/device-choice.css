@@ -6,16 +6,16 @@
    Self-contained.
 
    Structure (visual groups spaced by `space-around` on the outer flex
-   container; toast sits between intro and cta via `order`; legal footer
-   is anchored to the bottom):
+   container; toast floats absolute above the CTA block, the legal
+   footer is anchored to the bottom):
      .device-choice
        .device-choice__intro          — title + hero (tight block)
          .device-choice__brand          — title
          .device-choice__hero           — screenshot + chips
            picture                        — screenshot
            .device-choice__chips          — 4 feature chips (2x2 on narrow)
-       .device-choice__toast          — bail reason (above CTA, no reserve)
        .device-choice__cta            — banner + continue (tight block)
+         .device-choice__toast          — bail reason (absolute, above CTA)
          .device-choice__banner         — tappable hexstacker.com + share icon
          .device-choice__continue       — link-style "Continue on this device"
        .device-choice__legal          — footer (anchored to bottom)
@@ -325,15 +325,19 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
 .device-choice__continue:focus-visible,
 .device-choice__continue:active { color: var(--accent-secondary); }
 
-/* --- Toast (bail reason). Sits as a flex sibling just above the CTA
-       block via `order`, so it never overlaps the banner or continue
-       buttons. Hidden via `display: none` so it doesn't reserve space
-       when no reason is set. --- */
+/* --- Toast (bail reason). Floats absolute just above the CTA block —
+       a child of `.device-choice__cta` (which is positioned: relative
+       below) so it anchors to the top edge of the CTA without taking
+       layout space. Toggling visibility never reflows the buttons. --- */
+.device-choice__cta { position: relative; }
 .device-choice__toast {
-  order: 1;
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
   box-sizing: border-box;
+  width: max-content;
   max-width: calc(100% - 24px);
-  margin: 0 auto;
   line-height: 1.3;
   padding: 10px 16px;
   border-radius: var(--radius-md);
@@ -346,9 +350,8 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
   letter-spacing: 0.06em;
   box-shadow: var(--shadow-sm);
   text-align: center;
+  z-index: 1;
 }
-.device-choice__cta { order: 2; }
-/* Hide completely when inactive — no reserved space (layout won't shift). */
 .device-choice__toast.hidden { display: none; }
 
 /* Responsive behaviour is driven by viewport HEIGHT, not orientation:
