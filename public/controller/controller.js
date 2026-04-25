@@ -68,14 +68,7 @@ function handleMessage(data) {
         onDisplayMuted(data);
         break;
       case MSG.DISPLAY_CLOSED:
-        // "Game ended" only applies if a game actually ran — name/lobby
-        // screens (joined but never started) get a quiet bail instead of
-        // a misleading toast.
-        bailToWelcome(
-          currentScreen === 'game' || currentScreen === 'gameover'
-            ? 'game_ended'
-            : undefined
-        );
+        bailToWelcome('game_ended');
         break;
       case MSG.RETURN_TO_LOBBY:
         waitingForNextGame = false;
