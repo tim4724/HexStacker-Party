@@ -22,18 +22,11 @@ const { PIECE_COLORS } = require('../public/shared/theme.js');
 
 const SQRT3 = Math.sqrt(3);
 
-// The "q" piece from server/HexPiece.js — three cells in a horizontal row
-// at r=0, plus a stem cell up-and-right (q=1, r=-1). In flat-top odd-q the
-// odd-column shift puts the stem cell above the rightmost row cell. q is
-// honey-coloured in the game palette, so the favicon reads as the canonical
-// gold piece without us hardcoding a shade.
-const CELLS = [
-  [-1, 0],  // left     (row, lower because col=-1 is odd-shifted)
-  [0,  0],  // middle   (row, raised because col=0 is even)
-  [1,  0],  // right    (row, lower because col=1 is odd-shifted)
-  [1, -1],  // up-right (stem above the rightmost row cell)
-];
-const PIECE_COLOR = PIECE_COLORS[5]; // q → PARTY_PALETTE[2] (honey, #FFE066)
+// Single hex cell — the simplest possible read of "HexStacker" at favicon
+// sizes where multi-cell shapes muddy together. Color sourced from
+// PIECE_COLORS so it tracks the game palette.
+const CELLS = [[0, 0]];
+const PIECE_COLOR = PIECE_COLORS[1]; // I → PARTY_PALETTE[0] (red, #FF6B6B)
 
 // Pillow-tier rendering constants (ported from CanvasUtils.js _stampHexPillow).
 const CORNER_FRAC       = 0.15;   // cornerR / circumradius
@@ -71,7 +64,7 @@ function roundedHexPath(cx, cy, r, cornerR) {
 
 function generateHexSVG() {
   const R = 10;            // hex circumradius used for layout math
-  const DRAW_R = R * 0.9;  // rendered hex — shrunk so cells have a visible gap
+  const DRAW_R = R;        // no neighbor gap to reserve for a single-cell favicon
   const cornerR   = DRAW_R * CORNER_FRAC;
   const lineInset = cornerR / SQRT3;
   const strokeW   = DRAW_R * SQRT3 * STROKE_FRAC;
