@@ -7,10 +7,10 @@
 // callbacks and calls party.connect() — works with AirConsole instead.
 // =====================================================================
 
-AirConsoleAdapter.neutralizeLocalStorage();
-
 // DisplayState.js already read muted from real localStorage before this
-// bootstrap ran — reset it here so AC starts unmuted regardless.
+// bootstrap ran — reset it here so AC starts unmuted regardless. The
+// storage shim is installed below but excludes stacker_muted, so future
+// reads return null and music defaults on every session.
 muted = false;
 
 var airconsole = new AirConsole({
@@ -18,13 +18,10 @@ var airconsole = new AirConsole({
   silence_inactive_players: false
 });
 
+AirConsoleAdapter.installAirConsoleStorage(airconsole);
+
 // Capture early onReady — the SDK may fire it before our adapter is wired up.
-var _acEarlyReadyCode;
-var _acEarlyReady = false;
-airconsole.onReady = function(code) {
-  _acEarlyReady = true;
-  _acEarlyReadyCode = code;
-};
+var replayEarlyReady = AirConsoleAdapter.captureEarlyReady(airconsole);
 
 // Wire AirConsole pause/resume — silently freeze the game engine.
 // No overlay, no broadcast to controllers. AirConsole auto-resumes
@@ -34,7 +31,6 @@ var _adPaused = false;
 var _adMutedByUs = false;
 
 airconsole.onPause = function() {
-  console.log('[AirConsole] onPause — connection unstable');
   if (roomState !== ROOM_STATE.PLAYING && roomState !== ROOM_STATE.COUNTDOWN) return;
   _acPaused = true;
   if (paused) return;
@@ -46,7 +42,6 @@ airconsole.onPause = function() {
 };
 
 airconsole.onResume = function() {
-  console.log('[AirConsole] onResume — connection restored');
   if (!_acPaused) return;
   _acPaused = false;
   if (_adPaused) return;
@@ -55,7 +50,6 @@ airconsole.onResume = function() {
 
 // Wire ad events — pause and mute during ads, resume after.
 airconsole.onAdShow = function() {
-  console.log('[AirConsole] onAdShow — pausing for ad');
   if (roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN) {
     _adPaused = true;
     if (!paused) {
@@ -69,7 +63,6 @@ airconsole.onAdShow = function() {
 };
 
 airconsole.onAdComplete = function() {
-  console.log('[AirConsole] onAdComplete — resuming after ad');
   var adWasMuted = _adMutedByUs;
   if (_adMutedByUs) _adMutedByUs = false;
   if (!_adPaused) { if (adWasMuted && music) music.resume(); return; }
@@ -98,29 +91,16 @@ PartyConnection = function() {
 var _originalConnectAndCreateRoom = connectAndCreateRoom;
 connectAndCreateRoom = function() {
   _originalConnectAndCreateRoom();
-  // Wrap the adapter's onReady (installed by AirConsoleAdapter._wireAirConsole
-  // during _originalConnectAndCreateRoom) so we can swap in the
-  // AirConsole-profile language before the adapter fires 'created'.
-  var _adapterOnReady = airconsole.onReady;
-  airconsole.onReady = function(code) {
-    AirConsoleAdapter.applyLocale(airconsole);
-    if (_adapterOnReady) _adapterOnReady.call(airconsole, code);
-  };
-  if (_acEarlyReady && party && !party.connected) {
-    airconsole.onReady(_acEarlyReadyCode);
-  }
+  // The adapter's own onReady applies AC-profile locale before firing
+  // 'created'; we just need to replay any captured-early onReady so a
+  // fresh adapter on reconnect / Play Again reaches ready.
+  replayEarlyReady();
 };
 
-// No local server APIs in AirConsole (QR, base URL)
-fetchBaseUrl = function() {};
+// No /api/qr in AirConsole — short-circuit so callers see qrMatrix=null
+// instead of a doomed fetch + console.error. fetchBaseUrl already returns
+// early outside of localhost; renderQR already null-guards on its own.
 fetchQR = function(text, cb) { if (cb) cb(null); };
-
-// renderQR no-op when qrMatrix is null
-var _originalRenderQR = renderQR;
-renderQR = function(canvas, matrix, targetCssSize) {
-  if (!matrix) return;
-  _originalRenderQR(canvas, matrix, targetCssSize);
-};
 
 // Init music when game starts — AirConsole's iframe has allow="autoplay" so we
 // don't need a user gesture. In standalone mode, initMusic() is called on button click.
@@ -136,19 +116,7 @@ startGame = function() {
 // so setting it to LOBBY ensures the room is applied immediately.
 currentScreen = SCREEN.LOBBY;
 
-// Populate lobby version label. Build script replaces __AC_VERSION__
-// with the actual version. Falls back to /api/version for local dev.
-var _lobbyVersionLabel = document.getElementById('lobby-version-label');
-if (_lobbyVersionLabel) {
-  var _acVersion = '__AC_VERSION__';
-  if (_acVersion.indexOf('__') !== 0) {
-    _lobbyVersionLabel.textContent = _acVersion;
-  } else {
-    fetch('/api/version').then(function(r) { return r.json(); }).then(function(data) {
-      _lobbyVersionLabel.textContent = data.version || '';
-    }).catch(function() {});
-  }
-}
+AirConsoleAdapter.injectVersionLabel('lobby-version-label');
 
 // Intercept showScreen(WELCOME) — in AirConsole there's no welcome screen.
 // display.js defines resetToWelcome() which shows WELCOME; we redirect to LOBBY.

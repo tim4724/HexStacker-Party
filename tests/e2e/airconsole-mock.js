@@ -29,6 +29,10 @@
     this._nicknames = {};
     this._connectedDevices = new Set();
 
+    // Per-device persistent-data store (in-memory; per-tab — sufficient
+    // for the existing e2e suite which doesn't exercise reload persistence).
+    this._persistentData = {};
+
     // Callbacks
     this.onReady = null;
     this.onConnect = null;
@@ -36,6 +40,7 @@
     this.onMessage = null;
     this.onPause = null;
     this.onResume = null;
+    this.onPersistentDataLoaded = null;
 
     var self = this;
 
@@ -141,6 +146,30 @@
   AirConsole.prototype.getCustomDeviceState = function() { return undefined; };
   AirConsole.prototype.setOrientation = function() {};
   AirConsole.prototype.vibrate = function() {};
+
+  AirConsole.prototype.getUID = function(deviceId) {
+    return 'uid_' + deviceId;
+  };
+
+  AirConsole.prototype.storePersistentData = function(key, value /*, uid */) {
+    if (value === null || value === undefined) {
+      delete this._persistentData[key];
+    } else {
+      this._persistentData[key] = value;
+    }
+  };
+
+  AirConsole.prototype.requestPersistentData = function(uids) {
+    var self = this;
+    var data = {};
+    var ownUid = this.getUID(this._deviceId);
+    for (var i = 0; i < (uids || []).length; i++) {
+      data[uids[i]] = (uids[i] === ownUid) ? Object.assign({}, this._persistentData) : {};
+    }
+    setTimeout(function() {
+      if (self.onPersistentDataLoaded) self.onPersistentDataLoaded(data);
+    }, 0);
+  };
 
   // Test helpers — trigger SDK lifecycle events
   AirConsole.prototype.triggerPause = function() { if (this.onPause) this.onPause(); };
