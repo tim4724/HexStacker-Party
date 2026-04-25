@@ -1493,6 +1493,9 @@
   });
   document.getElementById('p-subtitle-color-auto').addEventListener('click', () => {
     STATE.subtitleColor = null;
+    for (const sw of document.getElementById('p-subtitle-color-swatches').children) {
+      sw.classList.remove('selected');
+    }
     render();
   });
   document.getElementById('p-bg-style').addEventListener('change', (e) => { STATE.bgStyle = e.target.value; render(); });
@@ -1590,10 +1593,12 @@
     // clickable button that sets STATE.subtitleColor.
     const sub = document.getElementById('p-subtitle-color-swatches');
     sub.innerHTML = '';
+    const active = (STATE.subtitleColor || '').toLowerCase();
     for (const col of pal) {
       const sw = document.createElement('button');
       sw.type = 'button';
       sw.title = col;
+      if (col.toLowerCase() === active) sw.classList.add('selected');
       sw.style.aspectRatio = '1';
       sw.style.background = col;
       sw.style.borderRadius = '3px';
@@ -1603,6 +1608,8 @@
       sw.addEventListener('click', () => {
         STATE.subtitleColor = col;
         document.getElementById('p-subtitle-color').value = col;
+        for (const peer of sub.children) peer.classList.remove('selected');
+        sw.classList.add('selected');
         render();
       });
       sub.appendChild(sw);
