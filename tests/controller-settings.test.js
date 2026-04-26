@@ -108,6 +108,12 @@ describe('ControllerSettings — onChange listener', () => {
   // so the open settings overlay re-syncs after async persistent-data
   // hydration. Without this, the overlay stays stuck on the defaults
   // applied at Settings.init() time even after state has been updated.
+  //
+  // Note: ControllerSettings keeps a module-level listener array with no
+  // public reset hook. Each test pushes to that array permanently. Tests
+  // here use per-test counter closures so accumulated listeners from
+  // earlier tests don't change the observed call count, but a future
+  // test that asserts an exact total would need to factor that in.
   test('reload() notifies registered onChange listeners', () => {
     let calls = 0;
     ControllerSettings.onChange(() => { calls++; });

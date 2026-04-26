@@ -258,23 +258,32 @@ class AirConsoleAdapter {
         try { airconsole.storePersistentData(key, null); } catch (e) { /* ignore */ }
       },
       clear: function() {
+        // cache only ever holds allowlisted keys — setItem and the
+        // onPersistentDataLoaded merge both filter on ALLOWLIST — so
+        // every key here is safe to forward to storePersistentData.
         var keys = Object.keys(cache);
         for (var i = 0; i < keys.length; i++) {
-          if (ALLOWLIST[keys[i]]) {
-            try { airconsole.storePersistentData(keys[i], null); } catch (e) { /* ignore */ }
-          }
+          try { airconsole.storePersistentData(keys[i], null); } catch (e) { /* ignore */ }
         }
         cache = {};
       },
       key: function(i) {
         var keys = Object.keys(cache);
-        return keys[i] || null;
+        // Length-bounded check rather than `keys[i] || null` — a future
+        // empty-string key would otherwise be coerced to null.
+        return i < keys.length ? keys[i] : null;
       },
       get length() { return Object.keys(cache).length; },
       // Register a callback to fire once persistent data has hydrated.
       // Fires immediately if already loaded. Used by Settings to re-apply
       // user values after the async AC fetch lands (Settings.init() runs
       // synchronously at page load with an empty cache).
+      // One-shot semantics: a second requestLoad on reconnect (rare —
+      // the controller bootstrap's `if (party) return` guards it) still
+      // merges into cache but does NOT re-notify subscribers. The cache
+      // is updated in place and reads see the new values; explicit
+      // rerun of Settings.reload would need to be triggered by the
+      // caller in that scenario.
       onLoad: function(cb) {
         if (typeof cb !== 'function') return;
         if (loaded) { cb(); return; }
