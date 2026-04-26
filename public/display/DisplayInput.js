@@ -94,7 +94,7 @@ function onHello(fromId, msg) {
   if (players.has(fromId)) {
     var existing = players.get(fromId);
 
-    // Update name, sanitizing "P1"–"P4" to match actual slot
+    // Update name, sanitizing "P1"–"P8" to match actual slot
     if (name) existing.playerName = sanitizePlayerName(name, existing.playerIndex);
     updatePlayerList();
 

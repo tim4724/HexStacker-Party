@@ -323,13 +323,16 @@ class AirConsoleAdapter {
   // the adapter has wired up its own onReady. The SDK fires onReady at most
   // once per session; bootstraps that construct the adapter lazily (e.g. in
   // response to controller.js init) miss the live fire and rely on this
-  // replay. Returns a `replay()` function — call it after wrapping
+  // replay. Returns a one-shot `replay()` function — call it after wrapping
   // airconsole.onReady to bring a fresh adapter to ready.
   static captureEarlyReady(airconsole) {
     var capturedCode;
     airconsole.onReady = function(code) { capturedCode = code; };
     return function replay() {
-      if (capturedCode !== undefined) airconsole.onReady(capturedCode);
+      if (capturedCode === undefined) return;
+      var code = capturedCode;
+      capturedCode = undefined;
+      airconsole.onReady(code);
     };
   }
 

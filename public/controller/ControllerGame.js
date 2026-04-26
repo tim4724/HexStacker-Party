@@ -628,10 +628,6 @@ function flashGlow() {
   }
 }
 
-function onDragProgress(direction, progress) {
-  // Glow position is updated via pointermove coordTracker — nothing extra needed here
-}
-
 // =====================================================================
 // Touch Input
 // =====================================================================
@@ -688,5 +684,5 @@ function initTouchInput() {
     } else {
       sendToDisplay(MSG.INPUT, { action: action });
     }
-  }, onDragProgress);
+  }, null);
 }

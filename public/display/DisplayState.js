@@ -145,7 +145,7 @@ function nextAvailableSlot() {
   return -1;
 }
 
-// Sanitize player name: replace "P1"–"P4" with the correct slot label
+// Sanitize player name: replace "P1"–"P8" with the correct slot label
 function sanitizePlayerName(name, slotIndex) {
   if (!name || /^P[1-8]$/i.test(name)) return 'P' + (slotIndex + 1);
   return name;
