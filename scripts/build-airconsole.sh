@@ -9,7 +9,8 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 BUILD_DIR="$PROJECT_DIR/build/airconsole"
-ZIP_FILE="$PROJECT_DIR/build/airconsole.zip"
+APP_VERSION=$(node -e "console.log(require('$PROJECT_DIR/package.json').version)")
+ZIP_FILE="$PROJECT_DIR/build/hexstacker-party-airconsole-$APP_VERSION.zip"
 
 echo "Building AirConsole package..."
 
@@ -43,7 +44,6 @@ cp "$BUILD_DIR/display/screen.html" "$BUILD_DIR/screen.html"
 cp "$BUILD_DIR/controller/controller.html" "$BUILD_DIR/controller.html"
 
 # Inject version into bootstrap scripts (replaces __AC_VERSION__ placeholder)
-APP_VERSION=$(node -e "console.log(require('$PROJECT_DIR/package.json').version)")
 # Portable sed -i (macOS requires '' suffix, Linux doesn't)
 if [[ "$OSTYPE" == "darwin"* ]]; then
   sed -i '' "s/__AC_VERSION__/$APP_VERSION/" "$BUILD_DIR/display/display-airconsole.js"

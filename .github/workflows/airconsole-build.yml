@@ -24,4 +24,4 @@ jobs:
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: build/airconsole.zip
+          files: build/hexstacker-party-airconsole-*.zip
