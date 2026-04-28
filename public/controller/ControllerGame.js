@@ -226,9 +226,16 @@ function reclaimPreferredColor() {
 
 // One-time palette paint — creates 8 button+canvas pairs and wires aria.
 // Called from controller.js init. Click delegation happens at the container.
+// Visual order pairs spectrum neighbors vertically (Red/Tangerine, Honey/Mint,
+// Teal/Indigo, Violet/Magenta) across the 4-column honeycomb: top row picks
+// even PLAYER_COLORS indices, bottom row picks odd. dataset.idx still stores
+// the underlying PLAYER_COLORS index, so SET_COLOR + paintColorSwatch are
+// unaffected.
+var COLOR_PICKER_VISUAL_ORDER = [0, 2, 4, 6, 1, 3, 5, 7];
 function buildColorPicker() {
   if (!colorPickerEl || colorPickerEl.children.length) return;
-  for (var i = 0; i < PLAYER_COLORS.length; i++) {
+  for (var pos = 0; pos < COLOR_PICKER_VISUAL_ORDER.length; pos++) {
+    var i = COLOR_PICKER_VISUAL_ORDER[pos];
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'color-swatch';
