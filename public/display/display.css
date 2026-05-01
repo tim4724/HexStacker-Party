@@ -143,56 +143,56 @@ body.airconsole #lobby-version-label { display: block; }
 
 
 /* ============================================
-   Lobby Screen — orientation-driven layout.
-   Portrait: vertical stack, QR on top, players below (full-width cards).
-   Landscape: QR left, players right.
-   Narrow (<600px) overrides: compact single column for player list sizing.
+   Lobby Screen — single fluid layout.
+   Every size uses clamp() with `vmin` (the smaller of viewport width or
+   height), so the layout reads the same on a phone, a tablet, or a 4K
+   display — only proportionally larger or smaller. The only conditional
+   rule is orientation: portrait stacks (QR above cards), landscape splits
+   (QR beside cards).
    ============================================ */
 
-/* --- Base (Medium tier) --- */
+/* `space-around` puts a half-gap above the title and below the button and
+   a full gap between every pair of elements — gives breathing room at
+   the edges while keeping the title near the top and button near the
+   bottom, instead of the harsh "stuck to the edges" look space-between
+   produces on tall viewports. */
 #lobby-screen {
   justify-content: space-around;
-  gap: 1.5rem;
-  padding: clamp(2rem, 5vh, 3.5rem) 1.5rem clamp(4rem, 8vh, 6.5rem);
+  padding: clamp(1.5rem, 4vmin, 3rem) clamp(1rem, 3vmin, 2rem);
   position: relative;
 }
 
 #lobby-screen h1 {
-  font-size: clamp(2rem, 6vh, 4.5rem);
+  font-size: clamp(1.6rem, 7vmin, 5rem);
   filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.4));
   animation: fadeDown 0.6s ease-out both;
   text-align: center;
-}
-
-/* At medium/wide tiers (≥600px) there's room for the title to grow to
-   match the welcome screen size. Below that the narrow lobby stays
-   compact so "HEX STACKER" doesn't wrap and push cards off-screen. */
-@media (min-width: 600px) {
-  #lobby-screen h1 {
-    font-size: clamp(2.5rem, 7vh, 6rem);
-  }
 }
 
 #lobby-body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
+  justify-content: center;
+  gap: clamp(1rem, 3vmin, 2.5rem);
   width: 100%;
-  max-width: 720px;
+  max-width: 1400px;
   animation: fadeUp 0.6s 0.15s ease-out both;
 }
 
+/* Width scales with viewport width (portrait → roomy QR) but is capped by
+   viewport height (so it doesn't blow up the whole row in landscape). */
 #qr-container {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: clamp(8px, 1.2vh, 14px);
+  gap: clamp(6px, 1vmin, 12px);
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
-  padding: clamp(12px, 1.8vh, 20px);
-  width: clamp(180px, 34vh, 340px);
+  padding: clamp(8px, 1.5vmin, 18px);
+  width: clamp(160px, min(50vw, 38vh), 360px);
   max-width: 90vw;
   overflow: hidden;
 }
@@ -203,7 +203,7 @@ body.airconsole #lobby-version-label { display: block; }
   height: auto;
   border-radius: var(--radius-lg);
   background: #fff;
-  padding: 10px;
+  padding: clamp(4px, 0.8vmin, 10px);
   display: block;
 }
 
@@ -211,13 +211,13 @@ body.airconsole #lobby-version-label { display: block; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: clamp(4px, 0.8vmin, 8px);
   text-align: center;
 }
 
 #qr-label {
   margin: 0;
-  font-size: 11px;
+  font-size: clamp(9px, 1.2vmin, 11px);
   color: var(--text-faint);
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -241,7 +241,7 @@ body.airconsole #lobby-version-label { display: block; }
   font-family: 'Orbitron', sans-serif;
   line-height: 1.2;
   max-width: 100%;
-  padding: 8px 14px;
+  padding: clamp(4px, 1vmin, 8px) clamp(8px, 1.5vmin, 14px);
   background: rgba(0, 0, 0, 0.22);
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -285,7 +285,7 @@ body.airconsole #lobby-version-label { display: block; }
 }
 
 .join-url__host {
-  font-size: 1.1rem;
+  font-size: clamp(0.85rem, 1.8vmin, 1.2rem);
   font-weight: 600;
   color: var(--text-secondary);
   letter-spacing: 0.04em;
@@ -298,101 +298,48 @@ body.airconsole #lobby-version-label { display: block; }
 }
 
 .join-url__code {
-  font-size: 1.4rem;
+  font-size: clamp(1.1rem, 2.2vmin, 1.5rem);
   font-weight: 900;
   color: var(--accent-secondary);
   letter-spacing: 0.18em;
   padding-left: 0.18em;
 }
 
+/* Player cards: 2-column grid by default; landscape with 5+ players gets
+   4 columns (rule below). `width: max-content` is essential — without it,
+   the grid stretches to fill the flex row and leaves a wide trough
+   between the QR and the cards. `minmax(0, ...)` lets columns shrink
+   below their clamp value when QR + cards together exceed the available
+   row (e.g. 4 cards next to a tall QR on a 1024×768 landscape display). */
 #player-list {
-  --card-w: clamp(180px, 22vw, 230px);
-  --card-gap: clamp(10px, 1.5vw, 18px);
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--card-gap);
-  /* No width:100% and no auto side-margins — in row-direction lobby-body
-     either would expand the list's flex slot past its max-width and shove
-     it away from the QR card. Let the parent's justify-content:center
-     position the list, and the .pl--sm/--lg max-widths cap its size. */
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, clamp(150px, 24vmin, 280px)));
+  gap: clamp(8px, 1.5vmin, 18px);
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
   animation: fadeIn 0.4s 0.3s ease-out both;
 }
-/* Player-count buckets: ≤4 → 2×2, ≥5 → 2×4. Container is capped to
-   exactly N card widths so flex-wrap produces the intended row/col grid. */
-#player-list.pl--sm { max-width: calc(var(--card-w) * 2 + var(--card-gap)); }
-/* 5+ players: row 1 always fills 4 cards; left-align so the wrapped row
-   aligns with the first column instead of centering independently. */
-#player-list.pl--lg { max-width: calc(var(--card-w) * 4 + var(--card-gap) * 3); justify-content: flex-start; }
 
 .player-card {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(6px, 1vh, 12px);
-  padding: clamp(12px, 2vh, 22px) clamp(14px, 1.6vw, 26px);
-  font-size: clamp(1rem, 1.8vh, 1.4rem);
+  gap: clamp(4px, 1vmin, 12px);
+  padding: clamp(8px, 1.8vmin, 22px) clamp(10px, 1.8vmin, 26px);
+  font-size: clamp(0.85rem, 1.8vmin, 1.4rem);
   width: 100%;
   min-width: 0;
 }
 
-/* --- Landscape (width ≥ height): side-by-side, roomier.
-   Portrait viewports keep the vertical stack so the player list gets the
-   full width for its cards. --- */
+/* --- Landscape: split QR | cards horizontally; with 5+ players use 4
+   columns so the grid stays wide-and-short next to the QR. --- */
 @media (orientation: landscape) {
-  #lobby-body {
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    max-width: 1400px;
-    gap: clamp(2rem, 3vw, 3.5rem);
+  #lobby-body { flex-direction: row; }
+  #player-list.pl--lg {
+    grid-template-columns: repeat(4, minmax(0, clamp(150px, 24vmin, 280px)));
   }
-  .join-url__host { font-size: 1.2rem; }
-  .join-url__code { font-size: 1.5rem; }
-}
-
-/* --- Narrow tier (<600px OR <600px tall): force 2-col layout even with 5+
-   players (becomes 4×2). At this size the default card-w (min 180px) would
-   push the list past two columns and overflow the viewport — shrink card/QR/
-   title so the whole lobby fits without clipping. Matching max-height too
-   keeps phone-landscape (e.g. 640×360) from falling back to the full-size
-   tier. --- */
-@media (max-width: 599px), (max-height: 599px) {
-  #lobby-screen {
-    gap: 0.7rem;
-    padding: clamp(0.6rem, 1.5vh, 1.2rem) 1rem clamp(1.5rem, 4vh, 3rem);
-  }
-  #lobby-screen h1 { font-size: clamp(1.5rem, 6vw, 2.2rem); }
-  #lobby-body {
-    gap: clamp(0.8rem, 2vw, 1.4rem);
-    flex: 1 1 auto;
-    min-height: 0;
-  }
-  #qr-container {
-    flex: 0 0 auto;
-    width: clamp(170px, 28vh, 210px);
-    padding: 10px;
-    gap: 6px;
-  }
-  #qr-code { padding: 6px; }
-  #qr-label { font-size: 10px; }
-  #join-url { padding: 5px; }
-  #player-list {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    --card-w: clamp(120px, 40vw, 160px);
-    --card-gap: 8px;
-  }
-  .player-card {
-    font-size: clamp(0.85rem, 3vw, 1rem);
-    padding: clamp(8px, 1.4vh, 14px) clamp(8px, 2vw, 14px);
-    gap: clamp(4px, 0.8vh, 8px);
-  }
-  #player-list.pl--lg { max-width: calc(var(--card-w) * 2 + var(--card-gap)); }
-  .join-url__host { font-size: 0.85rem; }
-  .join-url__code { font-size: 1.1rem; }
 }
 
 /* --- AirConsole / no-QR overrides: just hide QR; player list sizing is class-driven --- */
@@ -428,18 +375,16 @@ body.airconsole #qr-container,
   display: flex;
   flex-direction: column;
   align-items: center;
-  flex: 0 0 var(--card-w, 200px);
-  /* Override default min-width:auto on flex items — otherwise the slot
-     expands to card min-content width (level controls) and breaks the
-     2×2 / 2×4 grid by forcing items to wrap one per row. */
+  /* Override grid item default min-width:auto so the slot can shrink
+     below its level-controls min-content width on tight viewports. */
   min-width: 0;
 }
 
 .level-controls {
   display: flex;
   align-items: center;
-  gap: clamp(0.25rem, 0.5vw, 0.4rem);
-  padding-top: clamp(4px, 0.8vh, 8px);
+  gap: clamp(0.25rem, 0.5vmin, 0.4rem);
+  padding-top: clamp(4px, 0.8vmin, 8px);
   border-top: 1px solid var(--bg-glass);
   width: 100%;
   justify-content: center;
@@ -447,16 +392,16 @@ body.airconsole #qr-container,
 
 .level-heading {
   font-family: 'Orbitron', sans-serif;
-  font-size: clamp(0.8rem, 1.8vh, 1.2rem);
+  font-size: clamp(0.8rem, 1.6vmin, 1.2rem);
   font-weight: 700;
   color: var(--text-secondary);
   letter-spacing: 0.06em;
-  margin-right: clamp(0.15rem, 0.3vw, 0.3rem);
+  margin-right: clamp(0.15rem, 0.3vmin, 0.3rem);
 }
 
 .level-label {
   font-family: 'Orbitron', sans-serif;
-  font-size: clamp(0.9rem, 2vh, 1.4rem);
+  font-size: clamp(0.9rem, 1.8vmin, 1.4rem);
   font-weight: 700;
   color: var(--text-primary);
   text-align: center;
@@ -464,8 +409,8 @@ body.airconsole #qr-container,
 }
 
 .level-btn {
-  width: clamp(24px, 3.6vh, 36px);
-  height: clamp(24px, 3.6vh, 36px);
+  width: clamp(24px, 3.4vmin, 36px);
+  height: clamp(24px, 3.4vmin, 36px);
   border: none;
   border-radius: var(--radius-xs);
   background: rgba(255, 255, 255, 0.08);

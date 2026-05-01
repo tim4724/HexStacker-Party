@@ -145,9 +145,9 @@ function updatePlayerList() {
 
   // In AirConsole empty slots are hidden, so the layout bucket is driven by
   // actual player count; elsewhere use the visible-slot count (incl. placeholders).
+  // 5+ players get a wider 4-column grid in landscape via the .pl--lg rule.
   var isAirConsole = document.body.classList.contains('airconsole');
   var bucketCount = isAirConsole ? players.size : visibleSlots;
-  playerListEl.classList.toggle('pl--sm', bucketCount <= 4);
   playerListEl.classList.toggle('pl--lg', bucketCount > 4);
 
   for (var j = 0; j < totalSlots; j++) {
