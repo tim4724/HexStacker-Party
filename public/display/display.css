@@ -158,7 +158,7 @@ body.airconsole #lobby-version-label { display: block; }
    produces on tall viewports. */
 #lobby-screen {
   justify-content: space-around;
-  padding: clamp(1.5rem, 4vmin, 3rem) clamp(1rem, 3vw, 2rem);
+  padding: clamp(1.5rem, 4vmin, 3rem) clamp(1rem, 3vmin, 2rem);
   position: relative;
 }
 
@@ -308,13 +308,16 @@ body.airconsole #lobby-version-label { display: block; }
 /* Player cards: 2-column grid by default; landscape with 5+ players gets
    4 columns (rule below). `width: max-content` is essential — without it,
    the grid stretches to fill the flex row and leaves a wide trough
-   between the QR and the cards. */
+   between the QR and the cards. `minmax(0, ...)` lets columns shrink
+   below their clamp value when QR + cards together exceed the available
+   row (e.g. 4 cards next to a tall QR on a 1024×768 landscape display). */
 #player-list {
   display: grid;
-  grid-template-columns: repeat(2, clamp(150px, 24vmin, 280px));
+  grid-template-columns: repeat(2, minmax(0, clamp(150px, 24vmin, 280px)));
   gap: clamp(8px, 1.5vmin, 18px);
   width: max-content;
   max-width: 100%;
+  min-width: 0;
   animation: fadeIn 0.4s 0.3s ease-out both;
 }
 
@@ -335,7 +338,7 @@ body.airconsole #lobby-version-label { display: block; }
 @media (orientation: landscape) {
   #lobby-body { flex-direction: row; }
   #player-list.pl--lg {
-    grid-template-columns: repeat(4, clamp(150px, 24vmin, 280px));
+    grid-template-columns: repeat(4, minmax(0, clamp(150px, 24vmin, 280px)));
   }
 }
 
