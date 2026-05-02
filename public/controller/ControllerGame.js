@@ -246,6 +246,10 @@ function captureSessionColorIndex() {
   var idx = parseInt(raw, 10);
   if (!isNaN(idx) && idx >= 0 && idx < PLAYER_COLORS.length) {
     _previousSessionColorIndex = idx;
+    // Tint the name-screen JOIN button with the previous-session color so
+    // returning players see their identity before connecting. Once WELCOME
+    // arrives, onLobbyUpdate overwrites this with the assigned slot.
+    document.body.style.setProperty('--player-color', PLAYER_COLORS[idx]);
   }
 }
 captureSessionColorIndex();
