@@ -6,17 +6,16 @@
 // Called by: DisplayConnection.js, DisplayGame.js, display.js
 // =====================================================================
 
-// Builds the empty level-controls stub shown in unfilled lobby slots.
-// Used in two places: initial card creation and slot sync for late-joiners.
-function buildLevelPlaceholder() {
-  var ph = document.createElement('div');
-  ph.className = 'level-controls level-placeholder';
-  ph.setAttribute('aria-hidden', 'true');
-  // Static scaffold — no translated content in the markup, so innerHTML is
-  // safe. Locale strings are injected via textContent below.
-  ph.innerHTML = '<span class="level-heading"></span><span class="level-btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/></svg></span><span class="level-label">1</span><span class="level-btn"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/><line x1="7" y1="2" x2="7" y2="12"/></svg></span>';
-  ph.querySelector('.level-heading').textContent = t('level_heading');
-  return ph;
+// Build the static "LEVEL" pill shown beneath the player name. The value
+// span starts empty; updatePlayerList writes the player's startLevel into
+// it when the slot fills, and clears it when the slot empties.
+function buildCardLevelLabel() {
+  var lvl = document.createElement('div');
+  lvl.className = 'card-level';
+  // Static scaffold — translated string injected via textContent below.
+  lvl.innerHTML = '<span class="card-level__heading"></span><span class="card-level__value"></span>';
+  lvl.querySelector('.card-level__heading').textContent = t('level_heading');
+  return lvl;
 }
 
 // --- Layout Calculation ---
@@ -125,11 +124,15 @@ function updatePlayerList() {
     slot.className = 'player-slot';
     var card = document.createElement('div');
     card.className = 'player-card empty';
+    var topRow = document.createElement('div');
+    topRow.className = 'player-card__top';
     var name = document.createElement('span');
+    name.className = 'identity-name';
     var idx = playerListEl.children.length;
     name.textContent = 'P' + (idx + 1);
-    card.appendChild(name);
-    card.appendChild(buildLevelPlaceholder());
+    topRow.appendChild(name);
+    card.appendChild(topRow);
+    card.appendChild(buildCardLevelLabel());
     slot.appendChild(card);
     playerListEl.appendChild(slot);
   }
@@ -153,7 +156,8 @@ function updatePlayerList() {
   for (var j = 0; j < totalSlots; j++) {
     var slot = playerListEl.children[j];
     var card = slot.querySelector('.player-card');
-    var nameEl = card.querySelector('span');
+    var nameEl = card.querySelector('.identity-name');
+    var levelValueEl = card.querySelector('.card-level__value');
 
     // Hide slots beyond visible range
     slot.style.display = j < visibleSlots ? '' : 'none';
@@ -169,6 +173,7 @@ function updatePlayerList() {
 
     if (info) {
       var color = PLAYER_COLORS[info.playerIndex] || '#fff';
+      var lvl = info.startLevel || 1;
       card.style.setProperty('--player-color', color);
       nameEl.textContent = info.playerName || PLAYER_NAMES[info.playerIndex] || t('player');
       card.classList.remove('empty');
@@ -179,27 +184,7 @@ function updatePlayerList() {
         void card.offsetWidth;
         card.classList.add('join-pop');
       }
-      // Remove placeholder if present
-      var ph = card.querySelector('.level-placeholder');
-      if (ph) ph.remove();
-      // Level controls inside card
-      var levelCtrl = card.querySelector('.level-controls');
-      if (!levelCtrl) {
-        levelCtrl = document.createElement('div');
-        levelCtrl.className = 'level-controls';
-        // Static scaffold only — translated strings are applied via
-        // textContent / setAttribute below so a locale value containing a
-        // quote or angle bracket can never escape into the markup.
-        levelCtrl.innerHTML = '<span class="level-heading"></span><button class="level-btn level-minus"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/></svg></button><span class="level-label"></span><button class="level-btn level-plus"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/><line x1="7" y1="2" x2="7" y2="12"/></svg></button>';
-        levelCtrl.querySelector('.level-heading').textContent = t('level_heading');
-        levelCtrl.querySelector('.level-minus').setAttribute('aria-label', t('level_minus'));
-        levelCtrl.querySelector('.level-plus').setAttribute('aria-label', t('level_plus'));
-        card.appendChild(levelCtrl);
-      }
-      var lvl = info.startLevel || 1;
-      levelCtrl.querySelector('.level-label').textContent = lvl;
-      levelCtrl.querySelector('.level-minus').disabled = lvl <= 1;
-      levelCtrl.querySelector('.level-plus').disabled = lvl >= 15;
+      levelValueEl.textContent = lvl;
     } else {
       card.style.removeProperty('--player-color');
       nameEl.textContent = 'P' + (j + 1);
@@ -207,13 +192,9 @@ function updatePlayerList() {
       card.classList.remove('join-pop');
       delete card.dataset.playerId;
       delete slot.dataset.playerId;
-      // Re-assignment: levelCtrl is var-hoisted from the if-branch above.
-      levelCtrl = card.querySelector('.level-controls');
-      if (levelCtrl) levelCtrl.remove();
-      // Add placeholder level row so empty cards match filled card height
-      if (!card.querySelector('.level-placeholder')) {
-        card.appendChild(buildLevelPlaceholder());
-      }
+      // Empty slots: leave the value blank so the placeholder reads
+      // just "LEVEL" rather than a stale "1" from before the player joined.
+      levelValueEl.textContent = '';
     }
   }
 }
@@ -244,26 +225,6 @@ function applyHostTint() {
     document.body.style.removeProperty('--player-color');
   }
 }
-
-// Delegated click handler for level +/- buttons on display player cards
-playerListEl.addEventListener('click', function(e) {
-  var btn = e.target.closest('.level-btn');
-  if (!btn) return;
-  var slot = btn.closest('.player-slot');
-  if (!slot || !slot.dataset.playerId) return;
-  var pid = slot.dataset.playerId;
-  var player = players.get(pid);
-  if (!player) return;
-  var lvl = player.startLevel || 1;
-  if (btn.classList.contains('level-minus')) {
-    lvl = Math.max(1, lvl - 1);
-  } else if (btn.classList.contains('level-plus')) {
-    lvl = Math.min(15, lvl + 1);
-  }
-  player.startLevel = lvl;
-  updatePlayerList();
-  broadcastLobbyUpdate();
-});
 
 // --- QR Code Rendering ---
 function renderQR(canvas, qrMatrix, targetCssSize) {

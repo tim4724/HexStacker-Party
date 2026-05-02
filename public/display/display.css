@@ -157,12 +157,15 @@ body.airconsole #lobby-version-label { display: block; }
    bottom, instead of the harsh "stuck to the edges" look space-between
    produces on tall viewports. */
 #lobby-screen {
-  justify-content: space-around;
-  padding: clamp(1.5rem, 4vmin, 3rem) clamp(1rem, 3vmin, 2rem);
+  justify-content: space-evenly;
+  padding: clamp(1rem, 3vmin, 2rem) clamp(1rem, 3vmin, 2rem);
   position: relative;
+  overflow: hidden;
 }
 
 #lobby-screen h1 {
+  position: relative;
+  z-index: 5;
   font-size: clamp(1.6rem, 7vmin, 5rem);
   filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.4));
   animation: fadeDown 0.6s ease-out both;
@@ -177,11 +180,16 @@ body.airconsole #lobby-version-label { display: block; }
   gap: clamp(1rem, 3vmin, 2.5rem);
   width: 100%;
   max-width: 1400px;
+  /* Shrink-to-fit so #lobby-screen's space-evenly distribution keeps the
+     four bands (title, body, START, edges) evenly spaced even when the
+     QR + cards content would otherwise claim its full intrinsic height
+     and squeeze the gaps. min-height: 0 lets nested overflow clip behind
+     the z-indexed START rather than expanding the body box. */
+  flex: 0 1 auto;
+  min-height: 0;
   animation: fadeUp 0.6s 0.15s ease-out both;
 }
 
-/* Width scales with viewport width (portrait → roomy QR) but is capped by
-   viewport height (so it doesn't blow up the whole row in landscape). */
 #qr-container {
   flex: 0 0 auto;
   display: flex;
@@ -192,7 +200,7 @@ body.airconsole #lobby-version-label { display: block; }
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   padding: clamp(8px, 1.5vmin, 18px);
-  width: clamp(160px, min(50vw, 38vh), 360px);
+  width: clamp(160px, 32vmin, 320px);
   max-width: 90vw;
   overflow: hidden;
 }
@@ -229,13 +237,13 @@ body.airconsole #lobby-version-label { display: block; }
   max-width: 100%;
 }
 
-/* Join URL — single line "host/CODE" with the code emphasized. Click to
-   copy the full URL; shows a brief toast via #join-url[data-copied]. */
+/* Join URL — host on top line, code below. Click to copy the full URL;
+   shows a brief toast via #join-url[data-copied]. */
 #join-url {
   display: flex;
-  align-items: baseline;
-  justify-content: center;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: center;
+  align-self: stretch;
   gap: 0;
   margin: 0;
   font-family: 'Orbitron', sans-serif;
@@ -290,11 +298,10 @@ body.airconsole #lobby-version-label { display: block; }
   color: var(--text-secondary);
   letter-spacing: 0.04em;
   text-transform: lowercase;
-  /* Long hostnames (e.g. preview-*.hexstacker.com) must be able to
-     break mid-string — URLs lack word boundaries, so `anywhere` is needed
-     to prevent overflow clipping against #qr-container's overflow: hidden. */
-  overflow-wrap: anywhere;
-  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .join-url__code {
@@ -302,7 +309,6 @@ body.airconsole #lobby-version-label { display: block; }
   font-weight: 900;
   color: var(--accent-secondary);
   letter-spacing: 0.18em;
-  padding-left: 0.18em;
 }
 
 /* Player cards: 2-column grid by default; landscape with 5+ players gets
@@ -322,14 +328,10 @@ body.airconsole #lobby-version-label { display: block; }
 }
 
 .player-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: clamp(4px, 1vmin, 12px);
-  padding: clamp(8px, 1.8vmin, 22px) clamp(10px, 1.8vmin, 26px);
+  /* Layout (flex column, 2:1 aspect, 50/50 halves) lives in theme.css.
+     Display-only: scale-down hint for nested elements + min-width: 0 so
+     the card can shrink inside the grid's min-content track. */
   font-size: clamp(0.85rem, 1.8vmin, 1.4rem);
-  width: 100%;
   min-width: 0;
 }
 
@@ -354,10 +356,19 @@ body.airconsole #qr-container,
   color: var(--text-secondary);
 }
 
-.player-card.empty .level-placeholder {
+.player-card.empty .card-level {
   opacity: 0.45;
-  pointer-events: none;
-  border-top-color: var(--text-secondary);
+}
+
+.player-card.empty .card-level::before {
+  background: var(--text-secondary);
+}
+
+/* Display-specific name color — uses --text-secondary as the fallback
+   (display empty slots want a muted name) instead of the controller's
+   --text-primary. Layout/typography for .identity-name lives in theme.css. */
+.player-card .identity-name {
+  color: var(--player-color, var(--text-secondary));
 }
 
 @keyframes slotPopIn {
@@ -376,61 +387,29 @@ body.airconsole #qr-container,
   flex-direction: column;
   align-items: center;
   /* Override grid item default min-width:auto so the slot can shrink
-     below its level-controls min-content width on tight viewports. */
+     on tight viewports. */
   min-width: 0;
 }
 
-.level-controls {
-  display: flex;
-  align-items: center;
-  gap: clamp(0.25rem, 0.5vmin, 0.4rem);
-  padding-top: clamp(4px, 0.8vmin, 8px);
-  border-top: 1px solid var(--bg-glass);
-  width: 100%;
-  justify-content: center;
-}
-
-.level-heading {
-  font-family: 'Orbitron', sans-serif;
-  font-size: clamp(0.8rem, 1.6vmin, 1.2rem);
+/* Layout/divider for .card-level lives in theme.css. Display only adds
+   the heading + value typography below — nested classes are unique to the
+   display lobby's static label (controller renders +/- buttons + a value
+   span and uses different selectors). */
+.card-level__heading {
+  /* Shared clamp with controller .level-heading. */
+  font-size: clamp(0.95rem, 2vmin, 1.2rem);
   font-weight: 700;
   color: var(--text-secondary);
-  letter-spacing: 0.06em;
-  margin-right: clamp(0.15rem, 0.3vmin, 0.3rem);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
-.level-label {
-  font-family: 'Orbitron', sans-serif;
-  font-size: clamp(0.9rem, 1.8vmin, 1.4rem);
-  font-weight: 700;
+.card-level__value {
+  /* Shared clamp with controller #level-display. */
+  font-size: clamp(0.95rem, 2vmin, 1.2rem);
+  font-weight: 800;
   color: var(--text-primary);
-  text-align: center;
   font-variant-numeric: tabular-nums;
-}
-
-.level-btn {
-  width: clamp(24px, 3.4vmin, 36px);
-  height: clamp(24px, 3.4vmin, 36px);
-  border: none;
-  border-radius: var(--radius-xs);
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
-  font-size: 0;
-  padding: 0;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background var(--transition-fast);
-}
-
-.level-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-.level-btn:disabled {
-  opacity: 0.25;
-  cursor: default;
 }
 
 /* Shared sizing for welcome + lobby primary CTAs. */
@@ -443,6 +422,8 @@ body.airconsole #qr-container,
 }
 
 #start-btn {
+  position: relative;
+  z-index: 5;
   animation: fadeUp 0.5s 0.45s ease-out backwards;
 }
 

@@ -139,6 +139,15 @@
       setWaitingActionMessage(t('game_in_progress'));
       break;
 
+    case 'lobby-color-picker-open':
+      applyIdentity({ isHost: true, playerCount: Math.max(1, parseInt(params.get('players'), 10) || 1) });
+      showLobbyUI();
+      // Open the rose overlay so the gallery captures its layout per
+      // viewing slot (alternatives + spectrum-order assignment depend
+      // on which color the player currently is).
+      if (typeof openColorPicker === 'function') openColorPicker();
+      break;
+
     case 'countdown':
       applyIdentity({ isHost: false });
       gameScreen.classList.add('countdown');

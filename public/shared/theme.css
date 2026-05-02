@@ -265,7 +265,10 @@
 
 .player-card {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  padding: 0;
   border-radius: var(--radius-md);
   background: var(--bg-card);
   border: 2px solid var(--player-color, var(--border-strong));
@@ -273,6 +276,70 @@
   font-weight: 600;
   letter-spacing: 0.05em;
   color: var(--player-color, var(--text-primary));
+  /* Locked 2:1 aspect (~140px tall at 280px wide). Both halves split
+     50/50 via flex: 1 1 0 on the children; each half gets exactly half
+     the card height. Two-line names fit in the top half at all clamp
+     sizes (max ~63px in a 70px half) without padding-driven overflow. */
+  aspect-ratio: 2 / 1;
+}
+
+/* Top half of the card — name container. Used by display .player-card__top
+   and controller .identity-trigger (which adds button-specific styling on
+   top of this layout). flex: 1 1 0 + min-height: 0 makes the box exactly
+   50% of the card height regardless of content. */
+.player-card__top {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0 clamp(8px, 1.4vmin, 14px);
+}
+
+/* Bottom half of the card — level pill. Mirror geometry to the top via
+   flex: 1 1 0. Position relative + ::before draws a 1px divider at the
+   very top of the box, inset on both sides so it doesn't touch the card
+   edges. */
+.card-level {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0 clamp(8px, 1.4vmin, 14px);
+  position: relative;
+  font-family: 'Orbitron', sans-serif;
+  gap: clamp(0.4rem, 0.7vmin, 0.65rem);
+}
+
+.card-level::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: clamp(8px, 1.4vmin, 14px);
+  right: clamp(8px, 1.4vmin, 14px);
+  height: 1px;
+  background: var(--bg-glass);
+}
+
+/* Player name typography — same on both surfaces. Single line; long
+   names ellipsize. min-width: 0 lets the name shrink in flex layouts
+   without forcing the parent to grow. */
+.identity-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  text-align: center;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 800;
+  font-size: clamp(1.5rem, 4vmin, 1.7rem);
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Stop the body-level --player-color (set by applyHostTint for CTA tints)

@@ -85,83 +85,136 @@ function showLobbyUI() {
   updateHostVisibility();
 }
 
-// Fixed canvas buffer for every picker swatch. Pinning these means a
-// repaint (e.g. on level change re-tiering) never reassigns canvas.width —
-// which would clear the buffer and re-anchor DPR, causing a one-frame
-// flicker as the hex jumped by a sub-pixel. CSS width:100%/height:100%
-// scales the buffer to the live button rect. Buffer is the hex stamp's
-// natural output size (height + stamp padding, width = height / sin(60°));
-// not DPR-scaled — acceptable for a small picker swatch, follow-up work
-// if higher fidelity is needed on 3× displays.
-var COLOR_PICKER_CANVAS_H = 88;
-var COLOR_PICKER_CANVAS_W = 102;  // ≈ height / sin(60°) + stamp padding
+// Fixed canvas buffer for every rose cell. Pinning these means a repaint
+// (e.g. level-change re-tiering) never reassigns canvas.width — which would
+// clear the buffer and re-anchor DPR, causing a one-frame flicker as the hex
+// jumped by a sub-pixel. CSS width:100%/height:100% scales the buffer to
+// the live button rect. Buffer is the hex stamp's natural CSS-pixel size
+// (height + stamp padding, width = height / sin(60°)) multiplied by
+// devicePixelRatio so the rose hexes render at native device resolution
+// instead of being upscaled by the browser from a 102×88 backing store.
+// DPR is captured once at module load so the buffer size stays pinned across
+// repaints. paintHexCanvas applies the matching ctx.scale so drawing coords
+// stay in CSS pixels.
+//
+// What matters here is the aspect ratio (88/102), not absolute pixels —
+// the canvas element fills its parent via `width:100%; height:100%`, so
+// the browser stretches the backing store to whatever live rect the
+// `.rose-cell` clamp() resolves to. If that aspect ratio (which encodes
+// flat-top hex geometry: height / sin(60°) plus stamp padding) ever
+// changes in CSS, update these two constants to match.
+var COLOR_PICKER_CANVAS_DPR = (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1;
+var COLOR_PICKER_CSS_H = 88;
+var COLOR_PICKER_CSS_W = 102;  // ≈ height / sin(60°) + stamp padding
+var COLOR_PICKER_CANVAS_H = Math.round(COLOR_PICKER_CSS_H * COLOR_PICKER_CANVAS_DPR);
+var COLOR_PICKER_CANVAS_W = Math.round(COLOR_PICKER_CSS_W * COLOR_PICKER_CANVAS_DPR);
 
-// Repaint the 8-swatch color picker. Each swatch is a <button> containing a
-// <canvas>; we redraw the canvas on every call so the style tier follows
-// the current startLevel (NORMAL / PILLOW / NEON_FLAT) and swatches preview
-// exactly what the player's blocks will look like in-game.
+// DOM ordering of rose cells — fixed at buildColorPicker time. Each slot
+// gets a class .rose-cell--<slotId> in the same order so CSS positions
+// them via class selectors (see controller.css).
+var ROSE_SLOT_ORDER = ['top', 'ur', 'lr', 'bottom', 'll', 'ul', 'center'];
+
+// Spectrum-ordered alternative slots: when alternatives are sorted by
+// PLAYER_COLORS index ascending (red → magenta), assign them to slots in
+// left-to-right column reading order. Result: leftmost column = first two
+// alternatives, middle column = next three, rightmost column = last two.
+// The player's CURRENT color is the implicit "missing" notch in the
+// gradient (it's never in the rose), reinforcing the "you came from here"
+// reading without needing extra UI.
+//
+// Length is coupled to PLAYER_COLORS.length - 1 (= 7 for the 8-color
+// palette). If the palette ever grows or shrinks, regrow this array to
+// match — or renderColorPicker will silently leave trailing cells with
+// dataset.idx="undefined" (un-tappable, click handler bails on isNaN).
+var ROSE_SPECTRUM_ASSIGNMENT = ['ul', 'll', 'top', 'center', 'bottom', 'ur', 'lr'];
+
+// Repaint the 7 rose cells. Called every time the lobby state changes
+// (level, takenColorIndices, playerColorIndex). Closes the overlay if a
+// pending pick was just confirmed by the display.
 function renderColorPicker() {
   if (!colorPickerEl) return;
-  var taken = new Set(takenColorIndices || []);
   var tier = (typeof getStyleTier === 'function') ? getStyleTier(startLevel || 1) : STYLE_TIERS.NORMAL;
-  var btns = colorPickerEl.children;
-  for (var i = 0; i < btns.length; i++) {
-    var btn = btns[i];
-    var idx = parseInt(btn.dataset.idx, 10);
-    var isMine = idx === playerColorIndex;
-    var isTaken = !isMine && taken.has(idx);
-    btn.classList.toggle('selected', isMine);
-    btn.classList.toggle('taken', isTaken);
-    btn.setAttribute('aria-checked', isMine ? 'true' : 'false');
+
+  // 1. If a pick is pending and the display has now echoed it back as
+  //    the current color, close the overlay. Done BEFORE the rose render
+  //    so the early-return below catches the now-hidden state and the
+  //    rose contents stay frozen during the close fade-out.
+  if (pendingColorPick != null && pendingColorPick === playerColorIndex) {
+    pendingColorPick = null;
+    if (typeof closeColorPicker === 'function') closeColorPicker();
+  }
+
+  // 2. Skip rose repaint while the overlay is hidden (closed or fading
+  //    out). Repainting during the close fade would shuffle the
+  //    alternatives mid-animation as the player's new color drops out of
+  //    the rose — confusing right after a pick. The rose is repainted
+  //    fresh on each open via openColorPicker.
+  if (colorPickerOverlay && colorPickerOverlay.classList.contains('hidden')) {
+    return;
+  }
+
+  // 3. Pick the 7 alternatives in spectrum order (current color excluded)
+  //    and assign them to slots in left-to-right column reading order.
+  var alternatives = [];
+  for (var i = 0; i < PLAYER_COLORS.length; i++) {
+    if (i !== playerColorIndex) alternatives.push(i);
+  }
+  var taken = new Set(takenColorIndices || []);
+  var slotByName = {};
+  var cells = colorPickerEl.children;
+  for (var c = 0; c < cells.length; c++) {
+    slotByName[cells[c].dataset.slot] = cells[c];
+  }
+  for (var s = 0; s < ROSE_SPECTRUM_ASSIGNMENT.length; s++) {
+    var slot = slotByName[ROSE_SPECTRUM_ASSIGNMENT[s]];
+    if (!slot) continue;
+    var idx = alternatives[s];
+    var isTaken = taken.has(idx);
+    slot.dataset.idx = String(idx);
+    slot.classList.toggle('taken', isTaken);
+    // Clear the held "picked" scale-down on every visible repaint. The
+    // confirmed-pick path early-returns above (overlay hidden), preserving
+    // the scale through the fade-out; this clear handles fresh-open and
+    // rejected-pick repaints so the cell springs back to full size.
+    slot.classList.remove('picked');
+    slot.setAttribute('aria-label', t('color_choose', { n: idx + 1 }));
     if (isTaken) {
-      btn.setAttribute('aria-disabled', 'true');
-      // Pull taken swatches out of tab order so keyboard users don't
-      // land on a focusable-but-inert button. Mouse taps are blocked by
-      // .color-swatch.taken .color-swatch__hit { pointer-events: none }
-      // in controller.css, with the JS guard in controller.js as backup.
-      btn.setAttribute('tabindex', '-1');
+      slot.setAttribute('aria-disabled', 'true');
+      slot.setAttribute('tabindex', '-1');
     } else {
-      btn.removeAttribute('aria-disabled');
-      btn.removeAttribute('tabindex');
+      slot.removeAttribute('aria-disabled');
+      slot.removeAttribute('tabindex');
     }
-    paintColorSwatch(btn, tier, PLAYER_COLORS[idx], isTaken);
+    paintHexCanvas(slot.firstChild, tier, PLAYER_COLORS[idx], isTaken);
   }
 }
 
-// Draw a single flat-top hex into the swatch's fixed-size canvas buffer.
-// The source stamp is cached per (tier, color, size) by getHexStamp; we
-// just blit it centered. Buffer dims are pinned at buildColorPicker time so
-// repeated repaints (level changes, taken toggles) do not resize the canvas
-// — resizing clears it and re-anchors DPR, which manifested as a one-frame
-// jump on tier swap. Early-returns when CanvasUtils isn't loaded yet.
-//
-// Taken swatches keep the player's real color (dimmed via CSS opacity)
-// and gain a white "X" overlay so the unavailable state is unambiguous
-// without losing the color identity.
-function paintColorSwatch(btn, tier, color, isTaken) {
-  var canvas = btn.firstChild;
+// Draw a single flat-top hex stamp into a fixed-size canvas. Used for
+// both the avatar (current color, never taken) and the rose cells.
+// Taken cells dim the hex (via canvas globalAlpha so the X stays at full
+// chroma) and overlay a diagonal X in the player's own color.
+// Drawing operates in CSS-pixel coordinates: setTransform(dpr,...) maps
+// 1 logical px → dpr device px so the canvas backing store (sized at
+// CSS_W*DPR × CSS_H*DPR by buildColorPicker) renders at native resolution.
+function paintHexCanvas(canvas, tier, color, isTaken) {
   if (!canvas || typeof getHexStamp !== 'function') return;
-  var w = canvas.width, h = canvas.height;
+  var dpr = COLOR_PICKER_CANVAS_DPR;
+  var w = canvas.width / dpr;   // logical CSS-pixel width
+  var h = canvas.height / dpr;  // logical CSS-pixel height
   var ctx = canvas.getContext('2d');
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
-  // Stamp size is the hex's drawn height; pass a value slightly under the
-  // buffer height so the stamp's internal padding fits without overflow.
   var stampSize = h - 8;
   var stamp = getHexStamp(tier, color, stampSize);
-  var dpr = (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1;
+  // stamp.cssW/cssH are the stamp's logical size; the underlying buffer is
+  // already DPR-scaled internally (see CanvasUtils.getHexStamp). Drawing
+  // at logical size into our DPR-scaled context renders 1:1 device pixels.
   var sw = stamp.cssW != null ? stamp.cssW : stamp.width / dpr;
   var sh = stamp.cssH != null ? stamp.cssH : stamp.height / dpr;
   if (isTaken) {
-    // Dim the hex with canvas globalAlpha so the X (drawn next at full
-    // alpha) keeps its full chroma. CSS filter on the canvas would dim
-    // both equally, washing the X out.
     ctx.globalAlpha = 0.4;
     ctx.drawImage(stamp, (w - sw) / 2, (h - sh) / 2, sw, sh);
     ctx.globalAlpha = 1;
-
-    // Diagonal "X" centered on the hex in the player's own color so it
-    // pops as the un-dimmed signature against the faded background.
     var cx = w / 2, cy = h / 2;
     var arm = h * 0.22;
     ctx.strokeStyle = color;
@@ -176,7 +229,6 @@ function paintColorSwatch(btn, tier, color, isTaken) {
   } else {
     ctx.drawImage(stamp, (w - sw) / 2, (h - sh) / 2, sw, sh);
   }
-  btn.style.setProperty('--swatch-color', color);
 }
 
 // Snapshot of the persisted color from the previous session. Captured at
@@ -224,37 +276,78 @@ function reclaimPreferredColor() {
   sendToDisplay(MSG.SET_COLOR, { colorIndex: _previousSessionColorIndex });
 }
 
-// One-time palette paint — creates 8 button+canvas pairs and wires aria.
-// Called from controller.js init. Click delegation happens at the container.
-// Visual order pairs spectrum neighbors vertically (Red/Tangerine, Honey/Mint,
-// Teal/Indigo, Violet/Magenta) across the 4-column honeycomb: top row picks
-// even PLAYER_COLORS indices, bottom row picks odd. dataset.idx still stores
-// the underlying PLAYER_COLORS index, so SET_COLOR + paintColorSwatch are
-// unaffected.
-var COLOR_PICKER_VISUAL_ORDER = [0, 2, 4, 6, 1, 3, 5, 7];
+// One-time setup — sizes the avatar canvas and creates 7 rose cells. The
+// cells are placed in DOM in ROSE_SLOT_ORDER (top, ur, lr, bottom, ll, ul,
+// center); CSS positions them via .rose-cell--<slot> classes. Per-cell
+// PLAYER_COLORS index + ARIA labels are populated on each render based on
+// who the player currently is (alternatives = all 8 minus current). Click
+// delegation happens at the rose container.
 function buildColorPicker() {
   if (!colorPickerEl || colorPickerEl.children.length) return;
-  for (var pos = 0; pos < COLOR_PICKER_VISUAL_ORDER.length; pos++) {
-    var i = COLOR_PICKER_VISUAL_ORDER[pos];
+  for (var s = 0; s < ROSE_SLOT_ORDER.length; s++) {
+    var slot = ROSE_SLOT_ORDER[s];
     var btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'color-swatch';
-    btn.dataset.idx = String(i);
-    btn.setAttribute('role', 'radio');
-    btn.setAttribute('aria-checked', 'false');
-    btn.setAttribute('aria-label', t('color_choose', { n: i + 1 }));
+    btn.className = 'rose-cell rose-cell--' + slot;
+    btn.dataset.slot = slot;
     var canvas = document.createElement('canvas');
     canvas.width = COLOR_PICKER_CANVAS_W;
     canvas.height = COLOR_PICKER_CANVAS_H;
     btn.appendChild(canvas);
-    // Hex-clipped hit overlay — see .color-swatch in controller.css for
-    // the rationale (rectangular buttons would steal slanted-edge clicks
-    // from honeycomb neighbours).
+    // Hex-clipped hit overlay — see .rose-cell in controller.css for the
+    // rationale (rectangular buttons would steal slanted-edge clicks from
+    // tessellated neighbours).
     var hit = document.createElement('span');
-    hit.className = 'color-swatch__hit';
+    hit.className = 'rose-cell__hit';
     btn.appendChild(hit);
     colorPickerEl.appendChild(btn);
   }
+}
+
+// =====================================================================
+// Color picker overlay — open / close
+// =====================================================================
+
+// Track the element that had focus when the overlay opened so we can
+// restore it on close. Without this, dismissing the overlay leaves focus
+// on document.body which breaks keyboard nav.
+var _pickerPreviousFocus = null;
+
+function openColorPicker() {
+  if (!colorPickerOverlay) return;
+  if (!colorPickerOverlay.classList.contains('hidden')) return;
+  _pickerPreviousFocus = document.activeElement;
+  // Drop .hidden BEFORE renderColorPicker so the rose-repaint guard inside
+  // renderColorPicker (skip while .hidden) sees the open state and paints
+  // the cells with the current alternatives. Synchronous canvas paints
+  // complete before the fade-in transition's first frame.
+  colorPickerOverlay.classList.remove('hidden');
+  renderColorPicker();
+  if (identityTrigger) identityTrigger.setAttribute('aria-expanded', 'true');
+  // Move focus to the centre cell so keyboard users land somewhere
+  // meaningful. Tap-to-open users will never see the focus ring (they're
+  // touching), so the visual cost is nil.
+  var center = colorPickerEl && colorPickerEl.querySelector('.rose-cell--center');
+  if (center) {
+    try { center.focus({ preventScroll: true }); }
+    catch (e) { center.focus(); }
+  }
+}
+
+function closeColorPicker() {
+  if (!colorPickerOverlay) return;
+  if (colorPickerOverlay.classList.contains('hidden')) return;
+  colorPickerOverlay.classList.add('hidden');
+  if (identityTrigger) identityTrigger.setAttribute('aria-expanded', 'false');
+  // Drop any pending pick — if the user closes manually before the
+  // display has confirmed, treat the request as abandoned. The display
+  // will silently no-op the SET_COLOR if it's already too late.
+  pendingColorPick = null;
+  if (_pickerPreviousFocus && typeof _pickerPreviousFocus.focus === 'function') {
+    try { _pickerPreviousFocus.focus({ preventScroll: true }); }
+    catch (e) { _pickerPreviousFocus.focus(); }
+  }
+  _pickerPreviousFocus = null;
 }
 
 function updateStartButton() {

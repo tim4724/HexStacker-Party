@@ -162,6 +162,18 @@ function performDisconnect() {
   playerColor = null;
   playerColorIndex = null;
   takenColorIndices = [];
+  // Reset session-scoped pick flags. Without this, a user who picked a
+  // color, bailed back to name, and rejoined would skip reclaimPreferredColor
+  // (gated on !userPickedColor) and end up stuck on the display-assigned
+  // default instead of their persisted favorite.
+  userPickedColor = false;
+  pendingColorPick = null;
+  // If the picker is open when the user bails (e.g. tap "back" before the
+  // 350ms backdrop-enable timer fires), the overlay would never get
+  // .hidden re-applied — and on the next lobby visit openColorPicker's
+  // "already open" guard would short-circuit, leaving the overlay
+  // permanently visible with no way to dismiss it.
+  if (typeof closeColorPicker === 'function') closeColorPicker();
   gameCancelled = false;
   // Prefill from the persisted user-typed name (localStorage is the single
   // source of truth) — not `playerName`, which may have been replaced by
