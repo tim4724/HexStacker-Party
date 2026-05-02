@@ -5,7 +5,6 @@
 const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
 const { execFileSync } = require('child_process');
 const { PLAYER_COLORS } = require('../public/shared/theme.js');
 const { Piece } = require('../server/Piece.js');
@@ -21,17 +20,13 @@ const BASE_URL = 'http://localhost:4100';
 // Hex cell IDs follow the v2 game mapping (server/constants.js):
 //   1=I, 2=O, 3=S, 4=Z, 5=q, 6=p, 7=L, 8=J, 9=garbage.
 function hexBannerGrid1() {
-  // Emma — Neon (level 13), busier board. Height ~9
+  // Emma — Normal (level 3), shallow opening pile. Height ~5
   const grid = Array.from({ length: HEX_VISIBLE_ROWS }, () => Array(HEX_COLS).fill(0));
-  grid[12] = [0,0,0,0,3,0,0,0,0,0,0];
-  grid[13] = [0,0,0,3,3,0,0,0,4,0,0];
-  grid[14] = [0,0,5,5,3,0,0,4,4,0,0];
-  grid[15] = [0,0,5,2,2,0,0,4,7,7,0];
-  grid[16] = [0,5,1,2,2,0,7,7,6,6,0];
-  grid[17] = [0,1,1,1,6,6,7,5,5,6,0];
-  grid[18] = [0,3,3,4,4,6,2,2,5,5,0];
-  grid[19] = [0,3,4,4,1,1,1,2,7,7,0];
-  grid[20] = [0,2,2,5,5,1,6,6,7,3,3];
+  grid[16] = [0,0,0,0,0,2,2,0,0,0,0];
+  grid[17] = [0,0,0,7,7,2,4,4,0,0,0];
+  grid[18] = [0,0,6,6,7,7,5,4,4,0,0];
+  grid[19] = [0,3,3,6,1,1,5,5,2,2,0];
+  grid[20] = [0,3,5,5,4,1,1,7,7,2,0];
   return grid;
 }
 
@@ -49,19 +44,23 @@ function hexBannerGrid2() {
 }
 
 function hexBannerGrid3() {
-  // Sofia — Pillow (level 6), lighter board. Height ~5
+  // Sofia — Neon (level 13), busy late-game pile. Height ~9
   const grid = Array.from({ length: HEX_VISIBLE_ROWS }, () => Array(HEX_COLS).fill(0));
-  grid[16] = [0,0,0,0,0,2,2,0,0,0,0];
-  grid[17] = [0,0,0,7,7,2,4,4,0,0,0];
-  grid[18] = [0,0,6,6,7,7,5,4,4,0,0];
-  grid[19] = [0,3,3,6,1,1,5,5,2,2,0];
-  grid[20] = [0,3,5,5,4,1,1,7,7,2,0];
+  grid[12] = [0,0,0,0,3,0,0,0,0,0,0];
+  grid[13] = [0,0,0,3,3,0,0,0,4,0,0];
+  grid[14] = [0,0,5,5,3,0,0,4,4,0,0];
+  grid[15] = [0,0,5,2,2,0,0,4,7,7,0];
+  grid[16] = [0,5,1,2,2,0,7,7,6,6,0];
+  grid[17] = [0,1,1,1,6,6,7,5,5,6,0];
+  grid[18] = [0,3,3,4,4,6,2,2,5,5,0];
+  grid[19] = [0,3,4,4,1,1,1,2,7,7,0];
+  grid[20] = [0,2,2,5,5,1,6,6,7,3,3];
   return grid;
 }
 
 const HEX_BANNER_GRIDS = [hexBannerGrid1, hexBannerGrid2, hexBannerGrid3];
-const HEX_BANNER_LEVELS = [13, 8, 6];
-const HEX_BANNER_LINES = [115, 60, 35];
+const HEX_BANNER_LEVELS = [3, 8, 13];
+const HEX_BANNER_LINES = [12, 60, 115];
 const HEX_BANNER_PIECE_TYPES = ['J', 'I', 'O'];
 const HEX_BANNER_HOLD = ['Z', 'L', 'q'];
 const HEX_BANNER_NEXT = [
@@ -170,20 +169,6 @@ const GAMEPLAY_VARIANTS = [
   },
 ];
 
-// Portrait 2-player variant — used as the device-choice hero image on
-// phone-width viewports, where 16:9 is too squat. 3:4 (720×960) balances
-// display-on-top + 2 phones-at-bottom without cramping either.
-const PORTRAIT_VARIANT = {
-  name: 'gameplay-2p-1x1.png',
-  width: 900,
-  height: 900,
-  players: 2,
-  // Viewport tuned so the captured display — once rendered at
-  // width:100% of the 900px frame — fills the top portion, leaving
-  // room for phones to overlap the bottom edge.
-  displayViewport: { width: 1100, height: 980 },
-};
-
 async function waitForFont(page) {
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(100);
@@ -232,10 +217,6 @@ async function generate() {
     v._displayBase64 = await captureDisplay(v.displayViewport, NAMES.length);
     console.log(`  Display captured for ${v.name} (${v.displayViewport.width}x${v.displayViewport.height}, ${NAMES.length} players)`);
   }
-
-  // Portrait variant — 2 players, dedicated viewport.
-  const hex2DisplayBase64 = await captureDisplay(PORTRAIT_VARIANT.displayViewport, PORTRAIT_VARIANT.players);
-  console.log(`  Display captured for ${PORTRAIT_VARIANT.name} (${PORTRAIT_VARIANT.players} players)`);
 
   // --- Phase 2: Capture real controllers via Party-Server ---
   console.log('Capturing controllers...');
@@ -372,48 +353,15 @@ async function generate() {
     await renderBanner(v.width, v.height, v.name, v);
   }
 
-  // --- Portrait 2-player banner — dedicated template, 2 phones, 3:4 ---
-  // Writes directly to a tmp PNG since the portrait source isn't committed
-  // to artwork/ — it only exists to feed the webp/jpg conversion below.
-  async function renderPortraitBanner(outPath) {
-    const v = PORTRAIT_VARIANT;
-    const ctx = await browser.newContext({
-      viewport: { width: v.width, height: v.height },
-      deviceScaleFactor: 2,
-    });
-    const page = await ctx.newPage();
-    await page.goto(`file://${path.resolve(BANNER_DIR, 'banner-portrait.html')}`);
-    await page.waitForTimeout(200);
-
-    await page.evaluate((hex) => {
-      document.getElementById('display-hex-img').src = `data:image/png;base64,${hex}`;
-    }, hex2DisplayBase64);
-
-    await page.evaluate((ctrls) => {
-      ctrls.forEach((b64, i) => {
-        document.getElementById(`ctrl-${i}`).src = `data:image/png;base64,${b64}`;
-      });
-    }, controllerBase64s.slice(0, v.players));
-
-    await page.waitForTimeout(500);
-    await page.screenshot({ path: outPath });
-    console.log(`  ${outPath} (${v.width}x${v.height} @2x)`);
-  }
-  const portraitPngTmp = path.join(os.tmpdir(), `hexstacker-${PORTRAIT_VARIANT.name}`);
-  await renderPortraitBanner(portraitPngTmp);
-
-  // Produce device-choice hero images in public/artwork/ as WebP (primary)
+  // Produce the device-choice hero in public/artwork/ as WebP (primary)
   // and JPEG (fallback for browsers without WebP). JPEG is ~6-10x smaller
   // at q=85 and visually identical for these screenshots.
+  // The 16x9 and 21x9 PNGs are kept in artwork/ for the README only —
+  // OG/Twitter cards use the separately-generated social-preview.png.
   const publicDir = path.resolve(BANNER_DIR, '..', 'public', 'artwork');
   fs.mkdirSync(publicDir, { recursive: true });
-  // 16x9 is the social-preview / OG image. 2x1 is the device-choice
-  // hero. 2p-1x1 is the portrait overlay. The 21x9 PNG is used by the
-  // README only, so it's generated above but not shipped as webp/jpg.
   const heroSources = [
-    { srcPng: path.resolve(BANNER_DIR, 'gameplay-16x9.png'), base: 'gameplay-16x9' },
     { srcPng: path.resolve(BANNER_DIR, 'gameplay-2x1.png'), base: 'gameplay-2x1' },
-    { srcPng: portraitPngTmp, base: PORTRAIT_VARIANT.name.replace(/\.png$/, '') },
   ];
   for (const { srcPng, base } of heroSources) {
     const webpPath = path.resolve(publicDir, `${base}.webp`);
@@ -434,7 +382,6 @@ async function generate() {
       console.warn(`  magick failed for ${base} — ${err.message}. Install ImageMagick.`);
     }
   }
-  try { fs.unlinkSync(portraitPngTmp); } catch {}
 
   // Note: social-preview.png is generated by `node artwork/generate-social.js`,
   // and cover-art.png by `node artwork/generate-cover.js`. Both capture
