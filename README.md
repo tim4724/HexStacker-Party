@@ -33,6 +33,8 @@ The display browser runs the game engine and renders all player boards. Controll
 - Competitive mode with garbage lines
 - Rotation with wall kicks
 - 8-bag randomizer (I, O, S, Z, q, p, L, J)
+- Per-player start level selection (1–15) and color picker in lobby
+- Controller settings overlay: audio, haptics, touch sensitivity
 - Localized UI (11 languages)
 - AirConsole platform support (`screen.html` / `controller.html`)
 
