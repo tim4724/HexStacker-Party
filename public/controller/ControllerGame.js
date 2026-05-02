@@ -260,6 +260,11 @@ captureSessionColorIndex();
 function persistColorIndex(idx) {
   try { localStorage.setItem('stacker_color_index', String(idx)); }
   catch (e) { /* iframe sandbox */ }
+  // Keep the in-memory snapshot in sync with localStorage. Without this,
+  // a user who picks a new color and then bails back to the name screen
+  // would rejoin with reclaim still chasing the script-load value (the
+  // color they had BEFORE this in-session pick).
+  _previousSessionColorIndex = idx;
 }
 
 // If the previous session's color differs from what the display just
