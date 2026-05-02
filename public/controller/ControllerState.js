@@ -169,6 +169,13 @@ var levelDisplay = document.getElementById('level-display');
 var levelMinusBtn = document.getElementById('level-minus-btn');
 var levelPlusBtn = document.getElementById('level-plus-btn');
 var colorPickerEl = document.getElementById('color-picker');
+var colorPickerOverlay = document.getElementById('color-picker-overlay');
+var identityTrigger = document.getElementById('identity-trigger');
+// Pending color pick (index) — set when the user taps a rose cell, cleared
+// when the display echoes the accepted SET_COLOR back via LOBBY_UPDATE.
+// While non-null, the picker overlay stays open until the next render
+// confirms playerColorIndex matches.
+var pendingColorPick = null;
 
 // --- Screen Management ---
 var SCREEN_ORDER = { name: 0, lobby: 1, game: 1, gameover: 1 };

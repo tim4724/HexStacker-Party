@@ -75,7 +75,7 @@ html, body {
 }
 
 .controller-shell__title {
-  font-size: clamp(1.4rem, 7vw, 2.2rem);
+  font-size: clamp(1.6rem, 9vmin, 2.8rem);
   filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
   animation: fadeDown 0.5s ease-out both;
   text-align: center;
@@ -285,59 +285,71 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
+  max-width: 280px;
   animation: fadeUp 0.5s 0.3s ease-out both;
 }
 
-#player-identity-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  justify-content: center;
-  width: 100%;
-  max-width: 280px;
-  padding: 14px 16px;
-  font-size: clamp(1.1rem, 5vw, 1.5rem);
+/* Identity trigger button — adds button-specific styling on top of the
+   shared .player-card__top layout (in theme.css). The trigger fills the
+   entire top half of the card so the whole region is tappable. Inner
+   border-radius matches the card's outer (--radius-md = 12px) minus the
+   2px card border so the :active highlight tucks under the border. */
+.identity-trigger {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 10px 10px 0 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--transition-fast);
 }
 
-#player-identity-name {
-  max-width: 100%;
-  text-align: center;
-  overflow-wrap: anywhere;
-  line-height: 1.15;
+.identity-trigger:active {
+  background: rgba(255, 255, 255, 0.08);
 }
 
+/* Tight gap override for the +/- control cluster — overrides the wider
+   gap in shared .card-level (which is sized for display's heading + value
+   pair). The heading-to-minus distance is bumped via the heading's own
+   margin-right below. */
 #level-selector {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding-top: 6px;
-  border-top: 1px solid var(--bg-glass);
-  width: 100%;
-  justify-content: center;
+  gap: 0.35rem;
 }
 
 #level-selector .level-heading {
   font-family: 'Orbitron', sans-serif;
-  font-size: clamp(0.95rem, 4.5vw, 1.2rem);
+  /* Shared clamp with display .card-level__heading. */
+  font-size: clamp(0.95rem, 2vmin, 1.2rem);
   font-weight: 700;
   color: var(--text-secondary);
   letter-spacing: 0.06em;
-  margin-right: 0.15rem;
+  text-transform: uppercase;
+  /* Wider gap before the minus button so "Level" reads as a label,
+     not as part of the +/− control cluster. */
+  margin-right: 0.85rem;
 }
 
 #level-display {
   font-family: 'Orbitron', sans-serif;
-  font-size: 1.3rem;
+  /* Shared clamp with display .card-level__value. */
+  font-size: clamp(0.95rem, 2vmin, 1.2rem);
   font-weight: 700;
   color: var(--text-primary);
   min-width: 1.4em;
   text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 #level-selector .level-btn {
-  width: 2.6rem;
-  height: 2.6rem;
+  /* Sized so the level pill (10 + button + 18 padding) plus the trigger's
+     max-clamp 2-line min-height (≈79px on desktop) fit inside the .player-card
+     2:1 aspect at 280px wide (140px). 2.2rem keeps the button finger-friendly
+     on phones (~35px square) without forcing the card to grow past aspect. */
+  width: 2.2rem;
+  height: 2.2rem;
   border: none;
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.08);
@@ -359,110 +371,202 @@ html, body {
   cursor: default;
 }
 
-/* --- Color picker — zigzag row of flat-top hexes, rendered to per-swatch
-   canvases. The hex shape and the level-matched style tier (NORMAL / PILLOW
-   / NEON_FLAT) are stamped via getHexStamp() so swatches preview exactly
-   what the player's blocks will look like in-game. Even-indexed swatches
-   sit at the bottom of the strip, odd at the top, producing the classic
-   honeycomb zigzag. The `.taken` and `.selected` states stack on top of
-   the canvas via CSS (no re-blit needed). --- */
-#color-picker {
-  /* Pick the hex width off the viewport (but capped) so phones get a
-     readable size without overflowing the identity card on narrow widths.
-     Buffer aspect (102 × 88) ≈ 1.159 — CSS width/height match it so the
-     canvas doesn't scale non-uniformly and the hex stays undistorted. */
-  /* Honeycomb of 8 hexes — two rows of four, every hex sharing an edge
-     with its neighbor (same packing the in-game board uses). Bigger
-     tap targets than the single-row strip since the picker is half as
-     wide. Hexes are absolutely positioned so the two rows interlock
-     with no flex-line gap between them. */
-  --hex-w: clamp(56px, 18vw, 76px);
-  --hex-h: calc(var(--hex-w) * (88 / 102));
-  position: relative;
-  /* Width = 4 hexes at 0.75 × hex-w spacing → 3.25 × hex-w */
-  width: calc(var(--hex-w) * 3.25);
-  /* Height = row 2 low hex bottom = hex-h + 1.5 × hex-h = 2.5 × hex-h */
-  height: calc(var(--hex-h) * 2.5);
-  margin: 14px auto;
-  animation: fadeUp 0.5s 0.35s ease-out both;
+/* --- Color picker overlay — opens when the identity-trigger is tapped.
+   Reuses .game-overlay (theme.css) for the dark backdrop + safe-area
+   padding. We override the base class's fadeIn keyframe + display:none
+   .hidden behaviour with an opacity transition so the overlay can fade
+   in *and* out (rather than appearing instantly via display swap). The
+   7 alternative colors lay out as a hex flower (1 + 6) in spectrum
+   order, left-to-right, top-to-bottom. The player's CURRENT color is
+   the implicit "missing" slot in the gradient. --- */
+#color-picker-overlay {
+  z-index: 20;
+  gap: 14px;
+  /* Drive open/close fade off the .hidden toggle. animation:none
+     overrides .game-overlay's fadeIn keyframe so the transition below
+     is the only opacity controller. */
+  animation: none;
+  transition: opacity 220ms ease-out;
+  /* Default non-interactive — the .rose-cell__hit children also start
+     non-interactive (see below). When the overlay opens, a delayed
+     animation flips both back to "auto" AFTER the fade-in completes,
+     so the same tap that opened the overlay can never reach a rose
+     cell underneath (no JS click-suppression needed). */
+  pointer-events: none;
 }
 
-.color-swatch {
+/* Override .game-overlay.hidden { display: none !important } so the
+   overlay stays in the layout tree and can fade out on close. */
+#color-picker-overlay.hidden {
+  display: flex !important;
+  opacity: 0;
+}
+
+/* Open state: schedule pointer-events to flip from "none" → "auto" 350ms
+   after the fade-in starts. The animation does nothing visually — its
+   only purpose is to delay the property switch via forwards fill. The
+   rule fires fresh on every open (the :not(.hidden) selector toggles)
+   and is removed on close, so cells return to non-interactive. */
+#color-picker-overlay:not(.hidden),
+#color-picker-overlay:not(.hidden) .rose-cell__hit,
+#color-picker-overlay:not(.hidden) .picker-close {
+  animation: pickerEnableInteractive 1ms 350ms forwards;
+}
+
+@keyframes pickerEnableInteractive {
+  to { pointer-events: auto; }
+}
+
+.picker-close {
+  position: absolute;
+  top: max(env(safe-area-inset-top), 12px);
+  right: max(env(safe-area-inset-right), 12px);
+  /* Starts non-interactive (matches the overlay + rose cells); the
+     pickerEnableInteractive animation flips it back to "auto" after
+     the fade. Without this, the close button's default auto would
+     make it tappable during the fade window. Width/height inherit
+     from .icon-btn (56px) so the close X visually matches the back
+     and settings buttons in the lobby top bar. */
+  pointer-events: none;
+}
+
+.picker-rose__title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(1rem, 4.5vw, 1.3rem);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  margin: 0;
+  text-align: center;
+}
+
+/* Hex flower geometry — flat-top hexes, 1 centre + 6 ring. Container is
+   2.5 × hex-w wide and 3 × hex-h tall; the centre hex sits at the visual
+   middle, with neighbours at (±0.75 hex-w, ±0.5 hex-h) and (0, ±hex-h). */
+#color-picker.rose {
+  --hex-w: clamp(70px, 22vw, 92px);
+  --hex-h: calc(var(--hex-w) * (88 / 102));
+  position: relative;
+  width: calc(var(--hex-w) * 2.5);
+  height: calc(var(--hex-h) * 3);
+}
+
+.rose-cell {
   appearance: none;
   -webkit-appearance: none;
+  position: absolute;
   width: var(--hex-w);
   height: var(--hex-h);
   padding: 0;
   border: 0;
   background: transparent;
   cursor: pointer;
-  position: absolute;
-  /* Hit-testing is delegated to a hex-clipped child (.color-swatch__hit)
-     so the four empty corner triangles of the rectangular button pass
-     clicks through to the visible neighbour beneath. Putting the clip
-     on the button itself would also clip the selection drop-shadow
-     filter on the canvas. */
+  /* Hit-testing is delegated to a hex-clipped child (.rose-cell__hit) so
+     the rectangular button's empty corner triangles pass clicks through
+     to the visible neighbour beneath. Putting the clip on the button
+     itself would also clip the selection drop-shadow filter on the canvas. */
   pointer-events: none;
-  /* No transform transitions — a tier re-paint should swap pixels
-     instantly with no size animation. */
   transition: filter var(--transition-fast);
 }
 
-.color-swatch__hit {
+.rose-cell__hit {
   position: absolute;
   inset: 0;
   clip-path: polygon(100% 50%, 75% 100%, 25% 100%, 0% 50%, 25% 0%, 75% 0%);
-  pointer-events: auto;
+  /* Starts non-interactive; the overlay's open-animation flips this to
+     "auto" after the fade-in (see #color-picker-overlay:not(.hidden)
+     pointerEnable rule above). */
+  pointer-events: none;
 }
 
-/* Honeycomb positions. Within each 4-hex row, columns 1 & 3 ride high
-   (top edge at row baseline) and columns 2 & 4 ride low (top edge at
-   row baseline + hex-h/2). Row 2 starts at y = hex-h, exactly where
-   row 1's high hexes end — so the two rows share edges. */
-.color-swatch:nth-child(1) { left: 0;                        top: 0; }
-.color-swatch:nth-child(2) { left: calc(var(--hex-w) * 0.75); top: calc(var(--hex-h) * 0.5); }
-.color-swatch:nth-child(3) { left: calc(var(--hex-w) * 1.5);  top: 0; }
-.color-swatch:nth-child(4) { left: calc(var(--hex-w) * 2.25); top: calc(var(--hex-h) * 0.5); }
-.color-swatch:nth-child(5) { left: 0;                        top: var(--hex-h); }
-.color-swatch:nth-child(6) { left: calc(var(--hex-w) * 0.75); top: calc(var(--hex-h) * 1.5); }
-.color-swatch:nth-child(7) { left: calc(var(--hex-w) * 1.5);  top: var(--hex-h); }
-.color-swatch:nth-child(8) { left: calc(var(--hex-w) * 2.25); top: calc(var(--hex-h) * 1.5); }
+/* Slot positions — top-left of each hex relative to the rose container.
+   In-rose ordering (DOM): top, ur, lr, bottom, ll, ul, center.
+   Spectrum-ordered alternatives are assigned in JS (renderColorPicker)
+   to slots in left-to-right column reading order: ul, ll, top, center,
+   bottom, ur, lr. */
+.rose-cell--top    { left: calc(var(--hex-w) * 0.75); top: 0; }
+.rose-cell--ur     { left: calc(var(--hex-w) * 1.5);  top: calc(var(--hex-h) * 0.5); }
+.rose-cell--lr     { left: calc(var(--hex-w) * 1.5);  top: calc(var(--hex-h) * 1.5); }
+.rose-cell--bottom { left: calc(var(--hex-w) * 0.75); top: calc(var(--hex-h) * 2); }
+.rose-cell--ll     { left: 0;                          top: calc(var(--hex-h) * 1.5); }
+.rose-cell--ul     { left: 0;                          top: calc(var(--hex-h) * 0.5); }
+.rose-cell--center { left: calc(var(--hex-w) * 0.75); top: calc(var(--hex-h) * 1); }
 
-.color-swatch > canvas {
+.rose-cell > canvas {
   display: block;
   width: 100%;
   height: 100%;
-  /* drop-shadow follows the hex alpha, not the button rect — so the
-     selection glow hugs the shape instead of bleeding into a halo square.
-     Transform transition powers the press-down tactile feedback. */
+  /* drop-shadow follows the hex alpha, not the button rect — so any glow
+     hugs the shape instead of bleeding into a halo square. Transform
+     transition powers the press-down tactile feedback. */
   transition: filter var(--transition-fast), transform var(--transition-fast);
   transform-origin: center;
 }
 
-.color-swatch.selected {
-  z-index: 1;
-}
-
-.color-swatch.selected > canvas {
-  filter: drop-shadow(0 0 5px var(--swatch-color, #fff)) drop-shadow(0 0 10px var(--swatch-color, #fff));
-}
-
-/* Press feedback — quick scale-down on tap, springs back when released.
-   :not(.taken) is belt-and-braces alongside the hit-area pointer-events
-   block below. */
-.color-swatch:not(.taken):active > canvas {
+.rose-cell:not(.taken):active > canvas,
+.rose-cell.picked > canvas {
   transform: scale(0.93);
 }
 
-/* Block taps on taken swatches at the hit-area level. The button itself
-   already has pointer-events: none (see .color-swatch above), but its
-   .color-swatch__hit child has pointer-events: auto, and a parent's
-   `none` does NOT override an explicit `auto` on a descendant. */
-.color-swatch.taken {
-  cursor: default;
+/* Block taps on taken rose cells at the hit-area level. Mirrors the
+   pattern used for .color-swatch in the previous design. */
+.rose-cell.taken { cursor: default; }
+.rose-cell.taken .rose-cell__hit { pointer-events: none; }
+
+/* --- Color picker animations -------------------------------------------
+   When #color-picker-overlay loses .hidden, the rose fades + pops in with
+   a slight overshoot, and the 7 cells stagger from the centre outward.
+   The .game-overlay base class already provides the backdrop blur +
+   safe-area padding + a fadeIn entrance for the overlay itself; we layer
+   the rose-specific motion on top.
+   ----------------------------------------------------------------------- */
+
+#color-picker-overlay:not(.hidden) #color-picker.rose {
+  animation: rosePopIn 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
-.color-swatch.taken .color-swatch__hit {
-  pointer-events: none;
+
+@keyframes rosePopIn {
+  from { transform: scale(0.6); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+#color-picker-overlay:not(.hidden) .rose-cell {
+  animation: roseCellPopIn 200ms ease-out both;
+}
+
+/* Stagger from centre outward — centre fires first, then the four
+   cardinal points (top/bottom/ll/ur), then the diagonal pair (ul/lr).
+   Order in DOM: top, ur, lr, bottom, ll, ul, center (see ROSE_SLOT_ORDER
+   in ControllerGame.js). */
+#color-picker-overlay:not(.hidden) .rose-cell--center { animation-delay: 0ms;  }
+#color-picker-overlay:not(.hidden) .rose-cell--top    { animation-delay: 80ms; }
+#color-picker-overlay:not(.hidden) .rose-cell--bottom { animation-delay: 80ms; }
+#color-picker-overlay:not(.hidden) .rose-cell--ll     { animation-delay: 130ms;}
+#color-picker-overlay:not(.hidden) .rose-cell--ur     { animation-delay: 130ms;}
+#color-picker-overlay:not(.hidden) .rose-cell--ul     { animation-delay: 180ms;}
+#color-picker-overlay:not(.hidden) .rose-cell--lr     { animation-delay: 180ms;}
+
+@keyframes roseCellPopIn {
+  from { transform: scale(0.7); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+#color-picker-overlay:not(.hidden) .picker-rose__title {
+  animation: rosePieceFadeUp 280ms 100ms ease-out both;
+}
+
+@keyframes rosePieceFadeUp {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #color-picker-overlay:not(.hidden) #color-picker.rose,
+  #color-picker-overlay:not(.hidden) .rose-cell,
+  #color-picker-overlay:not(.hidden) .picker-rose__title {
+    animation: fadeIn 200ms ease-out both;
+  }
 }
 
 .status-banner {
@@ -1271,20 +1375,8 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
     max-width: none;
   }
 
-  /* Lay out the identity card and color picker side-by-side. Landscape
-     viewports are short on vertical space, and the picker's two-row
-     honeycomb is square-ish, so a row arrangement reads more compactly
-     than the portrait stack. The picker drops its top/bottom margin
-     since the row gap handles spacing now. */
-  .controller-shell__frame--lobby #player-identity {
-    flex-direction: row;
-    align-items: center;
-    gap: 18px;
-  }
-
-  .controller-shell__frame--lobby #color-picker {
-    margin: 0;
-  }
+  /* Identity card centres in the body; the rose picker is in an overlay
+     (#color-picker-overlay) and is unaffected by the lobby flex layout. */
 
   /* Results: list on the left half, title + buttons on the right half.
      Each half gets 1fr so each column fills its side of the frame; the items
@@ -1639,11 +1731,11 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   }
 }
 
-/* Lobby needs enough vertical room for the color picker honeycomb +
-   identity card + START button before the title can return. Below this
-   threshold the title stays hidden so the picker doesn't shove the
-   START button off-screen. */
-@media (orientation: landscape) and (min-aspect-ratio: 5/4) and (max-height: 499px) and (min-height: 400px) {
+/* Lobby title can return on short landscape now that the picker lives in
+   an overlay — the only remaining vertical occupants are the identity
+   card and the START button. Threshold relaxed from 400px to 301px to
+   match the name-screen branch above. */
+@media (orientation: landscape) and (min-aspect-ratio: 5/4) and (max-height: 499px) and (min-height: 301px) {
   .controller-shell__frame--lobby .controller-shell__title {
     display: block;
     animation: none;

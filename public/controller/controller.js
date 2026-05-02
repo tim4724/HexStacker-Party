@@ -726,29 +726,70 @@ levelPlusBtn.addEventListener('click', function () {
   sendToDisplay(MSG.SET_LEVEL, { level: startLevel });
 });
 
-// Color picker — one delegated click handler for all 8 swatches. The display
-// validates (collision, valid range, active-participant lockout) and echoes
-// the accepted color back via LOBBY_UPDATE, so we only need to send the
-// request. No optimistic UI update: if the request is rejected the picker
-// stays on the old selection and the ignored tap is silent.
+// Color picker — the rose lives in #color-picker-overlay (a .game-overlay
+// dialog). Two pieces of wiring:
+//   1. The identity-trigger row in the lobby card opens the overlay.
+//   2. Tapping the backdrop or pressing Escape closes it.
+//   3. Tapping a non-taken rose cell sends SET_COLOR; the overlay stays
+//      open until the display echoes the accepted color back via
+//      LOBBY_UPDATE → renderColorPicker, which calls closeColorPicker
+//      once playerColorIndex matches the pendingColorPick. Rejected picks
+//      simply leave the overlay open so the user can pick again.
 if (colorPickerEl) {
   buildColorPicker();
   colorPickerEl.addEventListener('click', function (e) {
-    var btn = e.target.closest('.color-swatch');
-    if (!btn || btn.classList.contains('taken') || btn.classList.contains('selected')) return;
+    var btn = e.target.closest('.rose-cell');
+    if (!btn || btn.classList.contains('taken')) return;
     var idx = parseInt(btn.dataset.idx, 10);
     if (isNaN(idx)) return;
     vibrate(15);
-    // Mark this session as user-initiated picking. onLobbyUpdate will
-    // persist any subsequent confirmed color change. Without this flag,
-    // LOBBY_UPDATE-driven assignments (initial slot, reconnect default)
-    // would clobber the previous-session preference before reclaim can
-    // act on it. Don't persist here optimistically — a concurrent
-    // collision may reject this SET_COLOR and we'd save the wrong index.
+    // Same userPickedColor + persistence flow as before: onLobbyUpdate
+    // persists any confirmed color change, but only when this flag is
+    // true so display-driven assignments (initial slot, reconnect default)
+    // don't clobber a previous-session preference before reclaim can act.
     userPickedColor = true;
+    pendingColorPick = idx;
+    // Mark the chosen cell as "picked" so its CSS scale-down stays held
+    // through the overlay fade-out (instead of springing back to full size
+    // on touch-release). Confirmation closes the overlay before the rose is
+    // repainted, so the held scale persists naturally; renderColorPicker
+    // clears the class on the next visible repaint (open or rejection).
+    var prevPicked = colorPickerEl.querySelector('.rose-cell.picked');
+    if (prevPicked && prevPicked !== btn) prevPicked.classList.remove('picked');
+    btn.classList.add('picked');
     sendToDisplay(MSG.SET_COLOR, { colorIndex: idx });
   });
 }
+
+if (identityTrigger) {
+  identityTrigger.addEventListener('click', function () {
+    if (currentScreen !== 'lobby') return;
+    vibrate(10);
+    openColorPicker();
+  });
+}
+
+if (colorPickerOverlay) {
+  colorPickerOverlay.addEventListener('click', function (e) {
+    // Tap outside the rose container (i.e. on the backdrop) closes.
+    if (e.target === colorPickerOverlay) closeColorPicker();
+  });
+  var closeBtn = document.getElementById('color-picker-close');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      vibrate(10);
+      closeColorPicker();
+    });
+  }
+}
+
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape') return;
+  if (colorPickerOverlay && !colorPickerOverlay.classList.contains('hidden')) {
+    closeColorPicker();
+  }
+});
 
 playAgainBtn.addEventListener('click', function () {
   vibrate(15);
