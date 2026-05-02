@@ -76,11 +76,10 @@ connect = function() {
   replayEarlyReady();
   // Re-apply persisted Settings and re-attempt color reclaim once the
   // shim's cache has hydrated. Either onWelcome already fired (HELLO
-  // raced ahead) and reclaim was a no-op there because
-  // _previousSessionColorIndex was still null — recapturing here and
-  // reclaiming again catches up. Or onWelcome hasn't fired yet, in which
-  // case its own reclaim call will see the captured value and fire
-  // SET_COLOR. Either path lands on the user's preferred color.
+  // raced ahead) and reclaim was a no-op there because localStorage
+  // returned null — recapturing here and reclaiming again catches up. Or
+  // onWelcome hasn't fired yet, in which case its own reclaim call will
+  // see the hydrated value and fire SET_COLOR.
   _acStorage.onLoad(function() {
     ControllerSettings.reload();
     captureSessionColorIndex();

@@ -231,24 +231,25 @@ function paintHexCanvas(canvas, tier, color, isTaken) {
   }
 }
 
-// Snapshot of the persisted color from the previous session. Captured at
-// script load in standalone mode; in AirConsole mode the storage shim
-// hydrates asynchronously after onReady, so the bootstrap re-runs the
-// capture from its onLoad callback. onLobbyUpdate's persistColorIndex is
-// gated on userPickedColor (see ControllerState.js), so display-driven
-// assignments don't clobber the previous-session value before reclaim
-// can read it.
-var _previousSessionColorIndex = null;
-function captureSessionColorIndex() {
+// Read the persisted color index. Returns null when nothing is stored or
+// (in AirConsole mode) before the storage shim's cache has hydrated — both
+// callers below treat null as "no preference".
+function readStoredColorIndex() {
   var raw = null;
   try { raw = localStorage.getItem('stacker_color_index'); } catch (e) { /* iframe sandbox */ }
-  if (raw == null) return;
+  if (raw == null) return null;
   var idx = parseInt(raw, 10);
-  if (!isNaN(idx) && idx >= 0 && idx < PLAYER_COLORS.length) {
-    _previousSessionColorIndex = idx;
-    // Tint the JOIN button before WELCOME arrives.
-    document.body.style.setProperty('--player-color', PLAYER_COLORS[idx]);
-  }
+  if (isNaN(idx) || idx < 0 || idx >= PLAYER_COLORS.length) return null;
+  return idx;
+}
+
+// Tint the JOIN button before WELCOME arrives. In AirConsole mode the
+// storage shim hydrates asynchronously, so the bootstrap re-invokes this
+// from its onLoad callback (see controller-airconsole.js).
+function captureSessionColorIndex() {
+  var idx = readStoredColorIndex();
+  if (idx == null) return;
+  document.body.style.setProperty('--player-color', PLAYER_COLORS[idx]);
 }
 captureSessionColorIndex();
 
@@ -258,29 +259,26 @@ captureSessionColorIndex();
 function persistColorIndex(idx) {
   try { localStorage.setItem('stacker_color_index', String(idx)); }
   catch (e) { /* iframe sandbox */ }
-  // Keep the in-memory snapshot in sync with localStorage. Without this,
-  // a user who picks a new color and then bails back to the name screen
-  // would rejoin with reclaim still chasing the script-load value (the
-  // color they had BEFORE this in-session pick).
-  _previousSessionColorIndex = idx;
 }
 
-// If the previous session's color differs from what the display just
-// assigned, ask for it back. Same-index is a no-op on the display side;
-// collisions are silently rejected. Skip the round-trip when our preferred
-// color is already taken (takenColorIndices is set from the same WELCOME
-// just before this fires).
+// If the persisted color differs from what the display just assigned, ask
+// for it back. Same-index is a no-op on the display side; collisions are
+// silently rejected. Skip when the preferred color is already taken
+// (takenColorIndices is set from the same WELCOME just before this fires).
+// Safe to re-call from controller-airconsole's onLoad: a no-op when the
+// shim was hydrated before WELCOME, and the actual reclaim path when not.
 function reclaimPreferredColor() {
-  if (_previousSessionColorIndex == null) return;
-  if (_previousSessionColorIndex === playerColorIndex) return;
+  var preferred = readStoredColorIndex();
+  if (preferred == null) return;
+  if (preferred === playerColorIndex) return;
   if (typeof sendToDisplay !== 'function' || playerColorIndex == null) return;
-  if (takenColorIndices && takenColorIndices.indexOf(_previousSessionColorIndex) >= 0) return;
+  if (takenColorIndices && takenColorIndices.indexOf(preferred) >= 0) return;
   // Don't override an in-flight user pick: if the user has tapped a
   // swatch since this session started, that's their preference now —
-  // the previous-session value is moot. Narrow race where reclaim from
-  // onLoad could otherwise undo a tap that landed before hydration.
+  // the persisted value is moot. Narrow race where reclaim from onLoad
+  // could otherwise undo a tap that landed before hydration.
   if (userPickedColor) return;
-  sendToDisplay(MSG.SET_COLOR, { colorIndex: _previousSessionColorIndex });
+  sendToDisplay(MSG.SET_COLOR, { colorIndex: preferred });
 }
 
 // One-time setup — sizes the avatar canvas and creates 7 rose cells. The
