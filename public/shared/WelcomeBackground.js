@@ -128,7 +128,6 @@ class WelcomeBackground {
     if (this._prevW === w && this._prevH === h && this._prevDpr === dpr) return;
     this.w = w;
     this.h = h;
-    this._prevDpr = dpr;
     this.canvas.width = Math.round(w * dpr);
     this.canvas.height = Math.round(h * dpr);
     this.canvas.style.width = w + 'px';
@@ -143,6 +142,7 @@ class WelcomeBackground {
     }
     this._prevW = w;
     this._prevH = h;
+    this._prevDpr = dpr;
     if (this.gradient) {
       this._bakeGradient();
       // Blit synchronously so the main canvas is valid before the first RAF
