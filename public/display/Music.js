@@ -16,6 +16,7 @@ class Music {
     this.generation = 0;
     this._loaded = false;
     this._rate = 1.0;
+    this._paused = false;
   }
 
   init() {
@@ -119,6 +120,7 @@ class Music {
 
     this.generation++;
     this.playing = true;
+    this._paused = false;
     this._rate = 1.0;
 
     this.masterGain.gain.cancelScheduledValues(this.ctx.currentTime);
@@ -133,6 +135,7 @@ class Music {
 
   stop() {
     this.playing = false;
+    this._paused = false;
     this._removeRetryListeners();
     const gen = ++this.generation;
 
@@ -152,6 +155,7 @@ class Music {
   pause() {
     if (!this.playing) return;
     this.playing = false;
+    this._paused = true;
     this._removeRetryListeners();
     const gen = ++this.generation;
 
@@ -170,10 +174,12 @@ class Music {
 
   resume() {
     if (this.playing) return;
+    if (!this._paused) return;
     if (!this.ctx) return;
 
     this.generation++;
     this.playing = true;
+    this._paused = false;
 
     this.ctx.resume().then(() => {
       const targetVolume = this.muted ? 0 : MASTER_VOLUME;
