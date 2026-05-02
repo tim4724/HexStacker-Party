@@ -1,0 +1,351 @@
+/* Ad-clip composite: display + 4 phone frames in a single capture surface.
+   Two layouts: 16:9 landscape and 9:16 portrait. The body class locks
+   the stage size so Playwright's recordVideo gets pixel-exact frames. */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #0a0716;
+  color: #fff;
+  overflow: hidden;
+  font-family: 'Orbitron', sans-serif;
+}
+
+.stage {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(ellipse at center, #1c1538 0%, #0a0716 70%);
+}
+
+.display-frame {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
+  border-radius: 16px;
+  background: #0a0716;
+}
+
+.display-frame iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+.phones {
+  position: relative;
+  display: grid;
+}
+
+/* Phone bezel — pure CSS rounded rectangle with a screen mask. The iframe
+   sits inside .phone__screen so we don't have to layer the bezel art. */
+.phone {
+  position: relative;
+  background: #1a1530;
+  border-radius: 28px;
+  padding: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6),
+              inset 0 0 0 2px rgba(255, 255, 255, 0.06);
+  transition: transform 600ms cubic-bezier(0.2, 0.7, 0.3, 1),
+              opacity 400ms ease-out;
+  opacity: 0;
+}
+.phone.in {
+  opacity: 1;
+}
+
+/* Tier-change clips capture phones already-in. Disable the transition for
+   slots 0-3 in those clips so the screencast's first frame doesn't show
+   them sliding in (which read as the phones popping every cut). The
+   chaos8p extras (slots 4-7) keep their transition because their slide-in
+   IS the intended beat for that clip. */
+body:not(.clip-lobby-reveal) .phone:not(.phone--extra) {
+  transition: none;
+}
+.phone__notch {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 6px;
+  background: #0a0716;
+  border-radius: 999px;
+  z-index: 2;
+}
+.phone__screen {
+  width: 100%;
+  height: 100%;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #000;
+}
+.phone__screen iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+/* Layout: 16:9 — 1920×1080. Display fills the centre, phones flank in
+   corners. Display is intentionally large so the gameplay reads as the
+   hero of the clip. */
+body.aspect-16x9 .stage {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+body.aspect-16x9 .display-frame {
+  width: 1440px;
+  height: 810px;
+  margin: auto;
+  align-self: center;
+  justify-self: center;
+}
+/* chaos8p in 16:9 — display fills the entire frame (no phone bezels). */
+body.aspect-16x9.clip-chaos8p .display-frame {
+  width: 1920px;
+  height: 1080px;
+  border-radius: 0;
+  box-shadow: none;
+}
+body.aspect-16x9 .phones {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  width: 100%;
+  height: 100%;
+}
+body.aspect-16x9 .phone {
+  position: absolute;
+  /* ~1:1.85 — closer to a real iPhone aspect than the previous 1:2.05.
+     Wider phone gives the touch pad room to breathe so the feedback
+     pulse reads as a clear circle, not a tall ellipse-shaped void. */
+  width: 240px;
+  height: 445px;
+}
+body.aspect-16x9 .phone[data-slot="0"] { top: 30px; left: 30px;  transform: translateX(-300px); }
+body.aspect-16x9 .phone[data-slot="1"] { top: 30px; right: 30px; transform: translateX(300px); }
+body.aspect-16x9 .phone[data-slot="2"] { bottom: 30px; left: 30px;  transform: translateX(-300px); }
+body.aspect-16x9 .phone[data-slot="3"] { bottom: 30px; right: 30px; transform: translateX(300px); }
+body.aspect-16x9 .phone.in[data-slot="0"],
+body.aspect-16x9 .phone.in[data-slot="1"],
+body.aspect-16x9 .phone.in[data-slot="2"],
+body.aspect-16x9 .phone.in[data-slot="3"] { transform: translateX(0); }
+
+/* Extras only render in chaos8p (which we now do as a phones-off,
+   full-bleed display). Hidden everywhere else. */
+body .phone--extra { display: none; }
+
+/* chaos8p + winner — phones step out. chaos8p uses the full frame for
+   the 8-board chaos; winner is a clean title card on a dark backdrop. */
+body.clip-chaos8p .phone,
+body.clip-winner .phone { display: none; }
+
+/* Layout: 9:16 — 1080×1920. Display in a top band rendered at its native
+   16:9 viewport then scaled to fit the band width (so 4 boards stay
+   readable instead of being squished into 1080px), and 4 phones in a
+   2×2 grid below. */
+body.aspect-9x16 .stage {
+  grid-template-columns: 1fr;
+  grid-template-rows: 608px 1fr;
+}
+body.aspect-9x16 .display-frame {
+  grid-row: 1;
+  width: 1080px;
+  height: 608px;
+  border-radius: 0;
+  margin: 0 auto;
+  overflow: hidden;
+}
+body.aspect-9x16 .display-frame iframe {
+  width: 1920px;
+  height: 1080px;
+  transform-origin: top left;
+  transform: scale(0.5625);
+}
+body.aspect-9x16 .phones {
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 28px;
+  padding: 36px 80px;
+  align-items: center;
+  justify-items: center;
+}
+body.aspect-9x16 .phone {
+  /* ~1:1.85 to match the 16x9 layout's phone proportions. */
+  width: 320px;
+  height: 595px;
+  transform: translateY(60px);
+}
+body.aspect-9x16 .phone.in { transform: translateY(0); }
+
+/* chaos8p in 9:16 — display fills the full vertical frame so the 8-board
+   chaos reads at maximum size. Iframe is sized to its native 16:9
+   viewport then scaled to fit the 1080-wide column; the leftover vertical
+   pads naturally to keep the boards centered. */
+body.aspect-9x16.clip-chaos8p .stage {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+body.aspect-9x16.clip-chaos8p .phones { display: none; }
+body.aspect-9x16.clip-chaos8p .display-frame {
+  width: 1080px;
+  height: 1920px;
+  margin: 0;
+  align-self: stretch;
+  justify-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a0716;
+}
+body.aspect-9x16.clip-chaos8p .display-frame iframe {
+  width: 1920px;
+  height: 1080px;
+  transform: scale(0.5625);
+  transform-origin: center;
+}
+
+/* Title card overlay — winner clip. Centered above the stage.
+   Mirrors the lobby brand styling (8-stop gradient title, plum/cream
+   palette, rounded plum-on-white QR card from public/display/DisplayUI.js
+   renderQR). */
+.title-card {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 56px;
+  background: rgba(30, 26, 43, 0.82);
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  transition: opacity 600ms ease-out;
+  pointer-events: none;
+  z-index: 10;
+}
+.title-card.in { opacity: 1; }
+.title-card.hidden { display: none; }
+.title-card__qr {
+  width: 280px;
+  height: 280px;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+.title-card__qr canvas {
+  width: 100%;
+  height: 100%;
+  image-rendering: auto;
+}
+.title-card__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+/* Same 8-stop sweep as .gradient-title in shared/theme.css. Inlined
+   because the composite is loaded outside the display iframe and we
+   want the title card to render even if shared CSS load order changes. */
+.title-card__brand {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  font-size: 76px;
+  margin: 0;
+  line-height: 1;
+  background: linear-gradient(135deg, #FF6B6B, #FF8C42, #FFE066, #7BED6F, #4ECDC4, #5B7FFF, #A78BFA, #F178D8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+}
+.title-card__brand-sub {
+  display: block;
+  font-size: 0.42em;
+  font-weight: 600;
+  letter-spacing: 0.35em;
+  margin-top: 0.25em;
+  text-transform: uppercase;
+  -webkit-text-fill-color: #fff3c2;
+  color: #fff3c2;
+}
+.title-card__url {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 0.08em;
+  color: #F7F1E8;
+}
+.title-card__tag {
+  font-size: 22px;
+  margin: 0;
+  color: rgba(247, 241, 232, 0.7);
+  letter-spacing: 0.04em;
+}
+
+body.aspect-9x16 .title-card {
+  flex-direction: column;
+  text-align: center;
+  gap: 40px;
+}
+body.aspect-9x16 .title-card__brand { font-size: 96px; }
+body.aspect-9x16 .title-card__url { font-size: 42px; }
+body.aspect-9x16 .title-card__tag { font-size: 28px; }
+body.aspect-9x16 .title-card__qr {
+  width: 360px;
+  height: 360px;
+}
+
+/* Lobby caption — fades in during the lobby reveal once the phones have
+   landed. Hidden by default; lobby-reveal.js toggles .in. */
+.lobby-caption {
+  position: absolute;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #F7F1E8;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 8;
+  transition: opacity 350ms ease-out, transform 350ms ease-out;
+  transform: translateY(8px);
+}
+.lobby-caption.in {
+  opacity: 0.92;
+  transform: translateY(0);
+}
+body:not(.clip-lobby-reveal) .lobby-caption { display: none; }
+
+body.aspect-16x9 .lobby-caption {
+  bottom: 60px;
+  left: 50%;
+  transform: translate(-50%, 8px);
+  font-size: 22px;
+}
+body.aspect-16x9 .lobby-caption.in {
+  transform: translate(-50%, 0);
+}
+
+body.aspect-9x16 .lobby-caption {
+  top: 540px;
+  left: 50%;
+  transform: translate(-50%, 8px);
+  font-size: 30px;
+}
+body.aspect-9x16 .lobby-caption.in {
+  transform: translate(-50%, 0);
+}

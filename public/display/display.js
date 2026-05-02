@@ -345,14 +345,18 @@ if (bgCanvas && (urlParams.get('test') !== '1' || urlParams.get('bg') === '1')) 
 var _scenarioParam = urlParams.get('scenario');
 if (window.__TEST__ && (debugCount > 0 || _scenarioParam)) {
   var _hostParam = urlParams.get('host');
+  // Honour players=0 explicitly (adclip lobby starts empty and pops players
+  // in via the clip script). The OR-fallback would coerce 0 to 1.
+  var _playersRaw = urlParams.get('players');
+  var _playersParsed = _playersRaw === null ? NaN : parseInt(_playersRaw, 10);
   initScenario({
     scenario: _scenarioParam || 'playing',
-    players: debugCount || parseInt(urlParams.get('players'), 10) || 1,
+    players: debugCount || (isNaN(_playersParsed) ? 1 : _playersParsed),
     level: parseInt(urlParams.get('level'), 10) || 1,
     host: _hostParam === null ? null : parseInt(_hostParam, 10)
   });
-} else if (urlParams.get('test') === '1') {
-  // Test mode: skip relay connection — tests inject state directly
+} else if (urlParams.get('test') === '1' || urlParams.get('adclip') === '1') {
+  // Test / adclip mode: skip relay connection — driven externally
   fetchBaseUrl();
 } else {
   fetchBaseUrl();

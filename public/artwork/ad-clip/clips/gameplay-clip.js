@@ -1,0 +1,157 @@
+// Gameplay clip module — parameterized for calm (B), chaos (C), peak (D).
+// Boots a deterministic local game in the display iframe and drives an AI
+// loop per player, dispatching engine actions and the matching controller
+// feedback animation in lockstep.
+
+import { planNextPlacement, makeRng } from '../ai-player.js';
+
+const NAMES = ['Emma', 'Jake', 'Sofia', 'Liam', 'Mia', 'Noah', 'Ava', 'Leo'];
+
+// Style tiers (public/shared/theme.js): NORMAL ≤5, PILLOW 6-10, NEON_FLAT ≥11.
+// Each gameplay beat sits squarely in one tier so the visual style step is
+// obvious between cuts. prefillRows seeds each board with a non-completing
+// pattern so the tier-specific block rendering reads immediately instead of
+// needing several seconds of AI play to build a stack.
+//
+// Per-tier AI pacing — early tiers play deliberately (matches a casual
+// player just learning the controls), higher tiers play faster (matches
+// a player surviving the speed). Without this everyone tapped at ~120ms
+// regardless of level, which felt machine-fast and unrealistic.
+// Per-tier AI pacing — 4-player beats now read as casual play (longer
+// "thinking" pauses + slower per-tap cadence). Chaos8p stays brisk
+// because 8 simultaneous boards naturally fill the frame with motion.
+const CLIPS = {
+  normal4p: { players: 4, level:  3, durationMs: 4500, peakBeat: null, prefillRows: 4,
+              pace: { tapMin: 380, tapMax: 600, dropMin: 460, dropMax: 720 } },
+  pillow4p: { players: 4, level:  8, durationMs: 4000, peakBeat: null, prefillRows: 5,
+              pace: { tapMin: 280, tapMax: 460, dropMin: 360, dropMax: 540 } },
+  neon4p:   { players: 4, level: 13, durationMs: 3500, peakBeat: null, prefillRows: 6,
+              pace: { tapMin: 200, tapMax: 340, dropMin: 260, dropMax: 400 } },
+  chaos8p:  { players: 8, level: 10, durationMs: 5000,
+              peakBeats: [
+                { atMs: 1300, attack: { fromIdx: 0, toIdx: 3, lines: 3 } },
+                { atMs: 2700, attack: { fromIdx: 1, toIdx: 5, lines: 4 } },
+                { atMs: 3900, attack: { fromIdx: 2, toIdx: 6, lines: 3 } },
+              ],
+              prefillRows: 5,
+              pace: { tapMin: 130, tapMax: 220, dropMin: 170, dropMax: 250 } },
+};
+
+// Stage the scene before recording starts: roster + game boot + prefilled
+// stack. Composite calls this before signalling __AD_CLIP_READY__ so the
+// screencast's first frame already shows the game (no welcome-screen flash
+// at the cut between clips).
+export async function stage({ display, clip, seed, playerCount }) {
+  const cfg = CLIPS[clip] || CLIPS.chaos;
+  const enginePlayers = cfg.players || playerCount;
+  const playerInfo = rosterFor(enginePlayers, cfg.level);
+  display.__TEST__.bootLocalGame({ playerInfo, seed, prefillRows: cfg.prefillRows });
+}
+
+export async function run({ display, controllers, clip, seed, playerCount }) {
+  const cfg = CLIPS[clip] || CLIPS.chaos;
+  const enginePlayers = cfg.players || playerCount;
+  const playerInfo = rosterFor(enginePlayers, cfg.level);
+
+  const start = performance.now();
+  // Per-player state: pending action queue + last-piece tracking so we only
+  // re-plan when a new piece spawns.
+  const ai = playerInfo.map((_, i) => ({
+    queue: [],
+    nextActionAt: start + 200 + i * 80,
+    lastPiece: null,
+    activeIdx: i < cfg.players,
+    rng: makeRng((seed + i * 37) >>> 0)
+  }));
+
+  // Multiple garbage attacks scheduled across longer clips so the action
+  // keeps escalating instead of one quick pop.
+  const peakBeats = cfg.peakBeats || (cfg.peakBeat ? [cfg.peakBeat] : []);
+  const peakState = peakBeats.map(() => false);
+
+  await new Promise((resolve) => {
+    function tick() {
+      const now = performance.now();
+      const elapsed = now - start;
+
+      for (let pb = 0; pb < peakBeats.length; pb++) {
+        if (!peakState[pb] && elapsed >= peakBeats[pb].atMs) {
+          peakState[pb] = true;
+          const atk = peakBeats[pb].attack;
+          try { display.__TEST__.injectGarbage(atk.toIdx, atk.lines); }
+          catch (e) { console.warn('[adclip] injectGarbage failed:', e); }
+        }
+      }
+
+      for (let i = 0; i < ai.length; i++) {
+        const slot = ai[i];
+        if (!slot.activeIdx) continue;
+
+        const game = display.displayGame;
+        const id = display.playerOrder && display.playerOrder[i];
+        const board = game && id ? game.boards.get(id) : null;
+        if (!board || !board.alive || !board.currentPiece) {
+          slot.queue.length = 0;
+          continue;
+        }
+
+        // Detect new piece — board.currentPiece is replaced on lock+spawn.
+        if (board.currentPiece !== slot.lastPiece) {
+          slot.queue.length = 0;
+          const plan = planNextPlacement(display, i, slot.rng, cfg.pace);
+          // planNextPlacement restores via cloned reference, so re-anchor
+          // lastPiece to whatever the board now points at.
+          slot.lastPiece = board.currentPiece;
+          if (plan) {
+            slot.queue = plan;
+            slot.nextActionAt = now + plan[0].delayMs;
+          }
+        }
+
+        if (slot.queue.length > 0 && now >= slot.nextActionAt) {
+          const step = slot.queue.shift();
+          const ctrl = controllers[i];
+          if (step.action === 'swipeLeft' || step.action === 'swipeRight') {
+            // Engine receives one move per column the swipe traverses, but
+            // the controller fires a SINGLE swipe feedback covering the
+            // whole gesture distance. ~28ms between engine moves keeps
+            // the on-screen piece motion smooth without a perceptible
+            // multi-tap rhythm.
+            const move = step.action === 'swipeLeft' ? 'moveLeft' : 'moveRight';
+            for (let s = 0; s < step.count; s++) {
+              setTimeout(() => {
+                try { display.__TEST__.applyMove(i, move); } catch (_) {}
+              }, s * 28);
+            }
+            if (ctrl && ctrl.__TEST__ && ctrl.__TEST__.showFeedback) {
+              try { ctrl.__TEST__.showFeedback(step.action, { count: step.count }); } catch (_) {}
+            }
+          } else {
+            try { display.__TEST__.applyMove(i, step.action); } catch (_) {}
+            if (ctrl && ctrl.__TEST__ && ctrl.__TEST__.showFeedback) {
+              try { ctrl.__TEST__.showFeedback(step.action); } catch (_) {}
+            }
+          }
+          if (slot.queue.length > 0) {
+            slot.nextActionAt = now + slot.queue[0].delayMs;
+          }
+        }
+      }
+
+      if (elapsed < cfg.durationMs) {
+        requestAnimationFrame(tick);
+      } else {
+        resolve();
+      }
+    }
+    requestAnimationFrame(tick);
+  });
+}
+
+function rosterFor(n, level) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push({ id: `adclip-p${i}`, name: NAMES[i] || `P${i + 1}`, slot: i, level });
+  }
+  return out;
+}

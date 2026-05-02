@@ -3,10 +3,30 @@
 // =====================================================================
 // Display Test Harness — window.__TEST__ API and scenario builders
 // Depends on: DisplayState.js (globals: urlParams, debugCount), DisplayUI.js, DisplayGame.js
-// Loaded before display.js; only active when ?test=1 or ?debug=N
+// Loaded before display.js; only active when ?test=1, ?debug=N, or ?adclip=1
 // =====================================================================
 
-if (urlParams.get('test') === '1' || debugCount > 0) {
+var _adclipMode = urlParams.get('adclip') === '1';
+
+// Deterministic Math.random override when ?seed=<int> is present. The engine
+// has its own seed plumbed via bootLocalGame; this catches non-engine
+// randomness (animations, particles, micro-jitter) so captured frames are
+// identical across runs.
+if (urlParams.get('seed') !== null) {
+  var _seedParam = parseInt(urlParams.get('seed'), 10);
+  if (!isNaN(_seedParam)) {
+    var _s = _seedParam >>> 0;
+    Math.random = function() {
+      _s |= 0; _s = (_s + 0x6D2B79F5) | 0;
+      var t = _s;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+}
+
+if (urlParams.get('test') === '1' || debugCount > 0 || _adclipMode) {
   window.__TEST__ = {
     addPlayers: function(playerList) {
       for (var i = 0; i < playerList.length; i++) {
@@ -70,8 +90,198 @@ if (urlParams.get('test') === '1' || debugCount > 0) {
       // extraGhostsPerPlayer: array of arrays, one per player index.
       // Each inner array: [{ typeId, x, ghostY, blocks }]
       window.__TEST__._extraGhosts = extraGhostsPerPlayer;
+    },
+
+    // --- Ad-clip helpers ---
+    // Boot a deterministic local game from a synthetic player roster, skipping
+    // the relay/countdown so the composite orchestrator drives gameplay directly.
+    bootLocalGame: function(opts) {
+      opts = opts || {};
+      var info = opts.playerInfo || [];
+      var seed = (opts.seed != null) ? (opts.seed >>> 0) : 0;
+      // Engine event handlers call party.broadcast / party.sendTo at multiple
+      // sites — install a no-op stub so they don't throw in the no-network harness.
+      window.party = window.party || { broadcast: function() {}, sendTo: function() {}, getMasterClientId: function() { return null; } };
+      players.clear();
+      playerOrder = [];
+      for (var i = 0; i < info.length; i++) {
+        var p = info[i];
+        var slot = (typeof p.slot === 'number') ? p.slot : i;
+        players.set(p.id, {
+          playerName: sanitizePlayerName(p.name, slot),
+          playerIndex: slot,
+          startLevel: p.level || 1,
+          joinedAt: i
+        });
+        playerOrder.push(p.id);
+      }
+      setRoomState(ROOM_STATE.COUNTDOWN);
+      setRoomState(ROOM_STATE.PLAYING);
+      countdownOverlay.classList.add('hidden');
+      countdownNumber.textContent = '';
+      showScreen(SCREEN.GAME);
+      calculateLayout();
+      runGameLocallyWithSeed(seed);
+      startRenderLoop();
+      // Suppress the live elapsed timer overlay in adclip mode — patch the
+      // snapshot so the renderer's `gameState.elapsed != null` gate fails.
+      if (_adclipMode && displayGame) {
+        var origGetSnapshot = displayGame.getSnapshot.bind(displayGame);
+        displayGame.getSnapshot = function() {
+          var s = origGetSnapshot();
+          s.elapsed = null;
+          return s;
+        };
+      }
+      // Pre-populate the bottom of each board with a non-completing pattern
+      // so the placed-block style (NORMAL / PILLOW / NEON_FLAT) reads
+      // immediately. Each gameplay beat showcases its tier visually instead
+      // of needing 30 seconds of AI play to build a stack.
+      if (opts.prefillRows && displayGame) {
+        var rows = Math.max(1, Math.min(opts.prefillRows, 8));
+        var HC = GameConstants.COLS;
+        var TR = GameConstants.TOTAL_ROWS;
+        var BR = GameConstants.BUFFER_ROWS;
+        var findCZ = GameConstants.findClearableZigzags;
+        var nTypes = GameConstants.PIECE_TYPES.length;
+        var seedFn = function(salt) {
+          var s = (seed + salt) >>> 0;
+          return function() {
+            s |= 0; s = (s + 0x6D2B79F5) | 0;
+            var t = s;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+          };
+        };
+        var bIdx = 0;
+        for (var entry of displayGame.boards) {
+          var pBoard = entry[1];
+          var rng = seedFn(bIdx * 17 + 1);
+          // Force 2 gaps per row at distinct columns. With 9/11 cells filled
+          // a zigzag-down can never complete (needs all 11). For zigzag-up
+          // we offset gap columns row-to-row so no alternating-pattern line
+          // forms. The engine's findClearableZigzags is then re-checked and
+          // any residual clear is broken by punching one more gap.
+          var prevGaps = [-1, -1];
+          for (var r = TR - rows; r < TR; r++) {
+            var g1 = Math.floor(rng() * HC);
+            var g2 = (g1 + 3 + Math.floor(rng() * (HC - 5))) % HC;
+            // Avoid identical gap columns to the row above so zigzag-up
+            // patterns don't accumulate.
+            if (g1 === prevGaps[0] || g1 === prevGaps[1]) g1 = (g1 + 1) % HC;
+            if (g2 === prevGaps[0] || g2 === prevGaps[1] || g2 === g1) g2 = (g2 + 2) % HC;
+            for (var c = 0; c < HC; c++) {
+              if (c === g1 || c === g2) continue;
+              pBoard.grid[r][c] = Math.floor(rng() * nTypes) + 1;
+            }
+            prevGaps = [g1, g2];
+          }
+          // Belt-and-braces: scan for any remaining clearable zigzag and
+          // empty one cell of it so the engine can't pop the prefill on
+          // the AI's first piece lock.
+          var grid = pBoard.grid;
+          var safety = 0;
+          while (safety++ < 6) {
+            var result = findCZ(HC, TR, function(col, row) { return grid[row][col] !== 0; }, null, BR);
+            if (result.linesCleared === 0) break;
+            var cellsToBreak = result.clearCells.slice(0, result.linesCleared);
+            for (var ci = 0; ci < cellsToBreak.length; ci++) {
+              grid[cellsToBreak[ci][1]][cellsToBreak[ci][0]] = 0;
+            }
+          }
+          pBoard.gridVersion++;
+          bIdx++;
+        }
+      }
+    },
+
+    applyMove: function(playerIdx, action) {
+      if (!displayGame) return false;
+      var id = playerOrder[playerIdx];
+      if (!id) return false;
+      var board = displayGame.boards.get(id);
+      if (!board || !board.alive) return false;
+      switch (action) {
+        case 'moveLeft': return board.moveLeft();
+        case 'moveRight': return board.moveRight();
+        case 'rotateCW': return board.rotateCW();
+        case 'rotateCCW': return board.rotateCCW();
+        case 'hold': return board.hold();
+        case 'hardDrop': {
+          var result = board.hardDrop();
+          if (result && displayGame.callbacks && displayGame.callbacks.onEvent) {
+            displayGame.callbacks.onEvent({
+              type: 'piece_lock',
+              playerId: id,
+              blocks: result.lockedBlocks,
+              typeId: result.lockedTypeId
+            });
+            if (result.linesCleared > 0) {
+              displayGame.handleLineClear(id, result);
+            }
+          }
+          return !!result;
+        }
+      }
+      return false;
+    },
+
+    // Inject garbage rows directly onto a player's board (engine-side path,
+    // not just the indicator). Picks the gap deterministically from playerIdx
+    // so seeded captures stay frame-identical.
+    injectGarbage: function(toPlayerIdx, lines) {
+      if (!displayGame) return false;
+      var id = playerOrder[toPlayerIdx];
+      if (!id) return false;
+      var board = displayGame.boards.get(id);
+      if (!board || !board.alive) return false;
+      var gap = (toPlayerIdx * 3 + 5) % GameConstants.COLS;
+      board.applyGarbage(lines, gap);
+      // Fire the indicator animation so the receiver visually shakes.
+      var senderId = playerOrder[(toPlayerIdx + 1) % playerOrder.length] || id;
+      onGarbageSent({ toId: id, senderId: senderId, lines: lines });
+      return true;
     }
   };
+
+  // Hide irrelevant adclip-mode chrome — toolbar (mute/fullscreen/pause icons),
+  // version label — both pull attention away from the game.
+  if (_adclipMode) {
+    var _hide = function() {
+      var ids = ['game-toolbar', 'lobby-version-label', 'welcome-version-label', 'lobby-footer'];
+      for (var i = 0; i < ids.length; i++) {
+        var el = document.getElementById(ids[i]);
+        if (el) el.style.display = 'none';
+      }
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', _hide);
+    } else {
+      _hide();
+    }
+    // Synthesised "press" visual for the lobby clip's fake START click.
+    // Mirrors .btn-primary:active's transform but adds a brightness flash
+    // so the press reads in a 200ms window at 30fps capture.
+    var pressStyle = document.createElement('style');
+    pressStyle.textContent = [
+      '#start-btn.adclip-pressed {',
+      '  transform: translateY(2px) scale(0.97);',
+      '  filter: brightness(1.25);',
+      '  box-shadow: none;',
+      '  transition: transform 80ms ease-out, filter 80ms ease-out;',
+      '}'
+    ].join('');
+    if (document.head) document.head.appendChild(pressStyle);
+  }
+
+  // Signal readiness so the composite orchestrator can begin its timeline.
+  // Posted on next tick so addPlayers / boot calls can land first.
+  if (_adclipMode) {
+    setTimeout(function() {
+      try { window.parent.postMessage({ type: 'adclip-ready', role: 'display' }, '*'); } catch (_) {}
+    }, 0);
+  }
 }
 
 // =====================================================================
@@ -160,20 +370,31 @@ function _fireLineClear(playerIdx, lines) {
 }
 
 function _fakeLobbyQR() {
-  // Populate the two-part host/code spans so the gallery lobby matches the
-  // real applyRoomCreated() rendering (small host + big room code).
+  // Adclip mode shows the bare site (no room code) so the QR + URL function
+  // as a clean CTA. Gallery preview keeps the historic hexstacker.com/TEST
+  // styling so the join-url two-part rendering still gets verified.
+  var qrTarget = _adclipMode ? 'https://hexstacker.com' : 'https://hexstacker.com/TEST12';
   if (joinUrlEl) {
     var hostEl = joinUrlEl.querySelector('.join-url__host');
     var codeEl = joinUrlEl.querySelector('.join-url__code');
-    if (hostEl && codeEl) {
+    if (_adclipMode) {
+      // Single-line "hexstacker.com" — drop the slash + room code that the
+      // gallery preview uses. Match by clearing the code span and dropping
+      // the trailing slash on host.
+      if (hostEl && codeEl) {
+        hostEl.textContent = 'hexstacker.com';
+        codeEl.textContent = '';
+      } else if (joinUrlEl) {
+        joinUrlEl.textContent = 'hexstacker.com';
+      }
+    } else if (hostEl && codeEl) {
       hostEl.textContent = 'hexstacker.com/';
       codeEl.textContent = 'TEST';
     } else {
       joinUrlEl.textContent = 'hexstacker.com/TEST';
     }
   }
-  // Render a real QR for a fake URL so the lobby layout looks realistic.
-  fetch('/api/qr?text=' + encodeURIComponent('https://hexstacker.com/TEST12'))
+  fetch('/api/qr?text=' + encodeURIComponent(qrTarget))
     .then(function(r) { return r.json(); })
     .then(function(matrix) { if (qrCode) renderQR(qrCode, matrix); })
     .catch(function() { /* gallery works without QR — ignore */ });
@@ -186,7 +407,10 @@ function _fakeLobbyQR() {
 function initScenario(opts) {
   opts = opts || {};
   var scenario = opts.scenario || 'playing';
-  var playerCount = Math.max(1, Math.min(opts.players || 1, 8));
+  // Allow players=0 explicitly (adclip lobby starts empty). Other scenarios
+  // pass count directly so 0 stays meaningful through the clamp.
+  var rawCount = (opts.players != null) ? opts.players : 1;
+  var playerCount = Math.max(0, Math.min(rawCount, 8));
   var level = opts.level || 1;
 
   // Host override for gallery previews. getHostClientId() consults
