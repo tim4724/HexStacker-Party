@@ -120,6 +120,7 @@
    since every PARTY_PALETTE slot reads better with dark text. The
    color-mix(in srgb, <color> 82%, black) darkening mirrors the shape
    of --accent-primary → --accent-primary-dark. */
+#name-join-btn:not(:disabled),
 #start-btn:not(:disabled),
 #pause-continue-btn,
 #play-again-btn,

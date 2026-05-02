@@ -242,7 +242,7 @@ html, body {
 }
 
 #name-input:focus {
-  border-color: var(--accent-secondary);
+  border-color: var(--player-color, var(--accent-secondary));
 }
 
 /* Unified sizing for every primary action button on the controller —

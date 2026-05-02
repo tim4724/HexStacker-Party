@@ -120,6 +120,12 @@ class WelcomeBackground {
 
   resize(w, h) {
     const dpr = window.devicePixelRatio || 1;
+    // Assigning canvas.width/height clears the canvas even when the value
+    // is unchanged. Mobile keyboards fire a burst of visualViewport resize
+    // events during dismiss, so without this guard the falling pieces
+    // flicker as JOIN transitions name → lobby. Also skips the gradient
+    // re-bake, which is the same image when dims and dpr are unchanged.
+    if (this._prevW === w && this._prevH === h && this._prevDpr === dpr) return;
     this.w = w;
     this.h = h;
     this.canvas.width = Math.round(w * dpr);
@@ -136,6 +142,7 @@ class WelcomeBackground {
     }
     this._prevW = w;
     this._prevH = h;
+    this._prevDpr = dpr;
     if (this.gradient) {
       this._bakeGradient();
       // Blit synchronously so the main canvas is valid before the first RAF

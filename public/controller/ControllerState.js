@@ -89,7 +89,11 @@ function syncViewportLayout() {
     var metrics = getViewportMetrics();
     document.documentElement.style.setProperty('--app-height', metrics.height + 'px');
     if (welcomeBg) {
-      welcomeBg.resize(metrics.width, metrics.height);
+      // Layout viewport (innerWidth/innerHeight) — stable across iOS
+      // keyboard show/hide and only changes once per Android keyboard
+      // toggle. Using visualViewport here would re-clear the canvas on
+      // every keyboard slide tick and visibly flicker the falling pieces.
+      welcomeBg.resize(window.innerWidth, window.innerHeight);
     }
     // iOS Safari doesn't support interactive-widget=resizes-content,
     // so the CSS media query won't fire. Use visualViewport as fallback.
@@ -107,8 +111,7 @@ if (bgCanvas && (function() {
   return p.get('test') !== '1' || p.get('bg') === '1';
 }())) {
   welcomeBg = new WelcomeBackground(bgCanvas, 8);
-  var metrics = getViewportMetrics();
-  welcomeBg.resize(metrics.width, metrics.height);
+  welcomeBg.resize(window.innerWidth, window.innerHeight);
   welcomeBg.start();
 }
 window.addEventListener('resize', syncViewportLayout);
