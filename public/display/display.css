@@ -700,3 +700,20 @@ body.airconsole #lobby-footer { display: flex !important; }
 body.airconsole #welcome-screen { display: none !important; }
 body.airconsole #fullscreen-btn { display: none !important; }
 body.airconsole .player-slot:has(.player-card.empty) { display: none !important; }
+/* AirConsole packs visible cards into a single row up to 4 wide (no QR means
+   there's room for it). Cards fill slots in join order, so the first empty
+   slot tells us the player count — match on it to size the grid. Listed
+   widest-to-narrowest so source order makes the narrower (more specific
+   count) rule win on equal specificity. */
+body.airconsole #player-list {
+  grid-template-columns: repeat(4, minmax(0, clamp(150px, 24vmin, 280px)));
+}
+body.airconsole #player-list:has(.player-slot:nth-child(4) .player-card.empty) {
+  grid-template-columns: repeat(3, minmax(0, clamp(150px, 24vmin, 280px)));
+}
+body.airconsole #player-list:has(.player-slot:nth-child(3) .player-card.empty) {
+  grid-template-columns: repeat(2, minmax(0, clamp(150px, 24vmin, 280px)));
+}
+body.airconsole #player-list:has(.player-slot:nth-child(2) .player-card.empty) {
+  grid-template-columns: minmax(0, clamp(150px, 24vmin, 280px));
+}
