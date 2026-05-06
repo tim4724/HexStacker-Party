@@ -6,7 +6,15 @@
  *
  * Transforms:
  *  - Adds class="airconsole" to <body>
- *  - Strips OG / Twitter meta tags (useless inside an iframe)
+ *  - Strips meta/link tags useless inside an iframe (OG/Twitter, theme-color,
+ *    PWA-install hints, favicon links)
+ *  - Strips the controller name-screen legal-links footer (name screen is
+ *    bypassed in AC mode; the anchors point to /privacy and /imprint which
+ *    aren't part of the AC zip)
+ *  - Strips test harness <script> tags (gallery / Playwright only — gated
+ *    on URL params the AC iframe never has)
+ *  - Strips share-helper.js from the controller (only the display's
+ *    device-choice banner calls HexStacker.share; the controller never does)
  *  - Converts absolute paths ("/shared/...") to relative ("shared/...")
  *  - Injects AirConsole SDK <script> before first engine script
  *  - Injects bootstrap script before the entry-point script
@@ -30,19 +38,35 @@ function transform(html, { bootstrapScript }) {
   // 1. Add class="airconsole" to <body>
   html = html.replace('<body>', '<body class="airconsole">');
 
-  // 2. Strip OG / Twitter / description meta tags
-  html = html.replace(/^\s*<meta\s+(property="og:|name="twitter:|name="description")[^>]*>\n/gm, '');
+  // 2. Strip iframe-irrelevant <meta> and <link> tags. Cross-origin iframes
+  // can't surface theme-color or PWA-install hints to the host browser, OG /
+  // Twitter cards are never crawled, favicons belong to the top document.
+  html = html.replace(/^\s*<meta\s+(property="og:|name="twitter:|name="description"|name="theme-color"|name="apple-mobile-web-app-capable"|name="mobile-web-app-capable")[^>]*>\n/gm, '');
+  html = html.replace(/^\s*<link\s+rel="icon"[^>]*>\n/gm, '');
 
-  // 3. Convert absolute paths to relative in src/href attributes
+  // 3. Strip the controller name-screen legal-links footer (dead DOM in AC).
+  html = html.replace(/^\s*<div class="legal-links">[\s\S]*?<\/div>\n/m, '');
+
+  // 4. Strip test harness <script> tags — gallery / Playwright only.
+  html = html.replace(/^\s*<script src="[^"]*TestHarness\.js"><\/script>\n/gm, '');
+
+  // 5. Controller-only: drop share-helper.js. Only display.js (the
+  // device-choice banner) calls HexStacker.share; the controller never
+  // does. Identify the controller transform by its bootstrap script.
+  if (bootstrapScript.indexOf('controller/') === 0) {
+    html = html.replace(/^\s*<script src="[^"]*share-helper\.js"><\/script>\n/m, '');
+  }
+
+  // 6. Convert absolute paths to relative in src/href attributes
   html = html.replace(/(src|href)="\/(?!\/)/g, '$1="');
 
-  // 4. Inject AirConsole SDK before first engine script
+  // 7. Inject AirConsole SDK before first engine script
   html = html.replace(
     /^(\s*<script src="engine\/)/m,
     `${SDK_TAG}\n$1`
   );
 
-  // 5. Inject bootstrap script before the entry-point script
+  // 8. Inject bootstrap script before the entry-point script
   const entryFile = path.basename(bootstrapScript).replace('-airconsole', '');
   html = html.replace(
     new RegExp(`^(\\s*<script src="[^"]*${entryFile}"></script>)`, 'm'),

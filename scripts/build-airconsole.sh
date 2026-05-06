@@ -21,12 +21,12 @@ node "$SCRIPT_DIR/generate-airconsole-html.js"
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
-# Copy public files (shared, display, controller assets)
+# Copy public files (shared, display, controller assets). Favicons are
+# intentionally not copied — they belong to the top-level document and the
+# AC iframe can't surface them to the browser tab.
 cp -r "$PROJECT_DIR/public/shared" "$BUILD_DIR/shared"
 cp -r "$PROJECT_DIR/public/display" "$BUILD_DIR/display"
 cp -r "$PROJECT_DIR/public/controller" "$BUILD_DIR/controller"
-cp "$PROJECT_DIR/public/favicon.svg" "$BUILD_DIR/favicon.svg" 2>/dev/null || true
-cp "$PROJECT_DIR/public/favicon.ico" "$BUILD_DIR/favicon.ico" 2>/dev/null || true
 
 # Copy engine modules (from server/ to engine/ for browser access).
 # Every server/*.js except index.js is assumed to be a browser-compatible
@@ -59,6 +59,13 @@ rm -f "$BUILD_DIR/display/index.html"
 rm -f "$BUILD_DIR/controller/index.html"
 rm -f "$BUILD_DIR/display/screen.html"
 rm -f "$BUILD_DIR/controller/controller.html"
+
+# Drop test harnesses (gallery / Playwright only) and legal-page assets
+# (privacy.html / imprint.html aren't part of the AC zip).
+rm -f "$BUILD_DIR/controller/ControllerTestHarness.js"
+rm -f "$BUILD_DIR/display/DisplayTestHarness.js"
+rm -f "$BUILD_DIR/shared/legal-back.js"
+rm -f "$BUILD_DIR/shared/legal.css"
 
 # Create ZIP
 cd "$BUILD_DIR"
