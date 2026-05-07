@@ -1,6 +1,6 @@
 /* Ad-clip composite: display + 4 phone frames in a single capture surface.
-   Two layouts: 16:9 landscape and 9:16 portrait. The body class locks
-   the stage size so Playwright's recordVideo gets pixel-exact frames. */
+   16:9 landscape only — the body class locks the stage size so the CDP
+   screencast gets pixel-exact frames. */
 
 * { box-sizing: border-box; }
 
@@ -51,8 +51,12 @@ html, body {
   padding: 10px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6),
               inset 0 0 0 2px rgba(255, 255, 255, 0.06);
-  transition: transform 600ms cubic-bezier(0.2, 0.7, 0.3, 1),
-              opacity 400ms ease-out;
+  /* Slightly springy ease (overshoot a hair) so the phone "lands" instead
+     of just sliding to a stop — matches the player-card .slotPopIn beat
+     in the display lobby. Duration tightened to 480ms so the player card
+     and the matching phone arrive within the same beat. */
+  transition: transform 480ms cubic-bezier(0.34, 1.30, 0.64, 1),
+              opacity 320ms ease-out;
   opacity: 0;
 }
 .phone.in {
@@ -128,9 +132,15 @@ body.aspect-16x9 .phone {
   width: 240px;
   height: 445px;
 }
-body.aspect-16x9 .phone[data-slot="0"] { top: 30px; left: 30px;  transform: translateX(-300px); }
-body.aspect-16x9 .phone[data-slot="1"] { top: 30px; right: 30px; transform: translateX(300px); }
-body.aspect-16x9 .phone[data-slot="2"] { bottom: 30px; left: 30px;  transform: translateX(-300px); }
+/* Phone positions tuned so warm-coloured players (Emma red, Jake orange)
+   stack on the LEFT side of the frame and cool-coloured players (Sofia
+   yellow, Liam green) stack on the RIGHT — clearer visual mapping than a
+   left-to-right colour gradient. Slot index = colour index, so slot 1
+   stays "Jake / orange" but its phone now sits at the bottom-left
+   corner; slot 2 stays "Sofia / yellow" but moves to top-right. */
+body.aspect-16x9 .phone[data-slot="0"] { top: 30px;    left: 30px;  transform: translateX(-300px); }
+body.aspect-16x9 .phone[data-slot="1"] { bottom: 30px; left: 30px;  transform: translateX(-300px); }
+body.aspect-16x9 .phone[data-slot="2"] { top: 30px;    right: 30px; transform: translateX(300px); }
 body.aspect-16x9 .phone[data-slot="3"] { bottom: 30px; right: 30px; transform: translateX(300px); }
 body.aspect-16x9 .phone.in[data-slot="0"],
 body.aspect-16x9 .phone.in[data-slot="1"],
@@ -145,73 +155,6 @@ body .phone--extra { display: none; }
    the 8-board chaos; winner is a clean title card on a dark backdrop. */
 body.clip-chaos8p .phone,
 body.clip-winner .phone { display: none; }
-
-/* Layout: 9:16 — 1080×1920. Display in a top band rendered at its native
-   16:9 viewport then scaled to fit the band width (so 4 boards stay
-   readable instead of being squished into 1080px), and 4 phones in a
-   2×2 grid below. */
-body.aspect-9x16 .stage {
-  grid-template-columns: 1fr;
-  grid-template-rows: 608px 1fr;
-}
-body.aspect-9x16 .display-frame {
-  grid-row: 1;
-  width: 1080px;
-  height: 608px;
-  border-radius: 0;
-  margin: 0 auto;
-  overflow: hidden;
-}
-body.aspect-9x16 .display-frame iframe {
-  width: 1920px;
-  height: 1080px;
-  transform-origin: top left;
-  transform: scale(0.5625);
-}
-body.aspect-9x16 .phones {
-  grid-row: 2;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 28px;
-  padding: 36px 80px;
-  align-items: center;
-  justify-items: center;
-}
-body.aspect-9x16 .phone {
-  /* ~1:1.85 to match the 16x9 layout's phone proportions. */
-  width: 320px;
-  height: 595px;
-  transform: translateY(60px);
-}
-body.aspect-9x16 .phone.in { transform: translateY(0); }
-
-/* chaos8p in 9:16 — display fills the full vertical frame so the 8-board
-   chaos reads at maximum size. Iframe is sized to its native 16:9
-   viewport then scaled to fit the 1080-wide column; the leftover vertical
-   pads naturally to keep the boards centered. */
-body.aspect-9x16.clip-chaos8p .stage {
-  grid-template-columns: 1fr;
-  grid-template-rows: 1fr;
-}
-body.aspect-9x16.clip-chaos8p .phones { display: none; }
-body.aspect-9x16.clip-chaos8p .display-frame {
-  width: 1080px;
-  height: 1920px;
-  margin: 0;
-  align-self: stretch;
-  justify-self: stretch;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #0a0716;
-}
-body.aspect-9x16.clip-chaos8p .display-frame iframe {
-  width: 1920px;
-  height: 1080px;
-  transform: scale(0.5625);
-  transform-origin: center;
-}
 
 /* Title card overlay — winner clip. Centered above the stage.
    Mirrors the lobby brand styling (8-stop gradient title, plum/cream
@@ -295,19 +238,6 @@ body.aspect-9x16.clip-chaos8p .display-frame iframe {
   letter-spacing: 0.04em;
 }
 
-body.aspect-9x16 .title-card {
-  flex-direction: column;
-  text-align: center;
-  gap: 40px;
-}
-body.aspect-9x16 .title-card__brand { font-size: 96px; }
-body.aspect-9x16 .title-card__url { font-size: 42px; }
-body.aspect-9x16 .title-card__tag { font-size: 28px; }
-body.aspect-9x16 .title-card__qr {
-  width: 360px;
-  height: 360px;
-}
-
 /* Lobby caption — fades in during the lobby reveal once the phones have
    landed. Hidden by default; lobby-reveal.js toggles .in. */
 .lobby-caption {
@@ -337,15 +267,5 @@ body.aspect-16x9 .lobby-caption {
   font-size: 22px;
 }
 body.aspect-16x9 .lobby-caption.in {
-  transform: translate(-50%, 0);
-}
-
-body.aspect-9x16 .lobby-caption {
-  top: 540px;
-  left: 50%;
-  transform: translate(-50%, 8px);
-  font-size: 30px;
-}
-body.aspect-9x16 .lobby-caption.in {
   transform: translate(-50%, 0);
 }

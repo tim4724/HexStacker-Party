@@ -13,9 +13,9 @@ export async function run({ titleCard }) {
   // brand-tinted gradient.
   const frame = document.getElementById('display-frame');
   if (frame) frame.style.opacity = '0';
-  setTimeout(() => titleCard.classList.add('in'), 100);
+  setTimeout(() => titleCard.classList.add('in'), 200);
   titleCard.classList.remove('hidden');
-  await wait(2400);
+  await wait(2900);
 }
 
 async function renderQR(titleCard) {

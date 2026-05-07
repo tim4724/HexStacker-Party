@@ -12,6 +12,10 @@ const PLAYER_COUNT = 4;
 // so they have to exist (and be ready) before recording starts; other
 // clips keep them off-screen.
 const TOTAL_PHONES = 8;
+// Phone labels match the controller's FAKE_NAMES[colorIdx] anyway — the
+// URL `name=` param is here so the labels stay in sync if those defaults
+// ever change. Order matches the lobby's player-card order.
+const PHONE_NAMES = ['Emma', 'Jake', 'Sofia', 'Liam', 'Mia', 'Noah', 'Ava', 'Leo'];
 
 document.body.classList.add(`aspect-${ASPECT}`);
 document.body.classList.add(`clip-${CLIP}`);
@@ -52,7 +56,7 @@ for (let i = 0; i < TOTAL_PHONES; i++) {
   const iframe = document.createElement('iframe');
   iframe.title = `Controller ${i + 1}`;
   iframe.referrerPolicy = 'no-referrer';
-  iframe.src = `/controller/index.html?scenario=adclip&color=${i}&players=${TOTAL_PHONES}&seed=${SEED + i}`;
+  iframe.src = `/controller/index.html?scenario=adclip&color=${i}&name=${encodeURIComponent(PHONE_NAMES[i])}&players=${TOTAL_PHONES}&seed=${SEED + i}`;
   screen.appendChild(iframe);
 
   phone.appendChild(notch);
@@ -114,12 +118,10 @@ async function run() {
   // shows its welcome/lobby intermediate state when the screencast goes
   // live. Without this, every clip cut briefly flashes the HEX STACKER
   // title that the display defaults to before bootLocalGame transitions.
-  if (clipModule.stage) {
-    await clipModule.stage(ctx);
-    // Two RAFs to make sure the canvas paints the staged scene before we
-    // hand control to capture.js.
-    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-  }
+  await clipModule.stage(ctx);
+  // Two RAFs to make sure the canvas paints the staged scene before we
+  // hand control to capture.js.
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
   // Tell the capture harness the scene is staged. Capture.js starts its
   // screencast in response, then writes __AD_CLIP_GO__ when the recorder

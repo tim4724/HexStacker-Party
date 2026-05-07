@@ -21,17 +21,22 @@ const NAMES = ['Emma', 'Jake', 'Sofia', 'Liam', 'Mia', 'Noah', 'Ava', 'Leo'];
 // "thinking" pauses + slower per-tap cadence). Chaos8p stays brisk
 // because 8 simultaneous boards naturally fill the frame with motion.
 const CLIPS = {
-  normal4p: { players: 4, level:  3, durationMs: 4500, peakBeat: null, prefillRows: 4,
+  normal4p: { players: 4, level:  3, durationMs: 7000, prefillRows: 4,
               pace: { tapMin: 380, tapMax: 600, dropMin: 460, dropMax: 720 } },
-  pillow4p: { players: 4, level:  8, durationMs: 4000, peakBeat: null, prefillRows: 5,
+  pillow4p: { players: 4, level:  8, durationMs: 6000, prefillRows: 5,
               pace: { tapMin: 280, tapMax: 460, dropMin: 360, dropMax: 540 } },
-  neon4p:   { players: 4, level: 13, durationMs: 3500, peakBeat: null, prefillRows: 6,
+  neon4p:   { players: 4, level: 13, durationMs: 5500, prefillRows: 6,
               pace: { tapMin: 200, tapMax: 340, dropMin: 260, dropMax: 400 } },
-  chaos8p:  { players: 8, level: 10, durationMs: 5000,
+  chaos8p:  { players: 8, level: 10, durationMs: 7000,
+              // Five staggered garbage attacks across 7s — keeps the chaos
+              // escalating throughout the longer beat instead of fizzling
+              // out after the first attack.
               peakBeats: [
-                { atMs: 1300, attack: { fromIdx: 0, toIdx: 3, lines: 3 } },
-                { atMs: 2700, attack: { fromIdx: 1, toIdx: 5, lines: 4 } },
-                { atMs: 3900, attack: { fromIdx: 2, toIdx: 6, lines: 3 } },
+                { atMs: 1100, attack: { fromIdx: 0, toIdx: 3, lines: 3 } },
+                { atMs: 2300, attack: { fromIdx: 1, toIdx: 5, lines: 4 } },
+                { atMs: 3500, attack: { fromIdx: 2, toIdx: 6, lines: 3 } },
+                { atMs: 4700, attack: { fromIdx: 3, toIdx: 0, lines: 4 } },
+                { atMs: 5900, attack: { fromIdx: 4, toIdx: 7, lines: 3 } },
               ],
               prefillRows: 5,
               pace: { tapMin: 130, tapMax: 220, dropMin: 170, dropMax: 250 } },
@@ -66,7 +71,7 @@ export async function run({ display, controllers, clip, seed, playerCount }) {
 
   // Multiple garbage attacks scheduled across longer clips so the action
   // keeps escalating instead of one quick pop.
-  const peakBeats = cfg.peakBeats || (cfg.peakBeat ? [cfg.peakBeat] : []);
+  const peakBeats = cfg.peakBeats || [];
   const peakState = peakBeats.map(() => false);
 
   await new Promise((resolve) => {
@@ -78,8 +83,7 @@ export async function run({ display, controllers, clip, seed, playerCount }) {
         if (!peakState[pb] && elapsed >= peakBeats[pb].atMs) {
           peakState[pb] = true;
           const atk = peakBeats[pb].attack;
-          try { display.__TEST__.injectGarbage(atk.toIdx, atk.lines); }
-          catch (e) { console.warn('[adclip] injectGarbage failed:', e); }
+          display.__TEST__.injectGarbage(atk.toIdx, atk.lines);
         }
       }
 
@@ -119,18 +123,12 @@ export async function run({ display, controllers, clip, seed, playerCount }) {
             // multi-tap rhythm.
             const move = step.action === 'swipeLeft' ? 'moveLeft' : 'moveRight';
             for (let s = 0; s < step.count; s++) {
-              setTimeout(() => {
-                try { display.__TEST__.applyMove(i, move); } catch (_) {}
-              }, s * 28);
+              setTimeout(() => display.__TEST__.applyMove(i, move), s * 28);
             }
-            if (ctrl && ctrl.__TEST__ && ctrl.__TEST__.showFeedback) {
-              try { ctrl.__TEST__.showFeedback(step.action, { count: step.count }); } catch (_) {}
-            }
+            ctrl.__TEST__.showFeedback(step.action, { count: step.count });
           } else {
-            try { display.__TEST__.applyMove(i, step.action); } catch (_) {}
-            if (ctrl && ctrl.__TEST__ && ctrl.__TEST__.showFeedback) {
-              try { ctrl.__TEST__.showFeedback(step.action); } catch (_) {}
-            }
+            display.__TEST__.applyMove(i, step.action);
+            ctrl.__TEST__.showFeedback(step.action);
           }
           if (slot.queue.length > 0) {
             slot.nextActionAt = now + slot.queue[0].delayMs;
