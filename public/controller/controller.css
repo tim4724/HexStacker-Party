@@ -1342,7 +1342,7 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   }
 
   /* Actions keeps tighter cap but centers its button (width:100% capped at
-     280px) inside; name form matches the button width so input and JOIN
+     320px) inside; name form matches the button width so input and JOIN
      button line up. */
   .controller-shell__actions,
   #name-form {
