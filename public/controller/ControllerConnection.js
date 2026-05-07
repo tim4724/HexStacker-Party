@@ -159,7 +159,7 @@ function performDisconnect() {
   var params = new URLSearchParams(location.search);
   params.delete('rejoin');
   var qs = params.toString();
-  history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
+  history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
   rejoinId = null;
   try { localStorage.removeItem('clientId_' + roomCode); } catch (e) { /* iframe sandbox */ }
   playerColor = null;

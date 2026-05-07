@@ -215,6 +215,19 @@ describe('PartyConnection - reconnect with exponential backoff', () => {
     assert.notStrictEqual(pc.ws, firstWs);
   });
 
+  test('relayUrl mutation is picked up by subsequent reconnect', () => {
+    // DisplayConnection rewrites party.relayUrl after `created` so the
+    // PartyConnection auto-reconnect path lands back on the same instance
+    // shard. Lock that contract in.
+    const pc = new PartyConnection('wss://test.example.com');
+    pc.connect();
+    MockWebSocket._instances[0]._simulateOpen();
+    pc.relayUrl = 'wss://test.example.com/ROOM?instance=xyz';
+    pc.reconnectNow();
+    assert.strictEqual(MockWebSocket._instances.length, 2);
+    assert.strictEqual(MockWebSocket._instances[1].url, 'wss://test.example.com/ROOM?instance=xyz');
+  });
+
   test('stale WebSocket events are ignored after reconnect', () => {
     const pc = new PartyConnection('wss://test.example.com');
     let openCount = 0;

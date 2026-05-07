@@ -108,7 +108,10 @@ function onRoomCreated(partyRoomCode, instance) {
     party.relayUrl = RELAY_URL + '/' + encodeURIComponent(partyRoomCode) + '?instance=' + encodeURIComponent(lastInstance);
   }
 
-  var newJoinUrl = getBaseUrl() + '/' + partyRoomCode + (lastInstance ? '?instance=' + encodeURIComponent(lastInstance) : '');
+  // Stash the instance in the URL fragment so it never hits the server in
+  // requests/logs/CDN caches; the controller reads it from location.hash and
+  // expands back to ?instance= when talking to the relay.
+  var newJoinUrl = getBaseUrl() + '/' + partyRoomCode + (lastInstance ? '#' + lastInstance : '');
 
   // If still on welcome screen, cache the room for instant use later
   if (currentScreen === SCREEN.WELCOME) {
@@ -224,7 +227,7 @@ function onDisplayRejoined(partyRoomCode, clients) {
   roomCode = partyRoomCode;
   lastRoomCode = partyRoomCode;
 
-  joinUrl = getBaseUrl() + '/' + roomCode + (lastInstance ? '?instance=' + encodeURIComponent(lastInstance) : '');
+  joinUrl = getBaseUrl() + '/' + roomCode + (lastInstance ? '#' + lastInstance : '');
   renderJoinUrl(joinUrl);
 
   // Reset the master_changed dedup sentinel — on rejoin we re-push WELCOME
@@ -494,7 +497,11 @@ function showDisconnectQR(clientId) {
   // Set immediately so allPlayersDisconnected() can check synchronously
   disconnectedQRs.set(clientId, null);
   if (!joinUrl) return;
-  var rejoinUrl = joinUrl + (joinUrl.indexOf('?') >= 0 ? '&' : '?') + 'rejoin=' + encodeURIComponent(clientId);
+  // Splice ?rejoin= in before the fragment so the instance hash stays intact.
+  var hashIdx = joinUrl.indexOf('#');
+  var base = hashIdx >= 0 ? joinUrl.slice(0, hashIdx) : joinUrl;
+  var hash = hashIdx >= 0 ? joinUrl.slice(hashIdx) : '';
+  var rejoinUrl = base + '?rejoin=' + encodeURIComponent(clientId) + hash;
   fetchQR(rejoinUrl, function(qrMatrix) {
     if (!players.has(clientId)) return;
     if (!qrMatrix) {
