@@ -366,6 +366,14 @@ html, body {
   transition: background var(--transition-fast);
 }
 
+#level-selector .level-btn > svg {
+  /* Inline SVG width/height attributes are fixed at 20px; this rule lets
+     the icon scale down with the button when the 75% clause kicks in on
+     narrow viewports so the icon-to-button ratio stays consistent. */
+  max-width: 55%;
+  max-height: 55%;
+}
+
 #level-selector .level-btn:active:not(:disabled) {
   background: rgba(255, 255, 255, 0.2);
 }
