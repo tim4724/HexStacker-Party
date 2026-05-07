@@ -277,10 +277,10 @@
   font-weight: 600;
   letter-spacing: 0.05em;
   color: var(--player-color, var(--text-primary));
-  /* Locked 2:1 aspect (~140px tall at 280px wide). Both halves split
-     50/50 via flex: 1 1 0 on the children; each half gets exactly half
-     the card height. Two-line names fit in the top half at all clamp
-     sizes (max ~63px in a 70px half) without padding-driven overflow. */
+  /* Locked 2:1 aspect (~160px tall at 320px wide on the controller).
+     Both halves split 50/50 via flex: 1 1 0 on the children; each half
+     gets exactly half the card height. Two-line names fit in the top
+     half at all clamp sizes without padding-driven overflow. */
   aspect-ratio: 2 / 1;
 }
 

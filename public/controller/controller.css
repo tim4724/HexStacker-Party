@@ -103,7 +103,7 @@ html, body {
 
 .controller-shell__actions {
   width: 100%;
-  max-width: 280px;
+  max-width: 320px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -214,7 +214,7 @@ html, body {
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 280px;
+  max-width: 320px;
   animation: fadeUp 0.5s 0.15s ease-out both;
 }
 
@@ -246,8 +246,7 @@ html, body {
 }
 
 /* Unified sizing for every primary action button on the controller —
-   one shell geometry so lobby/pause/reconnect/results all match. Sized
-   off the pause CONTINUE button (14px/16px padding, 0.9rem, 0.1em).
+   one shell geometry so lobby/pause/reconnect/results all match.
    Per-button rules below handle colors, animations, and disabled state. */
 #name-join-btn,
 #start-btn,
@@ -257,9 +256,9 @@ html, body {
 #play-again-btn,
 #new-game-btn {
   width: 100%;
-  max-width: 280px;
-  padding: 14px 16px;
-  font-size: 0.9rem;
+  max-width: 320px;
+  padding: 16px 18px;
+  font-size: 1.05rem;
   letter-spacing: 0.1em;
   text-align: center;
 }
@@ -286,7 +285,7 @@ html, body {
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 280px;
+  max-width: 320px;
   animation: fadeUp 0.5s 0.3s ease-out both;
 }
 
@@ -321,21 +320,24 @@ html, body {
 
 #level-selector .level-heading {
   font-family: 'Orbitron', sans-serif;
-  /* Shared clamp with display .card-level__heading. */
-  font-size: clamp(0.95rem, 2vmin, 1.2rem);
+  /* Larger floor than display's .card-level__heading clamp — phones
+     pin to the floor (vmin ≈ vw is small in portrait), so the floor is
+     what's actually rendered on a controller. */
+  font-size: clamp(1.05rem, 4.5vmin, 1.35rem);
   font-weight: 700;
   color: var(--text-secondary);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   /* Wider gap before the minus button so "Level" reads as a label,
      not as part of the +/− control cluster. */
-  margin-right: 0.85rem;
+  margin-right: 0.7rem;
 }
 
 #level-display {
   font-family: 'Orbitron', sans-serif;
-  /* Shared clamp with display .card-level__value. */
-  font-size: clamp(0.95rem, 2vmin, 1.2rem);
+  /* Larger floor than display's .card-level__value clamp — see note on
+     .level-heading above. */
+  font-size: clamp(1.05rem, 4.5vmin, 1.35rem);
   font-weight: 700;
   color: var(--text-primary);
   min-width: 1.4em;
@@ -344,12 +346,14 @@ html, body {
 }
 
 #level-selector .level-btn {
-  /* Sized so the level pill (10 + button + 18 padding) plus the trigger's
-     max-clamp 2-line min-height (≈79px on desktop) fit inside the .player-card
-     2:1 aspect at 280px wide (140px). 2.2rem keeps the button finger-friendly
-     on phones (~35px square) without forcing the card to grow past aspect. */
-  width: 2.2rem;
-  height: 2.2rem;
+  /* Always fits inside the .card-level half: height capped at 75% of
+     the parent (= card_width/4 due to .player-card's 2:1 aspect), with
+     a 2.8rem ceiling (≈44.8px = standard min touch target) so it stops
+     growing on tablets. aspect-ratio:1 mirrors width to height, so the
+     button is always square and never forces the card past aspect —
+     regardless of card width. */
+  height: min(2.8rem, 75%);
+  aspect-ratio: 1;
   border: none;
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.08);
@@ -360,6 +364,14 @@ html, body {
   align-items: center;
   justify-content: center;
   transition: background var(--transition-fast);
+}
+
+#level-selector .level-btn > svg {
+  /* Inline SVG width/height attributes are fixed at 20px; this rule lets
+     the icon scale down with the button when the 75% clause kicks in on
+     narrow viewports so the icon-to-button ratio stays consistent. */
+  max-width: 55%;
+  max-height: 55%;
 }
 
 #level-selector .level-btn:active:not(:disabled) {
@@ -1002,7 +1014,7 @@ html, body {
 
 .settings-row__label {
   font-family: 'Orbitron', sans-serif;
-  font-size: 0.9rem;
+  font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   color: var(--text-primary);
@@ -1014,7 +1026,7 @@ html, body {
 }
 
 .settings-row__value {
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
@@ -1022,7 +1034,7 @@ html, body {
 }
 
 .settings-row__hint {
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   color: var(--text-secondary);
   text-align: center;
   margin-top: 2px;
@@ -1091,10 +1103,10 @@ html, body {
   background: transparent;
   color: var(--text-secondary);
   font-family: 'Orbitron', sans-serif;
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.05em;
-  padding: 8px 4px;
+  padding: 10px 4px;
   border-radius: calc(var(--radius-md) - 3px);
   cursor: pointer;
   transition: background var(--transition-fast), color var(--transition-fast);
@@ -1186,7 +1198,7 @@ html, body {
 /* About footer — sits below the DONE button as a quiet credit line. */
 .settings-about {
   text-align: center;
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   color: var(--text-secondary);
   letter-spacing: 0.06em;
   font-family: 'Orbitron', sans-serif;
@@ -1196,8 +1208,8 @@ html, body {
 
 #settings-close {
   width: 100%;
-  padding: 12px 16px;
-  font-size: 0.9rem;
+  padding: 16px 18px;
+  font-size: 1.05rem;
   letter-spacing: 0.1em;
 }
 
@@ -1210,7 +1222,7 @@ html, body {
   align-items: center;
   gap: 12px;
   width: 100%;
-  max-width: 280px;
+  max-width: 320px;
   pointer-events: none;
   animation: resultsButtonsEnter 0.4s ease 1.5s both;
 }
@@ -1330,7 +1342,7 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   }
 
   /* Actions keeps tighter cap but centers its button (width:100% capped at
-     280px) inside; name form matches the button width so input and JOIN
+     320px) inside; name form matches the button width so input and JOIN
      button line up. */
   .controller-shell__actions,
   #name-form {
@@ -1344,7 +1356,7 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   }
 
   #name-form {
-    max-width: 280px;
+    max-width: 320px;
   }
 
   /* Status banners need breathing room for longer messages like
