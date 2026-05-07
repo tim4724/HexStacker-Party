@@ -63,6 +63,9 @@ var glowEl = null;
 
 // Rejoin
 var rejoinId = new URLSearchParams(location.search).get('rejoin');
+// Relay instance shard — set on the join URL/QR by the display so this
+// controller's WebSocket lands on the same shard that owns the room.
+var instanceId = new URLSearchParams(location.search).get('instance');
 var skipNameScreen = false;
 
 // --- Viewport ---

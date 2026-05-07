@@ -17,6 +17,7 @@ var party = null;
 var roomCode = null;
 var joinUrl = null;
 var lastRoomCode = null;
+var lastInstance = null;       // relay instance id from `created` — pins reconnect / controller WS to the same shard
 var gameState = null;
 var players = new Map();       // clientId -> { playerName, playerIndex, startLevel, lastPingTime, joinedAt }
                                // color is derived via PLAYER_COLORS[playerIndex] — never stored

@@ -20,6 +20,7 @@ function resetToWelcome() {
   }
   stopLivenessCheck();
   lastRoomCode = null;
+  lastInstance = null;
   roomCode = null;
   joinUrl = null;
   setRoomState(ROOM_STATE.LOBBY);

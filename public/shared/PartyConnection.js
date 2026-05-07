@@ -7,7 +7,7 @@
  *   Client → PS:  create { clientId, maxClients }
  *   Client → PS:  join   { clientId, room }
  *   Client → PS:  send   { data, to? }
- *   PS → Client:  created      { room }
+ *   PS → Client:  created      { room, instance?, region? }
  *   PS → Client:  joined       { room, clients[] }
  *   PS → Client:  peer_joined  { clientId }
  *   PS → Client:  peer_left    { clientId }

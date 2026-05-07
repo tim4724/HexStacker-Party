@@ -10,7 +10,14 @@
 function connectAndCreateRoom() {
   if (party) party.close();
 
-  party = new PartyConnection(RELAY_URL, { clientId: 'display' });
+  // If we already know the instance (reconnect path), open the WS on the
+  // sharded URL so the relay routes us back to the same instance. Fresh
+  // creates use the bare URL — the relay picks an instance and tells us
+  // which one in the `created` reply.
+  var initialUrl = (lastRoomCode && lastInstance)
+    ? RELAY_URL + '/' + encodeURIComponent(lastRoomCode) + '?instance=' + encodeURIComponent(lastInstance)
+    : RELAY_URL;
+  party = new PartyConnection(initialUrl, { clientId: 'display' });
 
   party.onOpen = function() {
     if (lastRoomCode) {
@@ -46,7 +53,8 @@ function connectAndCreateRoom() {
   party.onProtocol = function(type, msg) {
     switch (type) {
       case 'created':
-        onRoomCreated(msg.room);
+        if (msg.region) console.log('[relay] region:', msg.region);
+        onRoomCreated(msg.room, msg.instance);
         break;
       case 'joined':
         onDisplayRejoined(msg.room, msg.clients);
@@ -91,8 +99,16 @@ function connectAndCreateRoom() {
 // Party-Server Protocol Handlers
 // =====================================================================
 
-function onRoomCreated(partyRoomCode) {
-  var newJoinUrl = getBaseUrl() + '/' + partyRoomCode;
+function onRoomCreated(partyRoomCode, instance) {
+  lastInstance = instance || null;
+  // Pin the WS URL so PartyConnection's auto-reconnect lands on the same
+  // instance — the relay's bare endpoint would otherwise route to whichever
+  // shard is currently least-loaded.
+  if (party && lastInstance) {
+    party.relayUrl = RELAY_URL + '/' + encodeURIComponent(partyRoomCode) + '?instance=' + encodeURIComponent(lastInstance);
+  }
+
+  var newJoinUrl = getBaseUrl() + '/' + partyRoomCode + (lastInstance ? '?instance=' + encodeURIComponent(lastInstance) : '');
 
   // If still on welcome screen, cache the room for instant use later
   if (currentScreen === SCREEN.WELCOME) {
@@ -208,7 +224,7 @@ function onDisplayRejoined(partyRoomCode, clients) {
   roomCode = partyRoomCode;
   lastRoomCode = partyRoomCode;
 
-  joinUrl = getBaseUrl() + '/' + roomCode;
+  joinUrl = getBaseUrl() + '/' + roomCode + (lastInstance ? '?instance=' + encodeURIComponent(lastInstance) : '');
   renderJoinUrl(joinUrl);
 
   // Reset the master_changed dedup sentinel — on rejoin we re-push WELCOME
@@ -478,7 +494,7 @@ function showDisconnectQR(clientId) {
   // Set immediately so allPlayersDisconnected() can check synchronously
   disconnectedQRs.set(clientId, null);
   if (!joinUrl) return;
-  var rejoinUrl = joinUrl + '?rejoin=' + encodeURIComponent(clientId);
+  var rejoinUrl = joinUrl + (joinUrl.indexOf('?') >= 0 ? '&' : '?') + 'rejoin=' + encodeURIComponent(clientId);
   fetchQR(rejoinUrl, function(qrMatrix) {
     if (!players.has(clientId)) return;
     if (!qrMatrix) {
