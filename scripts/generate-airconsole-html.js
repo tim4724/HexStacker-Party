@@ -13,8 +13,12 @@
  *    aren't part of the AC zip)
  *  - Strips test harness <script> tags (gallery / Playwright only — gated
  *    on URL params the AC iframe never has)
- *  - Strips share-helper.js from the controller (only the display's
- *    device-choice banner calls HexStacker.share; the controller never does)
+ *  - Strips share-helper.js (the only caller is the device-choice share
+ *    banner, and device-choice is CSS-hidden in AC mode)
+ *  - Strips the <picture> element inside the device-choice overlay (the
+ *    /artwork/* sources aren't bundled into the AC zip; without this the
+ *    browser would still fetch them and 404, even though the overlay is
+ *    CSS-hidden)
  *  - Converts absolute paths ("/shared/...") to relative ("shared/...")
  *  - Injects AirConsole SDK <script> before first engine script
  *  - Injects bootstrap script before the entry-point script
@@ -50,23 +54,26 @@ function transform(html, { bootstrapScript }) {
   // 4. Strip test harness <script> tags — gallery / Playwright only.
   html = html.replace(/^\s*<script src="[^"]*TestHarness\.js"><\/script>\n/gm, '');
 
-  // 5. Controller-only: drop share-helper.js. Only display.js (the
-  // device-choice banner) calls HexStacker.share; the controller never
-  // does. Identify the controller transform by its bootstrap script.
-  if (bootstrapScript.indexOf('controller/') === 0) {
-    html = html.replace(/^\s*<script src="[^"]*share-helper\.js"><\/script>\n/m, '');
-  }
+  // 5. Drop share-helper.js. Only the display's device-choice share
+  // banner calls HexStacker.share, and device-choice is CSS-hidden in AC.
+  html = html.replace(/^\s*<script src="[^"]*share-helper\.js"><\/script>\n/m, '');
 
-  // 6. Convert absolute paths to relative in src/href attributes
+  // 6. Strip <picture> inside the device-choice overlay. The /artwork/*
+  // sources aren't bundled into the AC zip; without this the browser
+  // would still resolve and fetch them (returning 404) even though the
+  // overlay itself is CSS-hidden in AC.
+  html = html.replace(/^\s*<picture>[\s\S]*?<\/picture>\n/m, '');
+
+  // 7. Convert absolute paths to relative in src/href attributes
   html = html.replace(/(src|href)="\/(?!\/)/g, '$1="');
 
-  // 7. Inject AirConsole SDK before first engine script
+  // 8. Inject AirConsole SDK before first engine script
   html = html.replace(
     /^(\s*<script src="engine\/)/m,
     `${SDK_TAG}\n$1`
   );
 
-  // 8. Inject bootstrap script before the entry-point script
+  // 9. Inject bootstrap script before the entry-point script
   const entryFile = path.basename(bootstrapScript).replace('-airconsole', '');
   html = html.replace(
     new RegExp(`^(\\s*<script src="[^"]*${entryFile}"></script>)`, 'm'),

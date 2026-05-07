@@ -455,7 +455,7 @@ settingsCloseBtn.addEventListener('click', function () {
 // via injectVersionLabel (build-time substitution of __AC_VERSION__, with
 // /api/version as a same-origin dev fallback). A second fetch from here
 // would race with that and risk overwriting it on local-dev origins.
-if (!skipNameScreen) {
+if (!document.body.classList.contains('airconsole')) {
   fetch('/api/version').then(function (r) { return r.json(); }).then(function (data) {
     var label = data.version || '';
     if (!data.isProduction && data.commit) label += ' (#' + data.commit + ')';
