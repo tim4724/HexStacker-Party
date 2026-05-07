@@ -294,16 +294,21 @@ reconnectBtn.addEventListener('click', function() {
 });
 
 // --- Version + Background ---
-fetch('/api/version').then(function(r) { return r.json(); }).then(function(data) {
-  var label = data.version;
-  if (!data.isProduction && data.commit) {
-    label += ' (#' + data.commit + ')';
-  }
-  var welcomeVersion = document.getElementById('welcome-version-label');
-  if (welcomeVersion) welcomeVersion.textContent = label;
-  var lobbyVersion = document.getElementById('lobby-version-label');
-  if (lobbyVersion) lobbyVersion.textContent = label;
-}).catch(function() {});
+// Skipped in AirConsole — display-airconsole.js already populates
+// lobby-version-label via injectVersionLabel (build-time __AC_VERSION__),
+// and the cross-origin fetch from the AC iframe would only fail silently.
+if (!document.body.classList.contains('airconsole')) {
+  fetch('/api/version').then(function(r) { return r.json(); }).then(function(data) {
+    var label = data.version || '';
+    if (!data.isProduction && data.commit) {
+      label += ' (#' + data.commit + ')';
+    }
+    var welcomeVersion = document.getElementById('welcome-version-label');
+    if (welcomeVersion) welcomeVersion.textContent = label;
+    var lobbyVersion = document.getElementById('lobby-version-label');
+    if (lobbyVersion) lobbyVersion.textContent = label;
+  }).catch(function() {});
+}
 
 var bgCanvas = document.getElementById('bg-canvas');
 if (bgCanvas && (urlParams.get('test') !== '1' || urlParams.get('bg') === '1')) {

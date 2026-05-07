@@ -24,8 +24,8 @@ const { waitForFont } = require('./helpers');
  */
 
 const USE_MOCK = process.env.AC_MOCK === '1' || !!process.env.CI;
-// Port matches playwright.config.js webServer.port
-const GAME_URL = process.env.AC_GAME_URL || 'http://localhost:4100';
+// Port matches playwright.config.js webServer.port (PW_PORT override).
+const GAME_URL = process.env.AC_GAME_URL || `http://localhost:${process.env.PW_PORT || 4100}`;
 const IS_LOCAL = GAME_URL.includes('localhost') || GAME_URL.includes('127.0.0.1');
 const MOCK_SCRIPT = path.join(__dirname, 'airconsole-mock.js');
 
@@ -92,12 +92,56 @@ async function waitForFrame(page, urlSubstring, timeout = 30000) {
   throw new Error('Frame "' + urlSubstring + '" not found within ' + timeout + 'ms');
 }
 
+// Find our HexStacker frame inside the AC simulator. The HTTP simulator
+// hosts the game iframe at about:blank (injecting our HTML rather than
+// navigating), so we can't match by URL — identify by `body.airconsole`,
+// which is unique to the AC build of screen.html / controller.html.
+async function waitForAppFrame(page, timeout = 30000) {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    for (const f of page.frames()) {
+      try {
+        const isOurs = await f.evaluate(() =>
+          document.body && document.body.classList && document.body.classList.contains('airconsole')
+        );
+        if (isOurs) return f;
+      } catch (_) { /* cross-origin or detached frame */ }
+    }
+    await page.waitForTimeout(500);
+  }
+  throw new Error('App frame (body.airconsole) not found within ' + timeout + 'ms');
+}
+
 async function getPairingCode(screenPage) {
   const acFrame = await waitForFrame(screenPage, 'frontend', 15000);
-  await acFrame.waitForFunction(() => /\d{3}\s+\d{3}/.test(document.body.innerText), null, { timeout: 30000 });
-  return await acFrame.evaluate(() => {
-    const match = document.body.innerText.match(/(\d{3}\s+\d{3}(?:\s+\d+)?)/);
-    return match ? match[1].replace(/\s/g, '') : null;
+  // Match a digit/whitespace run anchored at digits on both ends. AC's
+  // simulator has used "1393", "132 084", and "131 32" across versions —
+  // the grouping isn't stable, so we accept any whitespace pattern and
+  // rely on the post-strip 4–10 digit guard below to filter out short
+  // page numbers (player counts, timers, etc.).
+  const CODE_RE = /\b\d[\d\s]{2,18}\d\b/;
+  await acFrame.waitForFunction((reSrc) => {
+    const m = document.body.innerText.match(new RegExp(reSrc));
+    if (!m) return false;
+    const code = m[0].replace(/\s/g, '');
+    return code.length >= 4 && code.length <= 10;
+  }, CODE_RE.source, { timeout: 30000 });
+  return await acFrame.evaluate((reSrc) => {
+    const m = document.body.innerText.match(new RegExp(reSrc));
+    if (!m) return null;
+    const code = m[0].replace(/\s/g, '');
+    return (code.length >= 4 && code.length <= 10) ? code : null;
+  }, CODE_RE.source);
+}
+
+// AirConsole's HTTP simulator now prompts for a Game ID via a native
+// dialog before it'll route the session. Auto-fill it on every page so
+// the dialog doesn't sit open and re-fire.
+const AC_GAME_ID = 'com.couchgames.stacker';
+function autoAnswerAcGameId(page) {
+  page.on('dialog', (dialog) => {
+    if (dialog.type() === 'prompt') dialog.accept(AC_GAME_ID).catch(() => {});
+    else dialog.accept().catch(() => {});
   });
 }
 
@@ -107,6 +151,7 @@ async function createLiveSession(screenCtx, ctrlCtx) {
     : 'https://www.airconsole.com/#' + GAME_URL + '/';
 
   const screenPage = await screenCtx.newPage();
+  autoAnswerAcGameId(screenPage);
   await screenPage.setViewportSize({ width: 1280, height: 720 });
   await screenPage.goto(screenURL, { waitUntil: 'domcontentloaded' });
   await screenPage.waitForTimeout(IS_LOCAL ? 20000 : 10000);
@@ -115,6 +160,7 @@ async function createLiveSession(screenCtx, ctrlCtx) {
   if (!code) throw new Error('Failed to get pairing code');
 
   const ctrlPage = await ctrlCtx.newPage();
+  autoAnswerAcGameId(ctrlPage);
   await ctrlPage.setViewportSize({ width: 390, height: 844 });
 
   if (IS_LOCAL) {
@@ -132,8 +178,8 @@ async function createLiveSession(screenCtx, ctrlCtx) {
     await cf.locator('button', { hasText: /ja|yes/i }).click({ timeout: 10000 });
   }
 
-  const screenFrame = await waitForFrame(screenPage, 'screen.html', 30000);
-  const ctrlFrame = await waitForFrame(ctrlPage, 'controller.html', 30000);
+  const screenFrame = await waitForAppFrame(screenPage, 30000);
+  const ctrlFrame = await waitForAppFrame(ctrlPage, 30000);
 
   return { screenFrame, ctrlFrame, screenPage, ctrlPage };
 }
