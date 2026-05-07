@@ -127,7 +127,7 @@ var isScenario = !!new URLSearchParams(location.search).get('scenario');
 if (!skipNameScreen && !isScenario) {
   var isNewClient = !hadStoredId && !rejoinId;
   var relayHttpUrl = RELAY_URL.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
-  fetch(relayHttpUrl + '/room/' + encodeURIComponent(roomCode))
+  fetch(relayHttpUrl + '/room/' + encodeURIComponent(roomCode) + (instanceId ? '?instance=' + encodeURIComponent(instanceId) : ''))
     .then(function (res) {
       // Bail if the user has already moved past the name screen — a slow
       // probe arriving after a successful join would otherwise evict them.

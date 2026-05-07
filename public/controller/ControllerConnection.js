@@ -30,7 +30,10 @@ function connect() {
 
   if (party) party.close();
 
-  party = new PartyConnection(RELAY_URL, { clientId: clientId });
+  // Path-routed WS so the relay can pin us to the instance the room lives on.
+  var relayUrl = RELAY_URL + '/' + encodeURIComponent(roomCode)
+    + (instanceId ? '?instance=' + encodeURIComponent(instanceId) : '');
+  party = new PartyConnection(relayUrl, { clientId: clientId });
 
   party.onOpen = function () {
     party.join(roomCode);
@@ -156,7 +159,7 @@ function performDisconnect() {
   var params = new URLSearchParams(location.search);
   params.delete('rejoin');
   var qs = params.toString();
-  history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
+  history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
   rejoinId = null;
   try { localStorage.removeItem('clientId_' + roomCode); } catch (e) { /* iframe sandbox */ }
   playerColor = null;

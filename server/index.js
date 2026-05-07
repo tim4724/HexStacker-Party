@@ -49,7 +49,7 @@ function sendJson(res, statusCode, payload) {
 }
 
 function generateQRMatrix(text) {
-  const qr = QRCode.create(text, { errorCorrectionLevel: 'M' });
+  const qr = QRCode.create(text, { errorCorrectionLevel: 'L' });
   const size = qr.modules.size;
   const modules = Array.from(qr.modules.data);
   const quiet = 1;
