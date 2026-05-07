@@ -114,21 +114,23 @@ async function waitForAppFrame(page, timeout = 30000) {
 
 async function getPairingCode(screenPage) {
   const acFrame = await waitForFrame(screenPage, 'frontend', 15000);
-  // Pairing code length varies with the AirConsole simulator version
-  // (current: contiguous 4 digits like "1393"; legacy: "123 456"). Accept
-  // any 2–10 digit code, tolerating internal whitespace for the legacy form.
-  const CODE_RE = /\b\d[\d\s]{0,18}\d\b/;
+  // Match a digit/whitespace run anchored at digits on both ends. AC's
+  // simulator has used "1393", "132 084", and "131 32" across versions —
+  // the grouping isn't stable, so we accept any whitespace pattern and
+  // rely on the post-strip 4–10 digit guard below to filter out short
+  // page numbers (player counts, timers, etc.).
+  const CODE_RE = /\b\d[\d\s]{2,18}\d\b/;
   await acFrame.waitForFunction((reSrc) => {
     const m = document.body.innerText.match(new RegExp(reSrc));
     if (!m) return false;
     const code = m[0].replace(/\s/g, '');
-    return code.length >= 2 && code.length <= 10;
+    return code.length >= 4 && code.length <= 10;
   }, CODE_RE.source, { timeout: 30000 });
   return await acFrame.evaluate((reSrc) => {
     const m = document.body.innerText.match(new RegExp(reSrc));
     if (!m) return null;
     const code = m[0].replace(/\s/g, '');
-    return (code.length >= 2 && code.length <= 10) ? code : null;
+    return (code.length >= 4 && code.length <= 10) ? code : null;
   }, CODE_RE.source);
 }
 

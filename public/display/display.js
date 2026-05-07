@@ -299,7 +299,7 @@ reconnectBtn.addEventListener('click', function() {
 // and the cross-origin fetch from the AC iframe would only fail silently.
 if (!document.body.classList.contains('airconsole')) {
   fetch('/api/version').then(function(r) { return r.json(); }).then(function(data) {
-    var label = data.version;
+    var label = data.version || '';
     if (!data.isProduction && data.commit) {
       label += ' (#' + data.commit + ')';
     }
