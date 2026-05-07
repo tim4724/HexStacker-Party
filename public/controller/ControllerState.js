@@ -66,7 +66,11 @@ var rejoinId = new URLSearchParams(location.search).get('rejoin');
 // Relay instance shard — set on the join URL/QR by the display (URL fragment,
 // e.g. https://host/A3KX#00bb33ff) so this controller's WebSocket lands on
 // the same shard that owns the room. Fragment keeps it out of HTTP requests.
-var instanceId = (location.hash || '').slice(1) || null;
+var instanceId = (function() {
+  var raw = (location.hash || '').slice(1);
+  if (!raw) return null;
+  try { return decodeURIComponent(raw); } catch (_) { return raw; }
+})();
 var skipNameScreen = false;
 
 // --- Viewport ---

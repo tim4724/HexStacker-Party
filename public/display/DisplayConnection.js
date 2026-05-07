@@ -111,7 +111,7 @@ function onRoomCreated(partyRoomCode, instance) {
   // Stash the instance in the URL fragment so it never hits the server in
   // requests/logs/CDN caches; the controller reads it from location.hash and
   // expands back to ?instance= when talking to the relay.
-  var newJoinUrl = getBaseUrl() + '/' + partyRoomCode + (lastInstance ? '#' + lastInstance : '');
+  var newJoinUrl = getBaseUrl() + '/' + partyRoomCode + (lastInstance ? '#' + encodeURIComponent(lastInstance) : '');
 
   // If still on welcome screen, cache the room for instant use later
   if (currentScreen === SCREEN.WELCOME) {
@@ -227,7 +227,7 @@ function onDisplayRejoined(partyRoomCode, clients) {
   roomCode = partyRoomCode;
   lastRoomCode = partyRoomCode;
 
-  joinUrl = getBaseUrl() + '/' + roomCode + (lastInstance ? '#' + lastInstance : '');
+  joinUrl = getBaseUrl() + '/' + roomCode + (lastInstance ? '#' + encodeURIComponent(lastInstance) : '');
   renderJoinUrl(joinUrl);
 
   // Reset the master_changed dedup sentinel — on rejoin we re-push WELCOME
