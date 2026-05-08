@@ -19,14 +19,16 @@ var joinUrl = null;
 var lastRoomCode = null;
 var lastInstance = null;       // relay instance id from `created` — pins reconnect / controller WS to the same shard
 var gameState = null;
-var players = new Map();       // clientId -> { playerName, playerIndex, startLevel, lastPingTime, joinedAt }
-                               // color is derived via PLAYER_COLORS[playerIndex] — never stored
-var playerOrder = [];          // compact list of active clientIds for game layout. Lobby cards
-                               // and in-game boards both sort by joinedAt; playerIndex is the
+var players = new Map();       // peerIndex (number) -> { playerName, playerIndex, startLevel, lastPingTime, joinedAt }
+                               // peerIndex is the relay slot id (1..N for controllers; the display
+                               // itself owns index 0 and is not in this map). playerIndex is the
+                               // chosen color slot, derived via PLAYER_COLORS[playerIndex] — never stored.
+var playerOrder = [];          // compact list of active controller peerIndices for game layout. Lobby
+                               // cards and in-game boards both sort by joinedAt; playerIndex is the
                                // chosen color slot only.
-var hostClientId = null;       // sticky host — the first joiner owns this slot; handoff happens
+var hostPeerIndex = null;      // sticky host — the first joiner owns this slot; handoff happens
                                // only when the host actually leaves via onPeerLeft. Color changes
-                               // do not affect it. See getHostClientId() / electNextHost() below.
+                               // do not affect it. See getHostPeerIndex() / electNextHost() below.
 var _joinSequence = 0;         // monotonic counter for player.joinedAt — Date.now() collides
                                // when two peers arrive in the same ms, which matters for the
                                // electNextHost tiebreak and calculateLayout's stable sort.
@@ -94,7 +96,7 @@ function resetRoomData() {
   countdown.remaining = 0;
   players.clear();
   playerOrder = [];
-  hostClientId = null;
+  hostPeerIndex = null;
   _joinSequence = 0;
   paused = false;
   setAutoPaused(false);
@@ -170,33 +172,33 @@ function sanitizePlayerName(name, slotIndex) {
 //
 // Disconnected players (flagged via disconnectedQRs) are skipped so the host
 // role temporarily defers to a present player during a mid-game reconnect.
-// If the stored hostClientId is unavailable (disconnected / ineligible), the
+// If the stored hostPeerIndex is unavailable (disconnected / ineligible), the
 // fallback returns the oldest-joined present player WITHOUT mutating
-// hostClientId — the sticky slot only moves when onPeerLeft hands it off.
+// hostPeerIndex — the sticky slot only moves when onPeerLeft hands it off.
 // NOTE: tests/display-state.test.js mirrors this algorithm — keep in sync.
-function getHostClientId() {
+function getHostPeerIndex() {
   var restricted = (roomState === ROOM_STATE.PLAYING
                  || roomState === ROOM_STATE.COUNTDOWN
                  || roomState === ROOM_STATE.RESULTS)
                 && playerOrder.length > 0;
   var eligible = restricted ? new Set(playerOrder) : null;
 
-  if (party && typeof party.getMasterClientId === 'function') {
-    var acHost = party.getMasterClientId();
+  if (party && typeof party.getMasterPeerIndex === 'function') {
+    var acHost = party.getMasterPeerIndex();
     // Only trust it if the device has completed HELLO, is currently
     // connected, and (when restricted) is an active participant; otherwise
     // fall through until they qualify.
-    if (acHost && players.has(acHost) && !disconnectedQRs.has(acHost)
+    if (acHost != null && players.has(acHost) && !disconnectedQRs.has(acHost)
         && (!restricted || eligible.has(acHost))) {
       return acHost;
     }
   }
 
   // Sticky host — preferred when currently available.
-  if (hostClientId && players.has(hostClientId)
-      && !disconnectedQRs.has(hostClientId)
-      && (!restricted || eligible.has(hostClientId))) {
-    return hostClientId;
+  if (hostPeerIndex != null && players.has(hostPeerIndex)
+      && !disconnectedQRs.has(hostPeerIndex)
+      && (!restricted || eligible.has(hostPeerIndex))) {
+    return hostPeerIndex;
   }
 
   // Fallback: oldest-joined eligible present player. Read-only — the

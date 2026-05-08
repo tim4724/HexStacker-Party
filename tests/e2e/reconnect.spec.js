@@ -142,16 +142,16 @@ test.describe('Reconnection', () => {
     await waitForDisplayGame(page);
 
     // Alice (host) drops out mid-game.
-    const aliceId = await c1.evaluate(() => clientId);
+    const aliceId = await c1.evaluate(() => peerIndex);
     await c1.close();
 
-    // Display should flag Alice as disconnected, and getHostClientId() should
+    // Display should flag Alice as disconnected, and getHostPeerIndex() should
     // hand off to Bob (lowest-slot among connected playerOrder members).
     await page.waitForFunction((id) => {
       return typeof disconnectedQRs !== 'undefined'
           && disconnectedQRs.has(id)
-          && typeof getHostClientId === 'function'
-          && getHostClientId() !== id;
+          && typeof getHostPeerIndex === 'function'
+          && getHostPeerIndex() !== id;
     }, aliceId, { timeout: 10000 });
 
     // Bob's controller should receive the LOBBY_UPDATE and flip isHost.

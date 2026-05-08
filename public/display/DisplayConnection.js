@@ -17,6 +17,9 @@ function connectAndCreateRoom() {
   var initialUrl = (lastRoomCode && lastInstance)
     ? RELAY_URL + '/' + encodeURIComponent(lastRoomCode) + '?instance=' + encodeURIComponent(lastInstance)
     : RELAY_URL;
+  // The display's clientId acts as a per-slot bearer secret on reconnect.
+  // 'display' is a stable string the relay matches to slot 0 across reloads.
+  // It never crosses the wire to peers — peers see only numeric indices.
   party = new PartyConnection(initialUrl, { clientId: 'display' });
 
   party.onOpen = function() {
@@ -57,20 +60,20 @@ function connectAndCreateRoom() {
         onRoomCreated(msg.room, msg.instance);
         break;
       case 'joined':
-        onDisplayRejoined(msg.room, msg.clients);
+        onDisplayRejoined(msg.room, msg.peers);
         break;
       case 'peer_joined':
-        onPeerJoined(msg.clientId);
+        onPeerJoined(msg.index);
         break;
       case 'peer_left':
-        onPeerLeft(msg.clientId);
+        onPeerLeft(msg.index);
         break;
       case 'master_changed':
         // AirConsole re-picked the master controller (e.g. premium upgrade).
         // Fires in any room state by design: menu-gate checks query host live
         // at message time, but controllers' isHost flags for their lobby /
         // results banners only refresh via LOBBY_UPDATE. A mid-game onPremium
-        // is intentional — we always follow what getMasterClientId dictates.
+        // is intentional — we always follow what getMasterPeerIndex dictates.
         maybeBroadcastHostChange();
         break;
       case 'error':
@@ -85,7 +88,7 @@ function connectAndCreateRoom() {
   };
 
   party.onMessage = function(from, data) {
-    if (from === 'display' && data && data.type === '_heartbeat') {
+    if (from === 0 && data && data.type === '_heartbeat') {
       lastHeartbeatEcho = Date.now();
       return;
     }
@@ -222,7 +225,7 @@ function applyRoomCreated(partyRoomCode, newJoinUrl) {
   });
 }
 
-function onDisplayRejoined(partyRoomCode, clients) {
+function onDisplayRejoined(partyRoomCode, peers) {
   // Display reconnected to existing room — resync state
   roomCode = partyRoomCode;
   lastRoomCode = partyRoomCode;
@@ -235,9 +238,10 @@ function onDisplayRejoined(partyRoomCode, clients) {
   // should broadcast regardless of what the sentinel held pre-disconnect.
   _lastBroadcastedHostId = null;
 
-  // Reset liveness for clients still in the room; handle missing ones
+  // Reset liveness for peers still in the room; handle missing ones.
+  // peers is the relay's list of other-peer indices (excludes self, i.e. 0).
   var now = Date.now();
-  var connectedSet = new Set(clients || []);
+  var connectedSet = new Set(peers || []);
   var disconnectedIds = [];
   for (const pEntry of players) {
     if (connectedSet.has(pEntry[0])) {
@@ -263,8 +267,8 @@ function onDisplayRejoined(partyRoomCode, clients) {
   }
 
   // Re-send WELCOME to all known players so controllers clear their reconnect overlay
-  var hostId = getHostClientId();
-  var hostPlayer = hostId ? players.get(hostId) : null;
+  var hostId = getHostPeerIndex();
+  var hostPlayer = hostId != null ? players.get(hostId) : null;
   var hostName = hostPlayer ? hostPlayer.playerName : null;
   var hostColorIndex = hostPlayer ? hostPlayer.playerIndex : null;
   var takenColorIndices = collectTakenColorIndices();
@@ -306,14 +310,14 @@ function onDisplayRejoined(partyRoomCode, clients) {
   }
 }
 
-function onPeerJoined(clientId) {
-  if (players.has(clientId)) return;
+function onPeerJoined(peerIndex) {
+  if (players.has(peerIndex)) return;
   if (players.size >= GameConstants.MAX_PLAYERS) return;
 
   var index = nextAvailableSlot();
   if (index < 0) return;
 
-  players.set(clientId, {
+  players.set(peerIndex, {
     playerName: 'P' + (index + 1),
     playerIndex: index,
     startLevel: 1,
@@ -329,12 +333,12 @@ function onPeerJoined(clientId) {
   // First joiner in a pristine room owns the host slot. Subsequent joiners
   // do not — sticky host means the slot only moves when the current host
   // leaves (see onPeerLeft / electNextHost).
-  if (hostClientId == null) hostClientId = clientId;
+  if (hostPeerIndex == null) hostPeerIndex = peerIndex;
 
   // Only add to playerOrder in lobby — late joiners wait for next game.
   // playerOrder is snapshotted at game start by runGameLocally().
   if (roomState === ROOM_STATE.LOBBY) {
-    playerOrder.push(clientId);
+    playerOrder.push(peerIndex);
     updatePlayerList();
     updateStartButton();
     // Notify existing controllers that a palette slot just got claimed.
@@ -346,10 +350,10 @@ function onPeerJoined(clientId) {
   }
 }
 
-function onPeerLeft(clientId) {
-  if (!players.has(clientId)) return;
+function onPeerLeft(peerIndex) {
+  if (!players.has(peerIndex)) return;
 
-  cleanupPlayerInput(clientId);
+  cleanupPlayerInput(peerIndex);
 
   // Sticky host: transfer the slot immediately if the departing player
   // held it, in ANY room state. Doing this BEFORE any subsequent mutation
@@ -359,14 +363,14 @@ function onPeerLeft(clientId) {
   // mid-game host does NOT reclaim — they were promoted to a regular
   // player the instant their WS dropped. This is the intended behavior
   // per the "sticky host" design.
-  if (hostClientId === clientId) {
-    hostClientId = electNextHost(clientId);
+  if (hostPeerIndex === peerIndex) {
+    hostPeerIndex = electNextHost(peerIndex);
   }
 
   if (roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN) {
-    if (playerOrder.indexOf(clientId) >= 0) {
+    if (playerOrder.indexOf(peerIndex) >= 0) {
       // Active game participant — keep in Map for seamless reconnect
-      showDisconnectQR(clientId);
+      showDisconnectQR(peerIndex);
       checkAllPlayersDisconnected();
       // Host may have handed off — refresh isHost flags so the pause-overlay
       // Return-to-lobby button appears on the new host's controller and the
@@ -375,18 +379,18 @@ function onPeerLeft(clientId) {
       if (!allPlayersDisconnected()) maybeBroadcastHostChange();
     } else {
       // Late joiner (never in the game) — remove silently
-      players.delete(clientId);
-      garbageIndicatorEffects.delete(clientId);
-      garbageDefenceEffects.delete(clientId);
+      players.delete(peerIndex);
+      garbageIndicatorEffects.delete(peerIndex);
+      garbageDefenceEffects.delete(peerIndex);
     }
   } else if (roomState === ROOM_STATE.LOBBY) {
-    removeLobbyPlayer(clientId);
+    removeLobbyPlayer(peerIndex);
   } else if (roomState === ROOM_STATE.RESULTS) {
-    players.delete(clientId);
-    var idx = playerOrder.indexOf(clientId);
+    players.delete(peerIndex);
+    var idx = playerOrder.indexOf(peerIndex);
     if (idx !== -1) playerOrder.splice(idx, 1);
-    garbageIndicatorEffects.delete(clientId);
-    garbageDefenceEffects.delete(clientId);
+    garbageIndicatorEffects.delete(peerIndex);
+    garbageDefenceEffects.delete(peerIndex);
     // Return to lobby when no game participants remain (late joiners don't count)
     var hasParticipants = false;
     for (var i = 0; i < playerOrder.length; i++) {
@@ -406,11 +410,11 @@ function onPeerLeft(clientId) {
   }
 }
 
-function removeLobbyPlayer(clientId) {
-  players.delete(clientId);
-  playerOrder = playerOrder.filter(function(id) { return id !== clientId; });
-  garbageIndicatorEffects.delete(clientId);
-  garbageDefenceEffects.delete(clientId);
+function removeLobbyPlayer(peerIndex) {
+  players.delete(peerIndex);
+  playerOrder = playerOrder.filter(function(id) { return id !== peerIndex; });
+  garbageIndicatorEffects.delete(peerIndex);
+  garbageDefenceEffects.delete(peerIndex);
   updatePlayerList();
   updateStartButton();
   if (players.size > 0) {
@@ -430,13 +434,13 @@ var _lastBroadcastedHostId = null;
 // there's no one to notify so we don't churn on the last-player-leaves path.
 function maybeBroadcastHostChange() {
   if (players.size === 0) return;
-  if (getHostClientId() === _lastBroadcastedHostId) return;
+  if (getHostPeerIndex() === _lastBroadcastedHostId) return;
   broadcastLobbyUpdate();
 }
 
 function broadcastLobbyUpdate() {
-  var hostId = getHostClientId();
-  var hostPlayer = hostId ? players.get(hostId) : null;
+  var hostId = getHostPeerIndex();
+  var hostPlayer = hostId != null ? players.get(hostId) : null;
   var hostName = hostPlayer ? hostPlayer.playerName : null;
   var hostColorIndex = hostPlayer ? hostPlayer.playerIndex : null;
   var takenColorIndices = collectTakenColorIndices();
@@ -493,24 +497,24 @@ function fetchQR(text, callback) {
     .catch(function(err) { console.error('QR fetch failed:', err); });
 }
 
-function showDisconnectQR(clientId) {
+function showDisconnectQR(peerIndex) {
   // Set immediately so allPlayersDisconnected() can check synchronously
-  disconnectedQRs.set(clientId, null);
+  disconnectedQRs.set(peerIndex, null);
   if (!joinUrl) return;
   // Splice ?rejoin= in before the fragment so the instance hash stays intact.
   var hashIdx = joinUrl.indexOf('#');
   var base = hashIdx >= 0 ? joinUrl.slice(0, hashIdx) : joinUrl;
   var hash = hashIdx >= 0 ? joinUrl.slice(hashIdx) : '';
-  var rejoinUrl = base + '?rejoin=' + encodeURIComponent(clientId) + hash;
+  var rejoinUrl = base + '?rejoin=' + encodeURIComponent(peerIndex) + hash;
   fetchQR(rejoinUrl, function(qrMatrix) {
-    if (!players.has(clientId)) return;
+    if (!players.has(peerIndex)) return;
     if (!qrMatrix) {
-      disconnectedQRs.set(clientId, null);
+      disconnectedQRs.set(peerIndex, null);
       return;
     }
     var offscreen = document.createElement('canvas');
     renderQR(offscreen, qrMatrix, 512);
-    disconnectedQRs.set(clientId, offscreen);
+    disconnectedQRs.set(peerIndex, offscreen);
   });
 }
 

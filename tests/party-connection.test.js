@@ -96,8 +96,8 @@ describe('PartyConnection', () => {
     pc.onMessage = (from, data) => { received = { from, data }; };
     pc.connect();
     MockWebSocket._instances[0]._simulateOpen();
-    MockWebSocket._instances[0]._simulateMessage({ type: 'message', from: 'player1', data: { action: 'left' } });
-    assert.deepStrictEqual(received, { from: 'player1', data: { action: 'left' } });
+    MockWebSocket._instances[0]._simulateMessage({ type: 'message', from: 1, data: { action: 'left' } });
+    assert.deepStrictEqual(received, { from: 1, data: { action: 'left' } });
   });
 
   test('onProtocol callback fires for non-message types', () => {
@@ -115,11 +115,11 @@ describe('PartyConnection', () => {
     const pc = new PartyConnection('wss://test.example.com', { clientId: 'display' });
     pc.connect();
     MockWebSocket._instances[0]._simulateOpen();
-    pc.sendTo('player1', { type: 'WELCOME', color: 'red' });
+    pc.sendTo(1, { type: 'WELCOME', color: 'red' });
     assert.deepStrictEqual(MockWebSocket._instances[0]._sent[0], {
       type: 'send',
       data: { type: 'WELCOME', color: 'red' },
-      to: 'player1'
+      to: 1
     });
   });
 

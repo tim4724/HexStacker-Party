@@ -3,15 +3,22 @@
 /**
  * PartyConnection — WebSocket wrapper for Party-Server relay protocol.
  *
+ * Public peers are addressed by numeric slot index (0, 1, 2, …). The room
+ * creator is always index 0. Indices are stable for the room's lifetime and
+ * never reassigned. clientId is supplied on create/join as a per-slot bearer
+ * secret — the relay matches it to the slot for reconnect — and never crosses
+ * the wire in any other direction. Callers must keep clientId private (don't
+ * embed it in app messages, URLs, or logs).
+ *
  * Party-Server protocol:
  *   Client → PS:  create { clientId, maxClients }
  *   Client → PS:  join   { clientId, room }
- *   Client → PS:  send   { data, to? }
- *   PS → Client:  created      { room, instance?, region? }
- *   PS → Client:  joined       { room, clients[] }
- *   PS → Client:  peer_joined  { clientId }
- *   PS → Client:  peer_left    { clientId }
- *   PS → Client:  message      { from, data }
+ *   Client → PS:  send   { data, to? }            // to is a peer index (number)
+ *   PS → Client:  created      { room, index: 0, instance?, region? }
+ *   PS → Client:  joined       { room, index, peers: number[] }
+ *   PS → Client:  peer_joined  { index }
+ *   PS → Client:  peer_left    { index }
+ *   PS → Client:  message      { from, data }     // from is a peer index (number)
  *   PS → Client:  error        { message }
  */
 class PartyConnection {
@@ -28,7 +35,7 @@ class PartyConnection {
     this.onOpen = null;        // () => void
     this.onClose = null;       // (attempt: number, maxAttempts: number, meta?: {replaced: boolean}) => void
     this.onError = null;       // () => void
-    this.onMessage = null;     // (from: string, data: object) => void
+    this.onMessage = null;     // (from: number, data: object) => void
     this.onProtocol = null;    // (type: string, msg: object) => void
   }
 

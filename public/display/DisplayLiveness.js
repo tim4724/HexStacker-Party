@@ -14,7 +14,7 @@ function startLivenessCheck() {
     var now = Date.now();
 
     // Send heartbeat echo to self via relay
-    party.sendTo('display', { type: '_heartbeat' });
+    party.sendTo(0, { type: '_heartbeat' });
 
     // Check if our own connection is dead (no echo back within timeout)
     var displayDead = heartbeatSent && (now - lastHeartbeatEcho > GameConstants.LIVENESS_TIMEOUT_MS);
@@ -59,7 +59,7 @@ function startLivenessCheck() {
       checkAllPlayersDisconnected();
       // A silent heartbeat timeout can take out the host — refresh isHost
       // flags so the handoff reaches the remaining controllers. Skip when
-      // everyone is gone: getHostClientId() would return null and the
+      // everyone is gone: getHostPeerIndex() would return null and the
       // broadcast would reach no one. No-op when the lost player wasn't
       // the host.
       if (!allPlayersDisconnected()) maybeBroadcastHostChange();

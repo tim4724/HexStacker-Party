@@ -19,23 +19,23 @@ function makeFakeAirConsole(overrides) {
   }, overrides || {});
 }
 
-describe('AirConsoleAdapter.getMasterClientId', () => {
+describe('AirConsoleAdapter.getMasterPeerIndex', () => {
   it('returns null when no controller is connected', () => {
     const ac = makeFakeAirConsole();
     const adapter = new AirConsoleAdapter(ac, { role: 'display' });
-    assert.equal(adapter.getMasterClientId(), null);
+    assert.equal(adapter.getMasterPeerIndex(), null);
   });
 
-  it('returns String(master device id) when present', () => {
+  it('returns the numeric master device id when present', () => {
     const ac = makeFakeAirConsole({ _master: 7 });
     const adapter = new AirConsoleAdapter(ac, { role: 'display' });
-    assert.equal(adapter.getMasterClientId(), '7');
+    assert.equal(adapter.getMasterPeerIndex(), 7);
   });
 
   it('returns null from the controller role', () => {
     const ac = makeFakeAirConsole({ _master: 7 });
     const adapter = new AirConsoleAdapter(ac, { role: 'controller' });
-    assert.equal(adapter.getMasterClientId(), null);
+    assert.equal(adapter.getMasterPeerIndex(), null);
   });
 });
 
