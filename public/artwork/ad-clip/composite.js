@@ -68,15 +68,26 @@ displayIframe.src = displayURL();
 // lobby tree (gradient title, animated player cards, welcomeBg canvas).
 // Lanczos quality is invisible there since the lobby is large gradients
 // and headline text — no fine canvas detail to lose.
-if (CLIP === 'lobby-reveal') {
-  displayIframe.addEventListener('load', () => {
-    const doc = displayIframe.contentDocument;
-    if (!doc || !doc.head) return;
+displayIframe.addEventListener('load', () => {
+  const doc = displayIframe.contentDocument;
+  const win = displayIframe.contentWindow;
+  // Raise DisplayRender.js's per-frame deltaMs clamp from 50 → 500. Under
+  // capture (4K paint pressure + composition heartbeat + TIME_SCALE
+  // patching) RAF callbacks can stall 200-1000ms wall-clock between fires;
+  // the default clamp would silently drop those gravity ticks and the
+  // engine would appear to pause (pieces stop falling for the stall span).
+  // 500ms keeps a soft spiral-of-death guard while letting normal stalls
+  // catch up on the next RAF.
+  if (win) win.__MAX_FRAME_DELTA_MS_OVERRIDE__ = 500;
+  // Lobby-only: hide the START button. The simulated-press animation
+  // reads as "weird" in the trailer (button just turns red briefly with
+  // no continuation). visibility:hidden so it still occupies its slot.
+  if (CLIP === 'lobby-reveal' && doc && doc.head) {
     const style = doc.createElement('style');
     style.textContent = '#start-btn { visibility: hidden !important; }';
     doc.head.appendChild(style);
-  });
-}
+  }
+});
 
 // --- Build phone iframes ---
 const phones = [];

@@ -134,6 +134,14 @@ const FREEZE_THRESHOLD_MS = {
 };
 const MAX_CAPTURE_ATTEMPTS = 3;
 
+// Clips that get the composition heartbeat (Page.captureScreenshot at 30Hz)
+// to keep their iframe's compositor cache fresh. Active gameplay clips DON'T
+// need it — the canvas re-paints every RAF, which itself triggers compositor
+// frames. The heartbeat for active content was suspected of causing 1-2s
+// renderer stalls during paint pressure (the 4K JPEG aggregation commit
+// blocked the iframe's RAF), so we restrict it to static-content clips.
+const HEARTBEAT_CLIPS = new Set(['lobby-reveal', 'winner', 'logo']);
+
 // Output frame rate. Native screencast emits at ~95 fps at 1080p, so 60 fps
 // output gets near-1:1 nearest-neighbour copies (rare duplicates).
 const FPS = 60;
@@ -322,7 +330,13 @@ async function captureOne(browser, aspect, clip, opts) {
       new Promise((_, rej) => setTimeout(() => rej(new Error('no screencast frame within 2s')), 2000)),
     ]);
 
-    stopHeartbeat = startCompositionHeartbeat(cdp);
+    // Heartbeat is only needed for static-content clips; active gameplay
+    // clips have constantly-repainting canvas which already drives compositor
+    // submissions. Skipping it for those avoids the 4K-aggregation commit
+    // contention that was stalling the iframe RAF for 1-2s at a time.
+    if (HEARTBEAT_CLIPS.has(clip.name)) {
+      stopHeartbeat = startCompositionHeartbeat(cdp);
+    }
     await page.evaluate(() => { window.__AD_CLIP_GO__ = true; });
     await page.waitForFunction(() => window.__AD_CLIP_DONE__ === true, null, {
       // Wall-clock budget: clip's game-time slot stretched by

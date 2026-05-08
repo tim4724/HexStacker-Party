@@ -46,7 +46,14 @@ function renderLoop(timestamp) {
 
   // Drive game physics from RAF
   if (displayGame && roomState === ROOM_STATE.PLAYING && !paused) {
-    var deltaMs = prevFrameTime ? Math.min(timestamp - prevFrameTime, MAX_FRAME_DELTA_MS) : 0;
+    // Allow capture harnesses (ad-clip) to raise the per-frame delta clamp
+    // — under heavy paint load + TIME_SCALE patching the capture iframe sees
+    // 200-1000ms wall-clock RAF gaps, which the default 50ms clamp turns
+    // into permanently-lost gravity ticks (pieces stop falling for the
+    // span of a paint stall). Production live games still hit the 50ms
+    // default unless the override is explicitly set.
+    var maxDelta = window.__MAX_FRAME_DELTA_MS_OVERRIDE__ || MAX_FRAME_DELTA_MS;
+    var deltaMs = prevFrameTime ? Math.min(timestamp - prevFrameTime, maxDelta) : 0;
     try {
       if (deltaMs > 0) {
         displayGame.update(deltaMs);
