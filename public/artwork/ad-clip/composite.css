@@ -220,6 +220,22 @@ body.clip-logo .title-card__tag { display: none; }
 body.clip-logo .title-card { gap: 0; }
 body.clip-logo .title-card__copy { align-items: center; }
 body.clip-logo .title-card__brand { font-size: 120px; text-align: center; }
+
+/* winner variant — same brand-only treatment as logo, but with the URL
+   anchored at the bottom of the frame as a soft CTA. */
+body.clip-winner .title-card__qr,
+body.clip-winner .title-card__tag { display: none; }
+body.clip-winner .title-card { gap: 0; }
+body.clip-winner .title-card__copy { align-items: center; }
+body.clip-winner .title-card__brand { font-size: 120px; text-align: center; }
+body.clip-winner .title-card__url {
+  position: absolute;
+  bottom: 80px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 36px;
+}
 .title-card__qr {
   width: 280px;
   height: 280px;
