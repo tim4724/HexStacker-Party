@@ -156,10 +156,10 @@ async function main() {
     process.exit(1);
   }
 
-  // Idempotent capture: skip clips that already have a meta.json with the
-  // same durationMs as the current config. Lets variants share gameplay
-  // captures (full and clean both use normal4p/pillow4p/neon4p/chaos8p, so
-  // running `clean` after `full` only captures the missing logo clip).
+  // Idempotent capture: skip clips that already have a meta.json matching
+  // the current clip + capture settings. Lets variants share gameplay
+  // captures (full and clean both use normal4p/pillow4p/neon4p/chaos8p) while
+  // still recapturing when quality knobs like AD_PROD/AD_MAX change.
   // Set AD_FORCE_RECAPTURE=1 to force a fresh capture of every clip.
   fs.mkdirSync(OUTPUT_RAW, { recursive: true });
   const force = process.env.AD_FORCE_RECAPTURE === '1';
@@ -172,7 +172,7 @@ async function main() {
       if (!force && fs.existsSync(metaPath)) {
         try {
           const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-          if (meta.durationMs === clip.durationMs) {
+          if (isReusableCapture(meta, aspect, clip)) {
             reused.push(`${clip.name}-${aspect.name}`);
             continue;
           }
@@ -218,7 +218,7 @@ async function captureOne(browser, aspect, clip, opts) {
   // allocated. `timeScale` triggers in-page time patching so the game runs
   // slower than wall-clock for higher-quality recording (see TIME_SCALE).
   // Non-scalable clips (CSS-animated card/lobby) get scale=1 regardless.
-  const clipTimeScale = NON_SCALABLE_CLIPS.has(clip.name) ? 1 : TIME_SCALE;
+  const clipTimeScale = clipTimeScaleFor(clip);
   const url = `${BASE_URL}/artwork/ad-clip/index.html?clip=${encodeURIComponent(clip.name)}&aspect=${aspect.name}&duration=${clip.durationMs}&timeScale=${clipTimeScale}`;
   const targetDir = path.join(OUTPUT_RAW, `clip-${clip.name}-${aspect.name}`);
   const stagingDir = path.join(targetDir, '_staging');
@@ -400,11 +400,27 @@ async function captureOne(browser, aspect, clip, opts) {
     captureWidth: aspect.width,
     captureHeight: aspect.height,
     scale: SCALE,
+    jpegQuality: JPEG_QUALITY,
+    timeScale: clipTimeScale,
   }, null, 2));
 
   fs.rmSync(stagingDir, { recursive: true, force: true });
   console.log(`    → ${path.relative(process.cwd(), targetDir)} (${writeIdx} frames, ~${actualClipMs}ms, max freeze ${maxFreezeMs.toFixed(0)}ms)`);
   return { freezeDetected: false, maxFreezeMs };
+}
+
+function isReusableCapture(meta, aspect, clip) {
+  return meta.durationMs === clip.durationMs &&
+    meta.fps === FPS &&
+    meta.captureWidth === aspect.width &&
+    meta.captureHeight === aspect.height &&
+    meta.scale === SCALE &&
+    meta.jpegQuality === JPEG_QUALITY &&
+    meta.timeScale === clipTimeScaleFor(clip);
+}
+
+function clipTimeScaleFor(clip) {
+  return NON_SCALABLE_CLIPS.has(clip.name) ? 1 : TIME_SCALE;
 }
 
 // Wrap captureOne with retry-on-freeze. Up to MAX_CAPTURE_ATTEMPTS
