@@ -174,7 +174,10 @@ async function main() {
 
   let chromium;
   try {
-    ({ chromium } = require('playwright'));
+    // @playwright/test is what's in devDependencies; it re-exports the same
+    // `chromium` namespace as the `playwright` core package, so requiring it
+    // directly avoids relying on the implicit transitive dep on `playwright`.
+    ({ chromium } = require('@playwright/test'));
   } catch (err) {
     console.error('Playwright not installed. Run `npx playwright install chromium` first.');
     process.exit(1);
@@ -199,8 +202,8 @@ async function main() {
   let browser = null;
   try {
     console.log(`Spawning server on port ${PORT}…`);
-    server = await spawnServer(PORT);
-    await waitForServer(PORT);
+    server = spawnServer(PORT);
+    await waitForServer(PORT, server);
     browser = await chromium.launch({ headless: true });
     for (const aspect of ASPECTS) {
       for (const clip of variant.clips) {
@@ -519,26 +522,28 @@ function startCompositionHeartbeat(cdp) {
 }
 
 function spawnServer(port) {
-  return new Promise((resolve, reject) => {
-    const proc = spawn('node', [path.resolve(__dirname, '..', '..', 'server', 'index.js')], {
-      env: { ...process.env, PORT: String(port) },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    proc.stderr.on('data', (chunk) => process.stderr.write('[server] ' + chunk));
-    // waitForServer() polls /health for actual readiness — much sturdier
-    // than parsing stdout for a magic "running on" string.
-    proc.on('error', reject);
-    proc.on('exit', (code) => {
-      if (code !== 0 && code !== null) reject(new Error(`Server exited early (code ${code})`));
-    });
-    resolve(proc);
+  const proc = spawn('node', [path.resolve(__dirname, '..', '..', 'server', 'index.js')], {
+    env: { ...process.env, PORT: String(port) },
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
+  proc.stderr.on('data', (chunk) => process.stderr.write('[server] ' + chunk));
+  // waitForServer() polls /health AND proc.exitCode for readiness — much
+  // sturdier than parsing stdout for a magic "running on" string, and
+  // surfaces a server crash immediately instead of waiting the full timeout.
+  return proc;
 }
 
-async function waitForServer(port, timeoutMs = 10000) {
+async function waitForServer(port, proc, timeoutMs = 10000) {
   const url = `http://localhost:${port}/health`;
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
+    // Fail-fast on a server crash. proc.exitCode flips to a non-null value
+    // the moment the child exits; without this check, a startup error
+    // (port in use, missing dep, syntax error) would burn the full
+    // timeoutMs before reporting a misleading "did not respond" message.
+    if (proc && proc.exitCode != null) {
+      throw new Error(`Server exited early (code ${proc.exitCode}) before /health became reachable`);
+    }
     try {
       const res = await fetch(url);
       if (res.ok) return;
