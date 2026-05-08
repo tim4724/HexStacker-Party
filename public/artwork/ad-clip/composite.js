@@ -45,6 +45,22 @@ function displayURL() {
 
 displayIframe.src = displayURL();
 
+// Hide the START button in the lobby clip — the simulated-press animation
+// reads as "weird" in the trailer (button just turns red briefly with no
+// continuation). visibility:hidden (not display:none) so it still occupies
+// its slot in the layout flow — without it the lobby content reflows
+// upward and the visual balance shifts. The lobby-reveal clip module
+// still runs the press for timing purposes; nothing's visible.
+if (CLIP === 'lobby-reveal') {
+  displayIframe.addEventListener('load', () => {
+    const doc = displayIframe.contentDocument;
+    if (!doc || !doc.head) return;
+    const style = doc.createElement('style');
+    style.textContent = '#start-btn { visibility: hidden !important; }';
+    doc.head.appendChild(style);
+  });
+}
+
 // --- Build phone iframes ---
 const phones = [];
 for (let i = 0; i < TOTAL_PHONES; i++) {

@@ -100,13 +100,45 @@ body:not(.clip-lobby-reveal) .phone:not(.phone--extra) {
   display: block;
 }
 
-/* Layout: 16:9 — 1920×1080. Display fills the centre, phones flank in
-   corners. Display is intentionally large so the gameplay reads as the
-   hero of the clip. */
+/* Layout: 16:9 — 1920×1080. Stage backdrop matches the display's
+   bg-primary so there's no visible seam where the iframe ends. */
 body.aspect-16x9 .stage {
   grid-template-columns: 1fr;
   grid-template-rows: 1fr;
+  background: var(--bg-primary);
 }
+
+/* 4-player gameplay clips (normal4p / pillow4p / neon4p): top-aligned
+   full-width display, ~1920×720 with an 80px gap above. Phones overlap
+   each board's bottom-right corner from below. */
+body.aspect-16x9.clip-normal4p .display-frame,
+body.aspect-16x9.clip-pillow4p .display-frame,
+body.aspect-16x9.clip-neon4p .display-frame {
+  width: 1920px;
+  height: 720px;
+  top: 80px;
+  margin: 0;
+  align-self: start;
+  justify-self: start;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Full-bleed display (no phones overlaid). chaos8p needs the room for
+   8 simultaneous boards; short3p is a phones-off variant by design;
+   lobby-reveal puts the lobby chrome front-and-centre with phones
+   making their entrance as the trailer cuts to normal4p. */
+body.aspect-16x9.clip-chaos8p .display-frame,
+body.aspect-16x9.clip-short3p .display-frame,
+body.aspect-16x9.clip-lobby-reveal .display-frame {
+  width: 1920px;
+  height: 1080px;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* winner / logo keep the default centred frame — iframe is hidden by the
+   clip module (opacity:0) so the title card alone occupies the stage. */
 body.aspect-16x9 .display-frame {
   width: 1440px;
   height: 810px;
@@ -114,16 +146,7 @@ body.aspect-16x9 .display-frame {
   align-self: center;
   justify-self: center;
 }
-/* chaos8p + short3p in 16:9 — display fills the entire frame (no phone
-   bezels). chaos8p needs the room for 8 simultaneous boards; short3p is
-   a phones-off variant by design. */
-body.aspect-16x9.clip-chaos8p .display-frame,
-body.aspect-16x9.clip-short3p .display-frame {
-  width: 1920px;
-  height: 1080px;
-  border-radius: 0;
-  box-shadow: none;
-}
+
 body.aspect-16x9 .phones {
   position: absolute;
   inset: 0;
@@ -131,38 +154,34 @@ body.aspect-16x9 .phones {
   width: 100%;
   height: 100%;
 }
+
+/* Phones — 85% of the standard iPhone-ish bezel (240×445 → 204×378).
+   Anchored bottom + right so each phone overlaps its board's bottom-right
+   corner from below. Right anchors offset 30px from each column right edge
+   so phone 3 has breathing room from the viewport boundary. */
 body.aspect-16x9 .phone {
   position: absolute;
-  /* ~1:1.85 — closer to a real iPhone aspect than the previous 1:2.05.
-     Wider phone gives the touch pad room to breathe so the feedback
-     pulse reads as a clear circle, not a tall ellipse-shaped void. */
-  width: 240px;
-  height: 445px;
+  width: 204px;
+  height: 378px;
+  bottom: 30px;
+  transform: none;
 }
-/* Phone positions tuned so warm-coloured players (Emma red, Jake orange)
-   stack on the LEFT side of the frame and cool-coloured players (Sofia
-   yellow, Liam green) stack on the RIGHT — clearer visual mapping than a
-   left-to-right colour gradient. Slot index = colour index, so slot 1
-   stays "Jake / orange" but its phone now sits at the bottom-left
-   corner; slot 2 stays "Sofia / yellow" but moves to top-right. */
-body.aspect-16x9 .phone[data-slot="0"] { top: 30px;    left: 30px;  transform: translateX(-300px); }
-body.aspect-16x9 .phone[data-slot="1"] { bottom: 30px; left: 30px;  transform: translateX(-300px); }
-body.aspect-16x9 .phone[data-slot="2"] { top: 30px;    right: 30px; transform: translateX(300px); }
-body.aspect-16x9 .phone[data-slot="3"] { bottom: 30px; right: 30px; transform: translateX(300px); }
-body.aspect-16x9 .phone.in[data-slot="0"],
-body.aspect-16x9 .phone.in[data-slot="1"],
-body.aspect-16x9 .phone.in[data-slot="2"],
-body.aspect-16x9 .phone.in[data-slot="3"] { transform: translateX(0); }
+body.aspect-16x9 .phone[data-slot="0"] { right: 1410px; }
+body.aspect-16x9 .phone[data-slot="1"] { right:  930px; }
+body.aspect-16x9 .phone[data-slot="2"] { right:  450px; }
+body.aspect-16x9 .phone[data-slot="3"] { right:   30px; }
 
 /* Extras only render in chaos8p (which we now do as a phones-off,
    full-bleed display). Hidden everywhere else. */
 body .phone--extra { display: none; }
 
 /* Phones step out for clips that don't use them: chaos8p (full-bleed
-   8-board layout), short3p (no-phones 3-board variant), winner + logo
-   (clean title card on a dark backdrop). */
+   8-board layout), short3p (no-phones 3-board variant), lobby-reveal
+   (full-bleed lobby chrome — phones enter at the cut to normal4p),
+   winner + logo (clean title card on a dark backdrop). */
 body.clip-chaos8p .phone,
 body.clip-short3p .phone,
+body.clip-lobby-reveal .phone,
 body.clip-winner .phone,
 body.clip-logo .phone { display: none; }
 
@@ -263,34 +282,3 @@ body.clip-logo .title-card__brand { font-size: 120px; text-align: center; }
   letter-spacing: 0.04em;
 }
 
-/* Lobby caption — fades in during the lobby reveal once the phones have
-   landed. Hidden by default; lobby-reveal.js toggles .in. */
-.lobby-caption {
-  position: absolute;
-  font-family: 'Orbitron', sans-serif;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #F7F1E8;
-  margin: 0;
-  opacity: 0;
-  pointer-events: none;
-  z-index: 8;
-  transition: opacity 350ms ease-out, transform 350ms ease-out;
-  transform: translateY(8px);
-}
-.lobby-caption.in {
-  opacity: 0.92;
-  transform: translateY(0);
-}
-body:not(.clip-lobby-reveal) .lobby-caption { display: none; }
-
-body.aspect-16x9 .lobby-caption {
-  bottom: 60px;
-  left: 50%;
-  transform: translate(-50%, 8px);
-  font-size: 22px;
-}
-body.aspect-16x9 .lobby-caption.in {
-  transform: translate(-50%, 0);
-}
