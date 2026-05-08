@@ -191,16 +191,39 @@ async function main() {
     process.exit(1);
   }
 
-  // Per-clip wipe (only the clips this variant captures), so variants can
-  // coexist on disk — running `clean` after `full` keeps the shared
-  // gameplay clips intact, and stitch can re-render either variant without
-  // re-capture as long as the configs haven't drifted.
+  // Idempotent capture: skip clips that already have a meta.json with the
+  // same durationMs as the current config. Lets variants share gameplay
+  // captures (full and clean both use normal4p/pillow4p/neon4p/chaos8p, so
+  // running `clean` after `full` only captures the missing logo clip).
+  // Set AD_FORCE_RECAPTURE=1 to force a fresh capture of every clip.
   fs.mkdirSync(OUTPUT_RAW, { recursive: true });
+  const force = process.env.AD_FORCE_RECAPTURE === '1';
+  const toCapture = [];
+  const reused = [];
   for (const aspect of ASPECTS) {
     for (const clip of variant.clips) {
       const dir = path.join(OUTPUT_RAW, `clip-${clip.name}-${aspect.name}`);
+      const metaPath = path.join(dir, 'meta.json');
+      if (!force && fs.existsSync(metaPath)) {
+        try {
+          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+          if (meta.durationMs === clip.durationMs) {
+            reused.push(`${clip.name}-${aspect.name}`);
+            continue;
+          }
+        } catch (_) {}
+      }
       if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+      toCapture.push({ aspect, clip });
     }
+  }
+  if (reused.length) console.log(`Reusing existing captures: ${reused.join(', ')}`);
+
+  // Skip the browser entirely if everything's already captured.
+  if (toCapture.length === 0) {
+    console.log('All clips have valid existing captures — nothing to do (set AD_FORCE_RECAPTURE=1 to override).');
+    console.log('Capture complete →', OUTPUT_RAW);
+    return;
   }
 
   // Server + browser both live in the try so a `waitForServer` timeout
@@ -213,10 +236,8 @@ async function main() {
     server = spawnServer(PORT);
     await waitForServer(PORT, server);
     browser = await chromium.launch({ headless: true });
-    for (const aspect of ASPECTS) {
-      for (const clip of variant.clips) {
-        await captureWithRetry(browser, aspect, clip);
-      }
+    for (const { aspect, clip } of toCapture) {
+      await captureWithRetry(browser, aspect, clip);
     }
   } finally {
     if (browser) await browser.close();
