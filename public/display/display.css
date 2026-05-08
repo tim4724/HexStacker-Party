@@ -672,6 +672,13 @@ body.airconsole #qr-container,
   animation: resultsButtonsEnter 0.4s ease 1.5s both;
 }
 
+/* Skip the 1.5s anti-misclick gate when returning to a tab that was
+   already on the results screen. */
+#results-screen.results-screen--ready #results-buttons {
+  animation: none;
+  pointer-events: auto;
+}
+
 /* Device-choice visibility on cramped viewports. Styles in
    /shared/device-choice.css. The ID+root-class selector (1,1,1) beats
    .device-choice.hidden (0,2,0) so the element shows even with the

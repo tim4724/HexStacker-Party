@@ -276,6 +276,7 @@ if (muteBtn) {
 
 // --- Screen Management ---
 function showScreen(name) {
+  var prev = currentScreen;
   currentScreen = name;
   // Suppress the mobile-hint overlay once the user is past the welcome
   // screen. Without this, narrowing a desktop browser during an active
@@ -287,6 +288,12 @@ function showScreen(name) {
   lobbyScreen.classList.toggle('hidden', name !== SCREEN.LOBBY);
   gameScreen.classList.toggle('hidden', name !== SCREEN.GAME && name !== SCREEN.RESULTS);
   resultsScreen.classList.toggle('hidden', name !== SCREEN.RESULTS);
+  // Re-arm the results anti-misclick gate on fresh entry. Re-entering
+  // RESULTS from itself preserves the --ready class added by
+  // visibilitychange.
+  if (name === SCREEN.RESULTS && prev !== SCREEN.RESULTS) {
+    resultsScreen.classList.remove('results-screen--ready');
+  }
   gameToolbar.classList.toggle('hidden', name === SCREEN.WELCOME);
   // Hide mute on lobby in AirConsole mode only — it would overlap with the
   // version label shown in that mode.

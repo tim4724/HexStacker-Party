@@ -913,6 +913,14 @@ html, body {
   animation: resultsButtonsEnter 0.4s ease 1.5s both;
 }
 
+/* Skip the 1.5s anti-misclick gate when returning to a tab that was
+   already on the results screen — same reasoning as
+   #pause-overlay.pause-overlay--ready. */
+#gameover-screen.gameover-screen--ready #gameover-buttons {
+  animation: none;
+  pointer-events: auto;
+}
+
 #gameover-status {
   min-height: 0;
   padding: 0.3rem 0.8rem;
@@ -1227,9 +1235,13 @@ html, body {
   animation: resultsButtonsEnter 0.4s ease 1.5s both;
 }
 
-/* Self-initiated pause: the player tapped pause themselves so there's no
-   misclick risk — show buttons immediately without the 1.5s gate. */
-#pause-overlay.pause-overlay--self #pause-buttons {
+/* Skip the 1.5s anti-misclick gate when:
+   - the player tapped pause themselves (no misclick risk)
+   - returning to a tab that was already paused (the gate is only useful
+     the moment a fresh pause appears; backgrounding pauses the animation
+     timeline so a stale gate would otherwise block clicks on return). */
+#pause-overlay.pause-overlay--self #pause-buttons,
+#pause-overlay.pause-overlay--ready #pause-buttons {
   animation: none;
   pointer-events: auto;
 }

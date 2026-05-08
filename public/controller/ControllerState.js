@@ -199,6 +199,12 @@ function showScreen(name) {
   lobbyScreen.classList.toggle('hidden', name !== 'lobby');
   gameScreen.classList.toggle('hidden', name !== 'game');
   gameoverScreen.classList.toggle('hidden', name !== 'gameover');
+  // Re-arm the gameover anti-misclick gate on fresh entry. Re-entering
+  // 'gameover' from itself (reconnect mid-results) preserves the --ready
+  // class added by visibilitychange.
+  if (name === 'gameover' && prev !== 'gameover') {
+    gameoverScreen.classList.remove('gameover-screen--ready');
+  }
 
   if (welcomeBg) {
     if (name === 'name' || name === 'lobby') {
