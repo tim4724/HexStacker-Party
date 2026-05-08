@@ -41,21 +41,53 @@
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
+const { getVariant } = require('./variants');
 
 const PORT = parseInt(process.env.PORT, 10) || 4100;
 const BASE_URL = `http://localhost:${PORT}`;
 const OUTPUT_RAW = path.resolve(__dirname, 'output', 'raw');
 
+// AD_PROD=1 — shorthand that bumps the per-knob defaults to "ship a master"
+// settings. Each individual env var still wins if explicitly set, so e.g.
+// AD_PROD=1 AD_JPEG_QUALITY=92 keeps the supersampling but compresses harder.
+// Stitch reads the same flag for OUT_SCALE + CRF.
+const PROD = process.env.AD_PROD === '1';
+
+// Game-speed scale during recording. < 1 slows the in-page clock so each
+// wall-clock second covers less game-time, giving the browser more time to
+// paint per game-frame at the target 60fps output. Patches performance.now
+// and Date.now in the composite + iframe contexts; canvas-based animations
+// (the game's renderer) follow correctly. CSS animations and setTimeout
+// keep wall-clock timing — fine for gameplay clips (no CSS-timed visuals)
+// but would compress the lobby-reveal slot-pop-in and winner/logo fades.
+// Capture wall-clock time becomes durationMs / TIME_SCALE per clip.
+const TIME_SCALE = parseFloat(process.env.AD_TIME_SCALE) || (PROD ? 0.5 : 1);
+
 // Render scale — Playwright deviceScaleFactor. SCALE=1 captures at native
 // 1920×1080. SCALE=2 supersamples for crisper anti-aliasing on text/canvas
-// at the cost of ~4× per-frame work; only useful if you also stitch at
-// AD_OUT_SCALE=2 (i.e. deliver a 4K master).
-const SCALE = parseFloat(process.env.AD_SCALE) || 1;
+// at the cost of ~4× per-frame work. Pair with AD_OUT_SCALE=2 in stitch to
+// actually deliver at 4K. The per-clip cap below is dropped when
+// TIME_SCALE < 1 since the slowdown gives the browser extra budget to
+// sustain the heavier load.
+const SCALE = parseFloat(process.env.AD_SCALE) || (PROD ? 2 : 1);
 
 // JPEG quality for screencast frames. 92 is the sweet spot at 1080p —
 // visible artefacts only on smooth gradients, and the final H.264 encode
-// dominates whatever quality we ship anyway.
-const JPEG_QUALITY = parseInt(process.env.AD_JPEG_QUALITY, 10) || 92;
+// dominates whatever quality we ship anyway. Bumped to 96 in prod.
+const JPEG_QUALITY = parseInt(process.env.AD_JPEG_QUALITY, 10) || (PROD ? 96 : 92);
+
+// Per-clip ceiling on the effective scale. chaos8p has 8 active board
+// canvases; at SCALE=2 the browser falls below ~35fps native, which the
+// resampler then pads with duplicates → visible judder in a 60fps output.
+// The full-bleed display in chaos8p has no fine text to benefit from
+// supersampling anyway, so capping at 1 is purely upside.
+const SCALE_CAP_PER_CLIP = { chaos8p: 1 };
+
+// Clips that DON'T get time-scaled. Their visuals depend on CSS animations
+// (slot pop-in, fade-in transitions) which our perf.now patch can't reach,
+// so applying the scale would compress those animations in playback. They
+// also aren't compute-bound — there's no fps headroom problem to solve.
+const NON_SCALABLE_CLIPS = new Set(['lobby-reveal', 'winner', 'logo']);
 
 // Output frame rate. Native screencast emits at ~95 fps at 1080p, so 60 fps
 // output gets near-1:1 nearest-neighbour copies (rare duplicates).
@@ -73,20 +105,16 @@ const TAIL_MS = 120;
 // is a full-page captureScreenshot at quality=1.
 const COMPOSITION_HEARTBEAT_HZ = 30;
 
-const CLIPS = [
-  { name: 'lobby-reveal', durationMs: 3500 },
-  { name: 'normal4p',     durationMs: 7000 },
-  { name: 'pillow4p',     durationMs: 6000 },
-  { name: 'neon4p',       durationMs: 5500 },
-  { name: 'chaos8p',      durationMs: 7000 },
-  { name: 'winner',       durationMs: 3000 },
-];
-
 const ASPECTS = [
   { name: '16x9', width: 1920, height: 1080 },
 ];
 
 async function main() {
+  const variant = getVariant();
+  console.log(`Variant: ${variant.name} — ${variant.description}`);
+  if (PROD) console.log('AD_PROD=1: SCALE=2, JPEG=96, OUT_SCALE=2, CRF=14, TIME_SCALE=0.5');
+  if (TIME_SCALE !== 1) console.log(`Time scale: ${TIME_SCALE}× (game runs at this speed during capture)`);
+
   let chromium;
   try {
     ({ chromium } = require('playwright'));
@@ -95,11 +123,17 @@ async function main() {
     process.exit(1);
   }
 
-  // Single wipe at start — kills orphans from earlier pipeline revisions
-  // (renamed clip dirs, legacy intermediates) without per-clip cleanup that
-  // only knows current names.
-  if (fs.existsSync(OUTPUT_RAW)) fs.rmSync(OUTPUT_RAW, { recursive: true, force: true });
+  // Per-clip wipe (only the clips this variant captures), so variants can
+  // coexist on disk — running `short` after `full` doesn't blow away the
+  // gameplay clips, and stitch can re-render either variant without
+  // re-capture as long as the configs haven't drifted.
   fs.mkdirSync(OUTPUT_RAW, { recursive: true });
+  for (const aspect of ASPECTS) {
+    for (const clip of variant.clips) {
+      const dir = path.join(OUTPUT_RAW, `clip-${clip.name}-${aspect.name}`);
+      if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
 
   console.log(`Spawning server on port ${PORT}…`);
   const server = await spawnServer(PORT);
@@ -109,7 +143,7 @@ async function main() {
   try {
     browser = await chromium.launch({ headless: true });
     for (const aspect of ASPECTS) {
-      for (const clip of CLIPS) {
+      for (const clip of variant.clips) {
         await captureOne(browser, aspect, clip);
       }
     }
@@ -121,18 +155,31 @@ async function main() {
 }
 
 async function captureOne(browser, aspect, clip) {
-  const url = `${BASE_URL}/artwork/ad-clip/index.html?clip=${encodeURIComponent(clip.name)}&aspect=${aspect.name}`;
+  // `duration` is forwarded to clip modules via composite ctx so card-style
+  // clips (logo, winner) can size their hold-time to the slot the variant
+  // allocated. `timeScale` triggers in-page time patching so the game runs
+  // slower than wall-clock for higher-quality recording (see TIME_SCALE).
+  // Non-scalable clips (CSS-animated card/lobby) get scale=1 regardless.
+  const clipTimeScale = NON_SCALABLE_CLIPS.has(clip.name) ? 1 : TIME_SCALE;
+  const url = `${BASE_URL}/artwork/ad-clip/index.html?clip=${encodeURIComponent(clip.name)}&aspect=${aspect.name}&duration=${clip.durationMs}&timeScale=${clipTimeScale}`;
   const targetDir = path.join(OUTPUT_RAW, `clip-${clip.name}-${aspect.name}`);
   const stagingDir = path.join(targetDir, '_staging');
   fs.mkdirSync(stagingDir, { recursive: true });
 
-  const outW = Math.round(aspect.width * SCALE);
-  const outH = Math.round(aspect.height * SCALE);
-  console.log(`  capture ${clip.name} ${aspect.name} → ${aspect.width}×${aspect.height} @ ${SCALE}× DSF (effective ${outW}×${outH})`);
+  // The per-clip scale cap exists because heavy clips can't sustain 60fps
+  // native at SCALE=2. With clipTimeScale < 1 the browser gets extra
+  // wall-clock budget per game-second, so the cap stops applying.
+  const rawCap = clipTimeScale < 1 ? null : SCALE_CAP_PER_CLIP[clip.name];
+  const effectiveScale = rawCap != null ? Math.min(SCALE, rawCap) : SCALE;
+  const cap = rawCap;
+  const outW = Math.round(aspect.width * effectiveScale);
+  const outH = Math.round(aspect.height * effectiveScale);
+  const capNote = cap != null && SCALE > cap ? ` (capped from ${SCALE}×)` : '';
+  console.log(`  capture ${clip.name} ${aspect.name} → ${aspect.width}×${aspect.height} @ ${effectiveScale}× DSF${capNote} (effective ${outW}×${outH})`);
 
   const context = await browser.newContext({
     viewport: { width: aspect.width, height: aspect.height },
-    deviceScaleFactor: SCALE,
+    deviceScaleFactor: effectiveScale,
   });
   const page = await context.newPage();
   page.on('pageerror', (err) => console.warn(`    [pageerror] ${err.message}`));
@@ -199,7 +246,10 @@ async function captureOne(browser, aspect, clip) {
     stopHeartbeat = startCompositionHeartbeat(cdp);
     await page.evaluate(() => { window.__AD_CLIP_GO__ = true; });
     await page.waitForFunction(() => window.__AD_CLIP_DONE__ === true, null, {
-      timeout: clip.durationMs + 12000,
+      // Wall-clock budget: clip's game-time slot stretched by
+      // 1/clipTimeScale, plus the existing 12s safety margin for staging +
+      // teardown.
+      timeout: Math.round(clip.durationMs / clipTimeScale) + 12000,
     });
 
     screencastActive = false;
@@ -233,15 +283,29 @@ async function captureOne(browser, aspect, clip) {
   // Resample staging frames → fixed-FPS sequence in targetDir. Both inputs
   // and output ticks are sorted by time, so a moving cursor finds nearest-
   // neighbour for every output tick in O(N).
-  const totalOutMs = clip.durationMs + TAIL_MS;
+  //
+  // Output length follows actualClipMs (= run() return time, in game-time
+  // since the page's perf.now is patched by TIME_SCALE) rather than the
+  // configured durationMs. A clip that resolves early — gameplay-clip
+  // detecting all-players-KO — produces a correspondingly shorter output
+  // instead of being padded with frozen post-game frames. Capped at the
+  // configured durationMs so a runaway clip still stops.
+  //
+  // Source frames carry wall-clock timestamps from CDP, so when
+  // clipTimeScale < 1 they're spread across more wall-clock time than the
+  // output covers. For each output frame f we want the source frame whose
+  // game-time matches f/FPS — i.e. wall-clock f / (FPS × clipTimeScale)
+  // past t0.
+  const effectiveMs = Math.min(actualClipMs, clip.durationMs);
+  const totalOutMs = effectiveMs + TAIL_MS;
   const totalOutFrames = Math.round((totalOutMs / 1000) * FPS);
   const t0 = frames[0].t;
-  const tEndSec = t0 + totalOutMs / 1000;
+  const tEndSec = t0 + (totalOutMs / 1000) / clipTimeScale;
 
   let cursor = 0;
   let writeIdx = 0;
   for (let f = 0; f < totalOutFrames; f++) {
-    const targetT = t0 + f / FPS;
+    const targetT = t0 + f / (FPS * clipTimeScale);
     if (targetT > tEndSec) break;
     while (cursor + 1 < frames.length &&
            Math.abs(frames[cursor + 1].t - targetT) <= Math.abs(frames[cursor].t - targetT)) {
@@ -259,7 +323,7 @@ async function captureOne(browser, aspect, clip) {
     actualClipMs,
     captureWidth: aspect.width,
     captureHeight: aspect.height,
-    scale: SCALE,
+    scale: effectiveScale,
   }, null, 2));
 
   fs.rmSync(stagingDir, { recursive: true, force: true });
@@ -268,15 +332,25 @@ async function captureOne(browser, aspect, clip) {
 
 // Composition heartbeat — fires Page.captureScreenshot at COMPOSITION_HEARTBEAT_HZ
 // purely for its documented side effect of forcing a Viz aggregation pass.
-// The 1×1 clip + quality=1 reduces the JPEG encode to a few bytes; the
-// screenshot data is discarded.
+// The screenshot data is discarded.
+//
+// Implemented as a recursive setTimeout (NOT setInterval) so that only one
+// captureScreenshot is in flight at a time. At SCALE=2 each call can take
+// ~80-100ms; setInterval would queue up multiple calls behind the
+// WebSocket-serialised CDP queue and starve the screencast itself. With
+// chained setTimeout the heartbeat naturally throttles to whatever rate
+// the browser can sustain.
 //
 // Errors during shutdown (page/context closing) are expected and
 // suppressed. Other errors warn once so a real protocol problem is visible.
 function startCompositionHeartbeat(cdp) {
+  let stopped = false;
   let warned = false;
+  let timer = null;
   const intervalMs = Math.round(1000 / COMPOSITION_HEARTBEAT_HZ);
-  const timer = setInterval(async () => {
+
+  async function tick() {
+    if (stopped) return;
     try {
       await cdp.send('Page.captureScreenshot', { format: 'jpeg', quality: 1 });
     } catch (err) {
@@ -287,8 +361,14 @@ function startCompositionHeartbeat(cdp) {
         warned = true;
       }
     }
-  }, intervalMs);
-  return () => clearInterval(timer);
+    if (!stopped) timer = setTimeout(tick, intervalMs);
+  }
+
+  timer = setTimeout(tick, intervalMs);
+  return () => {
+    stopped = true;
+    if (timer) clearTimeout(timer);
+  };
 }
 
 function spawnServer(port) {

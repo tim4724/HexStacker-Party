@@ -7,6 +7,13 @@ const params = new URLSearchParams(window.location.search);
 const CLIP = params.get('clip') || 'lobby-reveal';
 const ASPECT = params.get('aspect') === '9x16' ? '9x16' : '16x9';
 const SEED = parseInt(params.get('seed'), 10) || 42;
+// Forwarded from capture.js so card-style clips (logo, winner) can size
+// their hold-time to the slot the variant allocated. 0 means unset.
+const DURATION_MS = parseInt(params.get('duration'), 10) || 0;
+// Game-speed multiplier applied via patched performance.now / Date.now.
+// 1 = real time. 0.5 = half speed (browser has 2× wall-time per game-frame),
+// improves capture quality at high SCALE. Patching happens just before GO.
+const TIME_SCALE = parseFloat(params.get('timeScale')) || 1;
 const PLAYER_COUNT = 4;
 // Total phones we mount up front. The 8-player clip slides in slots 4-7
 // so they have to exist (and be ready) before recording starts; other
@@ -110,7 +117,8 @@ async function run() {
     clip: CLIP,
     aspect: ASPECT,
     seed: SEED,
-    playerCount: PLAYER_COUNT
+    playerCount: PLAYER_COUNT,
+    durationMs: DURATION_MS
   };
 
   // Stage the scene BEFORE recording starts — bootLocalGame, prefilled
@@ -131,6 +139,16 @@ async function run() {
     await new Promise((r) => requestAnimationFrame(() => r()));
   }
 
+  // Apply time-scale right before clip start so staging is unaffected.
+  // Patching both this window AND the display iframe's window — same-origin
+  // so we can reach into it. Canvas-based animations (the game's renderer)
+  // and JS that reads perf.now (gameplay-clip's AI loop, displayGame's
+  // update tick) all follow the slowdown. CSS animations don't.
+  if (TIME_SCALE !== 1) {
+    applyTimeScale(window);
+    if (displayIframe.contentWindow) applyTimeScale(displayIframe.contentWindow);
+  }
+
   window.__AD_CLIP_T_START__ = performance.now();
   await clipModule.run(ctx);
   window.__AD_CLIP_T_END__ = performance.now();
@@ -142,8 +160,31 @@ async function run() {
 
 function wait(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
+// Patch performance.now / Date.now / requestAnimationFrame on the given
+// window so the in-page clock advances at TIME_SCALE × wall-clock.
+// Patching RAF as well as the time sources is critical: the display's
+// renderLoop computes engine deltaMs from RAF's timestamp argument, so
+// without this patch the engine would keep ticking at full wall-clock
+// rate while AI dispatch (which uses perf.now) ran at scaled rate — the
+// resulting pace mismatch caused pieces to auto-lock before plans
+// completed, leading to back-half hangs on slower-paced clips.
+// Idempotent: marked after first patch so calling twice is a no-op.
+function applyTimeScale(win) {
+  if (win.__AD_TIME_PATCHED__) return;
+  win.__AD_TIME_PATCHED__ = true;
+  const origPerf = win.performance.now.bind(win.performance);
+  const origDate = win.Date.now.bind(win.Date);
+  const origRAF = win.requestAnimationFrame.bind(win);
+  const startPerf = origPerf();
+  const startDate = origDate();
+  const scalePerf = (t) => startPerf + (t - startPerf) * TIME_SCALE;
+  win.performance.now = () => scalePerf(origPerf());
+  win.Date.now = () => startDate + (origDate() - startDate) * TIME_SCALE;
+  win.requestAnimationFrame = (cb) => origRAF((timestamp) => cb(scalePerf(timestamp)));
+}
+
 function clipFileFor(name) {
-  if (name === 'lobby-reveal' || name === 'winner') return name;
+  if (name === 'lobby-reveal' || name === 'winner' || name === 'logo') return name;
   return 'gameplay-clip';
 }
 

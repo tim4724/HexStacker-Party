@@ -11,7 +11,12 @@
     "test:e2e:airconsole": "AC_MOCK=1 npx playwright test --project=e2e-airconsole",
     "ad:capture": "node artwork/ad-clip/capture.js",
     "ad:stitch": "node artwork/ad-clip/stitch.js",
-    "ad": "npm run ad:capture && npm run ad:stitch"
+    "ad": "npm run ad:capture && npm run ad:stitch",
+    "ad:short": "AD_VARIANT=short npm run ad",
+    "ad:clean": "AD_VARIANT=clean npm run ad",
+    "ad:prod": "AD_PROD=1 npm run ad",
+    "ad:prod:short": "AD_PROD=1 AD_VARIANT=short npm run ad",
+    "ad:prod:clean": "AD_PROD=1 AD_VARIANT=clean npm run ad"
   },
   "dependencies": {
     "qrcode": "^1.5.4"

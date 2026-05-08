@@ -14,6 +14,7 @@
 const path = require('path');
 const fs = require('fs');
 const { execFileSync } = require('child_process');
+const { getVariant } = require('./variants');
 
 const OUTPUT_DIR = path.resolve(__dirname, 'output');
 const RAW_DIR = path.join(OUTPUT_DIR, 'raw');
@@ -26,17 +27,31 @@ const MUSIC_VOLUME = parseFloat(process.env.AD_MUSIC_VOLUME);
 const MUSIC_LEVEL = isNaN(MUSIC_VOLUME) ? 0.5 : MUSIC_VOLUME;
 const MUSIC_OFFSET_SEC = parseFloat(process.env.AD_MUSIC_OFFSET_SEC) || 0;
 
-const CLIP_ORDER = ['lobby-reveal', 'normal4p', 'pillow4p', 'neon4p', 'chaos8p', 'winner'];
 const ASPECTS = ['16x9'];
 
 // 400ms dissolve between every cut.
 const XFADE_MS = 400;
 const FPS = 60;
-// Final-output upscale factor. Default 1 = ship the captured frames as-is
-// (1080p). Set AD_OUT_SCALE=2 to lanczos-upscale to 4K for masters.
-const OUT_SCALE = parseFloat(process.env.AD_OUT_SCALE) || 1;
+
+// AD_PROD=1 — shorthand that flips defaults to "ship a master": 4K upscale
+// + lower CRF for higher visual fidelity. Each individual env var overrides
+// the prod default if explicitly set.
+const PROD = process.env.AD_PROD === '1';
+
+// Final-output upscale factor. Default 1 = ship captured frames as-is
+// (1080p). 2 lanczos-upscales to 4K. Pair with AD_SCALE=2 in capture so the
+// upscale source is supersampled rather than just bilinearly enlarged.
+const OUT_SCALE = parseFloat(process.env.AD_OUT_SCALE) || (PROD ? 2 : 1);
+
+// libx264 CRF — lower = higher quality + larger file. 18 is a sane default
+// for social-platform delivery (which re-encodes anyway). 14 is a master.
+// 23 is YouTube's recommended "default" — too low for our use.
+const CRF = parseInt(process.env.AD_CRF, 10) || (PROD ? 14 : 18);
 
 function main() {
+  const variant = getVariant();
+  console.log(`Variant: ${variant.name} — ${variant.description}`);
+
   if (!hasBin('ffmpeg')) {
     console.warn('ffmpeg not on PATH — skipping stitch.');
     process.exit(0);
@@ -47,12 +62,13 @@ function main() {
   }
 
   for (const aspect of ASPECTS) {
-    stitchAspect(aspect);
+    stitchAspect(variant, aspect);
   }
 }
 
-function stitchAspect(aspect) {
-  const clipDirs = CLIP_ORDER.map((name) => path.join(RAW_DIR, `clip-${name}-${aspect}`));
+function stitchAspect(variant, aspect) {
+  const clipNames = variant.clips.map((c) => c.name);
+  const clipDirs = clipNames.map((name) => path.join(RAW_DIR, `clip-${name}-${aspect}`));
   const missing = clipDirs.filter((d) => !fs.existsSync(path.join(d, 'meta.json')));
   if (missing.length > 0) {
     console.warn(`Skipping ${aspect} — missing inputs:\n  ${missing.join('\n  ')}`);
@@ -62,8 +78,9 @@ function stitchAspect(aspect) {
   const metas = clipDirs.map((d) => JSON.parse(fs.readFileSync(path.join(d, 'meta.json'), 'utf-8')));
   const durations = metas.map((m) => m.frameCount / m.fps);
 
-  const outPath = path.join(OUTPUT_DIR, `final-${aspect}.mp4`);
-  console.log(`Stitching ${aspect} → ${path.relative(process.cwd(), outPath)} (xfade ${XFADE_MS}ms, ${FPS}fps)`);
+  const outPath = path.join(OUTPUT_DIR, `final-${variant.name}-${aspect}.mp4`);
+  const xfadeNote = clipDirs.length > 1 ? `xfade ${XFADE_MS}ms, ` : '';
+  console.log(`Stitching ${aspect} → ${path.relative(process.cwd(), outPath)} (${xfadeNote}${FPS}fps, CRF ${CRF})`);
 
   // Each clip is an image-sequence input. ffmpeg requires `-framerate` to
   // come BEFORE its `-i`, so we build the input args explicitly per clip.
@@ -90,13 +107,19 @@ function stitchAspect(aspect) {
     }
   }
   const baseLabel = (i) => preChain.length ? `i${i}` : `${i}:v`;
-  let runningOffset = durations[0] - xfadeSec;
-  let lastLabel = baseLabel(0);
-  for (let i = 1; i < clipDirs.length; i++) {
-    const outLabel = i === clipDirs.length - 1 ? 'vout' : `v${i}`;
-    filterParts.push(`[${lastLabel}][${baseLabel(i)}]xfade=transition=fade:duration=${xfadeSec}:offset=${runningOffset.toFixed(3)}[${outLabel}]`);
-    runningOffset += durations[i] - xfadeSec;
-    lastLabel = outLabel;
+  if (clipDirs.length === 1) {
+    // Single-clip variant — no xfade chain to build. The `null` filter is a
+    // pass-through that just relabels the stream so `-map [vout]` works.
+    filterParts.push(`[${baseLabel(0)}]null[vout]`);
+  } else {
+    let runningOffset = durations[0] - xfadeSec;
+    let lastLabel = baseLabel(0);
+    for (let i = 1; i < clipDirs.length; i++) {
+      const outLabel = i === clipDirs.length - 1 ? 'vout' : `v${i}`;
+      filterParts.push(`[${lastLabel}][${baseLabel(i)}]xfade=transition=fade:duration=${xfadeSec}:offset=${runningOffset.toFixed(3)}[${outLabel}]`);
+      runningOffset += durations[i] - xfadeSec;
+      lastLabel = outLabel;
+    }
   }
 
   // --- Audio: optional music bed mixed in the same pass ---
@@ -127,7 +150,7 @@ function stitchAspect(aspect) {
     '-c:v', 'libx264',
     '-pix_fmt', 'yuv420p',
     '-preset', 'slow',
-    '-crf', '18',
+    '-crf', String(CRF),
     '-r', String(FPS),
     '-profile:v', 'high', '-level', '5.1',
     '-movflags', '+faststart',
@@ -137,7 +160,7 @@ function stitchAspect(aspect) {
   try {
     execFileSync('ffmpeg', args, { stdio: 'inherit' });
   } catch (err) {
-    console.error(`ffmpeg failed for ${aspect}: ${err.message}`);
+    console.error(`ffmpeg failed for ${variant.name}/${aspect}: ${err.message}`);
     console.error(`  command: ffmpeg ${args.map(quoteArg).join(' ')}`);
     process.exit(1);
   }

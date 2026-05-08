@@ -7,7 +7,12 @@ export async function stage({ titleCard }) {
   await renderQR(titleCard);
 }
 
-export async function run({ titleCard }) {
+// Tail buffer between when run() returns and the screencast's last frame.
+// Composite.js then waits another ~120ms before flagging DONE, so the
+// captured sequence covers the full configured duration.
+const TAIL_MS = 100;
+
+export async function run({ titleCard, durationMs }) {
   // Hide the display iframe entirely so only the title card + dark
   // backdrop remain. The composite background already provides the
   // brand-tinted gradient.
@@ -15,7 +20,9 @@ export async function run({ titleCard }) {
   if (frame) frame.style.opacity = '0';
   setTimeout(() => titleCard.classList.add('in'), 200);
   titleCard.classList.remove('hidden');
-  await wait(2900);
+  // durationMs comes from variants.js via composite ctx — couples the
+  // hold-time to the slot the variant allocated.
+  await wait(Math.max(500, (durationMs || 3000) - TAIL_MS));
 }
 
 async function renderQR(titleCard) {

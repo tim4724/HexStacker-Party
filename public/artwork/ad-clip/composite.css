@@ -110,8 +110,11 @@ body.aspect-16x9 .display-frame {
   align-self: center;
   justify-self: center;
 }
-/* chaos8p in 16:9 — display fills the entire frame (no phone bezels). */
-body.aspect-16x9.clip-chaos8p .display-frame {
+/* chaos8p + short3p in 16:9 — display fills the entire frame (no phone
+   bezels). chaos8p needs the room for 8 simultaneous boards; short3p is
+   a phones-off variant by design. */
+body.aspect-16x9.clip-chaos8p .display-frame,
+body.aspect-16x9.clip-short3p .display-frame {
   width: 1920px;
   height: 1080px;
   border-radius: 0;
@@ -151,10 +154,13 @@ body.aspect-16x9 .phone.in[data-slot="3"] { transform: translateX(0); }
    full-bleed display). Hidden everywhere else. */
 body .phone--extra { display: none; }
 
-/* chaos8p + winner — phones step out. chaos8p uses the full frame for
-   the 8-board chaos; winner is a clean title card on a dark backdrop. */
+/* Phones step out for clips that don't use them: chaos8p (full-bleed
+   8-board layout), short3p (no-phones 3-board variant), winner + logo
+   (clean title card on a dark backdrop). */
 body.clip-chaos8p .phone,
-body.clip-winner .phone { display: none; }
+body.clip-short3p .phone,
+body.clip-winner .phone,
+body.clip-logo .phone { display: none; }
 
 /* Title card overlay — winner clip. Centered above the stage.
    Mirrors the lobby brand styling (8-stop gradient title, plum/cream
@@ -176,6 +182,16 @@ body.clip-winner .phone { display: none; }
 }
 .title-card.in { opacity: 1; }
 .title-card.hidden { display: none; }
+
+/* logo variant — drop the QR + URL + tagline; centre the brand wordmark on
+   the dark backdrop. The .title-card flexbox already centres its content,
+   so removing the side card and the URL/tag elements collapses naturally. */
+body.clip-logo .title-card__qr,
+body.clip-logo .title-card__url,
+body.clip-logo .title-card__tag { display: none; }
+body.clip-logo .title-card { gap: 0; }
+body.clip-logo .title-card__copy { align-items: center; }
+body.clip-logo .title-card__brand { font-size: 120px; text-align: center; }
 .title-card__qr {
   width: 280px;
   height: 280px;

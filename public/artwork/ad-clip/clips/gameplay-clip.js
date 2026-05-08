@@ -20,14 +20,38 @@ const NAMES = ['Emma', 'Jake', 'Sofia', 'Liam', 'Mia', 'Noah', 'Ava', 'Leo'];
 // Per-tier AI pacing — 4-player beats now read as casual play (longer
 // "thinking" pauses + slower per-tap cadence). Chaos8p stays brisk
 // because 8 simultaneous boards naturally fill the frame with motion.
+// `startLines` seeds each board's LINES counter so the displayed level
+// matches a realistic in-game progression instead of always reading 0.
+// Engine convention: displayed level = floor(lines / 10) + startLevel, so
+// the harness adjusts startLevel internally to keep the tier intact while
+// the LINES badge shows a believable number for that level.
+//
+// `pace` is per-clip — heavier gravity needs faster AI dispatch so plans
+// complete before pieces auto-lock; otherwise stacks grow and the
+// feedback loop tanks one or two players (most visibly Jake at neon11).
 const CLIPS = {
-  normal4p: { players: 4, level:  3, durationMs: 7000, prefillRows: 4,
+  normal4p: { players: 4, level:  2, durationMs: 7000, prefillRows: 4, startLines: 8,
               pace: { tapMin: 380, tapMax: 600, dropMin: 460, dropMax: 720 } },
-  pillow4p: { players: 4, level:  8, durationMs: 6000, prefillRows: 5,
+  // Level 6 (low end of PILLOW tier): at level 8, gravity outpaced the
+  // casual AI pace so all players KO'd ~4.5s in and the engine froze the
+  // canvas on the results snapshot for the rest of the clip. Level 6 keeps
+  // play going through the full 6 s while still showing the PILLOW style.
+  pillow4p: { players: 4, level:  6, durationMs: 6000, prefillRows: 5, startLines: 52,
               pace: { tapMin: 280, tapMax: 460, dropMin: 360, dropMax: 540 } },
-  neon4p:   { players: 4, level: 13, durationMs: 5500, prefillRows: 6,
-              pace: { tapMin: 200, tapMax: 340, dropMin: 260, dropMax: 400 } },
-  chaos8p:  { players: 8, level: 10, durationMs: 7000,
+  // Pace cut roughly in half (was 200-340/260-400) so plans complete before
+  // pieces auto-lock at level-11 gravity (~133 ms per row). The previous
+  // pace led to ~0.6 dispatches per piece on tall-stack boards, which
+  // turned into Jake-style runaway central piles for whichever player got
+  // an unlucky early placement.
+  neon4p:   { players: 4, level: 11, durationMs: 5500, prefillRows: 6, startLines: 105,
+              pace: { tapMin:  90, tapMax: 160, dropMin: 130, dropMax: 220 } },
+  // 3-player short variant: all level 2 (NORMAL tier). Phones are hidden
+  // (full-bleed display) — set in composite.css. Per-player startLines for
+  // a bit of variety in the LINES badge.
+  short3p:  { players: 3, levels: [2, 2, 2], durationMs: 5000, prefillRows: 3,
+              startLines: [4, 7, 9],
+              pace: { tapMin: 280, tapMax: 460, dropMin: 360, dropMax: 540 } },
+  chaos8p:  { players: 8, level:  6, durationMs: 7000, startLines: 47,
               // Five staggered garbage attacks across 7s — keeps the chaos
               // escalating throughout the longer beat instead of fizzling
               // out after the first attack.
@@ -49,14 +73,14 @@ const CLIPS = {
 export async function stage({ display, clip, seed, playerCount }) {
   const cfg = CLIPS[clip] || CLIPS.chaos;
   const enginePlayers = cfg.players || playerCount;
-  const playerInfo = rosterFor(enginePlayers, cfg.level);
+  const playerInfo = rosterFor(enginePlayers, cfg);
   display.__TEST__.bootLocalGame({ playerInfo, seed, prefillRows: cfg.prefillRows });
 }
 
 export async function run({ display, controllers, clip, seed, playerCount }) {
   const cfg = CLIPS[clip] || CLIPS.chaos;
   const enginePlayers = cfg.players || playerCount;
-  const playerInfo = rosterFor(enginePlayers, cfg.level);
+  const playerInfo = rosterFor(enginePlayers, cfg);
 
   const start = performance.now();
   // Per-player state: pending action queue + last-piece tracking so we only
@@ -66,7 +90,13 @@ export async function run({ display, controllers, clip, seed, playerCount }) {
     nextActionAt: start + 200 + i * 80,
     lastPiece: null,
     activeIdx: i < cfg.players,
-    rng: makeRng((seed + i * 37) >>> 0)
+    rng: makeRng((seed + i * 37) >>> 0),
+    // First plan dispatches immediately so the clip's first visible frame
+    // already shows motion. Subsequent plans wait the normal tap delay.
+    // Most clips ride into a 400ms xfade so this isn't visible — but the
+    // standalone `short` variant has no preceding clip, and 200-400ms of
+    // a static staged scene at video t=0 reads as a hang.
+    firstPlan: true,
   }));
 
   // Multiple garbage attacks scheduled across longer clips so the action
@@ -78,6 +108,16 @@ export async function run({ display, controllers, clip, seed, playerCount }) {
     function tick() {
       const now = performance.now();
       const elapsed = now - start;
+
+      // End the clip the moment the engine leaves PLAYING — once any/all
+      // players KO, displayGame transitions to RESULTS, the canvas paints
+      // the static last snapshot, and the screencast emits identical
+      // frames for the rest of the clip. Resolve early so capture.js
+      // sizes the output to the actual gameplay duration.
+      if (display.roomState && display.roomState !== 'playing') {
+        resolve();
+        return;
+      }
 
       for (let pb = 0; pb < peakBeats.length; pb++) {
         if (!peakState[pb] && elapsed >= peakBeats[pb].atMs) {
@@ -108,7 +148,8 @@ export async function run({ display, controllers, clip, seed, playerCount }) {
           slot.lastPiece = board.currentPiece;
           if (plan) {
             slot.queue = plan;
-            slot.nextActionAt = now + plan[0].delayMs;
+            slot.nextActionAt = slot.firstPlan ? now : now + plan[0].delayMs;
+            slot.firstPlan = false;
           }
         }
 
@@ -146,10 +187,18 @@ export async function run({ display, controllers, clip, seed, playerCount }) {
   });
 }
 
-function rosterFor(n, level) {
+// Build a roster of n players from a tier config. `levels` / `startLines`
+// can be arrays for per-player values; otherwise the singular forms apply
+// uniformly. The harness uses `startLines` to seed each board's LINES
+// counter and back-computes startLevel so the displayed level matches.
+function rosterFor(n, cfg) {
   const out = [];
   for (let i = 0; i < n; i++) {
-    out.push({ id: `adclip-p${i}`, name: NAMES[i] || `P${i + 1}`, slot: i, level });
+    const level = Array.isArray(cfg.levels) ? cfg.levels[i] : cfg.level;
+    const startLines = Array.isArray(cfg.startLines)
+      ? (cfg.startLines[i] || 0)
+      : (cfg.startLines || 0);
+    out.push({ id: `adclip-p${i}`, name: NAMES[i] || `P${i + 1}`, slot: i, level, startLines });
   }
   return out;
 }

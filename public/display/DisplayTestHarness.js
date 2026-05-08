@@ -107,10 +107,17 @@ if (urlParams.get('test') === '1' || debugCount > 0 || _adclipMode) {
       for (var i = 0; i < info.length; i++) {
         var p = info[i];
         var slot = (typeof p.slot === 'number') ? p.slot : i;
+        // Engine displays level = floor(lines / 10) + startLevel. To honour
+        // a roster's `startLines` while keeping the displayed level pinned
+        // to `p.level`, the harness back-computes startLevel and seeds the
+        // board's `lines` counter below (after the game is constructed).
+        var displayedLevel = p.level || 1;
+        var startLines = p.startLines || 0;
+        var internalStartLevel = Math.max(1, displayedLevel - Math.floor(startLines / 10));
         players.set(p.id, {
           playerName: sanitizePlayerName(p.name, slot),
           playerIndex: slot,
-          startLevel: p.level || 1,
+          startLevel: internalStartLevel,
           joinedAt: i
         });
         playerOrder.push(p.id);
@@ -133,6 +140,19 @@ if (urlParams.get('test') === '1' || debugCount > 0 || _adclipMode) {
           return s;
         };
       }
+      // Seed each board's LINES counter from the roster's `startLines`.
+      // Combined with the back-computed startLevel above, this produces a
+      // displayed level matching the roster spec (level=11 with lines=105
+      // shows "LEVEL 11 / LINES 105" rather than "LEVEL 11 / LINES 0").
+      if (displayGame) {
+        for (var li = 0; li < info.length; li++) {
+          var lp = info[li];
+          if (!lp.startLines) continue;
+          var lboard = displayGame.boards.get(lp.id);
+          if (lboard) lboard.lines = lp.startLines;
+        }
+      }
+
       // Pre-populate the bottom of each board with a non-completing pattern
       // so the placed-block style (NORMAL / PILLOW / NEON_FLAT) reads
       // immediately. Each gameplay beat showcases its tier visually instead
