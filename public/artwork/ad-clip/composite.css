@@ -177,8 +177,13 @@ body.clip-logo .phone { display: none; }
   align-items: center;
   justify-content: center;
   gap: 56px;
-  background: rgba(30, 26, 43, 0.82);
-  backdrop-filter: blur(10px);
+  /* Solid colour, no backdrop-filter. Originally was rgba + blur to soften
+     the chaos8p game showing through during the close. But winner/logo
+     both hide the iframe via opacity:0 — and Chromium still renders the
+     iframe to its compositor layer at opacity:0, so backdrop-filter would
+     sample its centered welcomeBg radial tint and pull a faint glow back
+     through the supposedly-hidden iframe. Going opaque kills that path. */
+  background: rgb(30, 26, 43);
   opacity: 0;
   transition: opacity 600ms ease-out;
   pointer-events: none;
