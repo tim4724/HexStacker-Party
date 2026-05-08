@@ -55,24 +55,6 @@ function displayURL() {
 
 displayIframe.src = displayURL();
 
-// Per-clip CSS injection into the display iframe. The composite is same-
-// origin with the display, so we can reach into contentDocument and add a
-// <style> on iframe load. Two distinct injections, both gated by load:
-//
-//   1. lobby-reveal: hide the START button. The simulated-press animation
-//      reads as "weird" in the trailer (button just turns red briefly with
-//      no continuation). visibility:hidden (not display:none) so it still
-//      occupies its slot in the layout flow — without it the lobby content
-//      reflows upward and the visual balance shifts.
-//
-//   2. true-4k + lobby-reveal: zoom the lobby chrome 2×. The display's
-//      lobby uses fixed-px sizes (HEX STACKER title font 76px, QR card
-//      280×280, player cards) baked into display.css. With the composite
-//      now serving a 3840×2160 viewport but those sizes unchanged, the
-//      lobby chrome would render at half its intended footprint. `zoom`
-//      multiplies all CSS dimensions including fonts. Limited to
-//      lobby-reveal because gameplay clips render their boards via canvas
-//      that already fills its container responsively.
 // Hide the START button in the lobby clip — the simulated-press animation
 // reads as "weird" in the trailer (button just turns red briefly with no
 // continuation). visibility:hidden (not display:none) so it still occupies

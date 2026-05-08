@@ -211,7 +211,8 @@ async function main() {
   console.log('Capture complete →', OUTPUT_RAW);
 }
 
-async function captureOne(browser, aspect, clip) {
+async function captureOne(browser, aspect, clip, opts) {
+  const skipFreezeCheck = !!(opts && opts.skipFreezeCheck);
   // `duration` is forwarded to clip modules via composite ctx so card-style
   // clips (logo, winner) can size their hold-time to the slot the variant
   // allocated. `timeScale` triggers in-page time patching so the game runs
@@ -238,7 +239,6 @@ async function captureOne(browser, aspect, clip) {
   // 4K path uses DSF=1 (no supersample on top of the bigger viewport).
   const baseScale = useTrue4kForClip ? SCALE : (TRUE_4K ? 2 : SCALE);
   const effectiveScale = rawCap != null ? Math.min(baseScale, rawCap) : baseScale;
-  const cap = rawCap;
   // Capture viewport: TRUE_4K-eligible clips get the full 4K rasterisation
   // surface; PROD-path clips stay at base 1920×1080 with DSF supersampling.
   const viewportMul = useTrue4kForClip ? VIEWPORT_MUL : 1;
@@ -246,7 +246,7 @@ async function captureOne(browser, aspect, clip) {
   const viewportH = aspect.height * viewportMul;
   const outW = Math.round(viewportW * effectiveScale);
   const outH = Math.round(viewportH * effectiveScale);
-  const capNote = cap != null && baseScale > cap ? ` (capped from ${baseScale}×)` : '';
+  const capNote = rawCap != null && baseScale > rawCap ? ` (capped from ${baseScale}×)` : '';
   const pathNote = TRUE_4K && !useTrue4kForClip ? ' [PROD path]' : '';
   console.log(`  capture ${clip.name} ${aspect.name} → ${viewportW}×${viewportH} @ ${effectiveScale}× DSF${capNote}${pathNote} (effective ${outW}×${outH})`);
 
@@ -357,9 +357,13 @@ async function captureOne(browser, aspect, clip) {
   // images. If it exceeds this clip's threshold, the iframe layer almost
   // certainly went stale mid-capture (the compositor-cache bug we work
   // around with the heartbeat). Caller retries on the same browser.
+  // skipFreezeCheck=true is used by the last-resort retry path in
+  // captureWithRetry so that we always commit frames to disk after the
+  // attempt budget is exhausted (otherwise stitch would fail with no
+  // input dir for this clip).
   const maxFreezeMs = detectMaxFreezeMs(frames);
   const threshold = FREEZE_THRESHOLD_MS[clip.name] != null ? FREEZE_THRESHOLD_MS[clip.name] : 1000;
-  if (maxFreezeMs > threshold) {
+  if (!skipFreezeCheck && maxFreezeMs > threshold) {
     fs.rmSync(stagingDir, { recursive: true, force: true });
     fs.rmSync(targetDir, { recursive: true, force: true });
     return { freezeDetected: true, maxFreezeMs, threshold };
@@ -432,9 +436,11 @@ async function captureWithRetry(browser, aspect, clip) {
       console.warn(`    ⚠ freeze ${result.maxFreezeMs.toFixed(0)}ms > ${result.threshold}ms — retry ${attempt}/${MAX_CAPTURE_ATTEMPTS - 1}`);
     } else {
       console.warn(`    ⚠ freeze persists after ${MAX_CAPTURE_ATTEMPTS} attempts — shipping the last one anyway`);
-      // Fall through with the bad capture rather than failing the pipeline.
-      // Re-run once more to write the output so the rest of the variant can stitch.
-      await captureOne(browser, aspect, clip);
+      // Last-resort capture: skip the freeze check so we always commit
+      // frames to disk regardless of staleness. Without this, a 4th attempt
+      // that also freezes would rmSync its own targetDir and stitch would
+      // bail with "missing inputs" — defeating the "ship anyway" intent.
+      return await captureOne(browser, aspect, clip, { skipFreezeCheck: true });
     }
   }
 }
