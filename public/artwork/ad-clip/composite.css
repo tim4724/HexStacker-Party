@@ -22,6 +22,29 @@ html, body {
   background: radial-gradient(ellipse at center, #1c1538 0%, #0a0716 70%);
 }
 
+/* Dither overlay — fractal-noise SVG layered over the radial gradient at
+   ~3% opacity. The smooth dark-to-darker gradient fell well below 8-bit
+   precision in the back half, so JPEG and H.264 quantized it into visible
+   bands (worst on the lobby-reveal corners around the iframe and the
+   logo-clip full-screen backdrop). High-frequency noise breaks the
+   encoder's flat-region heuristic without being visible to the eye.
+   The display's own canvas BG uses Bayer dithering (display.js); this is
+   the parent-page equivalent. */
+.stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1, 0 0 0 0 1, 0 0 0 0 1, 0 0 0 0.06 0'/></filter><rect width='240' height='240' filter='url(%23n)'/></svg>");
+  background-repeat: repeat;
+}
+/* The display + phones + title-card need to render ABOVE the noise. Their
+   stacking-context z-indices already exceed 0; this is documentation. */
+.display-frame, .phones, .title-card { z-index: 1; }
+
 .display-frame {
   position: relative;
   overflow: hidden;
