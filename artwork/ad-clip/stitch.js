@@ -14,7 +14,7 @@
 const path = require('path');
 const fs = require('fs');
 const { execFileSync } = require('child_process');
-const { getVariant } = require('./variants');
+const { describeVariants, getVariants } = require('./variants');
 
 const OUTPUT_DIR = path.resolve(__dirname, 'output');
 const RAW_DIR = path.join(OUTPUT_DIR, 'raw');
@@ -58,8 +58,8 @@ const OUT_SCALE = parseFloat(process.env.AD_OUT_SCALE) || (MAX ? 1 : PROD ? 2 : 
 const CRF = parseInt(process.env.AD_CRF, 10) || (MAX ? 10 : PROD ? 14 : 18);
 
 function main() {
-  const variant = getVariant();
-  console.log(`Variant: ${variant.name} — ${variant.description}`);
+  const variants = getVariants();
+  console.log(describeVariants(variants));
 
   if (!hasBin('ffmpeg')) {
     console.warn('ffmpeg not on PATH — skipping stitch.');
@@ -70,8 +70,13 @@ function main() {
     process.exit(1);
   }
 
-  for (const aspect of ASPECTS) {
-    stitchAspect(variant, aspect);
+  for (const variant of variants) {
+    if (variants.length > 1) {
+      console.log(`Variant: ${variant.name} — ${variant.description}`);
+    }
+    for (const aspect of ASPECTS) {
+      stitchAspect(variant, aspect);
+    }
   }
 }
 

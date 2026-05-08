@@ -42,7 +42,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
-const { getVariant } = require('./variants');
+const { describeVariants, getCaptureClips, getVariants } = require('./variants');
 
 const PORT = parseInt(process.env.PORT, 10) || 4100;
 const BASE_URL = `http://localhost:${PORT}`;
@@ -135,8 +135,12 @@ const ASPECTS = [
 ];
 
 async function main() {
-  const variant = getVariant();
-  console.log(`Variant: ${variant.name} — ${variant.description}`);
+  const variants = getVariants();
+  const clips = getCaptureClips(variants);
+  console.log(describeVariants(variants));
+  if (variants.length > 1) {
+    console.log(`Capturing ${clips.length} unique clips shared by ${variants.length} variants.`);
+  }
   if (MAX) console.log('AD_MAX=1: VIEWPORT=1920×1080, DSF=2 supersample, JPEG=100, OUT_SCALE=1, CRF=10, TIME_SCALE=0.25');
   else if (PROD) console.log('AD_PROD=1: SCALE=2, JPEG=96, OUT_SCALE=2, CRF=14, TIME_SCALE=0.5');
   if (TIME_SCALE !== 1) console.log(`Time scale: ${TIME_SCALE}× (game runs at this speed during capture)`);
@@ -162,7 +166,7 @@ async function main() {
   const toCapture = [];
   const reused = [];
   for (const aspect of ASPECTS) {
-    for (const clip of variant.clips) {
+    for (const clip of clips) {
       const dir = path.join(OUTPUT_RAW, `clip-${clip.name}-${aspect.name}`);
       const metaPath = path.join(dir, 'meta.json');
       if (!force && fs.existsSync(metaPath)) {
