@@ -108,6 +108,10 @@ export async function run({ display, controllers, clip, seed, playerCount }) {
       // the static last snapshot, and the screencast emits identical
       // frames for the rest of the clip. Resolve early so capture.js
       // sizes the output to the actual gameplay duration.
+      // 'playing' literal mirrors ROOM_STATE.PLAYING in shared/protocol.js;
+      // we can't reach the constant across iframe boundaries cheaply, so
+      // the string is intentional. If protocol's enum values ever change,
+      // grep for ROOM_STATE.PLAYING to find this site.
       if (display.roomState && display.roomState !== 'playing') {
         resolve();
         return;

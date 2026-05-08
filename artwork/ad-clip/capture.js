@@ -192,12 +192,15 @@ async function main() {
     }
   }
 
-  console.log(`Spawning server on port ${PORT}…`);
-  const server = await spawnServer(PORT);
-  await waitForServer(PORT);
-
-  let browser;
+  // Server + browser both live in the try so a `waitForServer` timeout
+  // (or any spawn/launch error) still tears down the spawned process —
+  // otherwise an orphaned node would hold the port and break the next run.
+  let server = null;
+  let browser = null;
   try {
+    console.log(`Spawning server on port ${PORT}…`);
+    server = await spawnServer(PORT);
+    await waitForServer(PORT);
     browser = await chromium.launch({ headless: true });
     for (const aspect of ASPECTS) {
       for (const clip of variant.clips) {
@@ -206,7 +209,7 @@ async function main() {
     }
   } finally {
     if (browser) await browser.close();
-    server.kill('SIGTERM');
+    if (server) server.kill('SIGTERM');
   }
   console.log('Capture complete →', OUTPUT_RAW);
 }
@@ -425,9 +428,11 @@ async function captureOne(browser, aspect, clip, opts) {
 }
 
 // Wrap captureOne with retry-on-freeze. Up to MAX_CAPTURE_ATTEMPTS
-// independent capture attempts; each is a fresh browser context, so
-// transient compositor-cache issues from one run don't carry over. Logs
-// the retry reason so it's visible in CI / repeated runs.
+// freeze-checked attempts; each is a fresh browser context, so transient
+// compositor-cache issues from one run don't carry over. If all of them
+// freeze, ONE additional last-resort capture runs with skipFreezeCheck so
+// the pipeline always commits frames to disk for stitch — making the
+// real worst case MAX_CAPTURE_ATTEMPTS + 1 captureOne invocations.
 async function captureWithRetry(browser, aspect, clip) {
   for (let attempt = 1; attempt <= MAX_CAPTURE_ATTEMPTS; attempt++) {
     const result = await captureOne(browser, aspect, clip);
