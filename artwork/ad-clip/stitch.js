@@ -41,14 +41,14 @@ const MAX = process.env.AD_MAX === '1';
 const PROD = process.env.AD_PROD === '1' || MAX;
 
 // Final-output upscale factor. Default 1 = ship captured frames as-is
-// (1080p). 2 lanczos-upscales to 4K. Pair with AD_SCALE=2 in capture so the
-// upscale source is supersampled rather than just bilinearly enlarged.
-// 8K (OUT_SCALE=4) is mostly cosmetic — the source detail caps at the
-// supersampled-1080p ceiling regardless of upscale factor.
+// (1080p). 2 lanczos-upscales to 4K. Pair with AD_SCALE=2 in capture so
+// the upscale source is supersampled rather than just bilinearly enlarged.
 //
-// In AD_MAX=1 mode the capture is already native 4K (3840×2160 viewport),
-// so OUT_SCALE defaults to 1 — there's nothing to lanczos-upscale. PROD
-// (without MAX) still defaults to 2 because that path captures at 1080p.
+// AD_MAX=1 ships native 1080p (no upscale, no lanczos) — the capture path
+// already supersamples (DSF=2 → internal 4K raster downsampled to 1080p
+// frames), so the delivered 1080p is high-quality. Adding OUT_SCALE=2 on
+// top would just lanczos-enlarge those 1080p frames; no real detail gain.
+// PROD (without MAX) still defaults to 2 to keep the legacy 4K-upscale path.
 const OUT_SCALE = parseFloat(process.env.AD_OUT_SCALE) || (MAX ? 1 : PROD ? 2 : 1);
 
 // libx264 CRF — lower = higher quality + larger file. 18 is a sane default

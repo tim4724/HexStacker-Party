@@ -53,18 +53,20 @@ const OUTPUT_RAW = path.resolve(__dirname, 'output', 'raw');
 // AD_PROD=1 AD_JPEG_QUALITY=92 keeps the supersampling but compresses harder.
 // Stitch reads the same flag for OUT_SCALE + CRF.
 //
-// AD_MAX=1 — superset of AD_PROD: native 4K capture (viewport 3840×2160 +
-// DSF=1, no lanczos upscale at stitch), JPEG=100, CRF=10, TIME_SCALE=0.25.
-// Every output pixel is rendered natively at 4K — no supersampled-then-
-// downsampled-then-upscaled trick. composite.css uses a `--s` variable that
-// doubles every fixed-px dimension when body.true-4k is set; the display
-// iframe inherits the bigger CSS viewport and renders its canvas natively
-// at 4K too. Trades ~2× capture wall-time (TIME_SCALE 0.5 → 0.25) for the
-// real-4K rasterisation.
+// AD_MAX=1 — superset of AD_PROD: 1080p capture with DSF=2 supersample,
+// JPEG=100, CRF=10, TIME_SCALE=0.25, OUT_SCALE=1 (deliver 1080p, no upscale).
+// We tried native 4K (3840×2160 viewport, DSF=1) but the chaos8p clip's
+// 8-board canvas paint pressure caused intermittent multi-second renderer
+// stalls. 1080p+DSF=2 still rasterises internally at 4K (so AA quality is
+// preserved) while encoding 4× fewer pixels per screencast frame.
+//
+// AD_TRUE_4K=1 — opt-in to the native-4K path (TRUE 4K viewport, no
+// upscale). Visually crispest but susceptible to paint-pressure stalls on
+// heavy clips like chaos8p; flag it on for delivery if the freezes happen
+// to land outside the visible action.
 const MAX = process.env.AD_MAX === '1';
 const PROD = process.env.AD_PROD === '1' || MAX;
-// True-4K capture: only enabled in MAX mode for now.
-const TRUE_4K = MAX;
+const TRUE_4K = process.env.AD_TRUE_4K === '1';
 
 // Game-speed scale during recording. < 1 slows the in-page clock so each
 // wall-clock second covers less game-time, giving the browser more time to
@@ -176,7 +178,8 @@ const VIEWPORT_MUL = TRUE_4K ? 2 : 1;
 async function main() {
   const variant = getVariant();
   console.log(`Variant: ${variant.name} — ${variant.description}`);
-  if (MAX) console.log('AD_MAX=1: VIEWPORT=3840×2160 (true 4K), DSF=1, JPEG=100, OUT_SCALE=1, CRF=10, TIME_SCALE=0.25');
+  if (MAX && TRUE_4K) console.log('AD_MAX=1 + AD_TRUE_4K=1: VIEWPORT=3840×2160, DSF=1, JPEG=100, OUT_SCALE=1, CRF=10, TIME_SCALE=0.25');
+  else if (MAX) console.log('AD_MAX=1: VIEWPORT=1920×1080, DSF=2 supersample, JPEG=100, OUT_SCALE=1, CRF=10, TIME_SCALE=0.25');
   else if (PROD) console.log('AD_PROD=1: SCALE=2, JPEG=96, OUT_SCALE=2, CRF=14, TIME_SCALE=0.5');
   if (TIME_SCALE !== 1) console.log(`Time scale: ${TIME_SCALE}× (game runs at this speed during capture)`);
 
