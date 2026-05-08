@@ -38,19 +38,14 @@ const CLIPS = {
   // play going through the full 6 s while still showing the PILLOW style.
   pillow4p: { players: 4, level:  6, durationMs: 6000, prefillRows: 5, startLines: 52,
               pace: { tapMin: 280, tapMax: 460, dropMin: 360, dropMax: 540 } },
-  // Pace cut roughly in half (was 200-340/260-400) so plans complete before
-  // pieces auto-lock at level-11 gravity (~133 ms per row). The previous
-  // pace led to ~0.6 dispatches per piece on tall-stack boards, which
-  // turned into Jake-style runaway central piles for whichever player got
-  // an unlucky early placement.
+  // Pace ~2× slower than the previous half-speed tune. The original
+  // (200-340/260-400) caused Jake-style runaway central piles because
+  // ~40% of plans didn't finish before level-11 gravity (~133 ms per row)
+  // auto-locked the piece. This middle point trades a bit of that risk
+  // for visibly human-paced input — the previous 90-160/130-220 felt
+  // machine-fast in playback even though it was behaviourally clean.
   neon4p:   { players: 4, level: 11, durationMs: 5500, prefillRows: 6, startLines: 105,
-              pace: { tapMin:  90, tapMax: 160, dropMin: 130, dropMax: 220 } },
-  // 3-player short variant: all level 2 (NORMAL tier). Phones are hidden
-  // (full-bleed display) — set in composite.css. Per-player startLines for
-  // a bit of variety in the LINES badge.
-  short3p:  { players: 3, levels: [2, 2, 2], durationMs: 5000, prefillRows: 3,
-              startLines: [4, 7, 9],
-              pace: { tapMin: 280, tapMax: 460, dropMin: 360, dropMax: 540 } },
+              pace: { tapMin: 180, tapMax: 320, dropMin: 240, dropMax: 380 } },
   chaos8p:  { players: 8, level:  6, durationMs: 7000, startLines: 47,
               // Five staggered garbage attacks across 7s — keeps the chaos
               // escalating throughout the longer beat instead of fizzling
@@ -93,9 +88,8 @@ export async function run({ display, controllers, clip, seed, playerCount }) {
     rng: makeRng((seed + i * 37) >>> 0),
     // First plan dispatches immediately so the clip's first visible frame
     // already shows motion. Subsequent plans wait the normal tap delay.
-    // Most clips ride into a 400ms xfade so this isn't visible — but the
-    // standalone `short` variant has no preceding clip, and 200-400ms of
-    // a static staged scene at video t=0 reads as a hang.
+    // The xfade in multi-clip variants masks the start delay; on a
+    // standalone clip 200-400ms of a static staged scene reads as a hang.
     firstPlan: true,
   }));
 

@@ -23,13 +23,6 @@ const VARIANTS = {
     ],
   },
 
-  short: {
-    description: '5s gameplay clip — three players, two at level 5 and one at level 6.',
-    clips: [
-      { name: 'short3p', durationMs: 5000 },
-    ],
-  },
-
   clean: {
     description: '30s trailer — no lobby intro, four tier-showcase clips, plain-logo finale.',
     // 25.5s gameplay − 4 × 400ms xfades + 6.1s logo hold = ~30s.

@@ -36,17 +36,26 @@ const FPS = 60;
 // AD_PROD=1 — shorthand that flips defaults to "ship a master": 4K upscale
 // + lower CRF for higher visual fidelity. Each individual env var overrides
 // the prod default if explicitly set.
-const PROD = process.env.AD_PROD === '1';
+// AD_MAX=1 — superset of AD_PROD that drops CRF to 10 (visually lossless).
+const MAX = process.env.AD_MAX === '1';
+const PROD = process.env.AD_PROD === '1' || MAX;
 
 // Final-output upscale factor. Default 1 = ship captured frames as-is
 // (1080p). 2 lanczos-upscales to 4K. Pair with AD_SCALE=2 in capture so the
 // upscale source is supersampled rather than just bilinearly enlarged.
-const OUT_SCALE = parseFloat(process.env.AD_OUT_SCALE) || (PROD ? 2 : 1);
+// 8K (OUT_SCALE=4) is mostly cosmetic — the source detail caps at the
+// supersampled-1080p ceiling regardless of upscale factor.
+//
+// In AD_MAX=1 mode the capture is already native 4K (3840×2160 viewport),
+// so OUT_SCALE defaults to 1 — there's nothing to lanczos-upscale. PROD
+// (without MAX) still defaults to 2 because that path captures at 1080p.
+const OUT_SCALE = parseFloat(process.env.AD_OUT_SCALE) || (MAX ? 1 : PROD ? 2 : 1);
 
 // libx264 CRF — lower = higher quality + larger file. 18 is a sane default
 // for social-platform delivery (which re-encodes anyway). 14 is a master.
-// 23 is YouTube's recommended "default" — too low for our use.
-const CRF = parseInt(process.env.AD_CRF, 10) || (PROD ? 14 : 18);
+// 10 is "visually lossless" — gradient banding gone, fast-motion blur
+// minimised, file ~3× larger. 23 is YouTube's recommended "default".
+const CRF = parseInt(process.env.AD_CRF, 10) || (MAX ? 10 : PROD ? 14 : 18);
 
 function main() {
   const variant = getVariant();
@@ -89,24 +98,35 @@ function stitchAspect(variant, aspect) {
     inputArgs.push('-framerate', String(FPS), '-i', path.join(dir, `frame-%04d.${FRAME_EXT}`));
   }
 
-  // --- Filter graph: optional pre-processing per input, then xfade chain ---
+  // --- Filter graph: per-input pre-scale, then xfade chain ---
+  // Target output size = largest input × OUT_SCALE. Inputs already at that
+  // size pass through; smaller inputs (e.g. lobby in MAX mode falls back to
+  // 1080p capture) lanczos-upscale to match. xfade requires uniform input
+  // dimensions, so the scale step is mandatory once any source differs.
   const xfadeSec = XFADE_MS / 1000;
-  const preChain = [];
-  if (OUT_SCALE !== 1) {
-    const ref = metas[0];
-    const targetW = Math.round(ref.captureWidth * OUT_SCALE);
-    const targetH = Math.round(ref.captureHeight * OUT_SCALE);
-    preChain.push(`scale=${targetW}:${targetH}:flags=lanczos`);
-    console.log(`  upscale: ${ref.captureWidth}×${ref.captureHeight} → ${targetW}×${targetH}`);
-  }
+  const maxCapW = Math.max(...metas.map((m) => m.captureWidth));
+  const maxCapH = Math.max(...metas.map((m) => m.captureHeight));
+  const targetW = Math.round(maxCapW * OUT_SCALE);
+  const targetH = Math.round(maxCapH * OUT_SCALE);
 
   const filterParts = [];
+  let scaleNoteLogged = false;
   for (let i = 0; i < clipDirs.length; i++) {
-    if (preChain.length) {
-      filterParts.push(`[${i}:v]${preChain.join(',')}[i${i}]`);
+    const m = metas[i];
+    if (m.captureWidth !== targetW || m.captureHeight !== targetH) {
+      filterParts.push(`[${i}:v]scale=${targetW}:${targetH}:flags=lanczos[i${i}]`);
+      if (!scaleNoteLogged) {
+        console.log(`  scale target: ${targetW}×${targetH}`);
+        scaleNoteLogged = true;
+      }
+      console.log(`    ${path.basename(clipDirs[i])}: ${m.captureWidth}×${m.captureHeight} → ${targetW}×${targetH}`);
+    } else {
+      // Pass-through label so the xfade chain has a consistent name to
+      // reference whether or not this input was scaled.
+      filterParts.push(`[${i}:v]null[i${i}]`);
     }
   }
-  const baseLabel = (i) => preChain.length ? `i${i}` : `${i}:v`;
+  const baseLabel = (i) => `i${i}`;
   if (clipDirs.length === 1) {
     // Single-clip variant — no xfade chain to build. The `null` filter is a
     // pass-through that just relabels the stream so `-map [vout]` works.

@@ -52,7 +52,19 @@ const OUTPUT_RAW = path.resolve(__dirname, 'output', 'raw');
 // settings. Each individual env var still wins if explicitly set, so e.g.
 // AD_PROD=1 AD_JPEG_QUALITY=92 keeps the supersampling but compresses harder.
 // Stitch reads the same flag for OUT_SCALE + CRF.
-const PROD = process.env.AD_PROD === '1';
+//
+// AD_MAX=1 — superset of AD_PROD: native 4K capture (viewport 3840×2160 +
+// DSF=1, no lanczos upscale at stitch), JPEG=100, CRF=10, TIME_SCALE=0.25.
+// Every output pixel is rendered natively at 4K — no supersampled-then-
+// downsampled-then-upscaled trick. composite.css uses a `--s` variable that
+// doubles every fixed-px dimension when body.true-4k is set; the display
+// iframe inherits the bigger CSS viewport and renders its canvas natively
+// at 4K too. Trades ~2× capture wall-time (TIME_SCALE 0.5 → 0.25) for the
+// real-4K rasterisation.
+const MAX = process.env.AD_MAX === '1';
+const PROD = process.env.AD_PROD === '1' || MAX;
+// True-4K capture: only enabled in MAX mode for now.
+const TRUE_4K = MAX;
 
 // Game-speed scale during recording. < 1 slows the in-page clock so each
 // wall-clock second covers less game-time, giving the browser more time to
@@ -62,7 +74,7 @@ const PROD = process.env.AD_PROD === '1';
 // keep wall-clock timing — fine for gameplay clips (no CSS-timed visuals)
 // but would compress the lobby-reveal slot-pop-in and winner/logo fades.
 // Capture wall-clock time becomes durationMs / TIME_SCALE per clip.
-const TIME_SCALE = parseFloat(process.env.AD_TIME_SCALE) || (PROD ? 0.5 : 1);
+const TIME_SCALE = parseFloat(process.env.AD_TIME_SCALE) || (MAX ? 0.25 : PROD ? 0.5 : 1);
 
 // Render scale — Playwright deviceScaleFactor. SCALE=1 captures at native
 // 1920×1080. SCALE=2 supersamples for crisper anti-aliasing on text/canvas
@@ -70,12 +82,19 @@ const TIME_SCALE = parseFloat(process.env.AD_TIME_SCALE) || (PROD ? 0.5 : 1);
 // actually deliver at 4K. The per-clip cap below is dropped when
 // TIME_SCALE < 1 since the slowdown gives the browser extra budget to
 // sustain the heavier load.
-const SCALE = parseFloat(process.env.AD_SCALE) || (PROD ? 2 : 1);
+//
+// In TRUE_4K mode the supersampling trick is dropped — we capture at a
+// 3840×2160 CSS viewport with DSF=1, so the screencast already emits 4K
+// frames natively. SCALE then defaults to 1 (no extra DSF supersampling
+// on top of the 4K viewport — it would require 8K internal raster, which
+// the browser can't sustain on chaos8p).
+const SCALE = parseFloat(process.env.AD_SCALE) || (TRUE_4K ? 1 : PROD ? 2 : 1);
 
 // JPEG quality for screencast frames. 92 is the sweet spot at 1080p —
 // visible artefacts only on smooth gradients, and the final H.264 encode
-// dominates whatever quality we ship anyway. Bumped to 96 in prod.
-const JPEG_QUALITY = parseInt(process.env.AD_JPEG_QUALITY, 10) || (PROD ? 96 : 92);
+// dominates whatever quality we ship anyway. Bumped to 96 in prod, 100
+// (effectively lossless) in max.
+const JPEG_QUALITY = parseInt(process.env.AD_JPEG_QUALITY, 10) || (MAX ? 100 : PROD ? 96 : 92);
 
 // Per-clip ceiling on the effective scale. chaos8p has 8 active board
 // canvases; at SCALE=2 the browser falls below ~35fps native, which the
@@ -90,6 +109,15 @@ const SCALE_CAP_PER_CLIP = { chaos8p: 1 };
 // also aren't compute-bound — there's no fps headroom problem to solve.
 const NON_SCALABLE_CLIPS = new Set(['lobby-reveal', 'winner', 'logo']);
 
+// Clips that opt OUT of the TRUE_4K native-viewport path even when AD_MAX=1.
+// Reason: paint cost at 3840×2160 viewport for heavy DOM (gradient title,
+// animated player cards, welcomeBg canvas, backdrop-filter) couldn't
+// sustain 60fps native — observed ~18-34fps. They get the PROD path
+// instead: viewport 1920×1080 + DSF=2 supersample + lanczos upscale at
+// stitch. Lanczos quality is invisible here (large gradients + headline
+// text, no fine canvas detail), and we get a clean 60fps capture.
+const FORCE_PROD_PATH_CLIPS = new Set(['lobby-reveal']);
+
 // Per-clip threshold (ms) for the post-capture freeze sniff. If we observe
 // a longer run of byte-identical source frames than this, the iframe's
 // compositor cache likely went stale during capture and we retry. Static
@@ -101,7 +129,6 @@ const FREEZE_THRESHOLD_MS = {
   pillow4p: 1000,
   neon4p:   1000,
   chaos8p:  1000,
-  short3p:  1000,
   winner: Infinity,
   logo:   Infinity,
 };
@@ -123,14 +150,26 @@ const TAIL_MS = 120;
 // is a full-page captureScreenshot at quality=1.
 const COMPOSITION_HEARTBEAT_HZ = 30;
 
+// Base CSS dimensions of the composite stage. TRUE_4K doubles the actual
+// capture viewport (composite.css scales fixed-px values via the `--s` var)
+// but the BASE values stay the same so meta.json + stitch arithmetic keep
+// thinking in base coordinates. The doubled viewport is captured at
+// captureWidth/Height (which IS 3840×2160 in true-4k mode) by way of
+// VIEWPORT_MUL below.
 const ASPECTS = [
   { name: '16x9', width: 1920, height: 1080 },
 ];
 
+// Viewport multiplier — only != 1 in TRUE_4K mode. Multiplies CSS-viewport
+// (and therefore the screencast frame size) without touching DSF, so the
+// browser actually rasterises at 4K instead of supersampling 1080.
+const VIEWPORT_MUL = TRUE_4K ? 2 : 1;
+
 async function main() {
   const variant = getVariant();
   console.log(`Variant: ${variant.name} — ${variant.description}`);
-  if (PROD) console.log('AD_PROD=1: SCALE=2, JPEG=96, OUT_SCALE=2, CRF=14, TIME_SCALE=0.5');
+  if (MAX) console.log('AD_MAX=1: VIEWPORT=3840×2160 (true 4K), DSF=1, JPEG=100, OUT_SCALE=1, CRF=10, TIME_SCALE=0.25');
+  else if (PROD) console.log('AD_PROD=1: SCALE=2, JPEG=96, OUT_SCALE=2, CRF=14, TIME_SCALE=0.5');
   if (TIME_SCALE !== 1) console.log(`Time scale: ${TIME_SCALE}× (game runs at this speed during capture)`);
 
   let chromium;
@@ -142,8 +181,8 @@ async function main() {
   }
 
   // Per-clip wipe (only the clips this variant captures), so variants can
-  // coexist on disk — running `short` after `full` doesn't blow away the
-  // gameplay clips, and stitch can re-render either variant without
+  // coexist on disk — running `clean` after `full` keeps the shared
+  // gameplay clips intact, and stitch can re-render either variant without
   // re-capture as long as the configs haven't drifted.
   fs.mkdirSync(OUTPUT_RAW, { recursive: true });
   for (const aspect of ASPECTS) {
@@ -179,7 +218,14 @@ async function captureOne(browser, aspect, clip) {
   // slower than wall-clock for higher-quality recording (see TIME_SCALE).
   // Non-scalable clips (CSS-animated card/lobby) get scale=1 regardless.
   const clipTimeScale = NON_SCALABLE_CLIPS.has(clip.name) ? 1 : TIME_SCALE;
-  const url = `${BASE_URL}/artwork/ad-clip/index.html?clip=${encodeURIComponent(clip.name)}&aspect=${aspect.name}&duration=${clip.durationMs}&timeScale=${clipTimeScale}`;
+  // Per-clip override: lobby (and similar heavy-DOM clips) can't sustain
+  // 60fps when rasterising at 3840×2160 native, so they fall back to the
+  // PROD path (1920×1080 viewport + DSF=2 supersample) even when AD_MAX=1
+  // is set. Stitch picks up the smaller capture dims from meta.json and
+  // lanczos-upscales just these clips to match the 4K xfade target.
+  const useTrue4kForClip = TRUE_4K && !FORCE_PROD_PATH_CLIPS.has(clip.name);
+  const true4kParam = useTrue4kForClip ? '&true4k=1' : '';
+  const url = `${BASE_URL}/artwork/ad-clip/index.html?clip=${encodeURIComponent(clip.name)}&aspect=${aspect.name}&duration=${clip.durationMs}&timeScale=${clipTimeScale}${true4kParam}`;
   const targetDir = path.join(OUTPUT_RAW, `clip-${clip.name}-${aspect.name}`);
   const stagingDir = path.join(targetDir, '_staging');
   fs.mkdirSync(stagingDir, { recursive: true });
@@ -188,15 +234,24 @@ async function captureOne(browser, aspect, clip) {
   // native at SCALE=2. With clipTimeScale < 1 the browser gets extra
   // wall-clock budget per game-second, so the cap stops applying.
   const rawCap = clipTimeScale < 1 ? null : SCALE_CAP_PER_CLIP[clip.name];
-  const effectiveScale = rawCap != null ? Math.min(SCALE, rawCap) : SCALE;
+  // PROD-path fallback uses DSF=2 (the original supersampling trick); native
+  // 4K path uses DSF=1 (no supersample on top of the bigger viewport).
+  const baseScale = useTrue4kForClip ? SCALE : (TRUE_4K ? 2 : SCALE);
+  const effectiveScale = rawCap != null ? Math.min(baseScale, rawCap) : baseScale;
   const cap = rawCap;
-  const outW = Math.round(aspect.width * effectiveScale);
-  const outH = Math.round(aspect.height * effectiveScale);
-  const capNote = cap != null && SCALE > cap ? ` (capped from ${SCALE}×)` : '';
-  console.log(`  capture ${clip.name} ${aspect.name} → ${aspect.width}×${aspect.height} @ ${effectiveScale}× DSF${capNote} (effective ${outW}×${outH})`);
+  // Capture viewport: TRUE_4K-eligible clips get the full 4K rasterisation
+  // surface; PROD-path clips stay at base 1920×1080 with DSF supersampling.
+  const viewportMul = useTrue4kForClip ? VIEWPORT_MUL : 1;
+  const viewportW = aspect.width * viewportMul;
+  const viewportH = aspect.height * viewportMul;
+  const outW = Math.round(viewportW * effectiveScale);
+  const outH = Math.round(viewportH * effectiveScale);
+  const capNote = cap != null && baseScale > cap ? ` (capped from ${baseScale}×)` : '';
+  const pathNote = TRUE_4K && !useTrue4kForClip ? ' [PROD path]' : '';
+  console.log(`  capture ${clip.name} ${aspect.name} → ${viewportW}×${viewportH} @ ${effectiveScale}× DSF${capNote}${pathNote} (effective ${outW}×${outH})`);
 
   const context = await browser.newContext({
-    viewport: { width: aspect.width, height: aspect.height },
+    viewport: { width: viewportW, height: viewportH },
     deviceScaleFactor: effectiveScale,
   });
   const page = await context.newPage();
@@ -351,8 +406,12 @@ async function captureOne(browser, aspect, clip) {
     fps: FPS,
     durationMs: clip.durationMs,
     actualClipMs,
-    captureWidth: aspect.width,
-    captureHeight: aspect.height,
+    // captureWidth/Height = actual screencast frame dimensions in pixels
+    // (== viewport CSS size, since DSF doesn't enlarge the screencast frame).
+    // stitch reads these to compute its lanczos target, so they must reflect
+    // what's actually on disk — 3840×2160 in TRUE_4K mode, 1920×1080 otherwise.
+    captureWidth: viewportW,
+    captureHeight: viewportH,
     scale: effectiveScale,
   }, null, 2));
 
