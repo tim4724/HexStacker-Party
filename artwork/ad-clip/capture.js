@@ -40,6 +40,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { spawn } = require('child_process');
 const { getVariant } = require('./variants');
 
@@ -88,6 +89,23 @@ const SCALE_CAP_PER_CLIP = { chaos8p: 1 };
 // so applying the scale would compress those animations in playback. They
 // also aren't compute-bound — there's no fps headroom problem to solve.
 const NON_SCALABLE_CLIPS = new Set(['lobby-reveal', 'winner', 'logo']);
+
+// Per-clip threshold (ms) for the post-capture freeze sniff. If we observe
+// a longer run of byte-identical source frames than this, the iframe's
+// compositor cache likely went stale during capture and we retry. Static
+// card clips have multi-second static content by design — Infinity skips
+// the sniff for them.
+const FREEZE_THRESHOLD_MS = {
+  'lobby-reveal': 1500,
+  normal4p: 1000,
+  pillow4p: 1000,
+  neon4p:   1000,
+  chaos8p:  1000,
+  short3p:  1000,
+  winner: Infinity,
+  logo:   Infinity,
+};
+const MAX_CAPTURE_ATTEMPTS = 3;
 
 // Output frame rate. Native screencast emits at ~95 fps at 1080p, so 60 fps
 // output gets near-1:1 nearest-neighbour copies (rare duplicates).
@@ -144,7 +162,7 @@ async function main() {
     browser = await chromium.launch({ headless: true });
     for (const aspect of ASPECTS) {
       for (const clip of variant.clips) {
-        await captureOne(browser, aspect, clip);
+        await captureWithRetry(browser, aspect, clip);
       }
     }
   } finally {
@@ -280,6 +298,18 @@ async function captureOne(browser, aspect, clip) {
 
   console.log(`    captured ${frames.length} frames @ ~${(frames.length / actualClipMs * 1000).toFixed(1)} fps native`);
 
+  // Freeze sniff — scan source frames for the longest run of byte-identical
+  // images. If it exceeds this clip's threshold, the iframe layer almost
+  // certainly went stale mid-capture (the compositor-cache bug we work
+  // around with the heartbeat). Caller retries on the same browser.
+  const maxFreezeMs = detectMaxFreezeMs(frames);
+  const threshold = FREEZE_THRESHOLD_MS[clip.name] != null ? FREEZE_THRESHOLD_MS[clip.name] : 1000;
+  if (maxFreezeMs > threshold) {
+    fs.rmSync(stagingDir, { recursive: true, force: true });
+    fs.rmSync(targetDir, { recursive: true, force: true });
+    return { freezeDetected: true, maxFreezeMs, threshold };
+  }
+
   // Resample staging frames → fixed-FPS sequence in targetDir. Both inputs
   // and output ticks are sorted by time, so a moving cursor finds nearest-
   // neighbour for every output tick in O(N).
@@ -327,7 +357,54 @@ async function captureOne(browser, aspect, clip) {
   }, null, 2));
 
   fs.rmSync(stagingDir, { recursive: true, force: true });
-  console.log(`    → ${path.relative(process.cwd(), targetDir)} (${writeIdx} frames, ~${actualClipMs}ms)`);
+  console.log(`    → ${path.relative(process.cwd(), targetDir)} (${writeIdx} frames, ~${actualClipMs}ms, max freeze ${maxFreezeMs.toFixed(0)}ms)`);
+  return { freezeDetected: false, maxFreezeMs };
+}
+
+// Wrap captureOne with retry-on-freeze. Up to MAX_CAPTURE_ATTEMPTS
+// independent capture attempts; each is a fresh browser context, so
+// transient compositor-cache issues from one run don't carry over. Logs
+// the retry reason so it's visible in CI / repeated runs.
+async function captureWithRetry(browser, aspect, clip) {
+  for (let attempt = 1; attempt <= MAX_CAPTURE_ATTEMPTS; attempt++) {
+    const result = await captureOne(browser, aspect, clip);
+    if (!result.freezeDetected) return result;
+    if (attempt < MAX_CAPTURE_ATTEMPTS) {
+      console.warn(`    ⚠ freeze ${result.maxFreezeMs.toFixed(0)}ms > ${result.threshold}ms — retry ${attempt}/${MAX_CAPTURE_ATTEMPTS - 1}`);
+    } else {
+      console.warn(`    ⚠ freeze persists after ${MAX_CAPTURE_ATTEMPTS} attempts — shipping the last one anyway`);
+      // Fall through with the bad capture rather than failing the pipeline.
+      // Re-run once more to write the output so the rest of the variant can stitch.
+      await captureOne(browser, aspect, clip);
+    }
+  }
+}
+
+// Scan an array of {t, path} source frames and return the longest run of
+// byte-identical consecutive frames in milliseconds, measured by their
+// CDP wall-clock timestamps. Hashing is cheap (~50MB of JPEGs at SCALE=2,
+// md5 throughput on modern hardware ~500MB/s = sub-second per clip).
+function detectMaxFreezeMs(frames) {
+  if (frames.length < 2) return 0;
+  let maxMs = 0;
+  let runStart = 0;
+  let prevHash = hashFile(frames[0].path);
+  for (let i = 1; i < frames.length; i++) {
+    const hash = hashFile(frames[i].path);
+    if (hash !== prevHash) {
+      const runMs = (frames[i - 1].t - frames[runStart].t) * 1000;
+      if (runMs > maxMs) maxMs = runMs;
+      runStart = i;
+      prevHash = hash;
+    }
+  }
+  const tailMs = (frames[frames.length - 1].t - frames[runStart].t) * 1000;
+  if (tailMs > maxMs) maxMs = tailMs;
+  return maxMs;
+}
+
+function hashFile(p) {
+  return crypto.createHash('md5').update(fs.readFileSync(p)).digest('hex');
 }
 
 // Composition heartbeat — fires Page.captureScreenshot at COMPOSITION_HEARTBEAT_HZ
