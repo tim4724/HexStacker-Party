@@ -14,15 +14,6 @@ const DURATION_MS = parseInt(params.get('duration'), 10) || 0;
 // 1 = real time. 0.5 = half speed (browser has 2× wall-time per game-frame),
 // improves capture quality at high SCALE. Patching happens just before GO.
 const TIME_SCALE = parseFloat(params.get('timeScale')) || 1;
-// True-4K mode (capture.js sets this when AD_MAX=1). Adds body.true-4k so
-// composite.css doubles its `--s` multiplier — every fixed-px dimension
-// scales 2× to fill the 3840×2160 viewport instead of letterboxing in the
-// upper-left quadrant. The display iframe inside the .display-frame
-// inherits the bigger CSS viewport and its game canvas rasterises natively
-// at 4K. Lobby chrome inside the iframe (display.css uses fixed-px sizes
-// for the HEX STACKER title, QR card, player cards) gets a separate `zoom`
-// injection below — composite.css can't reach into the iframe to scale it.
-const TRUE_4K = params.get('true4k') === '1';
 const PLAYER_COUNT = 4;
 // Total phones we mount up front. The 8-player clip slides in slots 4-7
 // so they have to exist (and be ready) before recording starts; other
@@ -35,7 +26,6 @@ const PHONE_NAMES = ['Emma', 'Jake', 'Sofia', 'Liam', 'Mia', 'Noah', 'Ava', 'Leo
 
 document.body.classList.add(`aspect-${ASPECT}`);
 document.body.classList.add(`clip-${CLIP}`);
-if (TRUE_4K) document.body.classList.add('true-4k');
 
 const stage = document.getElementById('stage');
 const displayIframe = document.getElementById('display-iframe');
@@ -61,33 +51,15 @@ displayIframe.src = displayURL();
 // its slot in the layout flow — without it the lobby content reflows
 // upward and the visual balance shifts. The lobby-reveal clip module
 // still runs the press for timing purposes; nothing's visible.
-//
-// Note: in TRUE_4K mode capture.js opts the lobby OUT of the 4K viewport
-// path (renders at 1920×1080 + DSF=2 supersample, lanczos up at stitch).
-// The 4K-DOM rasterisation budget couldn't sustain 60fps on the heavy
-// lobby tree (gradient title, animated player cards, welcomeBg canvas).
-// Lanczos quality is invisible there since the lobby is large gradients
-// and headline text — no fine canvas detail to lose.
-displayIframe.addEventListener('load', () => {
-  const doc = displayIframe.contentDocument;
-  const win = displayIframe.contentWindow;
-  // Raise DisplayRender.js's per-frame deltaMs clamp from 50 → 500. Under
-  // capture (4K paint pressure + composition heartbeat + TIME_SCALE
-  // patching) RAF callbacks can stall 200-1000ms wall-clock between fires;
-  // the default clamp would silently drop those gravity ticks and the
-  // engine would appear to pause (pieces stop falling for the stall span).
-  // 500ms keeps a soft spiral-of-death guard while letting normal stalls
-  // catch up on the next RAF.
-  if (win) win.__MAX_FRAME_DELTA_MS_OVERRIDE__ = 500;
-  // Lobby-only: hide the START button. The simulated-press animation
-  // reads as "weird" in the trailer (button just turns red briefly with
-  // no continuation). visibility:hidden so it still occupies its slot.
-  if (CLIP === 'lobby-reveal' && doc && doc.head) {
+if (CLIP === 'lobby-reveal') {
+  displayIframe.addEventListener('load', () => {
+    const doc = displayIframe.contentDocument;
+    if (!doc || !doc.head) return;
     const style = doc.createElement('style');
     style.textContent = '#start-btn { visibility: hidden !important; }';
     doc.head.appendChild(style);
-  }
-});
+  });
+}
 
 // --- Build phone iframes ---
 const phones = [];
@@ -108,24 +80,6 @@ for (let i = 0; i < TOTAL_PHONES; i++) {
   iframe.title = `Controller ${i + 1}`;
   iframe.referrerPolicy = 'no-referrer';
   iframe.src = `/controller/index.html?scenario=adclip&color=${i}&name=${encodeURIComponent(PHONE_NAMES[i])}&players=${TOTAL_PHONES}&seed=${SEED + i}`;
-  // TRUE_4K bezel scaling: composite.css doubles the .phone bezel via --s,
-  // but the controller's CSS (fixed-px header, vh-sized touchpad, etc.) was
-  // designed for a ~200×380 phone viewport. If we just let the iframe fill
-  // the doubled bezel, the controller lays out for 408×756 — different
-  // proportions, fixed-px elements look small, and our previous zoom: 2
-  // injection clipped the touchpad because zoom scales AFTER layout.
-  //
-  // Fix: render the iframe at HALF the bezel's CSS size (so the controller
-  // lays out for its native phone viewport) and CSS-transform it 2× to fill
-  // the doubled bezel visually. transform doesn't affect layout, so the
-  // controller's flexbox + vh/vw all evaluate against the original phone
-  // dimensions and the bottom-anchored touchpad stays inside the frame.
-  if (TRUE_4K) {
-    iframe.style.width = '50%';
-    iframe.style.height = '50%';
-    iframe.style.transform = 'scale(2)';
-    iframe.style.transformOrigin = 'top left';
-  }
   screen.appendChild(iframe);
 
   phone.appendChild(notch);

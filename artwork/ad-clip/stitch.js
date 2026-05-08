@@ -98,35 +98,23 @@ function stitchAspect(variant, aspect) {
     inputArgs.push('-framerate', String(FPS), '-i', path.join(dir, `frame-%04d.${FRAME_EXT}`));
   }
 
-  // --- Filter graph: per-input pre-scale, then xfade chain ---
-  // Target output size = largest input × OUT_SCALE. Inputs already at that
-  // size pass through; smaller inputs (e.g. lobby in MAX mode falls back to
-  // 1080p capture) lanczos-upscale to match. xfade requires uniform input
-  // dimensions, so the scale step is mandatory once any source differs.
+  // --- Filter graph: optional uniform pre-scale, then xfade chain ---
   const xfadeSec = XFADE_MS / 1000;
-  const maxCapW = Math.max(...metas.map((m) => m.captureWidth));
-  const maxCapH = Math.max(...metas.map((m) => m.captureHeight));
-  const targetW = Math.round(maxCapW * OUT_SCALE);
-  const targetH = Math.round(maxCapH * OUT_SCALE);
+  const ref = metas[0];
+  const targetW = Math.round(ref.captureWidth * OUT_SCALE);
+  const targetH = Math.round(ref.captureHeight * OUT_SCALE);
+  const needsScale = OUT_SCALE !== 1;
+  if (needsScale) {
+    console.log(`  upscale: ${ref.captureWidth}×${ref.captureHeight} → ${targetW}×${targetH}`);
+  }
 
   const filterParts = [];
-  let scaleNoteLogged = false;
   for (let i = 0; i < clipDirs.length; i++) {
-    const m = metas[i];
-    if (m.captureWidth !== targetW || m.captureHeight !== targetH) {
+    if (needsScale) {
       filterParts.push(`[${i}:v]scale=${targetW}:${targetH}:flags=lanczos[i${i}]`);
-      if (!scaleNoteLogged) {
-        console.log(`  scale target: ${targetW}×${targetH}`);
-        scaleNoteLogged = true;
-      }
-      console.log(`    ${path.basename(clipDirs[i])}: ${m.captureWidth}×${m.captureHeight} → ${targetW}×${targetH}`);
-    } else {
-      // Pass-through label so the xfade chain has a consistent name to
-      // reference whether or not this input was scaled.
-      filterParts.push(`[${i}:v]null[i${i}]`);
     }
   }
-  const baseLabel = (i) => `i${i}`;
+  const baseLabel = (i) => needsScale ? `i${i}` : `${i}:v`;
   if (clipDirs.length === 1) {
     // Single-clip variant — no xfade chain to build. The `null` filter is a
     // pass-through that just relabels the stream so `-map [vout]` works.

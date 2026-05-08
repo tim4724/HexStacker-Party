@@ -1,16 +1,9 @@
 /* Ad-clip composite: display + 4 phone frames in a single capture surface.
    16:9 landscape only — the body class locks the stage size so the CDP
-   screencast gets pixel-exact frames.
-
-   --s is a global px-multiplier. Default 1 (1080p capture path); set to 2
-   on body.true-4k so every fixed dimension doubles for native 4K capture
-   without lanczos upscaling. Anything that should NOT scale stays as a
-   plain px value (e.g. font-weight, line-height). */
+   screencast gets pixel-exact frames. All dimensions in 1080p CSS pixels;
+   capture supersamples via DSF=2 so the rasterised pixels are 4K. */
 
 * { box-sizing: border-box; }
-
-:root { --s: 1; }
-body.true-4k { --s: 2; }
 
 html, body {
   margin: 0;
@@ -37,8 +30,8 @@ html, body {
 .display-frame {
   position: relative;
   overflow: hidden;
-  box-shadow: 0 calc(12px * var(--s)) calc(48px * var(--s)) rgba(0, 0, 0, 0.55);
-  border-radius: calc(16px * var(--s));
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
+  border-radius: 16px;
   background: #0a0716;
 }
 
@@ -59,10 +52,10 @@ html, body {
 .phone {
   position: relative;
   background: #1a1530;
-  border-radius: calc(28px * var(--s));
-  padding: calc(10px * var(--s));
-  box-shadow: 0 calc(8px * var(--s)) calc(24px * var(--s)) rgba(0, 0, 0, 0.6),
-              inset 0 0 0 calc(2px * var(--s)) rgba(255, 255, 255, 0.06);
+  border-radius: 28px;
+  padding: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6),
+              inset 0 0 0 2px rgba(255, 255, 255, 0.06);
   /* Slightly springy ease (overshoot a hair) so the phone "lands" instead
      of just sliding to a stop — matches the player-card .slotPopIn beat
      in the display lobby. Duration tightened to 480ms so the player card
@@ -85,11 +78,11 @@ body:not(.clip-lobby-reveal) .phone:not(.phone--extra) {
 }
 .phone__notch {
   position: absolute;
-  top: calc(14px * var(--s));
+  top: 14px;
   left: 50%;
   transform: translateX(-50%);
-  width: calc(60px * var(--s));
-  height: calc(6px * var(--s));
+  width: 60px;
+  height: 6px;
   background: #0a0716;
   border-radius: 999px;
   z-index: 2;
@@ -97,7 +90,7 @@ body:not(.clip-lobby-reveal) .phone:not(.phone--extra) {
 .phone__screen {
   width: 100%;
   height: 100%;
-  border-radius: calc(18px * var(--s));
+  border-radius: 18px;
   overflow: hidden;
   background: #000;
 }
@@ -108,7 +101,7 @@ body:not(.clip-lobby-reveal) .phone:not(.phone--extra) {
   display: block;
 }
 
-/* Layout: 16:9 — 1920×1080 (or 3840×2160 in true-4k mode). Stage backdrop
+/* Layout: 16:9 — 1920×1080 CSS pixels. Stage backdrop
    matches the display's bg-primary so there's no visible seam where the
    iframe ends. */
 body.aspect-16x9 .stage {
@@ -123,9 +116,9 @@ body.aspect-16x9 .stage {
 body.aspect-16x9.clip-normal4p .display-frame,
 body.aspect-16x9.clip-pillow4p .display-frame,
 body.aspect-16x9.clip-neon4p .display-frame {
-  width: calc(1920px * var(--s));
-  height: calc(720px * var(--s));
-  top: calc(80px * var(--s));
+  width: 1920px;
+  height: 720px;
+  top: 80px;
   margin: 0;
   align-self: start;
   justify-self: start;
@@ -139,8 +132,8 @@ body.aspect-16x9.clip-neon4p .display-frame {
    normal4p. */
 body.aspect-16x9.clip-chaos8p .display-frame,
 body.aspect-16x9.clip-lobby-reveal .display-frame {
-  width: calc(1920px * var(--s));
-  height: calc(1080px * var(--s));
+  width: 1920px;
+  height: 1080px;
   border-radius: 0;
   box-shadow: none;
 }
@@ -148,8 +141,8 @@ body.aspect-16x9.clip-lobby-reveal .display-frame {
 /* winner / logo keep the default centred frame — iframe is hidden by the
    clip module (opacity:0) so the title card alone occupies the stage. */
 body.aspect-16x9 .display-frame {
-  width: calc(1440px * var(--s));
-  height: calc(810px * var(--s));
+  width: 1440px;
+  height: 810px;
   margin: auto;
   align-self: center;
   justify-self: center;
@@ -169,15 +162,15 @@ body.aspect-16x9 .phones {
    so phone 3 has breathing room from the viewport boundary. */
 body.aspect-16x9 .phone {
   position: absolute;
-  width: calc(204px * var(--s));
-  height: calc(378px * var(--s));
-  bottom: calc(30px * var(--s));
+  width: 204px;
+  height: 378px;
+  bottom: 30px;
   transform: none;
 }
-body.aspect-16x9 .phone[data-slot="0"] { right: calc(1410px * var(--s)); }
-body.aspect-16x9 .phone[data-slot="1"] { right: calc( 930px * var(--s)); }
-body.aspect-16x9 .phone[data-slot="2"] { right: calc( 450px * var(--s)); }
-body.aspect-16x9 .phone[data-slot="3"] { right: calc(  30px * var(--s)); }
+body.aspect-16x9 .phone[data-slot="0"] { right: 1410px; }
+body.aspect-16x9 .phone[data-slot="1"] { right: 930px; }
+body.aspect-16x9 .phone[data-slot="2"] { right: 450px; }
+body.aspect-16x9 .phone[data-slot="3"] { right: 30px; }
 
 /* Extras only render in chaos8p (which we now do as a phones-off,
    full-bleed display). Hidden everywhere else. */
@@ -202,7 +195,7 @@ body.clip-logo .phone { display: none; }
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: calc(56px * var(--s));
+  gap: 56px;
   /* Solid colour, no backdrop-filter. Originally was rgba + blur to soften
      the chaos8p game showing through during the close. But winner/logo
      both hide the iframe via opacity:0 — and Chromium still renders the
@@ -226,7 +219,7 @@ body.clip-logo .title-card__url,
 body.clip-logo .title-card__tag { display: none; }
 body.clip-logo .title-card { gap: 0; }
 body.clip-logo .title-card__copy { align-items: center; }
-body.clip-logo .title-card__brand { font-size: calc(120px * var(--s)); text-align: center; }
+body.clip-logo .title-card__brand { font-size: 120px; text-align: center; }
 
 /* winner variant — same brand-only treatment as logo, but with the URL
    anchored at the bottom of the frame as a soft CTA. */
@@ -234,25 +227,25 @@ body.clip-winner .title-card__qr,
 body.clip-winner .title-card__tag { display: none; }
 body.clip-winner .title-card { gap: 0; }
 body.clip-winner .title-card__copy { align-items: center; }
-body.clip-winner .title-card__brand { font-size: calc(120px * var(--s)); text-align: center; }
+body.clip-winner .title-card__brand { font-size: 120px; text-align: center; }
 body.clip-winner .title-card__url {
   position: absolute;
-  bottom: calc(80px * var(--s));
+  bottom: 80px;
   left: 0;
   right: 0;
   text-align: center;
-  font-size: calc(36px * var(--s));
+  font-size: 36px;
 }
 .title-card__qr {
-  width: calc(280px * var(--s));
-  height: calc(280px * var(--s));
+  width: 280px;
+  height: 280px;
   background: #ffffff;
-  border-radius: calc(20px * var(--s));
-  padding: calc(20px * var(--s));
+  border-radius: 20px;
+  padding: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 calc(12px * var(--s)) calc(40px * var(--s)) rgba(0, 0, 0, 0.5);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
 }
 .title-card__qr canvas {
   width: 100%;
@@ -262,7 +255,7 @@ body.clip-winner .title-card__url {
 .title-card__copy {
   display: flex;
   flex-direction: column;
-  gap: calc(16px * var(--s));
+  gap: 16px;
 }
 /* Same 8-stop sweep as .gradient-title in shared/theme.css. Inlined
    because the composite is loaded outside the display iframe and we
@@ -271,7 +264,7 @@ body.clip-winner .title-card__url {
   font-family: 'Orbitron', sans-serif;
   font-weight: 900;
   letter-spacing: 0.08em;
-  font-size: calc(76px * var(--s));
+  font-size: 76px;
   margin: 0;
   line-height: 1;
   background: linear-gradient(135deg, #FF6B6B, #FF8C42, #FFE066, #7BED6F, #4ECDC4, #5B7FFF, #A78BFA, #F178D8);
@@ -292,14 +285,14 @@ body.clip-winner .title-card__url {
 }
 .title-card__url {
   font-family: 'Orbitron', sans-serif;
-  font-size: calc(32px * var(--s));
+  font-size: 32px;
   font-weight: 700;
   margin: 0;
   letter-spacing: 0.08em;
   color: #F7F1E8;
 }
 .title-card__tag {
-  font-size: calc(22px * var(--s));
+  font-size: 22px;
   margin: 0;
   color: rgba(247, 241, 232, 0.7);
   letter-spacing: 0.04em;
