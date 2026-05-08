@@ -810,6 +810,16 @@ document.addEventListener('visibilitychange', function () {
   if (gameCancelled) return;
   if (currentScreen === 'name' && !playerColor) return;
 
+  // If returning to an already-paused or results screen, drop the
+  // anti-misclick gate — see the .pause-overlay--ready and
+  // .gameover-screen--ready CSS rules.
+  if (pauseOverlay && !pauseOverlay.classList.contains('hidden')) {
+    pauseOverlay.classList.add('pause-overlay--ready');
+  }
+  if (currentScreen === 'gameover' && gameoverScreen) {
+    gameoverScreen.classList.add('gameover-screen--ready');
+  }
+
   // Restart pings to check if connection is still alive.
   // If the WebSocket died while backgrounded, party.onClose will
   // trigger reconnection automatically.

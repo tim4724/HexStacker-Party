@@ -600,6 +600,7 @@ function onGameResumed() {
   gameScreen.classList.remove('paused');
   pauseOverlay.classList.add('hidden');
   pauseOverlay.classList.remove('pause-overlay--self');
+  pauseOverlay.classList.remove('pause-overlay--ready');
   pauseBtn.disabled = false;
 }
 
