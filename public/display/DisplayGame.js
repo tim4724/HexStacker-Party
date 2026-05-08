@@ -53,7 +53,7 @@ function startNewGame() {
   // Clear stale disconnected-QR flags from the previous game so they don't
   // suppress host eligibility here. (onGameEnd no longer clears them — we
   // keep the disconnected state through RESULTS so the host role hands off
-  // correctly; see getHostClientId().)
+  // correctly; see getHostPeerIndex().)
   disconnectedQRs.clear();
   // Add late joiners to playerOrder (preserving existing order)
   for (const id of players.keys()) {
@@ -478,7 +478,7 @@ function onGameEnd(msg) {
   stopDisplayGame();
   prevFrameTime = 0;
   // Intentionally do NOT clear disconnectedQRs here: the set is what keeps
-  // gone players out of getHostClientId() while we sit on RESULTS. A
+  // gone players out of getHostPeerIndex() while we sit on RESULTS. A
   // prematurely-cleared set would re-promote the left-mid-game host and
   // freeze Play Again / New Game behind a "Waiting for {gone name}" banner.
   // Cleared instead in startNewGame() and returnToLobbyUI().

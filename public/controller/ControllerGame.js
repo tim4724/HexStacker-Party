@@ -647,7 +647,7 @@ function renderGameResults(results) {
     var row = document.createElement('div');
     row.className = solo ? 'result-row' : 'result-row rank-' + r.rank;
     row.style.setProperty('--row-delay', (0.2 + i * 0.08) + 's');
-    if (r.playerId === clientId) row.classList.add('is-me');
+    if (r.playerId === peerIndex || r.playerId === clientId) row.classList.add('is-me');
 
     if (!solo) {
       var rankEl = document.createElement('span');

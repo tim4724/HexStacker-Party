@@ -22,6 +22,7 @@ if (new URLSearchParams(location.search).get('test') === '1' && navigator.vibrat
 // --- State ---
 var party = null;
 var clientId = null;
+var peerIndex = null;          // relay/AirConsole slot id; display-facing playerId
 var playerColor = null;       // hex, resolved locally from colorIndex
 var playerColorIndex = null;  // 0..7 index into PLAYER_COLORS
 var playerName = null;

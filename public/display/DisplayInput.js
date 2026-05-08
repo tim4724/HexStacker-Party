@@ -104,8 +104,8 @@ function onHello(fromId, msg) {
       && playerOrder.indexOf(fromId) < 0;
 
     // Send welcome with current state
-    var hostId = getHostClientId();
-    var hostPlayer = hostId ? players.get(hostId) : null;
+    var hostId = getHostPeerIndex();
+    var hostPlayer = hostId != null ? players.get(hostId) : null;
     var welcomeMsg = {
       type: MSG.WELCOME,
       playerName: existing.playerName,
@@ -131,13 +131,13 @@ function onHello(fromId, msg) {
     // Refresh host info on the other controllers too.
     //
     // - Standard mode: a reconnecting ex-host does NOT reclaim — onPeerLeft
-    //   already handed hostClientId off via electNextHost when they dropped.
+    //   already handed hostPeerIndex off via electNextHost when they dropped.
     //   The call is still useful here to flip the temp host's Return-to-
-    //   lobby button visibility back, since getHostClientId's read-only
+    //   lobby button visibility back, since getHostPeerIndex's read-only
     //   fallback (oldest-joined) was the host while the slot's owner was
-    //   disconnected, and now resolves cleanly to the stored hostClientId.
-    // - AirConsole mode: getMasterClientId() takes priority in
-    //   getHostClientId, so the platform CAN re-elect the reconnecting
+    //   disconnected, and now resolves cleanly to the stored hostPeerIndex.
+    // - AirConsole mode: getMasterPeerIndex() takes priority in
+    //   getHostPeerIndex, so the platform CAN re-elect the reconnecting
     //   player as master if they were the AC master before. The dedup
     //   sentinel inside maybeBroadcastHostChange suppresses the broadcast
     //   when nothing actually changed.
@@ -163,13 +163,13 @@ function onHello(fromId, msg) {
     // onPeerJoined gets here first and onHello takes the reconnect path.
     joinedAt: ++_joinSequence
   });
-  if (hostClientId == null) hostClientId = fromId;
+  if (hostPeerIndex == null) hostPeerIndex = fromId;
   if (roomState === ROOM_STATE.LOBBY) {
     playerOrder.push(fromId);
   }
 
-  var hostId = getHostClientId();
-  var hostPlayer = hostId ? players.get(hostId) : null;
+  var hostId = getHostPeerIndex();
+  var hostPlayer = hostId != null ? players.get(hostId) : null;
   var welcomeMsg = {
     type: MSG.WELCOME,
     playerName: playerName,
@@ -233,7 +233,7 @@ function onSoftDrop(fromId, speed) {
 
 function onSetDisplayMute(fromId, msg) {
   // Host-only: non-host controllers can't mute the shared display.
-  var hostId = getHostClientId();
+  var hostId = getHostPeerIndex();
   if (fromId !== hostId) {
     console.warn('[input] non-host SET_DISPLAY_MUTE rejected from', fromId);
     return;

@@ -41,14 +41,15 @@ function connect() {
 
   party.onProtocol = function (type, msg) {
     if (type === 'joined') {
+      peerIndex = msg.index;
       startPing();
       if (currentScreen !== 'game') vibrate(15);
-      party.sendTo('display', {
+      party.sendTo(0, {
         type: MSG.HELLO,
         name: playerName
       });
     } else if (type === 'peer_left') {
-      if (msg.clientId === 'display') {
+      if (msg.index === 0) {
         if (currentScreen === 'game') {
           reconnectOverlay.classList.remove('hidden');
           reconnectHeading.textContent = t('reconnecting');
@@ -64,7 +65,7 @@ function connect() {
   };
 
   party.onMessage = function (from, data) {
-    if (from === 'display') {
+    if (from === 0) {
       handleMessage(data);
     }
   };
@@ -105,7 +106,7 @@ function startPing() {
   stopPing();
   lastPongTime = Date.now();
   pingTimer = setInterval(function () {
-    party.sendTo('display', { type: MSG.PING, t: Date.now() });
+    party.sendTo(0, { type: MSG.PING, t: Date.now() });
     // Show "Bad Connection" if pong is overdue, but keep pinging.
     // Actual reconnect is handled by party.onClose when WebSocket dies.
     if (Date.now() - lastPongTime > PONG_TIMEOUT_MS) {
@@ -139,9 +140,9 @@ function sendToDisplay(type, payload) {
   if (!party) return;
   if (payload) {
     payload.type = type;
-    party.sendTo('display', payload);
+    party.sendTo(0, payload);
   } else {
-    party.sendTo('display', { type: type });
+    party.sendTo(0, { type: type });
   }
 }
 
@@ -152,7 +153,7 @@ function sendToDisplay(type, payload) {
 function performDisconnect() {
   stopPing();
   if (party) {
-    try { party.sendTo('display', { type: MSG.LEAVE }); } catch (_) {}
+    try { party.sendTo(0, { type: MSG.LEAVE }); } catch (_) {}
     party.close();
     party = null;
   }
@@ -164,6 +165,7 @@ function performDisconnect() {
   try { localStorage.removeItem('clientId_' + roomCode); } catch (e) { /* iframe sandbox */ }
   playerColor = null;
   playerColorIndex = null;
+  peerIndex = null;
   takenColorIndices = [];
   // Reset session-scoped pick flags. Without this, a user who picked a
   // color, bailed back to name, and rejoined would skip reclaimPreferredColor
@@ -193,4 +195,3 @@ function performDisconnect() {
   showScreen('name');
   nameInput.focus();
 }
-
