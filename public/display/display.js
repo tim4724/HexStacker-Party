@@ -330,11 +330,16 @@ if (bgCanvas && (urlParams.get('test') !== '1' || urlParams.get('bg') === '1')) 
   // Bake the radial tint into the canvas with Bayer dithering — CSS's
   // radial-gradient at this low alpha (~0.06 over the plum bg) bands visibly
   // on 8-bit displays because each channel step spans ~100px.
+  // Suppress the tint in adclip captures: the radial glow reads as a
+  // distracting coloured halo behind the lobby chrome and JPEG/H.264
+  // re-introduces banding the encoder can't be talked out of. A flat
+  // backdrop with the falling pieces is cleaner for the trailer.
+  var adclipMode = (new URLSearchParams(location.search)).get('adclip') === '1';
   welcomeBg = new WelcomeBackground(bgCanvas, 15, {
     cx: 0.5, cy: 0.3,
     tint: rgbVar('--accent-primary-rgb'),
     bg:   rgbVar('--bg-primary-rgb'),
-    alpha: 0.06,
+    alpha: adclipMode ? 0 : 0.06,
     stopEnd: 0.55,
   });
   welcomeBg.resize(window.innerWidth, window.innerHeight);
