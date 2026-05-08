@@ -157,12 +157,13 @@ export async function run({ display, controllers, clip, seed, playerCount }) {
           if (step.action === 'swipeLeft' || step.action === 'swipeRight') {
             // Engine receives one move per column the swipe traverses, but
             // the controller fires a SINGLE swipe feedback covering the
-            // whole gesture distance. ~28ms between engine moves keeps
-            // the on-screen piece motion smooth without a perceptible
-            // multi-tap rhythm.
+            // whole gesture distance. ~80ms between engine moves matches
+            // the swipe-glow cadence so the piece visibly travels col-by-
+            // col instead of teleporting; was 28ms which read as an instant
+            // multi-col jump that didn't match the lingering glow.
             const move = step.action === 'swipeLeft' ? 'moveLeft' : 'moveRight';
             for (let s = 0; s < step.count; s++) {
-              setTimeout(() => display.__TEST__.applyMove(i, move), s * 28);
+              setTimeout(() => display.__TEST__.applyMove(i, move), s * 80);
             }
             ctrl.__TEST__.showFeedback(step.action, { count: step.count });
           } else {
