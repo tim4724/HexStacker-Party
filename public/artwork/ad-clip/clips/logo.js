@@ -17,8 +17,6 @@ export async function stage() {
 const TAIL_MS = 100;
 
 export async function run({ titleCard, durationMs }) {
-  const frame = document.getElementById('display-frame');
-  if (frame) frame.style.opacity = '0';
   setTimeout(() => titleCard.classList.add('in'), 200);
   titleCard.classList.remove('hidden');
   // durationMs comes from variants.js via composite ctx — keeps the

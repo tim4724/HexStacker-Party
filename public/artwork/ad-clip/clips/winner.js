@@ -14,10 +14,6 @@ export async function stage() {
 }
 
 export async function run({ titleCard, durationMs }) {
-  // Hide the display iframe entirely so only the title card + dark
-  // backdrop remain.
-  const frame = document.getElementById('display-frame');
-  if (frame) frame.style.opacity = '0';
   setTimeout(() => titleCard.classList.add('in'), 200);
   titleCard.classList.remove('hidden');
   // durationMs comes from variants.js via composite ctx — couples the
