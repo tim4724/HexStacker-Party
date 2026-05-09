@@ -94,8 +94,15 @@ function onHello(fromId, msg) {
   if (players.has(fromId)) {
     var existing = players.get(fromId);
 
-    // Update name, sanitizing "P1"–"P8" to match actual slot
-    if (name) existing.playerName = sanitizePlayerName(name, existing.playerIndex);
+    // Update name. Empty submissions and legacy P1-P8 fallbacks resolve to
+    // room-unique HX names; custom names stay as entered.
+    if (name || msg.autoName === true) {
+      // For the peer_joined-before-HELLO path, preserve the HX name already
+      // assigned on the player's Map entry while excluding that entry from
+      // collision checks.
+      var requestedName = name || existing.playerName;
+      existing.playerName = sanitizePlayerName(requestedName, fromId, msg.autoName === true);
+    }
     updatePlayerList();
 
     // Late joiner: registered via onPeerJoined during active game but never
@@ -151,7 +158,7 @@ function onHello(fromId, msg) {
     party.sendTo(fromId, { type: MSG.ERROR, message: 'Room is full' });
     return;
   }
-  var playerName = sanitizePlayerName(name, index);
+  var playerName = sanitizePlayerName(name, fromId, msg.autoName === true);
 
   players.set(fromId, {
     playerName: playerName,

@@ -39,7 +39,7 @@ if (urlParams.get('test') === '1' || debugCount > 0 || _adclipMode) {
         // calculateLayout()/electNextHost() get meaningful ordering. Using a
         // derived counter instead of Date.now() keeps scenarios deterministic.
         players.set(p.id, {
-          playerName: sanitizePlayerName(p.name, index),
+          playerName: sanitizePlayerName(p.name, p.id),
           playerIndex: index,
           startLevel: p.level || 1,
           joinedAt: i
@@ -115,7 +115,7 @@ if (urlParams.get('test') === '1' || debugCount > 0 || _adclipMode) {
         var startLines = p.startLines || 0;
         var internalStartLevel = Math.max(1, displayedLevel - Math.floor(startLines / 10));
         players.set(p.id, {
-          playerName: sanitizePlayerName(p.name, slot),
+          playerName: sanitizePlayerName(p.name, p.id),
           playerIndex: slot,
           startLevel: internalStartLevel,
           joinedAt: i

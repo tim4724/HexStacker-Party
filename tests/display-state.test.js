@@ -2,6 +2,7 @@
 
 const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
+const { sanitizePlayerName } = require('./auto-name-helper');
 
 // Load protocol for ROOM_STATE
 const { ROOM_STATE, MSG, INPUT } = require('../public/shared/protocol');
@@ -172,37 +173,46 @@ describe('nextAvailableSlot', () => {
 // sanitizePlayerName
 // =========================================================================
 
-function sanitizePlayerName(name, slotIndex) {
-  if (!name || /^P[1-8]$/i.test(name)) return 'P' + (slotIndex + 1);
-  return name;
-}
-
 describe('sanitizePlayerName', () => {
-  it('returns slot label for empty name', () => {
-    assert.equal(sanitizePlayerName('', 0), 'P1');
-    assert.equal(sanitizePlayerName('', 2), 'P3');
+  it('returns HX fallback for empty name', () => {
+    assert.equal(sanitizePlayerName(''), 'HX-1');
+    assert.equal(sanitizePlayerName(null), 'HX-1');
   });
 
-  it('returns slot label for null/undefined', () => {
-    assert.equal(sanitizePlayerName(null, 0), 'P1');
-    assert.equal(sanitizePlayerName(undefined, 1), 'P2');
+  it('skips blocked fallback numbers', () => {
+    const players = new Map([
+      ['a', { playerName: 'HX-1' }],
+      ['b', { playerName: 'HX-2' }],
+      ['c', { playerName: 'HX-3' }]
+    ]);
+    assert.equal(sanitizePlayerName('', players), 'HX-5');
   });
 
-  it('returns slot label for default P1-P8 names', () => {
-    assert.equal(sanitizePlayerName('P1', 2), 'P3');
-    assert.equal(sanitizePlayerName('P4', 0), 'P1');
-    assert.equal(sanitizePlayerName('p3', 1), 'P2'); // case insensitive
+  it('treats default P1-P8 names as legacy fallbacks', () => {
+    assert.equal(sanitizePlayerName('P1'), 'HX-1');
+    assert.equal(sanitizePlayerName('P4'), 'HX-1');
+    assert.equal(sanitizePlayerName('p3'), 'HX-1'); // case insensitive
   });
 
   it('preserves custom names', () => {
-    assert.equal(sanitizePlayerName('Alice', 0), 'Alice');
-    assert.equal(sanitizePlayerName('Bob', 3), 'Bob');
+    assert.equal(sanitizePlayerName('Alice'), 'Alice');
+    assert.equal(sanitizePlayerName('Bob'), 'Bob');
   });
 
   it('preserves names that look like P-names but are out of range', () => {
-    assert.equal(sanitizePlayerName('P9', 0), 'P9');
-    assert.equal(sanitizePlayerName('P0', 0), 'P0');
-    assert.equal(sanitizePlayerName('P12', 0), 'P12');
+    assert.equal(sanitizePlayerName('P9'), 'P9');
+    assert.equal(sanitizePlayerName('P0'), 'P0');
+    assert.equal(sanitizePlayerName('P12'), 'P12');
+  });
+
+  it('reuses requested HX fallback when it is available', () => {
+    const players = new Map([['a', { playerName: 'HX-7' }]]);
+    assert.equal(sanitizePlayerName('HX-8', players, 'b', true), 'HX-8');
+  });
+
+  it('reassigns requested HX fallback when it is already taken', () => {
+    const players = new Map([['a', { playerName: 'HX-8' }]]);
+    assert.equal(sanitizePlayerName('HX-8', players, 'b', true), 'HX-1');
   });
 });
 

@@ -148,19 +148,20 @@ if (!skipNameScreen && !isScenario) {
 // Name Input
 // =====================================================================
 
-var savedName = '';
-try { savedName = localStorage.getItem('stacker_player_name') || ''; } catch (e) { /* iframe sandbox */ }
+var savedName = getStoredTypedPlayerName();
 
 function submitName() {
   var name = nameInput.value.trim();
+  var storedAutoName = getStoredAutoPlayerName();
 
-  playerName = name || null;
+  playerName = name || storedAutoName || null;
+  playerNameIsAuto = !name;
   // Persist only what the user actually typed. Clear any stale entry on
-  // empty submit so the display's sanitized fallback (e.g. "P2") never
+  // empty submit so the display's generated fallback (e.g. "HX-27") never
   // ends up prefilled the next time the input is shown.
   try {
-    if (name) localStorage.setItem('stacker_player_name', name);
-    else localStorage.removeItem('stacker_player_name');
+    if (name) localStorage.setItem(PLAYER_NAME_STORAGE_KEY, name);
+    else localStorage.removeItem(PLAYER_NAME_STORAGE_KEY);
   } catch (e) { /* iframe sandbox */ }
   try {
     // Clean up clientIds from previous rooms — a player is only in one room at a time
@@ -858,7 +859,9 @@ window.addEventListener('pagehide', function () {
 // =====================================================================
 
 if (hadStoredId || rejoinId || skipNameScreen) {
-  playerName = savedName || null;
+  var savedAutoName = getStoredAutoPlayerName();
+  playerName = savedName || savedAutoName || null;
+  playerNameIsAuto = !savedName;
   nameInput.value = savedName;
   nameJoinBtn.disabled = true;
   nameJoinBtn.textContent = t('connecting');

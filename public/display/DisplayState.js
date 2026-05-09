@@ -148,9 +148,66 @@ function nextAvailableSlot() {
   return -1;
 }
 
-// Sanitize player name: replace "P1"–"P8" with the correct slot label
-function sanitizePlayerName(name, slotIndex) {
-  if (!name || /^P[1-8]$/i.test(name)) return 'P' + (slotIndex + 1);
+var AUTO_PLAYER_NAME_RE = /^HX-([1-9][0-9]?)$/i;
+var LEGACY_SLOT_NAME_RE = /^P[1-8]$/i;
+// Exclude culturally unlucky numbers and one obvious content-adjacent number.
+var AUTO_PLAYER_NAME_BLOCKLIST = [4, 13, 17, 69];
+
+function getAutoPlayerNameNumber(name) {
+  var match = typeof name === 'string' ? AUTO_PLAYER_NAME_RE.exec(name) : null;
+  return match ? parseInt(match[1], 10) : null;
+}
+
+function isAllowedAutoPlayerNameNumber(num) {
+  return num >= 1 && num <= 99 && AUTO_PLAYER_NAME_BLOCKLIST.indexOf(num) < 0;
+}
+
+function collectTakenAutoPlayerNameNumbers(exceptPeerIndex) {
+  var taken = [];
+  for (const entry of players) {
+    if (entry[0] === exceptPeerIndex) continue;
+    var num = getAutoPlayerNameNumber(entry[1].playerName);
+    if (num != null) taken.push(num);
+  }
+  return taken;
+}
+
+function generateAutoPlayerName(exceptPeerIndex, preferredName) {
+  var taken = collectTakenAutoPlayerNameNumbers(exceptPeerIndex);
+  var preferredNum = getAutoPlayerNameNumber(preferredName);
+  if (preferredNum != null
+      && isAllowedAutoPlayerNameNumber(preferredNum)
+      && taken.indexOf(preferredNum) < 0) {
+    return 'HX-' + preferredNum;
+  }
+
+  var available = [];
+  for (var i = 1; i <= 99; i++) {
+    if (isAllowedAutoPlayerNameNumber(i) && taken.indexOf(i) < 0) {
+      available.push(i);
+    }
+  }
+
+  // MAX_PLAYERS is 8, so this fallback should only matter if test harnesses
+  // deliberately fill every normal candidate.
+  if (available.length === 0) {
+    for (var j = 1; j <= 99; j++) {
+      if (taken.indexOf(j) < 0) {
+        available.push(j);
+      }
+    }
+  }
+
+  if (available.length === 0) return 'HX-1';
+  return 'HX-' + available[Math.floor(Math.random() * available.length)];
+}
+
+// Sanitize player name. Empty names and legacy slot fallbacks become
+// room-unique, language-neutral HX names that survive lobby compaction.
+function sanitizePlayerName(name, peerIndex, requestedAutoName) {
+  if (requestedAutoName || !name || LEGACY_SLOT_NAME_RE.test(name)) {
+    return generateAutoPlayerName(peerIndex, name);
+  }
   return name;
 }
 

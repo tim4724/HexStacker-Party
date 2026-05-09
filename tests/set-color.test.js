@@ -4,6 +4,7 @@ const { test, describe, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { MSG, ROOM_STATE } = require('../public/shared/protocol');
 const { PLAYER_COLORS } = require('../public/shared/theme');
+const { generateAutoPlayerName } = require('./auto-name-helper');
 
 // =====================================================================
 // Tests for the lobby color-picker protocol (MSG.SET_COLOR).
@@ -56,7 +57,7 @@ function onPeerJoined(players, playerOrder, roomState, party, clientId) {
   var index = nextAvailableSlot(players);
   if (index < 0) return;
   players.set(clientId, {
-    playerName: 'P' + (index + 1),
+    playerName: generateAutoPlayerName(players, clientId),
     playerIndex: index,
     startLevel: 1,
     lastPingTime: Date.now()
