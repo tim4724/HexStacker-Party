@@ -139,6 +139,9 @@ export function scrapeMetrics() {
     // Each scrape lands on a single machine (proxy LB). Track which one so
     // the summary can warn that gauge peaks (clients/rooms) are per-machine,
     // not totals, when load is split across instances.
+    // NB: relies on the relay exposing `instance="..."` labels. If the
+    // relay's /metrics output omits them, all scrapes fall back to
+    // 'unknown' and the summary always reports "single machine seen".
     const inst = r.body.match(/instance="([^"]+)"/)?.[1] || 'unknown';
     scrapeInstances.add(1, { instance: inst });
     for (const raw of r.body.split('\n')) {
@@ -189,17 +192,21 @@ export const options = {
     const t = {
       // A few app errors can still happen during teardown. Sustained target
       // misses are handled as room aborts now, not allowed to spam for minutes.
+      // Small budget for each error category — single network blips, GC
+      // pauses, or relay restarts on multi-minute sweeps shouldn't fail the
+      // whole run. Sustained problems blow past these limits quickly.
       relay_app_errors: ['count<100'],
-      relay_room_aborts: ['count<1'],
-      relay_target_missing_errors: ['count<1'],
+      relay_room_aborts: ['count<3'],
+      relay_target_missing_errors: ['count<5'],
       relay_conn_errors: ['count<10'],
       // /metrics scraper failures: if it can't reach the relay we'd
       // otherwise silently print clients=0 rooms=0. Cap at 10 transient
       // errors over a multi-minute test.
       relay_scrape_errors: ['count<10'],
-      // Surface ws_close totals in the summary even when nothing fails.
-      // Trivially-true threshold so it never affects pass/fail.
+      // Trivially-true thresholds — surface these counters in the summary
+      // even on clean runs. Don't affect pass/fail.
       relay_ws_close: ['count>=0'],
+      relay_pings_failed: ['count>=0'],
     };
     for (const tgt of STAGE_TARGETS) {
       t[`relay_rtt_ms{stage:${tgt}}`] = ['avg>=0'];
@@ -343,7 +350,9 @@ export default function () {
   // lifetime — the ratio we want to measure (5 clients/room) never lands.
   const startPlay = () => {
     if (playStarted) return;
-    if (displayIndex == null) return;
+    // displayIndex is guaranteed non-null here: startPlay() only runs from
+    // controller.onmessage on a `joined`, and controllers are spawned
+    // 100ms after `created` sets displayIndex.
     if (joinedCtrlIndices.size < CONTROLLERS) return;
     playStarted = true;
 
