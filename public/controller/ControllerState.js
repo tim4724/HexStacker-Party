@@ -22,6 +22,7 @@ if (new URLSearchParams(location.search).get('test') === '1' && navigator.vibrat
 // --- State ---
 var party = null;
 var clientId = null;
+var peerIndex = null;          // relay/AirConsole slot id; display-facing playerId
 var playerColor = null;       // hex, resolved locally from colorIndex
 var playerColorIndex = null;  // 0..7 index into PLAYER_COLORS
 var playerName = null;
@@ -198,6 +199,12 @@ function showScreen(name) {
   lobbyScreen.classList.toggle('hidden', name !== 'lobby');
   gameScreen.classList.toggle('hidden', name !== 'game');
   gameoverScreen.classList.toggle('hidden', name !== 'gameover');
+  // Re-arm the gameover anti-misclick gate on fresh entry. Re-entering
+  // 'gameover' from itself (reconnect mid-results) preserves the --ready
+  // class added by visibilitychange.
+  if (name === 'gameover' && prev !== 'gameover') {
+    gameoverScreen.classList.remove('gameover-screen--ready');
+  }
 
   if (welcomeBg) {
     if (name === 'name' || name === 'lobby') {

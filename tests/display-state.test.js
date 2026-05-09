@@ -207,22 +207,22 @@ describe('sanitizePlayerName', () => {
 });
 
 // =========================================================================
-// getHostClientId — AirConsole master-controller rule (lowest playerIndex)
+// getHostPeerIndex — AirConsole master-controller rule (lowest playerIndex)
 // =========================================================================
 
-// Mirrors DisplayState.js getHostClientId / electNextHost — keep in sync.
+// Mirrors DisplayState.js getHostPeerIndex / electNextHost — keep in sync.
 //
-// Sticky host: `hostClientId` is a stored slot (not a computed min).
+// Sticky host: `hostPeerIndex` is a stored slot (not a computed min).
 // It is:
 //   - Initialized by the first joiner (onPeerJoined / onHello).
 //   - Reassigned by electNextHost() when the holder leaves (onPeerLeft),
 //     which picks the oldest-joined remaining present player.
 //   - Preserved across color changes and temporary disconnects.
-// getHostClientId returns the stored host when available; otherwise it
+// getHostPeerIndex returns the stored host when available; otherwise it
 // returns a read-only fallback (oldest-joined present eligible player)
 // so mid-game disconnect transparently defers host duty until the
 // reassignment happens in the next onPeerLeft.
-function getHostClientId(players, party, roomState, playerOrder, disconnectedQRs, hostClientId) {
+function getHostPeerIndex(players, party, roomState, playerOrder, disconnectedQRs, hostPeerIndex) {
   const restricted = (roomState === ROOM_STATE.PLAYING
                    || roomState === ROOM_STATE.COUNTDOWN
                    || roomState === ROOM_STATE.RESULTS)
@@ -230,18 +230,18 @@ function getHostClientId(players, party, roomState, playerOrder, disconnectedQRs
   const eligible = restricted ? new Set(playerOrder) : null;
   const disconnected = disconnectedQRs || new Map();
 
-  if (party && typeof party.getMasterClientId === 'function') {
-    const acHost = party.getMasterClientId();
-    if (acHost && players.has(acHost) && !disconnected.has(acHost)
+  if (party && typeof party.getMasterPeerIndex === 'function') {
+    const acHost = party.getMasterPeerIndex();
+    if (acHost != null && players.has(acHost) && !disconnected.has(acHost)
         && (!restricted || eligible.has(acHost))) {
       return acHost;
     }
   }
 
-  if (hostClientId && players.has(hostClientId)
-      && !disconnected.has(hostClientId)
-      && (!restricted || eligible.has(hostClientId))) {
-    return hostClientId;
+  if (hostPeerIndex != null && players.has(hostPeerIndex)
+      && !disconnected.has(hostPeerIndex)
+      && (!restricted || eligible.has(hostPeerIndex))) {
+    return hostPeerIndex;
   }
 
   let fallbackId = null;
@@ -281,14 +281,14 @@ function seed(playerIndex) {
   return { playerIndex, joinedAt: ++_testJoinCounter };
 }
 
-describe('getHostClientId (sticky host)', () => {
+describe('getHostPeerIndex (sticky host)', () => {
   it('returns null for empty lobby', () => {
-    assert.equal(getHostClientId(new Map()), null);
+    assert.equal(getHostPeerIndex(new Map()), null);
   });
 
   it('returns the stored host when present and connected', () => {
     const players = new Map([['a', seed(0)]]);
-    assert.equal(getHostClientId(players, null, undefined, undefined, undefined, 'a'), 'a');
+    assert.equal(getHostPeerIndex(players, null, undefined, undefined, undefined, 'a'), 'a');
   });
 
   it('stored host wins even when another player has a lower palette slot', () => {
@@ -298,20 +298,20 @@ describe('getHostClientId (sticky host)', () => {
       ['alice', { playerIndex: 3, joinedAt: 1 }],
       ['bob',   { playerIndex: 0, joinedAt: 2 }]
     ]);
-    assert.equal(getHostClientId(players, null, undefined, undefined, undefined, 'alice'), 'alice');
+    assert.equal(getHostPeerIndex(players, null, undefined, undefined, undefined, 'alice'), 'alice');
   });
 
   it('host survives a color change (playerIndex no longer affects host)', () => {
     // Alice joined first with palette slot 0. She changes to slot 5.
-    // hostClientId points to 'alice' throughout — no re-election needed.
+    // hostPeerIndex points to 'alice' throughout — no re-election needed.
     const players = new Map([
       ['alice', { playerIndex: 0, joinedAt: 1 }],
       ['bob',   { playerIndex: 1, joinedAt: 2 }]
     ]);
-    assert.equal(getHostClientId(players, null, undefined, undefined, undefined, 'alice'), 'alice');
+    assert.equal(getHostPeerIndex(players, null, undefined, undefined, undefined, 'alice'), 'alice');
     // Color change — just mutate playerIndex.
     players.get('alice').playerIndex = 5;
-    assert.equal(getHostClientId(players, null, undefined, undefined, undefined, 'alice'), 'alice');
+    assert.equal(getHostPeerIndex(players, null, undefined, undefined, undefined, 'alice'), 'alice');
   });
 
   it('electNextHost picks oldest-joined remaining player', () => {
@@ -324,25 +324,25 @@ describe('getHostClientId (sticky host)', () => {
     assert.equal(electNextHost(players, null, 'alice'), 'bob');
   });
 
-  it('handoff flow: onPeerLeft reassigns then getHostClientId returns new host', () => {
+  it('handoff flow: onPeerLeft reassigns then getHostPeerIndex returns new host', () => {
     // Simulates what DisplayConnection does: electNextHost → delete player.
     const players = new Map([
       ['alice', { playerIndex: 0, joinedAt: 1 }],
       ['bob',   { playerIndex: 1, joinedAt: 2 }]
     ]);
     let hostId = 'alice';
-    assert.equal(getHostClientId(players, null, undefined, undefined, undefined, hostId), 'alice');
+    assert.equal(getHostPeerIndex(players, null, undefined, undefined, undefined, hostId), 'alice');
     // Alice leaves — onPeerLeft runs electNextHost BEFORE removing her.
     hostId = electNextHost(players, null, 'alice');
     players.delete('alice');
     assert.equal(hostId, 'bob');
-    assert.equal(getHostClientId(players, null, undefined, undefined, undefined, hostId), 'bob');
+    assert.equal(getHostPeerIndex(players, null, undefined, undefined, undefined, hostId), 'bob');
   });
 
   it('sticky: a returning original host does NOT reclaim', () => {
     // Alice (host) leaves. onPeerLeft reassigns host to Bob.
     // Later Alice rejoins — she's a new entry with a new joinedAt and
-    // hostClientId still points to Bob.
+    // hostPeerIndex still points to Bob.
     const players = new Map([
       ['alice', { playerIndex: 0, joinedAt: 1 }],
       ['bob',   { playerIndex: 1, joinedAt: 2 }]
@@ -352,8 +352,8 @@ describe('getHostClientId (sticky host)', () => {
     players.delete('alice');
     // ...time passes...
     players.set('alice', { playerIndex: 0, joinedAt: 99 });  // returns
-    // hostClientId is not touched on a normal join (only on null-init or leave).
-    assert.equal(getHostClientId(players, null, undefined, undefined, undefined, hostId), 'bob');
+    // hostPeerIndex is not touched on a normal join (only on null-init or leave).
+    assert.equal(getHostPeerIndex(players, null, undefined, undefined, undefined, hostId), 'bob');
   });
 
   it('AirConsole path: adapter-reported master wins over stored sticky host', () => {
@@ -364,20 +364,20 @@ describe('getHostClientId (sticky host)', () => {
       ['b', seed(1)],
       ['c', seed(2)]
     ]);
-    const party = { getMasterClientId: () => 'c' };
-    assert.equal(getHostClientId(players, party, undefined, undefined, undefined, 'a'), 'c');
+    const party = { getMasterPeerIndex: () => 'c' };
+    assert.equal(getHostPeerIndex(players, party, undefined, undefined, undefined, 'a'), 'c');
   });
 
   it('AirConsole path: falls through to sticky when master has not sent HELLO yet', () => {
     const players = new Map([['a', seed(0)], ['b', seed(1)]]);
-    const party = { getMasterClientId: () => '9' };
-    assert.equal(getHostClientId(players, party, undefined, undefined, undefined, 'a'), 'a');
+    const party = { getMasterPeerIndex: () => '9' };
+    assert.equal(getHostPeerIndex(players, party, undefined, undefined, undefined, 'a'), 'a');
   });
 
   it('AirConsole path: null master falls through to sticky', () => {
     const players = new Map([['a', seed(0)]]);
-    const party = { getMasterClientId: () => null };
-    assert.equal(getHostClientId(players, party, undefined, undefined, undefined, 'a'), 'a');
+    const party = { getMasterPeerIndex: () => null };
+    assert.equal(getHostPeerIndex(players, party, undefined, undefined, undefined, 'a'), 'a');
   });
 
   it('RESULTS: late joiner cannot steal Play Again from sticky host', () => {
@@ -390,7 +390,7 @@ describe('getHostClientId (sticky host)', () => {
     ]);
     const playerOrder = ['bob'];
     assert.equal(
-      getHostClientId(players, null, ROOM_STATE.RESULTS, playerOrder, null, 'bob'),
+      getHostPeerIndex(players, null, ROOM_STATE.RESULTS, playerOrder, null, 'bob'),
       'bob'
     );
   });
@@ -398,7 +398,7 @@ describe('getHostClientId (sticky host)', () => {
   it('PLAYING: sticky host that is a late joiner is ineligible; oldest active takes over', () => {
     // Sticky host = 'late' (late joiner). During active game, only players
     // in playerOrder can act as host — so the fallback elects the oldest
-    // in-order player (alice). hostClientId is NOT mutated here (read-only
+    // in-order player (alice). hostPeerIndex is NOT mutated here (read-only
     // fallback); the sticky slot will resume control in LOBBY.
     const players = new Map([
       ['alice', { playerIndex: 1, joinedAt: 1 }],
@@ -407,7 +407,7 @@ describe('getHostClientId (sticky host)', () => {
     ]);
     const playerOrder = ['alice', 'bob'];
     assert.equal(
-      getHostClientId(players, null, ROOM_STATE.PLAYING, playerOrder, null, 'late'),
+      getHostPeerIndex(players, null, ROOM_STATE.PLAYING, playerOrder, null, 'late'),
       'alice'
     );
   });
@@ -419,9 +419,9 @@ describe('getHostClientId (sticky host)', () => {
       ['bob',   seed(1)]
     ]);
     const playerOrder = ['alice', 'bob'];
-    const party = { getMasterClientId: () => 'carol' };
+    const party = { getMasterPeerIndex: () => 'carol' };
     assert.equal(
-      getHostClientId(players, party, ROOM_STATE.PLAYING, playerOrder, null, 'alice'),
+      getHostPeerIndex(players, party, ROOM_STATE.PLAYING, playerOrder, null, 'alice'),
       'alice'
     );
   });
@@ -429,15 +429,15 @@ describe('getHostClientId (sticky host)', () => {
   it('fallback when playerOrder is unexpectedly empty during RESULTS', () => {
     // Defensive: restriction is dropped when playerOrder is empty.
     const players = new Map([['a', seed(0)]]);
-    assert.equal(getHostClientId(players, null, ROOM_STATE.RESULTS, [], null, 'a'), 'a');
+    assert.equal(getHostPeerIndex(players, null, ROOM_STATE.RESULTS, [], null, 'a'), 'a');
   });
 
   it('PLAYING: disconnected sticky host → read-only fallback to next-oldest', () => {
     // Alice is sticky host but currently disconnected. During the blip the
-    // fallback returns bob (oldest other active), without mutating hostClientId.
-    // (In production, onPeerLeft has already been invoked and hostClientId was
+    // fallback returns bob (oldest other active), without mutating hostPeerIndex.
+    // (In production, onPeerLeft has already been invoked and hostPeerIndex was
     // transferred to bob — this test covers the brief window BEFORE that runs,
-    // or any race where getHostClientId is called with stale hostClientId.)
+    // or any race where getHostPeerIndex is called with stale hostPeerIndex.)
     const players = new Map([
       ['alice', { playerIndex: 0, joinedAt: 1 }],
       ['bob',   { playerIndex: 1, joinedAt: 2 }],
@@ -446,7 +446,7 @@ describe('getHostClientId (sticky host)', () => {
     const playerOrder = ['alice', 'bob', 'carol'];
     const disconnectedQRs = new Map([['alice', null]]);
     assert.equal(
-      getHostClientId(players, null, ROOM_STATE.PLAYING, playerOrder, disconnectedQRs, 'alice'),
+      getHostPeerIndex(players, null, ROOM_STATE.PLAYING, playerOrder, disconnectedQRs, 'alice'),
       'bob'
     );
   });
@@ -457,12 +457,12 @@ describe('getHostClientId (sticky host)', () => {
       ['bob',   { playerIndex: 1, joinedAt: 2 }]
     ]);
     const playerOrder = ['alice', 'bob'];
-    const party = { getMasterClientId: () => 'alice' };
+    const party = { getMasterPeerIndex: () => 'alice' };
     const disconnectedQRs = new Map([['alice', null]]);
     // AC master 'alice' is disconnected → skip. Sticky host 'alice' is also
     // disconnected → fallback to oldest connected = 'bob'.
     assert.equal(
-      getHostClientId(players, party, ROOM_STATE.PLAYING, playerOrder, disconnectedQRs, 'alice'),
+      getHostPeerIndex(players, party, ROOM_STATE.PLAYING, playerOrder, disconnectedQRs, 'alice'),
       'bob'
     );
   });
@@ -475,7 +475,7 @@ describe('getHostClientId (sticky host)', () => {
     const playerOrder = ['alice', 'bob'];
     const disconnectedQRs = new Map([['alice', null], ['bob', null]]);
     assert.equal(
-      getHostClientId(players, null, ROOM_STATE.PLAYING, playerOrder, disconnectedQRs, 'alice'),
+      getHostPeerIndex(players, null, ROOM_STATE.PLAYING, playerOrder, disconnectedQRs, 'alice'),
       null
     );
   });

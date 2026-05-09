@@ -216,8 +216,8 @@ function updateStartButton() {
 // mid-game host handoff (AirConsole master_changed, player leaving during
 // RESULTS) refreshes the tint on the pause/results/reconnect overlays too.
 function applyHostTint() {
-  var hostId = getHostClientId();
-  var hostPlayer = hostId ? players.get(hostId) : null;
+  var hostId = getHostPeerIndex();
+  var hostPlayer = hostId != null ? players.get(hostId) : null;
   var hostColor = hostPlayer ? PLAYER_COLORS[hostPlayer.playerIndex] : null;
   if (hostColor) {
     document.body.style.setProperty('--player-color', hostColor);

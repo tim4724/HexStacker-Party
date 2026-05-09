@@ -38,7 +38,7 @@ state.players = state.displayPlayers;
 state.level = parseInt(state.level, 10) || 1;
 
 // viewAs picks any of the 8 player slots — DisplayTestHarness resolves the
-// host by stubbed clientId, so host tint works for slots beyond the active
+// host by stubbed peer index, so host tint works for slots beyond the active
 // player count too.
 function clampViewAs(v) {
   return Math.max(0, Math.min(v || 0, 7));

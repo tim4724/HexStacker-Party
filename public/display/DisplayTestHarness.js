@@ -476,14 +476,14 @@ function initScenario(opts) {
   var playerCount = Math.max(0, Math.min(rawCount, 8));
   var level = opts.level || 1;
 
-  // Host override for gallery previews. getHostClientId() consults
-  // party.getMasterClientId() first, so stubbing it lets us render the
+  // Host override for gallery previews. getHostPeerIndex() consults
+  // party.getMasterPeerIndex() first, so stubbing it lets us render the
   // same scenario with different players designated as host (Start button
   // tint follows the host's player color).
   var hostSlot = null;
   if (opts.host !== null && opts.host !== undefined && !isNaN(opts.host)) {
     hostSlot = Math.max(0, Math.min(opts.host, 7));
-    party = { getMasterClientId: function() { return 'debug' + hostSlot; } };
+    party = { getMasterPeerIndex: function() { return 'debug' + hostSlot; } };
   }
 
   // Welcome: no players, stay on welcome screen.

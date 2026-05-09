@@ -26,6 +26,7 @@
   var levelParam = parseInt(params.get('level'), 10);
   var FAKE_NAMES = ['Emma','Jake','Sofia','Liam','Mia','Noah','Ava','Leo'];
   var fakeName = params.get('name') || FAKE_NAMES[colorIdx];
+  if (peerIndex == null) peerIndex = clientId;
   // Default non-host scenarios to a host at the next color slot so the
   // player's own name never collides with the host being waited for.
   var defaultHostIdx = (colorIdx + 1) % 8;

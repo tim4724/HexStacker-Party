@@ -56,29 +56,29 @@ class AirConsoleAdapter {
     ac.onConnect = function(device_id) {
       if (device_id === AirConsole.SCREEN) return;
       if (self.role === 'display') {
-        if (self.onProtocol) self.onProtocol('peer_joined', { clientId: String(device_id) });
+        if (self.onProtocol) self.onProtocol('peer_joined', { index: device_id });
       }
     };
 
     ac.onDisconnect = function(device_id) {
       if (device_id === AirConsole.SCREEN) {
         if (self.role === 'controller') {
-          if (self.onProtocol) self.onProtocol('peer_left', { clientId: 'display' });
+          if (self.onProtocol) self.onProtocol('peer_left', { index: 0 });
         }
         return;
       }
       if (self.role === 'display') {
-        if (self.onProtocol) self.onProtocol('peer_left', { clientId: String(device_id) });
+        if (self.onProtocol) self.onProtocol('peer_left', { index: device_id });
       }
     };
 
     ac.onMessage = function(device_id, data) {
       if (self.role === 'display') {
         if (device_id === AirConsole.SCREEN) return; // ignore own broadcasts echoed back
-        if (self.onMessage) self.onMessage(String(device_id), data);
+        if (self.onMessage) self.onMessage(device_id, data);
       } else {
         if (device_id === AirConsole.SCREEN) {
-          if (self.onMessage) self.onMessage('display', data);
+          if (self.onMessage) self.onMessage(0, data);
         }
       }
     };
@@ -96,13 +96,13 @@ class AirConsoleAdapter {
 
   /**
    * Display-only: returns the AirConsole master controller device id as a
-   * string clientId, or null when no controller is connected or we're not in
-   * AirConsole mode. Premium devices are prioritized by AirConsole itself.
+   * numeric peer index, or null when no controller is connected or we're not
+   * in AirConsole mode. Premium devices are prioritized by AirConsole itself.
    */
-  getMasterClientId() {
+  getMasterPeerIndex() {
     if (this.role !== 'display') return null;
     var id = this.airconsole.getMasterControllerDeviceId();
-    return (id === undefined || id === null) ? null : String(id);
+    return (id === undefined || id === null) ? null : id;
   }
 
   _fireReady() {
@@ -112,17 +112,21 @@ class AirConsoleAdapter {
     if (this.onOpen) this.onOpen();
 
     if (this.role === 'display') {
-      if (this.onProtocol) this.onProtocol('created', { room: code });
+      if (this.onProtocol) this.onProtocol('created', { room: code, index: 0 });
       // Re-synthesize peer_joined for already-connected controllers.
       // When Play Again / New Game recreates the adapter, AirConsole won't
       // re-fire onConnect for controllers that are already connected.
       var self = this;
       var ids = this.airconsole.getControllerDeviceIds();
       for (var i = 0; i < ids.length; i++) {
-        if (self.onProtocol) self.onProtocol('peer_joined', { clientId: String(ids[i]) });
+        if (self.onProtocol) self.onProtocol('peer_joined', { index: ids[i] });
       }
     } else {
-      if (this.onProtocol) this.onProtocol('joined', { room: code, clients: [] }); // peers delivered via peer_joined from display
+      // Controllers' index is their AirConsole device id; the only "peer" they
+      // care about is the display (always 0). Other controllers don't talk to
+      // each other, so peers stays empty.
+      var myIndex = this.airconsole.getDeviceId();
+      if (this.onProtocol) this.onProtocol('joined', { room: code, index: myIndex, peers: [0] });
     }
   }
 
@@ -141,18 +145,20 @@ class AirConsoleAdapter {
   }
 
   sendTo(to, data) {
-    if (to === 'display') {
+    if (typeof to !== 'number') {
+      console.warn('[AirConsoleAdapter] sendTo: expected numeric peer index, got', to);
+      return;
+    }
+    if (to === 0) {
       if (this.role === 'display') {
         // Async self-echo for heartbeat compatibility.
         var self = this;
-        setTimeout(function() { if (self.onMessage) self.onMessage('display', data); }, 0);
+        setTimeout(function() { if (self.onMessage) self.onMessage(0, data); }, 0);
         return;
       }
       this.airconsole.message(AirConsole.SCREEN, data);
     } else {
-      var id = parseInt(to, 10);
-      if (isNaN(id)) { console.warn('[AirConsoleAdapter] sendTo: invalid device ID "' + to + '"'); return; }
-      this.airconsole.message(id, data);
+      this.airconsole.message(to, data);
     }
   }
 
