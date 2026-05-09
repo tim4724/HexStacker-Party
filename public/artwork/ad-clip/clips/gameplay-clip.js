@@ -47,15 +47,18 @@ const CLIPS = {
   neon4p:   { players: 4, level: 11, durationMs: 5500, prefillRows: 6, startLines: 105,
               pace: { tapMin: 180, tapMax: 320, dropMin: 240, dropMax: 380 } },
   chaos8p:  { players: 8, level:  6, durationMs: 7000, startLines: 47,
-              // Five staggered garbage attacks across 7s — keeps the chaos
-              // escalating throughout the longer beat instead of fizzling
-              // out after the first attack.
-              peakBeats: [
-                { atMs: 1100, attack: { fromIdx: 0, toIdx: 3, lines: 3 } },
-                { atMs: 2300, attack: { fromIdx: 1, toIdx: 5, lines: 4 } },
-                { atMs: 3500, attack: { fromIdx: 2, toIdx: 6, lines: 3 } },
-                { atMs: 4700, attack: { fromIdx: 3, toIdx: 0, lines: 4 } },
-                { atMs: 5900, attack: { fromIdx: 4, toIdx: 7, lines: 3 } },
+              // Three players start with a 4-row column-gap setup and an
+              // I-piece queued first — the AI's heuristic scores vertical-I
+              // into the well as a 4-line clear (linesCleared * 100 dominates),
+              // so on the natural piece lock the engine fires real line_clear
+              // events, GarbageManager picks lowest-stack opponents, garbage
+              // indicators light up, and rows rise after GARBAGE_DELAY_MS.
+              // Wave staggers ~500ms via the existing per-player nextActionAt
+              // offset (200 + i*80), so the three quads land 0.7-1.2s in.
+              clearSetups: [
+                { playerIdx: 0, gapCol: 3 },
+                { playerIdx: 3, gapCol: 5 },
+                { playerIdx: 6, gapCol: 7 },
               ],
               prefillRows: 5,
               pace: { tapMin: 130, tapMax: 220, dropMin: 170, dropMax: 250 } },
@@ -70,6 +73,16 @@ export async function stage({ display, clip, seed, playerCount }) {
   const enginePlayers = cfg.players || playerCount;
   const playerInfo = rosterFor(enginePlayers, cfg);
   display.__TEST__.bootLocalGame({ playerInfo, seed, prefillRows: cfg.prefillRows });
+  if (cfg.clearSetups) {
+    for (const s of cfg.clearSetups) {
+      display.__TEST__.primeForIClear(s.playerIdx, s.gapCol);
+    }
+  }
+  // Freeze gravity until run() resumes — during the ~RAF + screencast-start +
+  // GO-wait window between stage() and run(), the engine would otherwise tick
+  // and let pieces (especially primed I-pieces in horizontal spawn orientation)
+  // auto-lock above prefill before the AI can rotate/move them.
+  if (display.displayGame) display.displayGame.pause();
 }
 
 export async function run({ display, controllers, clip, seed, playerCount }) {
@@ -77,6 +90,7 @@ export async function run({ display, controllers, clip, seed, playerCount }) {
   const enginePlayers = cfg.players || playerCount;
   const playerInfo = rosterFor(enginePlayers, cfg);
 
+  if (display.displayGame) display.displayGame.resume();
   const start = performance.now();
   // Per-player state: pending action queue + last-piece tracking so we only
   // re-plan when a new piece spawns.
@@ -92,11 +106,6 @@ export async function run({ display, controllers, clip, seed, playerCount }) {
     // standalone clip 200-400ms of a static staged scene reads as a hang.
     firstPlan: true,
   }));
-
-  // Multiple garbage attacks scheduled across longer clips so the action
-  // keeps escalating instead of one quick pop.
-  const peakBeats = cfg.peakBeats || [];
-  const peakState = peakBeats.map(() => false);
 
   await new Promise((resolve) => {
     function tick() {
@@ -115,14 +124,6 @@ export async function run({ display, controllers, clip, seed, playerCount }) {
       if (display.roomState && display.roomState !== 'playing') {
         resolve();
         return;
-      }
-
-      for (let pb = 0; pb < peakBeats.length; pb++) {
-        if (!peakState[pb] && elapsed >= peakBeats[pb].atMs) {
-          peakState[pb] = true;
-          const atk = peakBeats[pb].attack;
-          display.__TEST__.injectGarbage(atk.toIdx, atk.lines);
-        }
       }
 
       for (let i = 0; i < ai.length; i++) {
