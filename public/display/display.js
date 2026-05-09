@@ -288,6 +288,10 @@ pauseBtn.addEventListener('click', function() {
 });
 
 pauseContinueBtn.addEventListener('click', function() {
+  if (autoPaused && !canResumeGame()) {
+    dismissAutoPausedOverlay();
+    return;
+  }
   resumeGame();
 });
 

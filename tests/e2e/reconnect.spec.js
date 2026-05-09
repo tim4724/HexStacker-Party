@@ -71,12 +71,15 @@ test.describe('Reconnection', () => {
     await expect(page.locator('#game-toolbar')).not.toHaveClass(/toolbar-autohide/);
     await page.click('#pause-btn');
     await expect(page.locator('#pause-overlay')).toBeVisible();
-    await expect(page.locator('#pause-continue-btn')).toBeDisabled();
+    await expect(page.locator('#pause-continue-btn')).toBeEnabled();
     await expect(page.locator('#pause-newgame-btn')).toBeVisible();
 
-    await page.locator('#pause-continue-btn').evaluate((btn) => btn.click());
+    await page.click('#pause-continue-btn');
+    await expect(page.locator('#pause-overlay')).toBeHidden();
+    await expect(page.locator('#game-toolbar')).toBeVisible();
     expect(await page.evaluate(() => paused)).toBe(true);
     expect(await page.evaluate(() => autoPaused)).toBe(true);
+    expect(await page.evaluate(() => disconnectedQRs.size)).toBe(1);
   });
 
   test('display reconnect overlay shows when relay connection drops', async ({ page, context }) => {

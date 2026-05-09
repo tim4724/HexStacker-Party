@@ -501,11 +501,19 @@ function onGameEnd(msg) {
 
 function onGamePaused() {
   if (displayGame) displayGame.pause();
-  if (pauseContinueBtn) pauseContinueBtn.disabled = !canResumeGame();
+  if (pauseContinueBtn) pauseContinueBtn.disabled = false;
   pauseOverlay.classList.remove('hidden');
   gameToolbar.classList.add('hidden');
   countdownOverlay.classList.add('paused');
   if (music) music.pause();
+}
+
+function dismissAutoPausedOverlay() {
+  pauseOverlay.classList.add('hidden');
+  if (currentScreen === SCREEN.GAME) {
+    gameToolbar.classList.remove('hidden');
+  }
+  setAutoPaused(true);
 }
 
 function onGameResumed() {
