@@ -138,6 +138,10 @@ function allPlayersDisconnected() {
   return playerOrder.length > 0;
 }
 
+function canResumeGame() {
+  return !allPlayersDisconnected();
+}
+
 function hasLateJoiners() {
   for (const id of players.keys()) {
     if (playerOrder.indexOf(id) < 0) return true;
@@ -186,6 +190,7 @@ function checkAutoResume() {
 function resumeGame() {
   if (!paused) return;
   if (roomState !== ROOM_STATE.PLAYING && roomState !== ROOM_STATE.COUNTDOWN) return;
+  if (!canResumeGame()) return;
   paused = false;
   if (roomState === ROOM_STATE.COUNTDOWN && countdown.callback) {
     party.broadcast({ type: MSG.GAME_RESUMED });
@@ -496,6 +501,7 @@ function onGameEnd(msg) {
 
 function onGamePaused() {
   if (displayGame) displayGame.pause();
+  if (pauseContinueBtn) pauseContinueBtn.disabled = !canResumeGame();
   pauseOverlay.classList.remove('hidden');
   gameToolbar.classList.add('hidden');
   countdownOverlay.classList.add('paused');
@@ -504,6 +510,7 @@ function onGamePaused() {
 
 function onGameResumed() {
   if (displayGame) displayGame.resume();
+  if (pauseContinueBtn) pauseContinueBtn.disabled = false;
   pauseOverlay.classList.add('hidden');
   countdownOverlay.classList.remove('paused');
   if (currentScreen === SCREEN.GAME) {
