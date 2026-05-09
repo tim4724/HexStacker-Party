@@ -55,7 +55,8 @@ const OUT_SCALE = parseFloat(process.env.AD_OUT_SCALE) || (MAX ? 1 : PROD ? 2 : 
 // for social-platform delivery (which re-encodes anyway). 14 is a master.
 // 10 is "visually lossless" — gradient banding gone, fast-motion blur
 // minimised, file ~3× larger. 23 is YouTube's recommended "default".
-const CRF = parseInt(process.env.AD_CRF, 10) || (MAX ? 10 : PROD ? 14 : 18);
+const CRF_ENV = parseInt(process.env.AD_CRF, 10);
+const CRF = Number.isFinite(CRF_ENV) ? CRF_ENV : (MAX ? 10 : PROD ? 14 : 18);
 
 function main() {
   const variants = getVariants();
@@ -161,11 +162,11 @@ function stitchAspect(variant, aspect) {
   }
   args.push(
     '-c:v', 'libx264',
-    '-pix_fmt', 'yuv420p',
+    '-pix_fmt', CRF === 0 ? 'yuv444p' : 'yuv420p',
     '-preset', 'slow',
     '-crf', String(CRF),
     '-r', String(FPS),
-    '-profile:v', 'high', '-level', '5.1',
+    '-profile:v', CRF === 0 ? 'high444' : 'high', '-level', '5.1',
     '-movflags', '+faststart',
     outPath,
   );
