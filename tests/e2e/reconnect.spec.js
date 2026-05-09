@@ -36,6 +36,15 @@ async function joinMidGame(context, roomCode, name) {
   return page;
 }
 
+async function scanReconnectClaim(context, roomCode, claim) {
+  const page = await context.newPage();
+  await page.goto(`/${roomCode}?test=1&claim=${encodeURIComponent(claim)}`);
+  await waitForFont(page);
+  await page.waitForSelector('#game-screen:not(.hidden)', { timeout: 15000 });
+  await page.waitForFunction(() => typeof waitingForNextGame !== 'undefined' && waitingForNextGame === false);
+  return page;
+}
+
 test.describe('Reconnection', () => {
   test.setTimeout(60000);
 
@@ -57,6 +66,12 @@ test.describe('Reconnection', () => {
 
     const isPaused = await page.evaluate(() => paused);
     expect(isPaused).toBe(true);
+
+    await expect(page.locator('#pause-btn')).toBeEnabled();
+    await expect(page.locator('#game-toolbar')).not.toHaveClass(/toolbar-autohide/);
+    await page.click('#pause-btn');
+    await expect(page.locator('#pause-overlay')).toBeVisible();
+    await expect(page.locator('#pause-newgame-btn')).toBeVisible();
   });
 
   test('display reconnect overlay shows when relay connection drops', async ({ page, context }) => {
@@ -177,5 +192,76 @@ test.describe('Reconnection', () => {
 
     const disconnectedCount = await page.evaluate(() => disconnectedQRs.size);
     expect(disconnectedCount).toBe(1);
+  });
+
+  test('same phone scanning reconnect QR keeps stored relay client id', async ({ page, context }) => {
+    const { roomCode } = await createRoom(page);
+    const c1 = await joinController(context, roomCode, 'Alice');
+
+    await waitForDisplayPlayers(page, 1);
+    await c1.click('#start-btn');
+    await waitForDisplayGame(page);
+
+    const aliceId = await c1.evaluate(() => peerIndex);
+    const storedClientId = await c1.evaluate((rc) => localStorage.getItem('clientId_' + rc), roomCode);
+    await c1.close();
+
+    await page.waitForFunction((id) => {
+      return typeof disconnectedQRs !== 'undefined'
+          && disconnectedQRs.has(id);
+    }, aliceId, { timeout: 10000 });
+    const claim = String(aliceId);
+
+    const reconnected = await scanReconnectClaim(context, roomCode, claim);
+    await reconnected.waitForFunction((expected) => peerIndex === expected, aliceId, { timeout: 5000 });
+    const reconnectedClientId = await reconnected.evaluate(() => clientId);
+
+    expect(reconnectedClientId).toBe(storedClientId);
+    expect(await reconnected.evaluate(() => waitingForNextGame)).toBe(false);
+  });
+
+  test('different phone scanning reconnect QR claims disconnected player without old client id', async ({ page, context, browser }) => {
+    const { roomCode } = await createRoom(page);
+    const c1 = await joinController(context, roomCode, 'Alice');
+
+    await waitForDisplayPlayers(page, 1);
+    await c1.click('#start-btn');
+    await waitForDisplayGame(page);
+
+    const aliceId = await c1.evaluate(() => peerIndex);
+    const oldClientId = await c1.evaluate(() => clientId);
+    await c1.close();
+
+    await page.waitForFunction((id) => {
+      return typeof disconnectedQRs !== 'undefined'
+          && disconnectedQRs.has(id);
+    }, aliceId, { timeout: 10000 });
+    const claim = String(aliceId);
+
+    const freshContext = await browser.newContext();
+    try {
+      const replacement = await scanReconnectClaim(freshContext, roomCode, claim);
+      const replacementId = await replacement.evaluate(() => peerIndex);
+      const replacementClientId = await replacement.evaluate(() => clientId);
+
+      expect(replacementId).not.toBe(aliceId);
+      expect(replacementClientId).not.toBe(oldClientId);
+      expect(await replacement.evaluate(() => playerName)).toBe('Alice');
+      expect(await replacement.evaluate(() => waitingForNextGame)).toBe(false);
+
+      await page.waitForFunction(({ oldId, newId }) => {
+        return typeof disconnectedQRs !== 'undefined'
+            && !disconnectedQRs.has(oldId)
+            && typeof playerOrder !== 'undefined'
+            && playerOrder.indexOf(oldId) < 0
+            && playerOrder.indexOf(newId) >= 0
+            && typeof displayGame !== 'undefined'
+            && displayGame
+            && displayGame.playerIds.indexOf(newId) >= 0
+            && displayGame.playerIds.indexOf(oldId) < 0;
+      }, { oldId: aliceId, newId: replacementId }, { timeout: 5000 });
+    } finally {
+      await freshContext.close();
+    }
   });
 });

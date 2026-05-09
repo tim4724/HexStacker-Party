@@ -423,6 +423,106 @@ function removeLobbyPlayer(peerIndex) {
 }
 
 // =====================================================================
+// QR Rejoin Claim Handling
+// =====================================================================
+
+function normalizePeerIndex(value) {
+  if (typeof value === 'number') return value;
+  if (typeof value !== 'string' || value.trim() === '') return null;
+  var n = Number(value);
+  return Number.isInteger(n) ? n : value;
+}
+
+function rekeyMapPreservingOrder(map, oldId, newId, mutateValue) {
+  if (!map || !map.has(oldId)) return;
+  var next = new Map();
+  for (const entry of map) {
+    var key = entry[0];
+    var value = entry[1];
+    if (key === oldId) {
+      if (mutateValue) mutateValue(value);
+      next.set(newId, value);
+    } else {
+      next.set(key, value);
+    }
+  }
+  map.clear();
+  for (const nextEntry of next) map.set(nextEntry[0], nextEntry[1]);
+}
+
+function rekeyDisplayGamePlayer(oldId, newId) {
+  if (!displayGame) return;
+
+  rekeyMapPreservingOrder(displayGame.boards, oldId, newId, function(board) {
+    board.playerId = newId;
+  });
+
+  if (Array.isArray(displayGame.playerIds)) {
+    for (var i = 0; i < displayGame.playerIds.length; i++) {
+      if (displayGame.playerIds[i] === oldId) displayGame.playerIds[i] = newId;
+    }
+  }
+
+  var gm = displayGame.garbageManager;
+  if (!gm) return;
+
+  rekeyMapPreservingOrder(gm.queues, oldId, newId);
+  rekeyMapPreservingOrder(gm._pendingTotals, oldId, newId);
+
+  if (gm.queues) {
+    for (const entry of gm.queues) {
+      var q = entry[1];
+      for (var qIdx = 0; qIdx < q.length; qIdx++) {
+        if (q[qIdx].senderId === oldId) q[qIdx].senderId = newId;
+      }
+    }
+  }
+}
+
+function transferMapEntry(map, oldId, newId) {
+  if (!map || !map.has(oldId)) return;
+  var value = map.get(oldId);
+  map.delete(oldId);
+  map.set(newId, value);
+}
+
+function claimReconnectPeer(fromId, msg) {
+  var token = msg && msg.rejoinToken;
+  var oldId = normalizePeerIndex(token);
+  if (oldId == null && msg && msg.rejoinId != null) oldId = normalizePeerIndex(msg.rejoinId);
+  if (oldId == null || oldId === fromId) return false;
+  if (!players.has(oldId) || !disconnectedQRs.has(oldId)) return false;
+  if (playerOrder.indexOf(oldId) < 0) return false;
+
+  var existing = players.get(oldId);
+
+  cleanupPlayerInput(oldId);
+  cleanupPlayerInput(fromId);
+
+  players.delete(oldId);
+  players.delete(fromId);
+  existing.lastPingTime = Date.now();
+  players.set(fromId, existing);
+
+  for (var i = 0; i < playerOrder.length; i++) {
+    if (playerOrder[i] === oldId) playerOrder[i] = fromId;
+  }
+  if (hostPeerIndex === oldId || hostPeerIndex == null) hostPeerIndex = fromId;
+
+  if (lastAliveState[oldId] !== undefined) {
+    lastAliveState[fromId] = lastAliveState[oldId];
+    delete lastAliveState[oldId];
+  }
+  transferMapEntry(garbageIndicatorEffects, oldId, fromId);
+  transferMapEntry(garbageDefenceEffects, oldId, fromId);
+  disconnectedQRs.delete(oldId);
+  disconnectedQRs.delete(fromId);
+  rekeyDisplayGamePlayer(oldId, fromId);
+  calculateLayout();
+  return true;
+}
+
+// =====================================================================
 // Lobby Update Broadcast
 // =====================================================================
 
@@ -501,11 +601,11 @@ function showDisconnectQR(peerIndex) {
   // Set immediately so allPlayersDisconnected() can check synchronously
   disconnectedQRs.set(peerIndex, null);
   if (!joinUrl) return;
-  // Splice ?rejoin= in before the fragment so the instance hash stays intact.
+  // Splice the claim in before the fragment so the instance hash stays intact.
   var hashIdx = joinUrl.indexOf('#');
   var base = hashIdx >= 0 ? joinUrl.slice(0, hashIdx) : joinUrl;
   var hash = hashIdx >= 0 ? joinUrl.slice(hashIdx) : '';
-  var rejoinUrl = base + '?rejoin=' + encodeURIComponent(peerIndex) + hash;
+  var rejoinUrl = base + '?claim=' + encodeURIComponent(peerIndex) + hash;
   fetchQR(rejoinUrl, function(qrMatrix) {
     if (!players.has(peerIndex)) return;
     if (!qrMatrix) {

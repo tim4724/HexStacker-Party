@@ -47,7 +47,9 @@ function connect() {
       party.sendTo(0, {
         type: MSG.HELLO,
         name: playerName,
-        autoName: !!playerNameIsAuto
+        autoName: !!playerNameIsAuto,
+        rejoinId: legacyRejoinId,
+        rejoinToken: rejoinToken
       });
     } else if (type === 'peer_left') {
       if (msg.index === 0) {
@@ -160,9 +162,11 @@ function performDisconnect() {
   }
   var params = new URLSearchParams(location.search);
   params.delete('rejoin');
+  params.delete('claim');
   var qs = params.toString();
   history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
-  rejoinId = null;
+  legacyRejoinId = null;
+  rejoinToken = null;
   try { localStorage.removeItem('clientId_' + roomCode); } catch (e) { /* iframe sandbox */ }
   playerColor = null;
   playerColorIndex = null;

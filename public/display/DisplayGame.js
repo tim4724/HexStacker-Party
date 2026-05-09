@@ -40,7 +40,11 @@ function playAgain() {
 
 function setAutoPaused(value) {
   autoPaused = value;
-  if (pauseBtn) pauseBtn.disabled = value;
+  if (pauseBtn) pauseBtn.disabled = false;
+  if (value && gameToolbar && currentScreen === SCREEN.GAME && !document.body.classList.contains('airconsole')) {
+    document.body.classList.remove('cursor-hidden');
+    gameToolbar.classList.remove('toolbar-autohide');
+  }
 }
 
 function startNewGame() {
