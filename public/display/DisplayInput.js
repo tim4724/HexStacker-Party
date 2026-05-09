@@ -151,6 +151,7 @@ function onHello(fromId, msg) {
     //   when nothing actually changed.
     maybeBroadcastHostChange();
     if (claimedReconnect) {
+      broadcastLobbyUpdate();
       if (autoPaused) checkAutoResume();
     }
     return;

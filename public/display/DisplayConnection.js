@@ -427,10 +427,10 @@ function removeLobbyPlayer(peerIndex) {
 // =====================================================================
 
 function normalizePeerIndex(value) {
-  if (typeof value === 'number') return Number.isInteger(value) ? value : null;
+  if (typeof value === 'number') return Number.isInteger(value) && value >= 0 ? value : null;
   if (typeof value !== 'string' || value.trim() === '') return null;
   var n = Number(value);
-  return Number.isInteger(n) ? n : null;
+  return Number.isInteger(n) && n >= 0 ? n : null;
 }
 
 function rekeyMapPreservingOrder(map, oldId, newId, mutateValue) {
