@@ -102,9 +102,16 @@ const serverClients = new Trend('relay_server_clients');
 const serverRooms   = new Trend('relay_server_rooms');
 const serverRssMb   = new Trend('relay_server_rss_mb');
 const serverHeapMb  = new Trend('relay_server_heap_mb');
-const scrapesOk      = new Counter('relay_scrapes_ok');
-const scrapeErrors   = new Counter('relay_scrape_errors');
-const scrapeInstances = new Counter('relay_scrape_instances'); // tagged {instance}
+const scrapesOk        = new Counter('relay_scrapes_ok');
+const scrapeErrors     = new Counter('relay_scrape_errors');
+// Counts distinct relay instances seen across all scrapes. Increments only
+// the first time each instance appears — the total at end-of-test = number
+// of distinct machines the proxy load-balanced our scrapes to.
+// (A tagged counter would not work: tagged sub-metrics only appear in
+// data.metrics when a threshold references them, and we don't know
+// instance IDs upfront.)
+const scrapeInstances  = new Counter('relay_scrape_instances');
+const seenInstances    = new Set();
 
 function appErrorKind(message) {
   // Substring match — relay error wording has drifted before
@@ -136,14 +143,16 @@ export function scrapeMetrics() {
   const r = http.get(METRICS_URL, { timeout: '5s', tags: { name: 'scrape' } });
   if (r.status === 200 && r.body) {
     scrapesOk.add(1);
-    // Each scrape lands on a single machine (proxy LB). Track which one so
-    // the summary can warn that gauge peaks (clients/rooms) are per-machine,
-    // not totals, when load is split across instances.
-    // NB: relies on the relay exposing `instance="..."` labels. If the
-    // relay's /metrics output omits them, all scrapes fall back to
-    // 'unknown' and the summary always reports "single machine seen".
+    // Each scrape lands on a single machine (proxy LB). Track distinct
+    // instances so the summary can warn that gauge peaks (clients/rooms)
+    // are per-machine, not totals, when load is split.
+    // NB: relies on the relay exposing `instance="..."` labels. Without
+    // them all scrapes are tagged 'unknown' and the count stays at 1.
     const inst = r.body.match(/instance="([^"]+)"/)?.[1] || 'unknown';
-    scrapeInstances.add(1, { instance: inst });
+    if (!seenInstances.has(inst)) {
+      seenInstances.add(inst);
+      scrapeInstances.add(1);
+    }
     for (const raw of r.body.split('\n')) {
       if (!raw || raw.charCodeAt(0) === 35 /*#*/) continue;
       const m = raw.match(/^([a-zA-Z_:][\w:]*)(?:\{[^}]*\})?\s+([\d.eE+-]+)/);
@@ -257,12 +266,7 @@ export function handleSummary(data) {
   // Distinct relay instances seen via /metrics scrapes — proxy load-balances
   // each scrape to one machine, so peakClients/peakRooms are per-machine
   // when this count is > 1.
-  const distinctInstances = new Set();
-  for (const k of Object.keys(data.metrics)) {
-    const m = k.match(/^relay_scrape_instances\{instance:([^}]+)\}/);
-    if (m) distinctInstances.add(m[1]);
-  }
-  const instCount = distinctInstances.size;
+  const instCount = data.metrics.relay_scrape_instances?.values?.count ?? 0;
   const stateNote = instCount === 0
     ? 'no scrapes succeeded'
     : instCount > 1
@@ -297,7 +301,7 @@ export function handleSummary(data) {
     failedPct,
     unresolvedPct,
   };
-  data.relayInstancesSeen = [...distinctInstances];
+  data.relayInstancesSeen = instCount;
 
   return {
     'stdout': lines.join('\n') + '\n',
