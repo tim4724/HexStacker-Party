@@ -40,7 +40,11 @@ function playAgain() {
 
 function setAutoPaused(value) {
   autoPaused = value;
-  if (pauseBtn) pauseBtn.disabled = value;
+  if (pauseBtn) pauseBtn.disabled = false;
+  if (gameToolbar && currentScreen === SCREEN.GAME && !document.body.classList.contains('airconsole')) {
+    document.body.classList.toggle('cursor-hidden', value === false);
+    gameToolbar.classList.toggle('toolbar-autohide', value === false);
+  }
 }
 
 function startNewGame() {
@@ -134,6 +138,10 @@ function allPlayersDisconnected() {
   return playerOrder.length > 0;
 }
 
+function canResumeGame() {
+  return !allPlayersDisconnected();
+}
+
 function hasLateJoiners() {
   for (const id of players.keys()) {
     if (playerOrder.indexOf(id) < 0) return true;
@@ -182,6 +190,8 @@ function checkAutoResume() {
 function resumeGame() {
   if (!paused) return;
   if (roomState !== ROOM_STATE.PLAYING && roomState !== ROOM_STATE.COUNTDOWN) return;
+  if (!canResumeGame()) return;
+  if (autoPaused) setAutoPaused(false);
   paused = false;
   if (roomState === ROOM_STATE.COUNTDOWN && countdown.callback) {
     party.broadcast({ type: MSG.GAME_RESUMED });
@@ -492,14 +502,24 @@ function onGameEnd(msg) {
 
 function onGamePaused() {
   if (displayGame) displayGame.pause();
+  if (pauseContinueBtn) pauseContinueBtn.disabled = false;
   pauseOverlay.classList.remove('hidden');
   gameToolbar.classList.add('hidden');
   countdownOverlay.classList.add('paused');
   if (music) music.pause();
 }
 
+function dismissAutoPausedOverlay() {
+  pauseOverlay.classList.add('hidden');
+  if (currentScreen === SCREEN.GAME) {
+    gameToolbar.classList.remove('hidden');
+  }
+  setAutoPaused(true);
+}
+
 function onGameResumed() {
   if (displayGame) displayGame.resume();
+  if (pauseContinueBtn) pauseContinueBtn.disabled = false;
   pauseOverlay.classList.add('hidden');
   countdownOverlay.classList.remove('paused');
   if (currentScreen === SCREEN.GAME) {

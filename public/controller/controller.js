@@ -113,11 +113,7 @@ if (!roomCode) {
 var hadStoredId = null;
 try { hadStoredId = localStorage.getItem('clientId_' + roomCode); } catch (e) { /* iframe sandbox */ }
 
-if (rejoinId) {
-  clientId = rejoinId;
-} else {
-  clientId = hadStoredId || generateClientId();
-}
+clientId = hadStoredId || generateClientId();
 
 // Probe the relay for an existence check so an invalid room code surfaces
 // immediately instead of only after the user types a name and hits JOIN.
@@ -125,7 +121,7 @@ if (rejoinId) {
 // (skipNameScreen); gallery iframes carry ?scenario= and never hit a relay.
 var isScenario = !!new URLSearchParams(location.search).get('scenario');
 if (!skipNameScreen && !isScenario) {
-  var isNewClient = !hadStoredId && !rejoinId;
+  var isNewClient = !hadStoredId && !rejoinToken && !legacyRejoinId;
   var relayHttpUrl = RELAY_URL.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
   fetch(relayHttpUrl + '/room/' + encodeURIComponent(roomCode) + (instanceId ? '?instance=' + encodeURIComponent(instanceId) : ''))
     .then(function (res) {
@@ -858,7 +854,7 @@ window.addEventListener('pagehide', function () {
 // Initialize
 // =====================================================================
 
-if (hadStoredId || rejoinId || skipNameScreen) {
+if (hadStoredId || rejoinToken || legacyRejoinId || skipNameScreen) {
   var savedAutoName = getStoredAutoPlayerName();
   playerName = savedName || savedAutoName || null;
   playerNameIsAuto = !savedName;

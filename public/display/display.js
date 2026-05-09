@@ -280,10 +280,18 @@ document.addEventListener('fullscreenchange', function() {
 
 // --- Pause (display-side buttons) ---
 pauseBtn.addEventListener('click', function() {
+  if (autoPaused) {
+    onGamePaused();
+    return;
+  }
   pauseGame();
 });
 
 pauseContinueBtn.addEventListener('click', function() {
+  if (autoPaused && !canResumeGame()) {
+    dismissAutoPausedOverlay();
+    return;
+  }
   resumeGame();
 });
 

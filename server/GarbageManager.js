@@ -8,6 +8,16 @@ var GARBAGE_TABLE = constants.GARBAGE_TABLE;
 var GARBAGE_DELAY_MS = constants.GARBAGE_DELAY_MS;
 var BOARD_WIDTH = constants.COLS;
 
+function rekeyMapPreservingOrder(map, oldId, newId) {
+  if (!map.has(oldId)) return;
+  const next = new Map();
+  for (const [key, value] of map) {
+    next.set(key === oldId ? newId : key, value);
+  }
+  map.clear();
+  for (const [key, value] of next) map.set(key, value);
+}
+
 class GarbageManager {
   constructor(rng) {
     this.queues = new Map(); // playerId -> array of { lines, gapColumn, senderId, msLeft }
@@ -24,6 +34,19 @@ class GarbageManager {
   removePlayer(playerId) {
     this.queues.delete(playerId);
     this._pendingTotals.delete(playerId);
+  }
+
+  rekeyPlayer(oldId, newId) {
+    if (oldId === newId) return;
+
+    rekeyMapPreservingOrder(this.queues, oldId, newId);
+    rekeyMapPreservingOrder(this._pendingTotals, oldId, newId);
+
+    for (const [, queue] of this.queues) {
+      for (let i = 0; i < queue.length; i++) {
+        if (queue[i].senderId === oldId) queue[i].senderId = newId;
+      }
+    }
   }
 
   /**

@@ -89,6 +89,7 @@ function onHello(fromId, msg) {
   var name = typeof msg.name === 'string'
     ? msg.name.replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0, 16)
     : '';
+  var claimedReconnect = claimReconnectPeer(fromId, msg);
 
   // Player already registered (from peer_joined or reconnect)
   if (players.has(fromId)) {
@@ -96,7 +97,7 @@ function onHello(fromId, msg) {
 
     // Update name. Empty submissions and legacy P1-P8 fallbacks resolve to
     // room-unique HX names; custom names stay as entered.
-    if (name || msg.autoName === true) {
+    if (name || (msg.autoName === true && !claimedReconnect)) {
       // For the peer_joined-before-HELLO path, preserve the HX name already
       // assigned on the player's Map entry while excluding that entry from
       // collision checks.
@@ -149,6 +150,10 @@ function onHello(fromId, msg) {
     //   sentinel inside maybeBroadcastHostChange suppresses the broadcast
     //   when nothing actually changed.
     maybeBroadcastHostChange();
+    if (claimedReconnect) {
+      broadcastLobbyUpdate();
+      if (autoPaused) checkAutoResume();
+    }
     return;
   }
 

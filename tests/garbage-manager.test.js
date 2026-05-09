@@ -70,6 +70,21 @@ describe('GarbageManager - tick', () => {
     assert.strictEqual(ready.length, 1);
     assert.strictEqual(ready[0].lines, 4);
   });
+
+  test('rekeyPlayer transfers queues, totals, and sender references', () => {
+    gm.queues.get('p1').push({ lines: 2, gapColumn: 3, senderId: 'p2', msLeft: 100 });
+    gm.queues.get('p2').push({ lines: 1, gapColumn: 0, senderId: 'p1', msLeft: 100 });
+    gm._pendingTotals.set('p1', 2);
+    gm._pendingTotals.set('p2', 1);
+
+    gm.rekeyPlayer('p1', 'p9');
+
+    assert.deepStrictEqual(Array.from(gm.queues.keys()), ['p9', 'p2']);
+    assert.strictEqual(gm.queues.get('p9')[0].senderId, 'p2');
+    assert.strictEqual(gm.queues.get('p2')[0].senderId, 'p9');
+    assert.strictEqual(gm.getPendingLines('p9'), 2);
+    assert.strictEqual(gm.getPendingLines('p1'), 0);
+  });
 });
 
 describe('GarbageManager - processLineClear delivery', () => {
