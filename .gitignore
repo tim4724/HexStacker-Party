@@ -22,7 +22,6 @@ public/artwork/*
 !public/artwork/ad-clip/
 !public/artwork/ad-clip/**
 artwork/ad-clip/output/raw/
-artwork/ad-clip/output/*.mp4
 build/
 .dev-certs/
 public/display/screen.html
