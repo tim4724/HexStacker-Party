@@ -196,7 +196,11 @@ export const options = {
       // pauses, or relay restarts on multi-minute sweeps shouldn't fail the
       // whole run. Sustained problems blow past these limits quickly.
       relay_app_errors: ['count<100'],
-      relay_room_aborts: ['count<3'],
+      // room_aborts is generous: this test is meant to expose credit-pressure
+      // stalls. A single VM preempt or relay restart under credit exhaustion
+      // can abort every open room (~5-10 at once), and we don't want to fail
+      // the run at exactly the condition we want to observe.
+      relay_room_aborts: ['count<20'],
       relay_target_missing_errors: ['count<5'],
       relay_conn_errors: ['count<10'],
       // /metrics scraper failures: if it can't reach the relay we'd
@@ -259,9 +263,11 @@ export function handleSummary(data) {
     if (m) distinctInstances.add(m[1]);
   }
   const instCount = distinctInstances.size;
-  const stateNote = instCount > 1
-    ? `clients/rooms are per-machine (${instCount} instances seen — load is split)`
-    : `single machine seen`;
+  const stateNote = instCount === 0
+    ? 'no scrapes succeeded'
+    : instCount > 1
+      ? `clients/rooms are per-machine (${instCount} instances seen — load is split)`
+      : 'single machine seen';
 
   const fmtRtt = (s) =>
     `count=${s.count} p50=${s.p50?.toFixed(1)} p95=${s.p95?.toFixed(1)} p99=${s.p99?.toFixed(1)} max=${s.max?.toFixed(0)}`;
