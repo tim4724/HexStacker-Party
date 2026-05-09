@@ -148,6 +148,13 @@ body.aspect-16x9 .display-frame {
   justify-self: center;
 }
 
+/* winner / logo: drop the display-frame entirely. Its dark #0a0716 backdrop
+   (≠ stage --bg-primary) was visible as a darker rectangle through the
+   title-card during its 600ms fade-in and the surrounding 400ms xfade —
+   read as a band of "different purple" behind the title and URL. */
+body.clip-winner .display-frame,
+body.clip-logo .display-frame { display: none; }
+
 body.aspect-16x9 .phones {
   position: absolute;
   inset: 0;
