@@ -278,8 +278,7 @@ function runGameLocally() {
   runGameLocallyWithSeed((Math.random() * 0xFFFFFFFF) >>> 0);
 }
 
-function runGameLocallyWithSeed(seed, opts) {
-  opts = opts || {};
+function runGameLocallyWithSeed(seed) {
   stopDisplayGame();
   countdownOverlay.classList.add('hidden');
   countdownNumber.textContent = '';

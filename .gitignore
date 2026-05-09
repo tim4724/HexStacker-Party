@@ -21,7 +21,6 @@ public/artwork/*
 !public/artwork/social-preview.png
 !public/artwork/ad-clip/
 !public/artwork/ad-clip/**
-!artwork/ad-clip/output/
 artwork/ad-clip/output/raw/
 artwork/ad-clip/output/*.mp4
 build/

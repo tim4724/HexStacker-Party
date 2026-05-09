@@ -340,7 +340,7 @@ if (bgCanvas && (urlParams.get('test') !== '1' || urlParams.get('bg') === '1')) 
   // distracting coloured halo behind the lobby chrome and JPEG/H.264
   // re-introduces banding the encoder can't be talked out of. A flat
   // backdrop with the falling pieces is cleaner for the trailer.
-  var adclipMode = (new URLSearchParams(location.search)).get('adclip') === '1';
+  var adclipMode = urlParams.get('adclip') === '1';
   welcomeBg = new WelcomeBackground(bgCanvas, 15, {
     cx: 0.5, cy: 0.3,
     tint: rgbVar('--accent-primary-rgb'),

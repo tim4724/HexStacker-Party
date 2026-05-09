@@ -323,19 +323,6 @@ if (urlParams.get('test') === '1' || debugCount > 0 || _adclipMode) {
     } else {
       _hide();
     }
-    // Synthesised "press" visual for the lobby clip's fake START click.
-    // Mirrors .btn-primary:active's transform but adds a brightness flash
-    // so the press reads in a 200ms window at 30fps capture.
-    var pressStyle = document.createElement('style');
-    pressStyle.textContent = [
-      '#start-btn.adclip-pressed {',
-      '  transform: translateY(2px) scale(0.97);',
-      '  filter: brightness(1.25);',
-      '  box-shadow: none;',
-      '  transition: transform 80ms ease-out, filter 80ms ease-out;',
-      '}'
-    ].join('');
-    if (document.head) document.head.appendChild(pressStyle);
   }
 
   // Signal readiness so the composite orchestrator can begin its timeline.
