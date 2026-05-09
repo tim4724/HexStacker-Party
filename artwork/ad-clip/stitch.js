@@ -55,6 +55,9 @@ const OUT_SCALE = parseFloat(process.env.AD_OUT_SCALE) || (MAX ? 1 : PROD ? 2 : 
 // for social-platform delivery (which re-encodes anyway). 14 is a master.
 // 10 is "visually lossless" — gradient banding gone, fast-motion blur
 // minimised, file ~3× larger. 23 is YouTube's recommended "default".
+// AD_CRF=0 enables true mathematically-lossless: also switches the encoder
+// to yuv444p + high444 profile (libx264 rejects CRF 0 with the default
+// yuv420p chroma subsampling). File is ~10× larger; rarely useful.
 const CRF_ENV = parseInt(process.env.AD_CRF, 10);
 const CRF = Number.isFinite(CRF_ENV) ? CRF_ENV : (MAX ? 10 : PROD ? 14 : 18);
 

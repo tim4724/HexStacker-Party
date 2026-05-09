@@ -39,19 +39,6 @@ const VARIANTS = {
   },
 };
 
-function getVariant() {
-  const name = process.env.AD_VARIANT || 'all';
-  if (name === 'all') {
-    throw new Error('AD_VARIANT="all" selects multiple variants. Use getVariants() instead.');
-  }
-  const variant = VARIANTS[name];
-  if (!variant) {
-    const known = Object.keys(VARIANTS).join(', ');
-    throw new Error(`Unknown AD_VARIANT="${name}". Known: ${known}, all`);
-  }
-  return { ...variant, name };
-}
-
 function getVariants() {
   const selected = process.env.AD_VARIANT || 'all';
   const names = selected === 'all'
@@ -97,6 +84,5 @@ module.exports = {
   VARIANTS,
   describeVariants,
   getCaptureClips,
-  getVariant,
   getVariants,
 };

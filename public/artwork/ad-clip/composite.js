@@ -112,7 +112,18 @@ window.addEventListener('message', (e) => {
 
 // --- Run clip ---
 async function run() {
-  await readyPromise;
+  // Race against a timeout so a controller iframe that fails to send
+  // adclip-ready (JS error, sandbox rejection, etc.) surfaces *which* slot
+  // never reported instead of a generic 15s waitForFunction failure upstream.
+  const readyTimeout = new Promise((_, rej) => setTimeout(() => {
+    const missing = [];
+    if (!readyState.display) missing.push('display');
+    for (let i = 0; i < TOTAL_PHONES; i++) {
+      if (!readyState.controllers.has(i)) missing.push(`controller-${i}`);
+    }
+    rej(new Error(`adclip-ready timeout — never received from: ${missing.join(', ')}`));
+  }, 12000));
+  await Promise.race([readyPromise, readyTimeout]);
   document.body.classList.remove('loading');
 
   // Slot 0-3 are visible from the start of every non-lobby clip (the lobby
