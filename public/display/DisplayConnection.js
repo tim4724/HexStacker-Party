@@ -605,7 +605,8 @@ function showDisconnectQR(peerIndex) {
   var hashIdx = joinUrl.indexOf('#');
   var base = hashIdx >= 0 ? joinUrl.slice(0, hashIdx) : joinUrl;
   var hash = hashIdx >= 0 ? joinUrl.slice(hashIdx) : '';
-  var rejoinUrl = base + '?claim=' + encodeURIComponent(peerIndex) + hash;
+  var sep = base.indexOf('?') >= 0 ? '&' : '?';
+  var rejoinUrl = base + sep + 'claim=' + encodeURIComponent(peerIndex) + hash;
   fetchQR(rejoinUrl, function(qrMatrix) {
     if (!players.has(peerIndex)) return;
     if (!qrMatrix) {

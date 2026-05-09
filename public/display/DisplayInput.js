@@ -151,7 +151,6 @@ function onHello(fromId, msg) {
     //   when nothing actually changed.
     maybeBroadcastHostChange();
     if (claimedReconnect) {
-      updatePlayerList();
       if (autoPaused) checkAutoResume();
     }
     return;
