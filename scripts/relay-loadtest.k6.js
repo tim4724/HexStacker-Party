@@ -12,7 +12,7 @@
 //   k6 run scripts/relay-loadtest.k6.js
 //
 // Common knobs (env):
-//   STAGES=30s:5,8m:5,30s:10,8m:10,30s:0    stage list `dur:rooms`
+//   STAGES=30s:5,8m:5,30s:10,8m:10,30s:15,8m:15,30s:0   stage list `dur:rooms`
 //   SESSION_DURATION=300000                  ms per room before recycle
 //   INPUT_PERIOD=250                         ms between controller→display pings
 //   STATE_PERIOD=600                         ms between display→ctrl state msgs
@@ -193,6 +193,13 @@ export const options = {
       relay_room_aborts: ['count<1'],
       relay_target_missing_errors: ['count<1'],
       relay_conn_errors: ['count<10'],
+      // /metrics scraper failures: if it can't reach the relay we'd
+      // otherwise silently print clients=0 rooms=0. Cap at 10 transient
+      // errors over a multi-minute test.
+      relay_scrape_errors: ['count<10'],
+      // Surface ws_close totals in the summary even when nothing fails.
+      // Trivially-true threshold so it never affects pass/fail.
+      relay_ws_close: ['count>=0'],
     };
     for (const tgt of STAGE_TARGETS) {
       t[`relay_rtt_ms{stage:${tgt}}`] = ['avg>=0'];
@@ -412,6 +419,17 @@ export default function () {
       instance = m.instance || null;   // controllers pin to the same machine
       setTimeout(spawnControllers, 100);
       setTimeout(cleanup, SESSION_DURATION_MS);
+      // Silent-join detection: if `playStarted` is still false 15s after
+      // controllers spawn, some `joined` never arrived (e.g. relay accepted
+      // the socket but never responded). Without this guard the room would
+      // sit idle for the full SESSION_DURATION_MS, silently emitting zero
+      // RTT samples — the exact mode this test is meant to catch.
+      setTimeout(() => {
+        if (!playStarted && !cleaningUp) {
+          console.warn(`[JOIN_STALL] sid=${sid} only ${joinedCtrlIndices.size}/${CONTROLLERS} ctrls joined`);
+          cleanup('join_stall', 0);
+        }
+      }, 15_000);
     } else if (m.type === 'message' && m.data?.type === 'lt_ping') {
       display.send(JSON.stringify({
         type: 'send', to: m.from,
