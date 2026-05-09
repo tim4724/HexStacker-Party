@@ -72,7 +72,9 @@ export function planNextPlacement(displayWindow, playerIdx, rng, opts) {
     }
   }
 
-  // Restore original piece.
+  // Restore original piece. _cachedGhost/_ghostKeyRot are private fields on
+  // PlayerBoard and the search mutated state behind them — keep these names
+  // in sync if PlayerBoard's ghost cache is ever renamed or reshaped.
   board.currentPiece = snap.piece;
   board._cachedGhost = null;
   board._ghostKeyRot = -1;

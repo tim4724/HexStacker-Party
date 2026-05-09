@@ -199,9 +199,15 @@ function applyTimeScale(win) {
   win.requestAnimationFrame = (cb) => origRAF((timestamp) => cb(scalePerf(timestamp)));
 }
 
+// Standalone clip files have their own module; everything else routes to
+// gameplay-clip which keys per-tier config off the clip name. Unknown names
+// throw — the silent chaos8p fallback used to hide typos in the capture log.
+const STANDALONE_CLIPS = new Set(['lobby-reveal', 'winner', 'logo']);
+const GAMEPLAY_CLIPS = new Set(['normal4p', 'pillow4p', 'neon4p', 'chaos8p']);
 function clipFileFor(name) {
-  if (name === 'lobby-reveal' || name === 'winner' || name === 'logo') return name;
-  return 'gameplay-clip';
+  if (STANDALONE_CLIPS.has(name)) return name;
+  if (GAMEPLAY_CLIPS.has(name)) return 'gameplay-clip';
+  throw new Error(`Unknown clip "${name}". Known: ${[...STANDALONE_CLIPS, ...GAMEPLAY_CLIPS].join(', ')}`);
 }
 
 run().catch((err) => {

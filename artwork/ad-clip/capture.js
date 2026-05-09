@@ -434,6 +434,9 @@ async function captureWithRetry(browser, aspect, clip) {
     const result = await captureOne(browser, aspect, clip);
     if (!result.freezeDetected) return result;
     if (attempt < MAX_CAPTURE_ATTEMPTS) {
+      // "retry N/M" counts user-visible retries (M = MAX-1). The Mth iteration
+      // doesn't print a retry line — it falls through to the last-resort path
+      // below, which runs one more captureOne with the freeze check disabled.
       console.warn(`    ⚠ freeze ${result.maxFreezeMs.toFixed(0)}ms > ${result.threshold}ms — retry ${attempt}/${MAX_CAPTURE_ATTEMPTS - 1}`);
     } else {
       console.warn(`    ⚠ freeze persists after ${MAX_CAPTURE_ATTEMPTS} attempts — shipping the last one anyway`);
@@ -517,7 +520,10 @@ function startCompositionHeartbeat(cdp) {
 function spawnServer(port) {
   const proc = spawn('node', [path.resolve(__dirname, '..', '..', 'server', 'index.js')], {
     env: { ...process.env, PORT: String(port) },
-    stdio: ['ignore', 'pipe', 'pipe'],
+    // stdout inherits so it can't fill the OS pipe buffer (~64KB) and block
+    // the server during long captures. stderr is piped+drained for the
+    // [server] prefix on warnings/errors.
+    stdio: ['ignore', 'inherit', 'pipe'],
   });
   proc.stderr.on('data', (chunk) => process.stderr.write('[server] ' + chunk));
   // waitForServer() polls /health AND proc.exitCode for readiness — much

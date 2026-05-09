@@ -69,7 +69,8 @@ const CLIPS = {
 // screencast's first frame already shows the game (no welcome-screen flash
 // at the cut between clips).
 export async function stage({ display, clip, seed, playerCount }) {
-  const cfg = CLIPS[clip] || CLIPS.chaos8p;
+  const cfg = CLIPS[clip];
+  if (!cfg) throw new Error(`Unknown gameplay clip "${clip}". Known: ${Object.keys(CLIPS).join(', ')}`);
   const enginePlayers = cfg.players || playerCount;
   const playerInfo = rosterFor(enginePlayers, cfg);
   display.__TEST__.bootLocalGame({ playerInfo, seed, prefillRows: cfg.prefillRows });
@@ -86,7 +87,8 @@ export async function stage({ display, clip, seed, playerCount }) {
 }
 
 export async function run({ display, controllers, clip, seed, playerCount }) {
-  const cfg = CLIPS[clip] || CLIPS.chaos8p;
+  const cfg = CLIPS[clip];
+  if (!cfg) throw new Error(`Unknown gameplay clip "${clip}". Known: ${Object.keys(CLIPS).join(', ')}`);
   const enginePlayers = cfg.players || playerCount;
   const playerInfo = rosterFor(enginePlayers, cfg);
 
