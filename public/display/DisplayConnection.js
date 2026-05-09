@@ -427,7 +427,7 @@ function removeLobbyPlayer(peerIndex) {
 // =====================================================================
 
 function normalizePeerIndex(value) {
-  if (typeof value === 'number') return value;
+  if (typeof value === 'number') return Number.isInteger(value) ? value : null;
   if (typeof value !== 'string' || value.trim() === '') return null;
   var n = Number(value);
   return Number.isInteger(n) ? n : null;
@@ -521,6 +521,7 @@ function claimReconnectPeer(fromId, msg) {
   disconnectedQRs.delete(fromId);
   rekeyDisplayGamePlayer(oldId, fromId);
   calculateLayout();
+  clearLateJoinerGraceTimer();
   return true;
 }
 
