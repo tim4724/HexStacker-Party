@@ -134,18 +134,24 @@ function stitchAspect(variant, aspect) {
   const baseLabel = (i) => needsScale ? `i${i}` : `${i}:v`;
   if (clipDirs.length === 1) {
     // Single-clip variant — no xfade chain to build. The `null` filter is a
-    // pass-through that just relabels the stream so `-map [vout]` works.
-    filterParts.push(`[${baseLabel(0)}]null[vout]`);
+    // pass-through that just relabels the stream so `-map [vraw]` works.
+    filterParts.push(`[${baseLabel(0)}]null[vraw]`);
   } else {
     let runningOffset = durations[0] - xfadeSec;
     let lastLabel = baseLabel(0);
     for (let i = 1; i < clipDirs.length; i++) {
-      const outLabel = i === clipDirs.length - 1 ? 'vout' : `v${i}`;
+      const outLabel = i === clipDirs.length - 1 ? 'vraw' : `v${i}`;
       filterParts.push(`[${lastLabel}][${baseLabel(i)}]xfade=transition=fade:duration=${xfadeSec}:offset=${runningOffset.toFixed(3)}[${outLabel}]`);
       runningOffset += durations[i] - xfadeSec;
       lastLabel = outLabel;
     }
   }
+  // Convert full-range JPEG input to TV-range yuv420p with bt709 tags. The
+  // pixel data is actually remapped (scale=in_range=full:out_range=tv) —
+  // not just relabeled — so colors render the same after players apply
+  // TV-range expansion. Avoids the yuvj420p tag that some upload pipelines
+  // reject (e.g. AirConsole's trailer uploader).
+  filterParts.push('[vraw]scale=in_range=full:out_range=tv,format=yuv420p,setparams=range=tv:colorspace=bt709:color_primaries=bt709:color_trc=bt709[vout]');
 
   // --- Audio: optional music bed mixed in the same pass ---
   const totalSec = durations.reduce((a, b) => a + b, 0) - (clipDirs.length - 1) * xfadeSec;
@@ -180,7 +186,9 @@ function stitchAspect(variant, aspect) {
     '-preset', 'slow',
     '-crf', String(CRF),
     '-r', String(FPS),
-    '-profile:v', CRF === 0 ? 'high444' : 'high', '-level', '5.1',
+    '-profile:v', CRF === 0 ? 'high444' : 'high', '-level', '4.2',
+    '-color_range', 'tv', '-colorspace', 'bt709',
+    '-color_primaries', 'bt709', '-color_trc', 'bt709',
     '-movflags', '+faststart',
     outPath,
   );
