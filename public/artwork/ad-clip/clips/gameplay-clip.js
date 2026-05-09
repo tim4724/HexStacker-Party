@@ -79,6 +79,25 @@ export async function stage({ display, clip, seed, playerCount }) {
       display.__TEST__.primeForIClear(s.playerIdx, s.gapCol);
     }
   }
+  // Stash a hold piece on a deterministic subset (~5/8 players) so the hold
+  // panel reads as "mid-game" instead of empty for everyone. The AI never
+  // calls hold(), so this is purely a visual prefill. Type is picked from
+  // PIECE_TYPES (not from nextPieces — that queue is exactly NEXT_QUEUE_SIZE
+  // after spawn, and reusing one would also show it about to spawn).
+  const game = display.displayGame;
+  const order = display.playerOrder;
+  const types = display.GameConstants && display.GameConstants.PIECE_TYPES;
+  if (game && order && types) {
+    for (let i = 0; i < order.length; i++) {
+      if ((seed + i * 5) % 8 < 5) {
+        const board = game.boards.get(order[i]);
+        if (board && board.alive && !board.holdPiece) {
+          board.holdPiece = types[(seed + i * 7) % types.length];
+          board._nextVersion++;
+        }
+      }
+    }
+  }
   // Freeze gravity until run() resumes — during the ~RAF + screencast-start +
   // GO-wait window between stage() and run(), the engine would otherwise tick
   // and let pieces (especially primed I-pieces in horizontal spawn orientation)
