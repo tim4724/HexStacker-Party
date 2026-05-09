@@ -191,6 +191,7 @@ function resumeGame() {
   if (!paused) return;
   if (roomState !== ROOM_STATE.PLAYING && roomState !== ROOM_STATE.COUNTDOWN) return;
   if (!canResumeGame()) return;
+  if (autoPaused) setAutoPaused(false);
   paused = false;
   if (roomState === ROOM_STATE.COUNTDOWN && countdown.callback) {
     party.broadcast({ type: MSG.GAME_RESUMED });

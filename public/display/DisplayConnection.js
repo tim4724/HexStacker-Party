@@ -466,17 +466,7 @@ function rekeyDisplayGamePlayer(oldId, newId) {
   var gm = displayGame.garbageManager;
   if (!gm) return;
 
-  rekeyMapPreservingOrder(gm.queues, oldId, newId);
-  rekeyMapPreservingOrder(gm._pendingTotals, oldId, newId);
-
-  if (gm.queues) {
-    for (const entry of gm.queues) {
-      var q = entry[1];
-      for (var qIdx = 0; qIdx < q.length; qIdx++) {
-        if (q[qIdx].senderId === oldId) q[qIdx].senderId = newId;
-      }
-    }
-  }
+  gm.rekeyPlayer(oldId, newId);
 }
 
 function transferMapEntry(map, oldId, newId) {
