@@ -31,10 +31,7 @@ export function planNextPlacement(displayWindow, playerIdx, rng, opts) {
   const findClearableZigzags = displayWindow.GameConstants.findClearableZigzags;
 
   // Snapshot for restoration.
-  const snap = {
-    piece: board.currentPiece.clone(),
-    pieceRef: board.currentPiece
-  };
+  const snap = { piece: board.currentPiece.clone() };
 
   let best = { score: -Infinity, rotations: 0, lateral: 0 };
 

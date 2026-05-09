@@ -45,6 +45,12 @@ const CLIPS = {
   // for visibly human-paced input — the previous 90-160/130-220 felt
   // machine-fast in playback even though it was behaviourally clean.
   neon4p:   { players: 4, level: 11, durationMs: 5500, prefillRows: 6, startLines: 105,
+              // Seed offset: with the default capture seed=42 the AI hits an
+              // awkward beat where all four players' plans land on the same
+              // ~290ms wall-clock window, reading as a visible hang. A small
+              // offset shuffles the per-player rng without disturbing the
+              // shared bag (boots use the unmodified composite seed).
+              seedOffset: 7,
               pace: { tapMin: 180, tapMax: 320, dropMin: 240, dropMax: 380 } },
   chaos8p:  { players: 8, level:  6, durationMs: 7000, startLines: 47,
               // Three players start with a 4-row column-gap setup and an
@@ -120,7 +126,7 @@ export async function run({ display, controllers, clip, seed, playerCount }) {
     nextActionAt: start + 200 + i * 80,
     lastPiece: null,
     activeIdx: i < cfg.players,
-    rng: makeRng((seed + i * 37) >>> 0),
+    rng: makeRng((seed + i * 37 + (cfg.seedOffset || 0)) >>> 0),
     // First plan dispatches immediately so the clip's first visible frame
     // already shows motion. Subsequent plans wait the normal tap delay.
     // The xfade in multi-clip variants masks the start delay; on a

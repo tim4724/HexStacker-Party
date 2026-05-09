@@ -69,13 +69,15 @@ const PROD = process.env.AD_PROD === '1' || MAX;
 // keep wall-clock timing — fine for gameplay clips (no CSS-timed visuals)
 // but would compress the lobby-reveal slot-pop-in and winner/logo fades.
 // Capture wall-clock time becomes durationMs / TIME_SCALE per clip.
-const TIME_SCALE = parseFloat(process.env.AD_TIME_SCALE) || (MAX ? 0.25 : PROD ? 0.5 : 1);
+const TIME_SCALE_ENV = parseFloat(process.env.AD_TIME_SCALE);
+const TIME_SCALE = Number.isFinite(TIME_SCALE_ENV) ? TIME_SCALE_ENV : (MAX ? 0.25 : PROD ? 0.5 : 1);
 
 // Render scale — Playwright deviceScaleFactor. SCALE=1 captures at native
 // 1920×1080. SCALE=2 supersamples for crisper anti-aliasing on text/canvas
 // at the cost of ~4× per-frame work. Pair with AD_OUT_SCALE=2 in stitch to
 // actually deliver at 4K.
-const SCALE = parseFloat(process.env.AD_SCALE) || (PROD ? 2 : 1);
+const SCALE_ENV = parseFloat(process.env.AD_SCALE);
+const SCALE = Number.isFinite(SCALE_ENV) ? SCALE_ENV : (PROD ? 2 : 1);
 
 // JPEG quality for screencast frames. 92 is the sweet spot at 1080p —
 // visible artefacts only on smooth gradients, and the final H.264 encode
@@ -99,7 +101,7 @@ const FREEZE_THRESHOLD_MS = {
   'lobby-reveal': 1500,
   normal4p: 1000,
   pillow4p: 1000,
-  neon4p:   1000,
+  neon4p:   250,
   chaos8p:  1000,
   winner: Infinity,
   logo:   Infinity,

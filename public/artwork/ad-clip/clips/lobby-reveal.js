@@ -5,6 +5,8 @@
 // hidden by composite.js so we don't simulate a press anymore — the clip
 // just holds on the populated lobby until the cut to normal4p.
 
+import { makeRng } from '../ai-player.js';
+
 const NAMES = ['Emma', 'Jake', 'Sofia', 'Liam'];
 const STAGGER = 240;
 const PLAYER_COUNT = 4;
@@ -14,7 +16,7 @@ const PLAYER_COUNT = 4;
 // `transition: none` prevents the opacity:1→0 change from animating —
 // otherwise the lobby visibly fades OUT during the staging window before
 // our intended fade IN ever runs.
-export async function stage({ display }) {
+export async function stage({ display, seed }) {
   const lobby = display.document.getElementById('lobby-screen');
   if (lobby) {
     lobby.style.transition = 'none';
@@ -34,8 +36,12 @@ export async function stage({ display }) {
     const bg = display.welcomeBg;
     const h = (bg.h || display.innerHeight) - 40;
     if (Array.isArray(bg.pool)) {
+      // Seeded PRNG instead of composite-window Math.random — only the
+      // display iframe's Math.random is overridden by ?seed=, so without
+      // this the pool's start positions vary across retries.
+      const rng = makeRng((seed || 0) ^ 0xB00B5);
       for (const p of bg.pool) {
-        p.y = Math.random() * h;
+        p.y = rng() * h;
       }
     }
   }
