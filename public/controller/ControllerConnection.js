@@ -46,7 +46,8 @@ function connect() {
       if (currentScreen !== 'game') vibrate(15);
       party.sendTo(0, {
         type: MSG.HELLO,
-        name: playerName
+        name: playerName,
+        autoName: !!playerNameIsAuto
       });
     } else if (type === 'peer_left') {
       if (msg.index === 0) {
@@ -182,9 +183,10 @@ function performDisconnect() {
   gameCancelled = false;
   // Prefill from the persisted user-typed name (localStorage is the single
   // source of truth) — not `playerName`, which may have been replaced by
-  // the display's sanitized fallback (e.g. "P2").
+  // the display's generated fallback (e.g. "HX-27").
   var storedName = '';
   try { storedName = localStorage.getItem('stacker_player_name') || ''; } catch (e) { /* iframe sandbox */ }
+  playerNameIsAuto = !storedName;
   nameInput.value = storedName;
   nameJoinBtn.disabled = false;
   nameJoinBtn.textContent = t('join');

@@ -3,6 +3,10 @@
 const { test, describe, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { MSG, ROOM_STATE } = require('../public/shared/protocol');
+const {
+  generateAutoPlayerName: generateAutoPlayerNameForPlayers,
+  sanitizePlayerName: sanitizeAutoPlayerName
+} = require('./auto-name-helper');
 
 // =====================================================================
 // Tests for join-during-countdown / join-during-game behavior.
@@ -29,8 +33,12 @@ describe('Display: onHello during non-LOBBY states', () => {
     return -1;
   }
 
-  function sanitizePlayerName(name, index) {
-    return name || 'P' + (index + 1);
+  function generateAutoPlayerName(exceptPeerIndex, preferredName) {
+    return generateAutoPlayerNameForPlayers(players, exceptPeerIndex, preferredName);
+  }
+
+  function sanitizePlayerName(name, peerIndex, requestedAutoName) {
+    return sanitizeAutoPlayerName(name, players, peerIndex, requestedAutoName);
   }
 
   // Minimal onPeerJoined extracted from DisplayConnection.js
@@ -39,7 +47,7 @@ describe('Display: onHello during non-LOBBY states', () => {
     var index = nextAvailableSlot();
     if (index < 0) return;
     players.set(clientId, {
-      playerName: 'P' + (index + 1),
+      playerName: generateAutoPlayerName(clientId),
       playerIndex: index,
       startLevel: 1,
       lastPingTime: Date.now()
@@ -55,7 +63,10 @@ describe('Display: onHello during non-LOBBY states', () => {
 
     if (players.has(fromId)) {
       var existing = players.get(fromId);
-      if (name) existing.playerName = sanitizePlayerName(name, existing.playerIndex);
+      if (name || msg.autoName === true) {
+        var requestedName = name || existing.playerName;
+        existing.playerName = sanitizePlayerName(requestedName, fromId, msg.autoName === true);
+      }
       updatePlayerListCalled = true;
 
       var isLateJoiner = (roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN)
@@ -84,7 +95,7 @@ describe('Display: onHello during non-LOBBY states', () => {
       party.sendTo(fromId, { type: MSG.ERROR, message: 'Room is full' });
       return;
     }
-    var playerName = sanitizePlayerName(name, index);
+    var playerName = sanitizePlayerName(name, fromId, msg.autoName === true);
 
     players.set(fromId, {
       playerName: playerName,
@@ -256,12 +267,16 @@ describe('Display: playerOrder sorted by join time', () => {
     return -1;
   }
 
+  function generateAutoPlayerName(exceptPeerIndex) {
+    return generateAutoPlayerNameForPlayers(players, exceptPeerIndex);
+  }
+
   function onPeerJoined(clientId) {
     if (players.has(clientId)) return;
     var index = nextAvailableSlot();
     if (index < 0) return;
     players.set(clientId, {
-      playerName: 'P' + (index + 1),
+      playerName: generateAutoPlayerName(clientId),
       playerIndex: index,
       startLevel: 1,
       lastPingTime: Date.now(),

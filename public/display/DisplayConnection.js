@@ -318,7 +318,7 @@ function onPeerJoined(peerIndex) {
   if (index < 0) return;
 
   players.set(peerIndex, {
-    playerName: 'P' + (index + 1),
+    playerName: generateAutoPlayerName(peerIndex),
     playerIndex: index,
     startLevel: 1,
     lastPingTime: Date.now(),

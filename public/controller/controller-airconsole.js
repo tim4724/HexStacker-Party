@@ -14,7 +14,7 @@ var airconsole = new AirConsole({
 
 // Replace window.localStorage with an AC-backed shim BEFORE Settings.init()
 // runs in controller.js. The shim's allowlist excludes stacker_muted (the
-// display's music key — defaults on every session), stacker_player_name,
+// display's music key — defaults on every session), player-name keys,
 // and clientId_* (AC owns identity); haptic, sensitivity, touch-sounds,
 // and color-index round-trip via the SDK. We hold on to the returned shim
 // directly: if Object.defineProperty silently fails (sealed window in some
@@ -57,10 +57,13 @@ connect = function() {
   var _adapterOnReady = airconsole.onReady;
   airconsole.onReady = function(code) {
     // Pull the AC profile nickname into playerName before HELLO leaves.
-    // The display falls back to "P<slot>" if this is empty, so the guard
+    // The display assigns an HX fallback if this is empty, so the guard
     // here is just to avoid passing undefined into downstream code.
     var nickname = airconsole.getNickname(airconsole.getDeviceId());
-    if (nickname) playerName = nickname;
+    if (nickname) {
+      playerName = nickname;
+      playerNameIsAuto = false;
+    }
     // getDeviceId() / getUID() are only valid after onReady — kick the
     // persistent-data fetch now. We don't hold HELLO: on reconnect the
     // SDK can fire onReady synchronously (cached state), at which point
@@ -221,4 +224,3 @@ function _acVibrate(pattern) {
 // Overrides ControllerState.js#vibrate (global) and the TouchInput prototype.
 vibrate = _acVibrate;
 TouchInput.prototype._haptic = _acVibrate;
-

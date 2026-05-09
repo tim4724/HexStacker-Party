@@ -196,7 +196,7 @@ class AirConsoleAdapter {
 
   // Replace window.localStorage with a shim backed by AirConsole's per-UID
   // persistent-data API. Only an allowlist of keys actually round-trips —
-  // display-music mute, player name, and clientId are deliberately excluded
+  // display-music mute, player names, and clientId are deliberately excluded
   // so that music defaults on every session and AC owns identity. The shim
   // is synchronous from the caller's perspective: reads return cached values
   // populated by onPersistentDataLoaded, writes go through immediately

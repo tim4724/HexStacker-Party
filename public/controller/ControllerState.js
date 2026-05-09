@@ -26,6 +26,7 @@ var peerIndex = null;          // relay/AirConsole slot id; display-facing playe
 var playerColor = null;       // hex, resolved locally from colorIndex
 var playerColorIndex = null;  // 0..7 index into PLAYER_COLORS
 var playerName = null;
+var playerNameIsAuto = false;
 var roomCode = null;
 var touchInput = null;
 var currentScreen = 'name';
@@ -73,6 +74,23 @@ var instanceId = (function() {
   try { return decodeURIComponent(raw); } catch (_) { return raw; }
 })();
 var skipNameScreen = false;
+
+var PLAYER_NAME_STORAGE_KEY = 'stacker_player_name';
+var AUTO_PLAYER_NAME_STORAGE_KEY = 'stacker_auto_player_name';
+var AUTO_PLAYER_NAME_RE = /^HX-([1-9][0-9]?)$/i;
+
+function getStoredTypedPlayerName() {
+  try { return localStorage.getItem(PLAYER_NAME_STORAGE_KEY) || ''; } catch (e) { return ''; }
+}
+
+function getStoredAutoPlayerName() {
+  try { return localStorage.getItem(AUTO_PLAYER_NAME_STORAGE_KEY) || ''; } catch (e) { return ''; }
+}
+
+function rememberAutoPlayerName(name) {
+  if (!AUTO_PLAYER_NAME_RE.test(name || '')) return;
+  try { localStorage.setItem(AUTO_PLAYER_NAME_STORAGE_KEY, name); } catch (e) { /* iframe sandbox */ }
+}
 
 // --- Viewport ---
 function getViewportMetrics() {

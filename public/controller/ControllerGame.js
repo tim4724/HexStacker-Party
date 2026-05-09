@@ -452,6 +452,9 @@ function onWelcome(data) {
   reconnectOverlay.classList.add('hidden');
 
   playerName = data.playerName || playerName || t('player');
+  if (playerNameIsAuto) {
+    rememberAutoPlayerName(playerName);
+  }
   playerNameEl.textContent = playerName;
   touchArea.setAttribute('data-player-name', playerName);
   if (data.startLevel != null) startLevel = data.startLevel;
