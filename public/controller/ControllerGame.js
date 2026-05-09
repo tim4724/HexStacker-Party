@@ -245,8 +245,13 @@ function readStoredColorIndex() {
 
 // Tint the JOIN button before WELCOME arrives. In AirConsole mode the
 // storage shim hydrates asynchronously, so the bootstrap re-invokes this
-// from its onLoad callback (see controller-airconsole.js).
+// from its onLoad callback (see controller-airconsole.js). Skip when
+// playerColorIndex is already set: WELCOME established the authoritative
+// color, and overriding it with the previous-session preference would
+// leave body --player-color stuck on a color the player no longer owns
+// (reclaimPreferredColor bails when the preferred color is taken).
 function captureSessionColorIndex() {
+  if (playerColorIndex != null) return;
   var idx = readStoredColorIndex();
   if (idx == null) return;
   document.body.style.setProperty('--player-color', PLAYER_COLORS[idx]);
