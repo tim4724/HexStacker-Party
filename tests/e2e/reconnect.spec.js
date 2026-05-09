@@ -218,6 +218,9 @@ test.describe('Reconnection', () => {
 
     expect(reconnectedClientId).toBe(storedClientId);
     expect(await reconnected.evaluate(() => waitingForNextGame)).toBe(false);
+    await page.waitForFunction((id) => {
+      return typeof disconnectedQRs !== 'undefined' && !disconnectedQRs.has(id);
+    }, aliceId, { timeout: 5000 });
   });
 
   test('different phone scanning reconnect QR claims disconnected player without old client id', async ({ page, context, browser }) => {

@@ -430,7 +430,7 @@ function normalizePeerIndex(value) {
   if (typeof value === 'number') return value;
   if (typeof value !== 'string' || value.trim() === '') return null;
   var n = Number(value);
-  return Number.isInteger(n) ? n : value;
+  return Number.isInteger(n) ? n : null;
 }
 
 function rekeyMapPreservingOrder(map, oldId, newId, mutateValue) {
@@ -507,6 +507,8 @@ function claimReconnectPeer(fromId, msg) {
   for (var i = 0; i < playerOrder.length; i++) {
     if (playerOrder[i] === oldId) playerOrder[i] = fromId;
   }
+  // If everyone was gone, onPeerLeft may have left no temporary host. The
+  // scanned controller becomes the host for that reclaimed game participant.
   if (hostPeerIndex === oldId || hostPeerIndex == null) hostPeerIndex = fromId;
 
   if (lastAliveState[oldId] !== undefined) {
