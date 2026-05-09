@@ -864,7 +864,7 @@ window.addEventListener('pagehide', function () {
   if (!party) return;
   try {
     if (navigator.sendBeacon && roomCode && clientId && !window.airconsole) {
-      var beaconUrl = RELAY_URL.replace(/^wss?:\/\//, 'https://')
+      var beaconUrl = RELAY_URL.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://')
         + '/room/' + encodeURIComponent(roomCode) + '/leave'
         + (instanceId ? '?instance=' + encodeURIComponent(instanceId) : '');
       navigator.sendBeacon(beaconUrl, new URLSearchParams({ clientId: clientId }));
