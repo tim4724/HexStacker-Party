@@ -336,11 +336,16 @@ if (bgCanvas && (urlParams.get('test') !== '1' || urlParams.get('bg') === '1')) 
   // Bake the radial tint into the canvas with Bayer dithering — CSS's
   // radial-gradient at this low alpha (~0.06 over the plum bg) bands visibly
   // on 8-bit displays because each channel step spans ~100px.
+  // Suppress the tint in adclip captures: the radial glow reads as a
+  // distracting coloured halo behind the lobby chrome and JPEG/H.264
+  // re-introduces banding the encoder can't be talked out of. A flat
+  // backdrop with the falling pieces is cleaner for the trailer.
+  var adclipMode = urlParams.get('adclip') === '1';
   welcomeBg = new WelcomeBackground(bgCanvas, 15, {
     cx: 0.5, cy: 0.3,
     tint: rgbVar('--accent-primary-rgb'),
     bg:   rgbVar('--bg-primary-rgb'),
-    alpha: 0.06,
+    alpha: adclipMode ? 0 : 0.06,
     stopEnd: 0.55,
   });
   welcomeBg.resize(window.innerWidth, window.innerHeight);
@@ -351,14 +356,18 @@ if (bgCanvas && (urlParams.get('test') !== '1' || urlParams.get('bg') === '1')) 
 var _scenarioParam = urlParams.get('scenario');
 if (window.__TEST__ && (debugCount > 0 || _scenarioParam)) {
   var _hostParam = urlParams.get('host');
+  // Honour players=0 explicitly (adclip lobby starts empty and pops players
+  // in via the clip script). The OR-fallback would coerce 0 to 1.
+  var _playersRaw = urlParams.get('players');
+  var _playersParsed = _playersRaw === null ? NaN : parseInt(_playersRaw, 10);
   initScenario({
     scenario: _scenarioParam || 'playing',
-    players: debugCount || parseInt(urlParams.get('players'), 10) || 1,
+    players: debugCount || (isNaN(_playersParsed) ? 1 : _playersParsed),
     level: parseInt(urlParams.get('level'), 10) || 1,
     host: _hostParam === null ? null : parseInt(_hostParam, 10)
   });
-} else if (urlParams.get('test') === '1') {
-  // Test mode: skip relay connection — tests inject state directly
+} else if (urlParams.get('test') === '1' || urlParams.get('adclip') === '1') {
+  // Test / adclip mode: skip relay connection — driven externally
   fetchBaseUrl();
 } else {
   fetchBaseUrl();

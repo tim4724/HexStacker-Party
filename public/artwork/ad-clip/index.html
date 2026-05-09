@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>HexStacker Party — Ad Clip</title>
+  <link rel="stylesheet" href="/shared/fonts/orbitron.css">
+  <link rel="stylesheet" href="/shared/theme.css">
+  <link rel="stylesheet" href="composite.css">
+</head>
+<body class="loading">
+  <div class="stage" id="stage">
+    <div class="display-frame" id="display-frame">
+      <iframe id="display-iframe" title="HexStacker display" referrerpolicy="no-referrer"></iframe>
+    </div>
+    <div class="phones" id="phones"></div>
+    <div class="title-card hidden" id="title-card">
+      <div class="title-card__qr"><canvas id="title-qr"></canvas></div>
+      <div class="title-card__copy">
+        <h1 class="title-card__brand">HEX STACKER<span class="title-card__brand-sub">party</span></h1>
+        <p class="title-card__url">hexstacker.com</p>
+        <p class="title-card__tag">Phones become controllers.</p>
+      </div>
+    </div>
+  </div>
+  <script src="composite.js" type="module"></script>
+</body>
+</html>

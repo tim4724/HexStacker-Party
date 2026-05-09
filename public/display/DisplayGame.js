@@ -275,6 +275,10 @@ function stopDisplayGame() {
 }
 
 function runGameLocally() {
+  runGameLocallyWithSeed((Math.random() * 0xFFFFFFFF) >>> 0);
+}
+
+function runGameLocallyWithSeed(seed) {
   stopDisplayGame();
   countdownOverlay.classList.add('hidden');
   countdownNumber.textContent = '';
@@ -293,8 +297,6 @@ function runGameLocally() {
     var pInfo = players.get(playerOrder[i]);
     gamePlayers.set(playerOrder[i], { startLevel: (pInfo && pInfo.startLevel) || 1 });
   }
-
-  var seed = (Math.random() * 0xFFFFFFFF) >>> 0;
 
   displayGame = new Game(gamePlayers, {
     onEvent: function(event) {

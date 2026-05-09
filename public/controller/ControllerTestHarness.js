@@ -227,6 +227,100 @@
       break;
     }
 
+    case 'adclip': {
+      applyIdentity({ isHost: false, playerCount: Math.max(1, parseInt(params.get('players'), 10) || 4) });
+      showPlaying();
+      // Hide the bottom-bar ping label, top-bar settings/pause icons, and
+      // the gesture hint strip — the composite framing wants a clean
+      // touchpad for the feedback to read.
+      ['settings-btn', 'pause-btn', 'ping-display', 'gesture-hints', 'game-bottom-bar'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+      // Tighten the controller layout for the phone-frame shape: a small
+      // top breathing room above the player name, slimmer horizontal
+      // padding, and hide the TOUCHPAD watermark label.
+      var adclipStyle = document.createElement('style');
+      adclipStyle.textContent = [
+        '#game-top-bar { padding: 18px 14px 8px !important; }',
+        '#touch-area { padding: 8px 10px 14px !important; }',
+        '.game-name-label { font-size: 1.1rem !important; padding-left: 2px !important; }',
+        '#pad-label { display: none !important; }'
+      ].join('\n');
+      document.head.appendChild(adclipStyle);
+
+      // Synthetic gesture feedback for the captured clip. The real
+      // TouchInput drives showGlow on pointer events; here we drive a
+      // matching visual via the Web Animations API so the orchestrator
+      // can fire feedback in lockstep with engine moves.
+      var fbLayer = document.getElementById('feedback-layer');
+      window.__TEST__.showFeedback = function(action, opts) {
+        if (!fbLayer) return;
+        opts = opts || {};
+        var rect = fbLayer.getBoundingClientRect();
+        var w = rect.width, h = rect.height;
+        if (w <= 0 || h <= 0) return;
+
+        // Swipe gestures get a longer travel proportional to the column
+        // count — a 4-column move visually pulls further across the pad
+        // than a 2-column move. Duration also scales so the gesture feels
+        // like one continuous motion.
+        if (action === 'swipeLeft' || action === 'swipeRight') {
+          var count = Math.max(1, opts.count || 1);
+          var travelPx = w * Math.min(0.7, 0.20 + 0.13 * count);
+          var dx = action === 'swipeLeft' ? -travelPx : travelPx;
+          var size = Math.min(w, h) * 0.55;
+          var cx = w * 0.5 - dx * 0.5;
+          var cy = h * 0.55;
+          return spawnFeedback(fbLayer, playerColor, size, cx, cy, dx, 0, '', 200 + 90 * count);
+        }
+
+        var size, cx, cy, dx, dy;
+        switch (action) {
+          case 'moveLeft':
+            size = Math.min(w, h) * 0.6; cx = w * 0.65; cy = h * 0.5; dx = -w * 0.5; dy = 0; break;
+          case 'moveRight':
+            size = Math.min(w, h) * 0.6; cx = w * 0.35; cy = h * 0.5; dx =  w * 0.5; dy = 0; break;
+          case 'hardDrop':
+            size = Math.min(w, h) * 0.7; cx = w * 0.5;  cy = h * 0.25; dx = 0; dy =  h * 0.55; break;
+          case 'hold':
+            size = Math.min(w, h) * 0.7; cx = w * 0.5;  cy = h * 0.75; dx = 0; dy = -h * 0.55; break;
+          case 'rotateCW':
+          case 'rotateCCW':
+          default:
+            size = Math.min(w, h) * 0.65; cx = w * 0.5; cy = h * 0.5; dx = 0; dy = 0; break;
+        }
+        var rotate = action === 'rotateCW' ? ' rotate(360deg)'
+                   : action === 'rotateCCW' ? ' rotate(-360deg)' : '';
+        spawnFeedback(fbLayer, playerColor, size, cx, cy, dx, dy, rotate, 480);
+      };
+
+      function spawnFeedback(layer, color, size, cx, cy, dx, dy, rotate, duration) {
+        var dot = document.createElement('div');
+        dot.className = 'feedback-glow';
+        dot.style.width = size + 'px';
+        dot.style.height = size + 'px';
+        dot.style.background = 'radial-gradient(circle, ' + color + 'cc 0%, ' + color + '55 50%, transparent 80%)';
+        dot.style.mixBlendMode = 'screen';
+        var startX = cx - size / 2;
+        var startY = cy - size / 2;
+        dot.style.transform = 'translate(' + startX + 'px,' + startY + 'px) scale(0.5)';
+        dot.style.opacity = '0';
+        layer.appendChild(dot);
+        var endX = startX + dx;
+        var endY = startY + dy;
+        var anim = dot.animate([
+          { transform: 'translate(' + startX + 'px,' + startY + 'px) scale(0.5)' + rotate, opacity: 0 },
+          { transform: 'translate(' + ((startX + endX) / 2) + 'px,' + ((startY + endY) / 2) + 'px) scale(1.15)' + rotate, opacity: 1, offset: 0.4 },
+          { transform: 'translate(' + endX + 'px,' + endY + 'px) scale(0.85)' + rotate, opacity: 0 }
+        ], { duration: duration, easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)' });
+        anim.onfinish = function() { if (dot.parentNode) dot.remove(); };
+      }
+
+      try { window.parent.postMessage({ type: 'adclip-ready', role: 'controller', color: colorIdx }, '*'); } catch (_) {}
+      break;
+    }
+
     default:
       console.warn('[ControllerTestHarness] unknown scenario:', scenario);
   }
