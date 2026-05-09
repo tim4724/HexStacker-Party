@@ -846,8 +846,32 @@ window.addEventListener('popstate', function (e) {
 // may not complete before the page is frozen. If the page is restored from
 // bfcache the WebSocket is dead; the existing visibilitychange + reconnect
 // flow will surface the reconnect overlay.
+//
+// Three signals on the way out, ordered by reliability:
+//
+//  1. sendBeacon to the relay's HTTP /room/:code/leave — survives renderer
+//     teardown because the browser network service delivers it independently
+//     of the page. This is the only reliable path on Android Chrome, where
+//     Chromium routinely drops the WS close frame when a tab is closed
+//     (crbug 40378664). Skipped under AirConsole — AC sessions don't use
+//     the relay.
+//  2. WS LEAVE message — fastest on desktop where the WS handshake works
+//     fine; the display sees onPeerLeft via the relay's normal send path.
+//  3. WS close — last-resort signal that the relay turns into peer_left.
+//
+// The relay treats #1 and #2 idempotently, so it's safe to fire all three.
 window.addEventListener('pagehide', function () {
-  if (party) party.close();
+  if (!party) return;
+  try {
+    if (navigator.sendBeacon && roomCode && clientId && !window.airconsole) {
+      var beaconUrl = RELAY_URL.replace(/^wss?:\/\//, 'https://')
+        + '/room/' + encodeURIComponent(roomCode) + '/leave'
+        + (instanceId ? '?instance=' + encodeURIComponent(instanceId) : '');
+      navigator.sendBeacon(beaconUrl, new URLSearchParams({ clientId: clientId }));
+    }
+  } catch (_) {}
+  try { party.sendTo(0, { type: MSG.LEAVE }); } catch (_) {}
+  party.close();
 });
 
 // =====================================================================
