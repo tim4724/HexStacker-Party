@@ -81,7 +81,8 @@ const SCALE = parseFloat(process.env.AD_SCALE) || (PROD ? 2 : 1);
 // visible artefacts only on smooth gradients, and the final H.264 encode
 // dominates whatever quality we ship anyway. Bumped to 96 in prod, 100
 // (effectively lossless) in max.
-const JPEG_QUALITY = parseInt(process.env.AD_JPEG_QUALITY, 10) || (MAX ? 100 : PROD ? 96 : 92);
+const JPEG_QUALITY_ENV = parseInt(process.env.AD_JPEG_QUALITY, 10);
+const JPEG_QUALITY = Number.isFinite(JPEG_QUALITY_ENV) ? JPEG_QUALITY_ENV : (MAX ? 100 : PROD ? 96 : 92);
 
 // Clips that DON'T get time-scaled. Their visuals depend on CSS animations
 // (slot pop-in, fade-in transitions) which our perf.now patch can't reach,

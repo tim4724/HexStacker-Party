@@ -49,7 +49,8 @@ const PROD = process.env.AD_PROD === '1' || MAX;
 // frames), so the delivered 1080p is high-quality. Adding OUT_SCALE=2 on
 // top would just lanczos-enlarge those 1080p frames; no real detail gain.
 // PROD (without MAX) still defaults to 2 to keep the legacy 4K-upscale path.
-const OUT_SCALE = parseFloat(process.env.AD_OUT_SCALE) || (MAX ? 1 : PROD ? 2 : 1);
+const OUT_SCALE_ENV = parseFloat(process.env.AD_OUT_SCALE);
+const OUT_SCALE = Number.isFinite(OUT_SCALE_ENV) ? OUT_SCALE_ENV : (MAX ? 1 : PROD ? 2 : 1);
 
 // libx264 CRF — lower = higher quality + larger file. 18 is a sane default
 // for social-platform delivery (which re-encodes anyway). 14 is a master.
@@ -93,7 +94,14 @@ function stitchAspect(variant, aspect) {
     return;
   }
 
-  const metas = clipDirs.map((d) => JSON.parse(fs.readFileSync(path.join(d, 'meta.json'), 'utf-8')));
+  const metas = clipDirs.map((d) => {
+    try {
+      return JSON.parse(fs.readFileSync(path.join(d, 'meta.json'), 'utf-8'));
+    } catch (err) {
+      console.error(`Bad meta.json in ${d}: ${err.message}`);
+      process.exit(1);
+    }
+  });
   const durations = metas.map((m) => m.frameCount / m.fps);
 
   const outPath = path.join(OUTPUT_DIR, `final-${variant.name}-${aspect}.mp4`);
@@ -144,7 +152,10 @@ function stitchAspect(variant, aspect) {
   const useMusic = MUSIC_LEVEL > 0 && fs.existsSync(MUSIC_PATH);
   const audioInputs = [];
   if (useMusic) {
-    audioInputs.push('-ss', String(MUSIC_OFFSET_SEC), '-i', MUSIC_PATH);
+    // -t caps music duration to the video length so a high MUSIC_OFFSET_SEC
+    // near end-of-track can't make audio the shorter stream and let -shortest
+    // truncate the video. afade tail still trims the last 0.7s gracefully.
+    audioInputs.push('-ss', String(MUSIC_OFFSET_SEC), '-t', totalSec.toFixed(3), '-i', MUSIC_PATH);
     const fadeOutStart = Math.max(0, totalSec - 0.7);
     filterParts.push(
       `[${clipDirs.length}:a]volume=${MUSIC_LEVEL},` +
