@@ -97,9 +97,12 @@ npm run test:e2e
 
 # AirConsole E2E tests
 npm run test:e2e:airconsole
+
+# Relay load test (k6 — requires k6 installed)
+k6 run scripts/relay-loadtest.k6.js
 ```
 
-Unit tests use Node.js's built-in `node:test` runner with `node:assert/strict` — no test framework dependency. E2E tests use Playwright against a live server on port 4100. UI regressions are caught via the live gallery at `/gallery.html`.
+Unit tests use Node.js's built-in `node:test` runner with `node:assert/strict` — no test framework dependency. E2E tests use Playwright against a live server on port 4100. UI regressions are caught via the live gallery at `/gallery.html`. The relay load test models 5-client rooms (1 display + 4 controllers) against the configured relay URL; see the script header for environment knobs.
 
 ## Tech Stack
 
