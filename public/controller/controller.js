@@ -853,9 +853,8 @@ window.addEventListener('popstate', function (e) {
 //     teardown because the browser network service delivers it independently
 //     of the page. This is the only reliable path on Android Chrome, where
 //     Chromium routinely drops the WS close frame when a tab is closed
-//     (crbug 40378664). Mode-agnostic: in AirConsole the beacon either gets
-//     CSP-blocked (AC CSP doesn't allow our relay) or 204s on the relay's
-//     unknown-room path — either way, harmless no-op.
+//     (crbug 40378664). Skipped under AirConsole — AC sessions don't use
+//     the relay.
 //  2. WS LEAVE message — fastest on desktop where the WS handshake works
 //     fine; the display sees onPeerLeft via the relay's normal send path.
 //  3. WS close — last-resort signal that the relay turns into peer_left.
@@ -864,7 +863,7 @@ window.addEventListener('popstate', function (e) {
 window.addEventListener('pagehide', function () {
   if (!party) return;
   try {
-    if (navigator.sendBeacon && roomCode && clientId) {
+    if (navigator.sendBeacon && roomCode && clientId && !window.airconsole) {
       var beaconUrl = RELAY_URL.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://')
         + '/room/' + encodeURIComponent(roomCode) + '/leave'
         + (instanceId ? '?instance=' + encodeURIComponent(instanceId) : '');
