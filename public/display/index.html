@@ -131,7 +131,7 @@
   <!-- Relay status bar — sibling of all screens (lobby, game, results) so
        it persists across gameplay. Hidden on welcome via `html:not(.in-session)`. -->
   <div id="relay-status-bar">
-    <span id="relay-chip" class="relay-chip hidden" aria-live="polite">
+    <span id="relay-chip" class="relay-chip hidden" role="status" aria-label="Relay server status" aria-live="polite">
       <span id="relay-chip-dot" class="relay-chip__dot" aria-hidden="true"></span>
       <span id="relay-chip-region" class="relay-chip__region"></span>
     </span>

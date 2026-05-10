@@ -146,8 +146,8 @@ body.airconsole #lobby-version-label { display: block; }
    across lobby → game → results, giving the host a steady relay-quality
    signal during play. Hidden on welcome via the html.in-session toggle.
    The chip reveals only after the relay's `created` message lands, then
-   stays visible across reconnects. Row reversed so the chip stays anchored
-   to the corner and the report button (when revealed) flows to its left. */
+   stays visible across reconnects. Stacked column with chip on top and the
+   report button (when revealed) directly below, both centered. */
 #relay-status-bar {
   position: fixed;
   bottom: max(env(safe-area-inset-bottom), 16px);
