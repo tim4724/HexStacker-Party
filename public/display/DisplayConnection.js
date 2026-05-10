@@ -56,10 +56,8 @@ function connectAndCreateRoom() {
   party.onProtocol = function(type, msg) {
     switch (type) {
       case 'created':
-        if (msg.region) {
-          relayRegion = msg.region;
-          updateRelayChip();
-        }
+        relayRegion = msg.region || null;
+        updateRelayChip();
         onRoomCreated(msg.room, msg.instance);
         break;
       case 'joined':

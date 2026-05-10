@@ -157,7 +157,7 @@ body.airconsole #lobby-version-label { display: block; }
   align-items: center;
   gap: 6px;
   pointer-events: auto;
-  z-index: 5;
+  z-index: 25;
 }
 html:not(.in-session) #relay-status-bar { display: none; }
 
