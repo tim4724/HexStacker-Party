@@ -113,7 +113,7 @@ function startPing() {
     // Show "Bad Connection" if pong is overdue, but keep pinging.
     // Actual reconnect is handled by party.onClose when WebSocket dies.
     if (Date.now() - lastPongTime > PONG_TIMEOUT_MS) {
-      updatePingDisplay(-1);
+      updateLatencyDisplay(-1);
     }
   }, PING_INTERVAL_MS);
 }
@@ -122,15 +122,15 @@ function stopPing() {
   if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
 }
 
-function updatePingDisplay(ms) {
-  if (!pingDisplay) return;
-  pingDisplay.classList.remove('ping-good', 'ping-ok', 'ping-bad');
+function updateLatencyDisplay(ms) {
+  if (!latencyDisplay) return;
+  latencyDisplay.classList.remove('ping-good', 'ping-ok', 'ping-bad');
   if (ms < 0) {
-    pingDisplay.textContent = t('bad_connection');
-    pingDisplay.classList.add('ping-bad');
+    latencyDisplay.textContent = t('bad_connection');
+    latencyDisplay.classList.add('ping-bad');
   } else {
-    pingDisplay.textContent = ms + ' ms';
-    pingDisplay.classList.add(ms < 50 ? 'ping-good' : ms < 100 ? 'ping-ok' : 'ping-bad');
+    latencyDisplay.textContent = ms + ' ms';
+    latencyDisplay.classList.add(ms < 50 ? 'ping-good' : ms < 100 ? 'ping-ok' : 'ping-bad');
   }
 }
 

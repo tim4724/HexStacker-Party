@@ -56,7 +56,8 @@ function connectAndCreateRoom() {
   party.onProtocol = function(type, msg) {
     switch (type) {
       case 'created':
-        if (msg.region) console.log('[relay] region:', msg.region);
+        relayRegion = msg.region || null;
+        updateRelayChip();
         onRoomCreated(msg.room, msg.instance);
         break;
       case 'joined':
@@ -90,6 +91,12 @@ function connectAndCreateRoom() {
   party.onMessage = function(from, data) {
     if (from === 0 && data && data.type === '_heartbeat') {
       lastHeartbeatEcho = Date.now();
+      if (lastHeartbeatSent) {
+        var rtt = lastHeartbeatEcho - lastHeartbeatSent;
+        lastRelayRtt = rtt;
+        consecutiveBadRtt = (rtt > RELAY_RTT_OK_MS) ? consecutiveBadRtt + 1 : 0;
+        updateRelayChip();
+      }
       return;
     }
     handleControllerMessage(from, data);

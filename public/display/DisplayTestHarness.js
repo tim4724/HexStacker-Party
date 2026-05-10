@@ -473,6 +473,17 @@ function initScenario(opts) {
     party = { getMasterPeerIndex: function() { return 'debug' + hostSlot; } };
   }
 
+  // Seed dummy relay data for gallery previews so the chip renders. Skip
+  // welcome (chip hidden on welcome by design) and airconsole-lobby (real
+  // AirConsole sessions don't use our relay, so the chip is hidden there
+  // — gallery should match).
+  if (scenario !== 'welcome' && scenario !== 'airconsole-lobby') {
+    relayRegion = 'fra';
+    lastRelayRtt = 12;
+    consecutiveBadRtt = 0;
+    updateRelayChip();
+  }
+
   // Welcome: no players, stay on welcome screen.
   if (scenario === 'welcome') {
     showScreen(SCREEN.WELCOME);

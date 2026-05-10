@@ -226,6 +226,102 @@ function applyHostTint() {
   }
 }
 
+// --- Relay Region Chip ---
+// Maps relay-supplied region codes to a city + flag. The relay (Party-Sockets)
+// uses Fly.io 3-letter codes — see Party-Sockets/regions.ts for the canonical
+// list. The chip shows the city for legibility ("Frankfurt 🇩🇪"); the IATA
+// code stays in the tooltip and the report email so support has the
+// unambiguous identifier. Unknown codes fall back to the raw uppercase code
+// without a flag, so a relay-side region addition won't break the chip until
+// this map catches up.
+var RELAY_REGION_META = {
+  ams: { city: 'Amsterdam',    flag: '🇳🇱' },
+  arn: { city: 'Stockholm',    flag: '🇸🇪' },
+  bom: { city: 'Mumbai',       flag: '🇮🇳' },
+  cdg: { city: 'Paris',        flag: '🇫🇷' },
+  dfw: { city: 'Dallas',       flag: '🇺🇸' },
+  ewr: { city: 'New Jersey',   flag: '🇺🇸' },
+  fra: { city: 'Frankfurt',    flag: '🇩🇪' },
+  gru: { city: 'São Paulo',    flag: '🇧🇷' },
+  iad: { city: 'Ashburn',      flag: '🇺🇸' },
+  jnb: { city: 'Johannesburg', flag: '🇿🇦' },
+  lax: { city: 'Los Angeles',  flag: '🇺🇸' },
+  lhr: { city: 'London',       flag: '🇬🇧' },
+  nrt: { city: 'Tokyo',        flag: '🇯🇵' },
+  ord: { city: 'Chicago',      flag: '🇺🇸' },
+  sin: { city: 'Singapore',    flag: '🇸🇬' },
+  sjc: { city: 'San Jose',     flag: '🇺🇸' },
+  syd: { city: 'Sydney',       flag: '🇦🇺' },
+  yyz: { city: 'Toronto',      flag: '🇨🇦' }
+};
+
+function updateRelayChip() {
+  if (!relayChip) return;
+  // AirConsole runs on its own network — our relay diagnostics don't apply.
+  if (document.body.classList.contains('airconsole')) {
+    relayChip.classList.add('hidden');
+    return;
+  }
+  // Need at least a region or a measured RTT to show anything useful.
+  if (!relayRegion && lastRelayRtt < 0) {
+    relayChip.classList.add('hidden');
+    return;
+  }
+
+  var rttText = lastRelayRtt >= 0 ? lastRelayRtt + ' ms' : 'measuring…';
+  if (relayRegion) {
+    var code = String(relayRegion).toLowerCase();
+    var meta = RELAY_REGION_META[code];
+    relayChipRegion.textContent = meta ? meta.city + ' ' + meta.flag : code.toUpperCase();
+    relayChip.dataset.tooltip = code.toUpperCase() + ' · ' + rttText + ' RTT';
+  } else {
+    relayChipRegion.textContent = rttText;
+    delete relayChip.dataset.tooltip;
+  }
+  relayChip.classList.remove('hidden');
+
+  relayChipDot.classList.remove('ping-ok', 'ping-bad');
+  if (lastRelayRtt < 0) {
+    // No measurement yet — keep the default good (mint) tint.
+  } else if (lastRelayRtt > RELAY_RTT_OK_MS) {
+    relayChipDot.classList.add('ping-bad');
+  } else if (lastRelayRtt > RELAY_RTT_GOOD_MS) {
+    relayChipDot.classList.add('ping-ok');
+  }
+
+  // Sticky reveal: once the user has seen sustained bad latency, the report
+  // button stays visible until resetToWelcome clears the session — so the
+  // button doesn't blink in/out as RTT oscillates, and a user mid-click
+  // doesn't lose the target. Hidden again only on a fresh welcome entry.
+  if (relayReportBtn && consecutiveBadRtt >= RELAY_REPORT_THRESHOLD) {
+    relayReportBtn.classList.remove('hidden');
+  }
+}
+
+function buildRelayReportMailto() {
+  var subject = 'HexStacker Party: bad latency report';
+  var bodyLines = [
+    'Hi, I\'m seeing bad latency in HexStacker Party. Details below:',
+    '',
+    'My location (city/country): ',
+    '',
+    'Server region: ' + (relayRegion || 'unknown'),
+    'App version: ' + (document.getElementById('lobby-version-label')?.textContent || 'unknown'),
+    'Timestamp: ' + new Date().toISOString(),
+    '',
+    'Notes (optional): '
+  ];
+  return 'mailto:info@couch-games.com'
+    + '?subject=' + encodeURIComponent(subject)
+    + '&body=' + encodeURIComponent(bodyLines.join('\n'));
+}
+
+if (relayReportBtn) {
+  relayReportBtn.addEventListener('click', function() {
+    window.location.href = buildRelayReportMailto();
+  });
+}
+
 // --- QR Code Rendering ---
 function renderQR(canvas, qrMatrix, targetCssSize) {
   if (!qrMatrix || !qrMatrix.modules) return;

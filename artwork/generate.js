@@ -279,12 +279,12 @@ async function generate() {
   }, null, { timeout: 10000 });
   await host.waitForTimeout(300);
 
-  // Hide pause/settings/ping so they don't distract in the banner.
+  // Hide pause/settings/latency so they don't distract in the banner.
   // Guarded — controller UI evolves over time, missing IDs shouldn't
   // break artwork generation.
   for (const ctrl of controllers) {
     await ctrl.evaluate(() => {
-      ['pause-btn', 'settings-btn', 'ping-display'].forEach(function(id) {
+      ['pause-btn', 'settings-btn', 'latency-display'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) el.style.display = 'none';
       });

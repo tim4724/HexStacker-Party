@@ -81,7 +81,7 @@ function handleMessage(data) {
         lastPongTime = Date.now();
         if (data.t) {
           var rtt = Date.now() - data.t;
-          updatePingDisplay(Math.round(rtt / 2));
+          updateLatencyDisplay(Math.round(rtt / 2));
         }
         if (party) party.resetReconnectCount();
         clearTimeout(disconnectedTimer);

@@ -943,8 +943,8 @@ html, body {
   display: none;
 }
 
-/* Ping indicator */
-.ping-display {
+/* Latency indicator (one-way; RTT/2) */
+.latency-display {
   font-size: 0.7rem;
   font-family: 'Orbitron', monospace;
   opacity: 0.5;

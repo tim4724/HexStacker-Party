@@ -25,6 +25,13 @@ function resetToWelcome() {
   joinUrl = null;
   setRoomState(ROOM_STATE.LOBBY);
   resetRoomData();
+  // Reset relay state so a fresh session starts clean: the sticky CTA
+  // should not carry over, and the chip should not flash the previous
+  // session's region/RTT before the new 'created' lands.
+  consecutiveBadRtt = 0;
+  lastRelayRtt = -1;
+  relayRegion = null;
+  if (relayReportBtn) relayReportBtn.classList.add('hidden');
   preCreatedRoom = null;
   showScreen(SCREEN.WELCOME);
   connectAndCreateRoom();

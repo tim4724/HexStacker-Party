@@ -141,6 +141,100 @@ body.airconsole #lobby-version-label { display: block; }
   gap: 8px;
 }
 
+/* Relay status bar — pinned to the viewport's bottom-right (conventional
+   status-indicator corner). Lives outside any single screen so it persists
+   across lobby → game → results, giving the host a steady relay-quality
+   signal during play. Hidden on welcome via the html.in-session toggle.
+   The chip reveals only after the relay's `created` message lands, then
+   stays visible across reconnects. Stacked column with chip on top and the
+   report button (when revealed) directly below, both centered. */
+#relay-status-bar {
+  position: fixed;
+  bottom: max(env(safe-area-inset-bottom), 16px);
+  right: max(env(safe-area-inset-right), 16px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+  z-index: 25;
+}
+html:not(.in-session) #relay-status-bar { display: none; }
+
+.relay-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-family: 'Orbitron', system-ui, -apple-system, sans-serif;
+  font-size: clamp(11px, 1.3vw, 13px);
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+  cursor: help;
+}
+.relay-chip.hidden { display: none; }
+
+/* Custom tooltip — surfaces RTT detail on hover. Native title= is too slow
+   (1s+ delay), unstyled, and invisible on touch; this CSS-only popover
+   appears instantly and matches the lobby aesthetic. Hidden on touch
+   devices where hover doesn't exist. */
+.relay-chip[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.85);
+  color: var(--text-primary);
+  font-family: 'Orbitron', system-ui, -apple-system, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease-out;
+}
+@media (hover: hover) {
+  .relay-chip[data-tooltip]:hover::after { opacity: 1; }
+}
+
+.relay-chip__region {
+  font-weight: 600;
+}
+
+.relay-chip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ping-good);
+  box-shadow: 0 0 6px currentColor;
+  color: var(--ping-good);
+  transition: background var(--transition-normal), color var(--transition-normal);
+}
+.relay-chip__dot.ping-ok  { background: var(--ping-ok);  color: var(--ping-ok); }
+.relay-chip__dot.ping-bad { background: var(--ping-bad); color: var(--ping-bad); }
+
+.relay-report-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: clamp(11px, 1.3vw, 13px);
+  letter-spacing: 0.06em;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: color var(--transition-normal), border-color var(--transition-normal);
+}
+.relay-report-btn:hover,
+.relay-report-btn:focus-visible {
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+.relay-report-btn.hidden { display: none; }
+
 
 /* ============================================
    Lobby Screen — single fluid layout.
