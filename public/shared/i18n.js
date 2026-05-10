@@ -41,6 +41,7 @@ var LOCALES = {
     attempt_n_of_m: 'Attempt {attempt} of {max}',
     display_reconnecting: 'Display reconnecting...',
     bad_connection: 'Bad Connection',
+    report_bad_latency: 'Report bad latency',
 
     // Screens
     paused: 'PAUSED',

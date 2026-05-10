@@ -112,14 +112,14 @@ async function waitForDisplayResults(page) {
 
 async function stabilizeControllerUI(page) {
   await page.evaluate((url) => {
-    // Freeze ping display to default text
-    var ping = document.getElementById('ping-display');
-    if (ping) {
-      ping.textContent = '- ms';
-      ping.className = 'ping-display';
+    // Freeze latency display to default text
+    var latency = document.getElementById('latency-display');
+    if (latency) {
+      latency.textContent = '- ms';
+      latency.className = 'latency-display';
     }
-    // Null out the module-level reference so future pings are no-ops
-    if (typeof pingDisplay !== 'undefined') pingDisplay = null;
+    // Null out the module-level reference so future updates are no-ops
+    if (typeof latencyDisplay !== 'undefined') latencyDisplay = null;
     // Standardize join URL hints
     var nameUrl = document.getElementById('name-join-url');
     var lobbyUrl = document.getElementById('lobby-join-url');

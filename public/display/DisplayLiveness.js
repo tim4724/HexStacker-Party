@@ -13,7 +13,9 @@ function startLivenessCheck() {
   livenessInterval = setInterval(function() {
     var now = Date.now();
 
-    // Send heartbeat echo to self via relay
+    // Send heartbeat echo to self via relay. Stamp the send time so the
+    // echo handler in DisplayConnection.js can compute relay RTT.
+    lastHeartbeatSent = now;
     party.sendTo(0, { type: '_heartbeat' });
 
     // Check if our own connection is dead (no echo back within timeout)

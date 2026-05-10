@@ -76,8 +76,20 @@ var livenessInterval = null;
 
 // Display heartbeat — send echo to self via relay to verify connection
 var lastHeartbeatEcho = 0;
+var lastHeartbeatSent = 0;
 var heartbeatSent = false;
 var disconnectedTimer = null;
+
+// Relay region (from 'created' protocol msg) and RTT (measured via heartbeat
+// self-echo in DisplayConnection.js). consecutiveBadRtt drives the lobby
+// "report bad latency" CTA — revealed once the user has seen sustained pain
+// rather than a single spike.
+var relayRegion = null;
+var lastRelayRtt = -1;
+var consecutiveBadRtt = 0;
+var RELAY_RTT_GOOD_MS = 100;
+var RELAY_RTT_OK_MS = 200;
+var RELAY_REPORT_THRESHOLD = 5;
 
 // Last alive state per player (for reconnect)
 var lastAliveState = {};
@@ -321,6 +333,10 @@ var reconnectHeading = document.getElementById('reconnect-heading');
 var reconnectStatus = document.getElementById('reconnect-status');
 var reconnectBtn = document.getElementById('reconnect-btn');
 var muteBtn = document.getElementById('mute-btn');
+var relayChip = document.getElementById('relay-chip');
+var relayChipRegion = document.getElementById('relay-chip-region');
+var relayChipDot = document.getElementById('relay-chip-dot');
+var relayReportBtn = document.getElementById('relay-report-btn');
 
 // Reflect stored mute state on the toolbar's mute button immediately —
 // the HTML default (aria-checked="true", sound-waves visible) matches
