@@ -4,9 +4,8 @@
  * PartyFastlane — peer-to-peer DataChannel layer that piggybacks on an
  * existing relay/signal channel (e.g. PartyConnection).
  *
- * Adapted from the Party-Sockets browser client (client.js). The lib
- * doesn't own a WebSocket — signaling rides on the integrator's `sendSignal`
- * callback. The data path implements "input netcode": sequence-numbered
+ * The lib doesn't own a WebSocket — signaling rides on the integrator's
+ * `sendSignal` callback. The data path implements "input netcode": sequence-numbered
  * packets carrying a sliding window of recent events, with ack-clears-ring
  * redundancy and a bidirectional watchdog. The pattern is the same as
  * Quake/Source/Unreal input forwarding; see Glenn Fiedler's "Gaffer on
@@ -481,9 +480,12 @@
       }
     };
     channel.onclose = function () {
-      if (peer.channel === channel) {
-        if (self.onPeerClosed) self.onPeerClosed(peerIdx);
-      }
+      // Orphan channels from glare rollback should not trigger teardown of
+      // the adopted channel. Route through _teardownPeer so onPeerClosed
+      // fires exactly once (the watchdog and the pc connectionState path
+      // also funnel through there; _teardownPeer is idempotent).
+      if (peer.channel !== channel) return;
+      self._teardownPeer(peerIdx);
     };
     channel.onerror = function () { /* surfaced via onclose / state change */ };
   };

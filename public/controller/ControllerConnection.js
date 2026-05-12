@@ -22,6 +22,37 @@ function startFastlaneDebugLog() {
   }, 5000);
 }
 
+// Auto-reopen the fastlane after a watchdog teardown or any other
+// channel-closed event while the WS is still alive. Without this, a
+// transient WiFi blip that kills the fastlane silently leaves inputs on
+// the WS for the rest of the session. Backs off exponentially up to 30 s;
+// onPeerReady resets the delay so a clean reconnect doesn't carry stale
+// backoff into the next failure.
+var _fastlaneRetryTimer = null;
+var _fastlaneRetryDelay = 0;
+
+function scheduleFastlaneReopen() {
+  if (gameCancelled) return;
+  if (_fastlaneRetryTimer) return;
+  _fastlaneRetryDelay = _fastlaneRetryDelay ? Math.min(_fastlaneRetryDelay * 2, 30000) : 2000;
+  _fastlaneRetryTimer = setTimeout(function () {
+    _fastlaneRetryTimer = null;
+    if (gameCancelled || peerIndex == null || !party || !fastlane) return;
+    fastlane.open(0).catch(function () {
+      // open() can reject when no DataChannel established within the ICE
+      // window; onPeerClosed will fire again and re-arm the next retry.
+    });
+  }, _fastlaneRetryDelay);
+}
+
+function cancelFastlaneReopen() {
+  if (_fastlaneRetryTimer) {
+    clearTimeout(_fastlaneRetryTimer);
+    _fastlaneRetryTimer = null;
+  }
+  _fastlaneRetryDelay = 0;
+}
+
 // Send the user to the display root on any unrecoverable end state.
 // `?bail=<key>` carries optional context for the display's mobile
 // overlay toast. `keepClientId=true` is used by the tab-replacement
@@ -31,6 +62,7 @@ function bailToWelcome(toastKey, keepClientId) {
   if (gameCancelled) return;
   gameCancelled = true;
   stopPing();
+  cancelFastlaneReopen();
   if (fastlane) { fastlane.closeAll(); fastlane = null; }
   if (party) { party.close(); party = null; }
   if (!keepClientId) {
@@ -46,6 +78,7 @@ function connect() {
   if (new URLSearchParams(location.search).get('scenario')) return;
 
   if (party) party.close();
+  cancelFastlaneReopen();
   if (fastlane) { fastlane.closeAll(); fastlane = null; }
 
   // Path-routed WS so the relay can pin us to the instance the room lives on.
@@ -75,7 +108,15 @@ function connect() {
       onRtt: function (peerIdx, rttHalf) {
         if (peerIdx === 0) updateLatencyDisplay(Math.round(rttHalf));
       },
-      onPeerClosed: function () { /* WS PONG/PING takes over for RTT */ },
+      // Clean reconnect → reset backoff so the next failure starts fresh.
+      onPeerReady: function (peerIdx) {
+        if (peerIdx === 0) cancelFastlaneReopen();
+      },
+      // Watchdog teardown / connection failure → schedule a reopen with
+      // exponential backoff. WS path takes over for inputs in the meantime.
+      onPeerClosed: function (peerIdx) {
+        if (peerIdx === 0) scheduleFastlaneReopen();
+      },
     });
     startFastlaneDebugLog();
   }
@@ -227,6 +268,7 @@ function sendToDisplay(type, payload) {
 
 function performDisconnect() {
   stopPing();
+  cancelFastlaneReopen();
   if (fastlane) { fastlane.closeAll(); fastlane = null; }
   if (party) {
     try { party.sendTo(0, { type: MSG.LEAVE }); } catch (_) {}
