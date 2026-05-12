@@ -37,7 +37,10 @@ var replayEarlyReady = AirConsoleAdapter.captureEarlyReady(airconsole);
 skipNameScreen = true;
 
 // Replace PartyConnection with a factory that returns AirConsoleAdapter.
-PartyConnection = function() {
+// `window.` qualifier is required: PartyConnection.js is stripped from the AC
+// build, so no prior binding exists and strict-mode would reject a bare
+// assignment with ReferenceError.
+window.PartyConnection = function() {
   return new AirConsoleAdapter(airconsole, { role: 'controller' });
 };
 

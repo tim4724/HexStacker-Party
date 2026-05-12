@@ -70,6 +70,11 @@ rm -f "$BUILD_DIR/display/DisplayTestHarness.js"
 rm -f "$BUILD_DIR/shared/legal-back.js"
 rm -f "$BUILD_DIR/shared/legal.css"
 
+# Drop relay-transport modules — generate-airconsole-html.js already strips
+# their <script> tags, so the files would just sit in the zip unloaded.
+rm -f "$BUILD_DIR/shared/PartyConnection.js"
+rm -f "$BUILD_DIR/shared/PartyFastlane.js"
+
 # Create ZIP
 cd "$BUILD_DIR"
 rm -f "$ZIP_FILE"
