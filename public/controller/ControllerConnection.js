@@ -6,6 +6,22 @@
 // Called by: controller.js (init, event handlers)
 // =====================================================================
 
+// Phase 0 instrumentation: log fastlane packet stats every 5s when
+// ?debug=1 is set. Gives us a console-side view of inbound packet loss
+// (gap between highest seen seq and received count) before designing for
+// hypothetical loss. No-op in production sessions.
+var _fastlaneDebugTimer = null;
+function startFastlaneDebugLog() {
+  if (_fastlaneDebugTimer) return;
+  if (new URLSearchParams(location.search).get('debug') !== '1') return;
+  _fastlaneDebugTimer = setInterval(function () {
+    if (!fastlane) return;
+    var stats = fastlane.getAllStats();
+    if (Object.keys(stats).length === 0) return;
+    console.log('[fastlane stats]', stats);
+  }, 5000);
+}
+
 // Send the user to the display root on any unrecoverable end state.
 // `?bail=<key>` carries optional context for the display's mobile
 // overlay toast. `keepClientId=true` is used by the tab-replacement
@@ -15,6 +31,7 @@ function bailToWelcome(toastKey, keepClientId) {
   if (gameCancelled) return;
   gameCancelled = true;
   stopPing();
+  if (fastlane) { fastlane.closeAll(); fastlane = null; }
   if (party) { party.close(); party = null; }
   if (!keepClientId) {
     try { localStorage.removeItem('clientId_' + roomCode); } catch (e) { /* iframe sandbox */ }
@@ -29,11 +46,39 @@ function connect() {
   if (new URLSearchParams(location.search).get('scenario')) return;
 
   if (party) party.close();
+  if (fastlane) { fastlane.closeAll(); fastlane = null; }
 
   // Path-routed WS so the relay can pin us to the instance the room lives on.
   var relayUrl = RELAY_URL + '/' + encodeURIComponent(roomCode)
     + (instanceId ? '?instance=' + encodeURIComponent(instanceId) : '');
   party = new PartyConnection(relayUrl, { clientId: clientId });
+
+  // Open a P2P DataChannel fastlane to the display (always slot 0) for
+  // latency-sensitive input messages. The signaling envelopes ride on the
+  // existing PartyConnection via party.sendTo. Skipped in AirConsole mode
+  // (window.airconsole is set there and PartyConnection is replaced by
+  // AirConsoleAdapter, which doesn't have a WS to piggyback on).
+  if (typeof PartyFastlane !== 'undefined' && !(typeof window !== 'undefined' && window.airconsole)) {
+    fastlane = new PartyFastlane({
+      sendSignal: function (toIdx, data) { if (party) party.sendTo(toIdx, data); },
+      onInput: function (fromIdx, data) {
+        // Display is always slot 0 — same gate as the WS path.
+        if (fromIdx === 0) handleMessage(data);
+      },
+      // Sender role: emit idle heartbeats so the RTT chip stays live when
+      // there are no inputs flowing (lobby, between pieces). The display
+      // doesn't reciprocate — it only emits acks in response to data.
+      emitIdleHeartbeat: true,
+      // onRtt fires on every inbound ack, carrying smoothed one-way latency
+      // (srtt/2). Reuses updateLatencyDisplay, which also handles the bolt
+      // icon visibility based on fastlane.isOpen.
+      onRtt: function (peerIdx, rttHalf) {
+        if (peerIdx === 0) updateLatencyDisplay(Math.round(rttHalf));
+      },
+      onPeerClosed: function () { /* WS PONG/PING takes over for RTT */ },
+    });
+    startFastlaneDebugLog();
+  }
 
   party.onOpen = function () {
     party.join(roomCode);
@@ -51,8 +96,21 @@ function connect() {
         rejoinId: legacyRejoinId,
         rejoinToken: rejoinToken
       });
+      // Reopen fastlane on every (re)join — existing peer connections don't
+      // survive a relay-side replacement, and the display may have rejoined
+      // while we were offline so its peer state is fresh.
+      if (fastlane) {
+        fastlane.setSelfIndex(peerIndex);
+        fastlane.closeAll();
+        // Offer flows asynchronously; sendToDisplay falls back to WS until
+        // the channel is open.
+        fastlane.open(0).catch(function (err) {
+          console.warn('[fastlane] open failed', err);
+        });
+      }
     } else if (type === 'peer_left') {
       if (msg.index === 0) {
+        if (fastlane) fastlane.close(0);
         if (currentScreen === 'game') {
           reconnectOverlay.classList.remove('hidden');
           reconnectHeading.textContent = t('reconnecting');
@@ -68,6 +126,8 @@ function connect() {
   };
 
   party.onMessage = function (from, data) {
+    // Intercept RTC signaling envelopes before app dispatch.
+    if (fastlane && fastlane.handleSignal(from, data)) return;
     if (from === 0) {
       handleMessage(data);
     }
@@ -109,7 +169,10 @@ function startPing() {
   stopPing();
   lastPongTime = Date.now();
   pingTimer = setInterval(function () {
-    party.sendTo(0, { type: MSG.PING, t: Date.now() });
+    // Goes via fastlane when open (FASTLANE_TYPES includes 'ping') so the
+    // RTT measurement reflects the actual input path, not relay-mediated WS.
+    // Display mirrors PONG onto whichever channel PING arrived on.
+    sendToDisplay(MSG.PING, { t: Date.now() });
     // Show "Bad Connection" if pong is overdue, but keep pinging.
     // Actual reconnect is handled by party.onClose when WebSocket dies.
     if (Date.now() - lastPongTime > PONG_TIMEOUT_MS) {
@@ -125,11 +188,16 @@ function stopPing() {
 function updateLatencyDisplay(ms) {
   if (!latencyDisplay) return;
   latencyDisplay.classList.remove('ping-good', 'ping-ok', 'ping-bad');
+  // Toggle the fastlane bolt indicator. The icon element is added at startup
+  // by ensureLatencyMarkup(); leaving it always-present in the DOM avoids
+  // re-creating it on every ping tick.
+  latencyDisplay.classList.toggle('latency-display--fastlane', !!(fastlane && fastlane.isOpen(0)));
+  var textEl = latencyDisplay.querySelector('.latency-display__text') || latencyDisplay;
   if (ms < 0) {
-    latencyDisplay.textContent = t('bad_connection');
+    textEl.textContent = t('bad_connection');
     latencyDisplay.classList.add('ping-bad');
   } else {
-    latencyDisplay.textContent = ms + ' ms';
+    textEl.textContent = ms + ' ms';
     latencyDisplay.classList.add(ms < 50 ? 'ping-good' : ms < 100 ? 'ping-ok' : 'ping-bad');
   }
 }
@@ -138,15 +206,19 @@ function updateLatencyDisplay(ms) {
 // Send Helper
 // =====================================================================
 
+// Latency-sensitive message types — enqueued to the fastlane's rolling-
+// window send loop when the DataChannel is open, otherwise sent reliably
+// over the WebSocket. PING/PONG stays on WS now (relay-liveness check);
+// input-path RTT comes from fastlane acks via onRtt.
+var FASTLANE_TYPES = { input: true, soft_drop: true };
+
 // Note: mutates payload by adding .type — callers must pass a fresh object.
 function sendToDisplay(type, payload) {
   if (!party) return;
-  if (payload) {
-    payload.type = type;
-    party.sendTo(0, payload);
-  } else {
-    party.sendTo(0, { type: type });
-  }
+  var msg = payload || {};
+  msg.type = type;
+  if (fastlane && FASTLANE_TYPES[type] && fastlane.enqueue(0, msg) === 'p2p') return;
+  party.sendTo(0, msg);
 }
 
 // =====================================================================
@@ -155,6 +227,7 @@ function sendToDisplay(type, payload) {
 
 function performDisconnect() {
   stopPing();
+  if (fastlane) { fastlane.closeAll(); fastlane = null; }
   if (party) {
     try { party.sendTo(0, { type: MSG.LEAVE }); } catch (_) {}
     party.close();

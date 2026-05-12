@@ -7,8 +7,24 @@
 // See also: DisplayLiveness.js (heartbeat monitoring, extracted)
 // =====================================================================
 
+// Phase 0 instrumentation: log fastlane packet stats every 5s when
+// ?debug=1 is set. Symmetric with the controller-side logger; on the
+// display we expect to see inbound stats from every connected controller.
+var _fastlaneDebugTimer = null;
+function startFastlaneDebugLog() {
+  if (_fastlaneDebugTimer) return;
+  if (new URLSearchParams(location.search).get('debug') !== '1') return;
+  _fastlaneDebugTimer = setInterval(function () {
+    if (!fastlane) return;
+    var stats = fastlane.getAllStats();
+    if (Object.keys(stats).length === 0) return;
+    console.log('[fastlane stats]', stats);
+  }, 5000);
+}
+
 function connectAndCreateRoom() {
   if (party) party.close();
+  if (fastlane) { fastlane.closeAll(); fastlane = null; }
 
   // If we already know the instance (reconnect path), open the WS on the
   // sharded URL so the relay routes us back to the same instance. Fresh
@@ -21,6 +37,19 @@ function connectAndCreateRoom() {
   // 'display' is a stable string the relay matches to slot 0 across reloads.
   // It never crosses the wire to peers — peers see only numeric indices.
   party = new PartyConnection(initialUrl, { clientId: 'display' });
+
+  // Display is always slot 0. Controllers initiate the SDP/ICE handshake on
+  // join; the display only needs to auto-accept inbound offers and forward
+  // received DataChannel messages to handleControllerMessage. Skipped in
+  // AirConsole mode (no WS to piggyback on).
+  if (typeof PartyFastlane !== 'undefined' && !(typeof window !== 'undefined' && window.airconsole)) {
+    fastlane = new PartyFastlane({
+      selfIndex: 0,
+      sendSignal: function (toIdx, data) { if (party) party.sendTo(toIdx, data); },
+      onInput: function (fromIdx, data) { handleControllerMessage(fromIdx, data); },
+    });
+    startFastlaneDebugLog();
+  }
 
   party.onOpen = function() {
     if (lastRoomCode) {
@@ -89,6 +118,9 @@ function connectAndCreateRoom() {
   };
 
   party.onMessage = function(from, data) {
+    // Intercept RTC signaling envelopes for the optional fastlane before app
+    // dispatch. handleSignal returns true iff the message was an __rtc one.
+    if (fastlane && fastlane.handleSignal(from, data)) return;
     if (from === 0 && data && data.type === '_heartbeat') {
       lastHeartbeatEcho = Date.now();
       if (lastHeartbeatSent) {
@@ -358,6 +390,7 @@ function onPeerJoined(peerIndex) {
 }
 
 function onPeerLeft(peerIndex) {
+  if (fastlane) fastlane.close(peerIndex);
   if (!players.has(peerIndex)) return;
 
   cleanupPlayerInput(peerIndex);
