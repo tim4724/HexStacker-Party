@@ -58,6 +58,13 @@ function transform(html, { bootstrapScript }) {
   // banner calls HexStacker.share, and device-choice is CSS-hidden in AC.
   html = html.replace(/^\s*<script src="[^"]*share-helper\.js"><\/script>\n/m, '');
 
+  // 6. Drop PartyConnection.js and PartyFastlane.js. The AC bootstrap
+  // reassigns the global `PartyConnection` to an AirConsoleAdapter factory
+  // before any caller uses it, and the fastlane is explicitly gated by
+  // `!window.airconsole` at both call sites — so both files are dead code
+  // in AC mode (~26 KB raw).
+  html = html.replace(/^\s*<script src="[^"]*Party(Connection|Fastlane)\.js"><\/script>\n/gm, '');
+
   // 6. Strip <picture> inside the device-choice overlay. The /artwork/*
   // sources aren't bundled into the AC zip; without this the browser
   // would still resolve and fetch them (returning 404) even though the
