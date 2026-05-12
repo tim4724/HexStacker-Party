@@ -317,20 +317,17 @@ reconnectBtn.addEventListener('click', function() {
 });
 
 // --- Version + Background ---
-// Skipped in AirConsole — display-airconsole.js already populates
-// lobby-version-label via injectVersionLabel (build-time __AC_VERSION__),
-// and the cross-origin fetch from the AC iframe would only fail silently.
+// Read the build version from the <meta name="app-version"> tag baked into
+// the HTML by server/index.js (web flow) or build-airconsole.sh (AC zip).
+// Skipped in AirConsole — display-airconsole.js handles its own label via
+// injectVersionLabel.
 if (!document.body.classList.contains('airconsole')) {
-  fetch('/api/version').then(function(r) { return r.json(); }).then(function(data) {
-    var label = data.version || '';
-    if (!data.isProduction && data.commit) {
-      label += ' (#' + data.commit + ')';
-    }
-    var welcomeVersion = document.getElementById('welcome-version-label');
-    if (welcomeVersion) welcomeVersion.textContent = label;
-    var lobbyVersion = document.getElementById('lobby-version-label');
-    if (lobbyVersion) lobbyVersion.textContent = label;
-  }).catch(function() {});
+  var versionMeta = document.querySelector('meta[name="app-version"]');
+  var label = versionMeta ? versionMeta.getAttribute('content') : '';
+  var welcomeVersion = document.getElementById('welcome-version-label');
+  if (welcomeVersion) welcomeVersion.textContent = label;
+  var lobbyVersion = document.getElementById('lobby-version-label');
+  if (lobbyVersion) lobbyVersion.textContent = label;
 }
 
 var bgCanvas = document.getElementById('bg-canvas');

@@ -447,17 +447,13 @@ settingsCloseBtn.addEventListener('click', function () {
   }
 });
 
-// Fetch version for the footer. Best-effort: falls back silently in tests.
-// Skipped in AirConsole mode — the bootstrap already populates the label
-// via injectVersionLabel (build-time substitution of __AC_VERSION__, with
-// /api/version as a same-origin dev fallback). A second fetch from here
-// would race with that and risk overwriting it on local-dev origins.
+// Read the build version from the <meta name="app-version"> tag baked into
+// the HTML by server/index.js (web flow) or build-airconsole.sh (AC zip).
+// Skipped in AirConsole mode — the bootstrap calls injectVersionLabel.
 if (!document.body.classList.contains('airconsole')) {
-  fetch('/api/version').then(function (r) { return r.json(); }).then(function (data) {
-    var label = data.version || '';
-    if (!data.isProduction && data.commit) label += ' (#' + data.commit + ')';
-    if (settingsVersionEl) settingsVersionEl.textContent = label;
-  }).catch(function () {});
+  var versionMeta = document.querySelector('meta[name="app-version"]');
+  var label = versionMeta ? versionMeta.getAttribute('content') : '';
+  if (settingsVersionEl) settingsVersionEl.textContent = label;
 }
 
 // --- Sensitivity preview (static two-dot visual + live drag tester) ---
