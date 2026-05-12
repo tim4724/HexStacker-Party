@@ -36,8 +36,8 @@
  *
  * Watchdog: each side tracks the time of the most recent inbound packet
  * (data, heartbeat, or ack). If WATCHDOG_MS elapses with no inbound,
- * `_teardownPeer` fires — onPeerClosed surfaces it to the integrator,
- * which falls back to WS for inputs and clears the bolt indicator.
+ * `_teardownPeer` fires — onPeerClosed surfaces it to the integrator so
+ * it can react (e.g. fall back to its reliable transport, update UI).
  *
  * Usage:
  *   var fastlane = new PartyFastlane({
