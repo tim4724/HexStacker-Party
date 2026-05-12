@@ -324,6 +324,7 @@
   // --- receive path ---
 
   PartyFastlane.prototype._handleDataPacket = function (peer, peerIdx, packet) {
+    if (typeof packet.ps !== 'number') return;
     var h = Array.isArray(packet.h) ? packet.h : [];
     // Events arrive newest first; iterate oldest-first so onInput receives
     // them in source order. es is implicit: es[i] = ps - i.

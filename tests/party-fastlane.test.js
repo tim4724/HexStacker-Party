@@ -170,6 +170,19 @@ describe('PartyFastlane / netcode', () => {
       assert.strictEqual(peer.lastAppliedEs, 4);
     });
 
+    test('ignores packets with non-numeric ps', () => {
+      const captured = [];
+      const { fastlane, peer, channel, peerIdx } = makeFastlane({
+        options: { onInput: (from, ev) => captured.push(ev) },
+      });
+      fastlane._handleDataPacket(peer, peerIdx, { ps: 'bogus', t: Date.now(), h: [{ a: 1 }] });
+      fastlane._handleDataPacket(peer, peerIdx, { t: Date.now(), h: [{ a: 1 }] });
+      assert.strictEqual(captured.length, 0);
+      assert.strictEqual(peer.lastAppliedEs, 0);
+      // Also no ack sent for malformed packets
+      assert.strictEqual(channel._sent.length, 0);
+    });
+
     test('sends an ack on every data packet (including dups + heartbeats)', () => {
       const { fastlane, peer, channel, peerIdx } = makeFastlane();
       // Data packet → ack with pa = applied seq
@@ -257,18 +270,15 @@ describe('PartyFastlane / netcode', () => {
       assert.strictEqual(fastlane.getStats(42), null);
     });
 
-    test('counts outbound + inbound packets, tracks lastPsSeen', () => {
+    test('counts outbound packets across enqueue + ack-send paths', () => {
       const { fastlane, peer, peerIdx } = makeFastlane();
       fastlane.enqueue(peerIdx, { a: 1 });
       fastlane._handleDataPacket(peer, peerIdx, { ps: 5, t: Date.now(), h: [{ a: 5 }] });
-      const s = fastlane.getStats(peerIdx);
-      // 1 outbound (enqueue's data packet) + 1 outbound ack from handleDataPacket = 2
-      assert.strictEqual(s.out, 2);
-      assert.strictEqual(s.received, 0); // _wireChannel is the receive entry point; not exercised here
-      // lastPsSeen is updated by _wireChannel.onmessage (also bypassed),
-      // but _statsFor would have been created by send paths. Verify lifetime
-      // persistence semantic.
-      assert.strictEqual(typeof s.lastPsSeen, 'number');
+      // 1 outbound (enqueue's data packet) + 1 outbound ack from handleDataPacket
+      assert.strictEqual(fastlane.getStats(peerIdx).out, 2);
+      // received / lastPsSeen are updated by _wireChannel.onmessage, which we
+      // don't drive here. Covered separately by integration via the live
+      // browser check — out-of-scope for the netcode-pure unit tests.
     });
 
     test('counters persist across _teardownPeer (lifetime aggregation)', () => {

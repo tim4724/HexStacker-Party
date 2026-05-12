@@ -62,8 +62,10 @@ function connect() {
   if (new URLSearchParams(location.search).get('scenario')) return;
 
   if (party) party.close();
-  cancelFastlaneReopen();
+  // closeAll fires onPeerClosed for any open peer → would schedule a retry.
+  // Drop the fastlane first, then cancel any retry that just got scheduled.
   if (fastlane) { fastlane.closeAll(); fastlane = null; }
+  cancelFastlaneReopen();
 
   // Path-routed WS so the relay can pin us to the instance the room lives on.
   var relayUrl = RELAY_URL + '/' + encodeURIComponent(roomCode)
@@ -255,8 +257,8 @@ function sendToDisplay(type, payload) {
 
 function performDisconnect() {
   stopPing();
-  cancelFastlaneReopen();
   if (fastlane) { fastlane.closeAll(); fastlane = null; }
+  cancelFastlaneReopen();
   if (party) {
     try { party.sendTo(0, { type: MSG.LEAVE }); } catch (_) {}
     party.close();
