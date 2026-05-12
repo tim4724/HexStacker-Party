@@ -89,10 +89,10 @@
     this.peers = new Map();
 
     // Per-peer instrumentation. See _statsFor() for shape and getStats() for
-    // derived values. `lostEvents = lastPsSeen - appliedEs` (receiver side)
-    // is the canonical loss metric — counts the events the peer claims to
-    // have sent vs. the ones we've actually applied. Heartbeats don't
-    // advance ps so they don't pollute the count.
+    // derived values. Counters intentionally outlive _teardownPeer — they
+    // aggregate across reconnects so getStats(idx) returns lifetime totals
+    // for that peer index, not per-session ones. Heartbeats don't advance
+    // ps so they don't pollute the count.
     this._stats = new Map();
   }
 
@@ -156,24 +156,25 @@
       return Promise.resolve();
     }
     return new Promise(function (resolve, reject) {
+      // Re-read inside the executor: the outer `peer` lookup happens before
+      // the Promise body runs, and the peer entry can change in between.
+      var activePeer = self.peers.get(peerIdx);
+      if (!activePeer) {
+        reject(new Error('fastlane to ' + peerIdx + ' closed'));
+        return;
+      }
       var done = false;
       var settle = function (err) {
         if (done) return;
         done = true;
         clearTimeout(timer);
-        if (peer) {
-          peer._waitResolvers = (peer._waitResolvers || []).filter(function (r) { return r !== entry; });
-        }
+        activePeer._waitResolvers = (activePeer._waitResolvers || [])
+          .filter(function (r) { return r !== entry; });
         if (err) reject(err); else resolve();
       };
       var entry = { settle: settle };
-      peer = self.peers.get(peerIdx);
-      if (!peer) {
-        reject(new Error('fastlane to ' + peerIdx + ' closed'));
-        return;
-      }
-      peer._waitResolvers = (peer._waitResolvers || []);
-      peer._waitResolvers.push(entry);
+      activePeer._waitResolvers = (activePeer._waitResolvers || []);
+      activePeer._waitResolvers.push(entry);
 
       var timer = setTimeout(function () {
         settle(new Error('fastlane to ' + peerIdx + ' timed out after ' + timeoutMs + 'ms'));
@@ -188,7 +189,7 @@
 
   PartyFastlane.prototype.closeAll = function () {
     var indices = [];
-    for (var k of this.peers.keys()) indices.push(k);
+    this.peers.forEach(function (_v, k) { indices.push(k); });
     for (var i = 0; i < indices.length; i++) this._teardownPeer(indices[i]);
   };
 
@@ -236,7 +237,8 @@
 
   PartyFastlane.prototype.getAllStats = function () {
     var out = {};
-    for (var k of this._stats.keys()) out[k] = this.getStats(k);
+    var self = this;
+    this._stats.forEach(function (_v, k) { out[k] = self.getStats(k); });
     return out;
   };
 

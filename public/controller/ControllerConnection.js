@@ -199,9 +199,9 @@ function startPing() {
   stopPing();
   lastPongTime = Date.now();
   pingTimer = setInterval(function () {
-    // Goes via fastlane when open (FASTLANE_TYPES includes 'ping') so the
-    // RTT measurement reflects the actual input path, not relay-mediated WS.
-    // Display mirrors PONG onto whichever channel PING arrived on.
+    // Stays on WS — relay-liveness check, drives PONG_TIMEOUT_MS reconnect
+    // and the relay status chip. Input-path RTT comes from fastlane acks
+    // via the onRtt callback, not from this PING.
     sendToDisplay(MSG.PING, { t: Date.now() });
     // Show "Bad Connection" if pong is overdue, but keep pinging.
     // Actual reconnect is handled by party.onClose when WebSocket dies.
