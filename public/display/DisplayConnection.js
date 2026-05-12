@@ -27,8 +27,10 @@ function connectAndCreateRoom() {
   // Display is always slot 0. Controllers initiate the SDP/ICE handshake on
   // join; the display only needs to auto-accept inbound offers and forward
   // received DataChannel messages to handleControllerMessage. Skipped in
-  // AirConsole mode (no WS to piggyback on).
-  if (typeof PartyFastlane !== 'undefined' && !window.airconsole) {
+  // AirConsole mode (no WS to piggyback on) or when ?fastlane=0 is set
+  // (debug toggle for A/B comparison; controllers honor the same flag).
+  var fastlaneEnabled = new URLSearchParams(location.search).get('fastlane') !== '0';
+  if (fastlaneEnabled && typeof PartyFastlane !== 'undefined' && !window.airconsole) {
     fastlane = new PartyFastlane({
       // Symmetric ICE config with the controller (both sides need to know
       // about the same STUN server for cross-network handshakes to work).

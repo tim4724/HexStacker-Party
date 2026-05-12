@@ -77,7 +77,10 @@ function connect() {
   // existing PartyConnection via party.sendTo. Skipped in AirConsole mode
   // (window.airconsole is set there and PartyConnection is replaced by
   // AirConsoleAdapter, which doesn't have a WS to piggyback on).
-  if (typeof PartyFastlane !== 'undefined' && !window.airconsole) {
+  // Also skipped when ?fastlane=0 is set — a debug toggle for A/B comparing
+  // fastlane vs. pure-WS input latency from the same device.
+  var fastlaneEnabled = new URLSearchParams(location.search).get('fastlane') !== '0';
+  if (fastlaneEnabled && typeof PartyFastlane !== 'undefined' && !window.airconsole) {
     fastlane = new PartyFastlane({
       // First-party STUN — self-hosted on the same infra as hexstacker.com,
       // declared in protocol.js so both sides agree. Lets WebRTC gather
