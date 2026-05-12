@@ -3,6 +3,11 @@
 // Party-Server relay URL
 var RELAY_URL = 'wss://ws.hexstacker.com';
 
+// First-party STUN server (self-hosted, see public/privacy.html). Used by the
+// fastlane to gather server-reflexive candidates so cross-network peers can
+// find each other when host candidates aren't reachable.
+var STUN_URL = 'stun:stun.hexstacker.com:3478';
+
 // Message types for game communication (inside Party-Server data field)
 var MSG = {
   // Controller -> Display
@@ -57,5 +62,5 @@ var ROOM_STATE = {
 
 // Export for both Node.js and browser
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { MSG, INPUT, ROOM_STATE, RELAY_URL };
+  module.exports = { MSG, INPUT, ROOM_STATE, RELAY_URL, STUN_URL };
 }

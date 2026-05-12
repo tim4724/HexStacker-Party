@@ -79,12 +79,11 @@ function connect() {
   // AirConsoleAdapter, which doesn't have a WS to piggyback on).
   if (typeof PartyFastlane !== 'undefined' && !window.airconsole) {
     fastlane = new PartyFastlane({
-      // First-party STUN — self-hosted on the same infra as hexstacker.com.
-      // Lets WebRTC gather server-reflexive candidates so cross-network play
-      // can find a route when host candidates aren't reachable (e.g. WiFi
-      // client isolation). For same-LAN play, host candidates still win and
-      // the STUN server sees only the initial binding request.
-      iceServers: [{ urls: 'stun:stun.hexstacker.com:3478' }],
+      // First-party STUN — self-hosted on the same infra as hexstacker.com,
+      // declared in protocol.js so both sides agree. Lets WebRTC gather
+      // server-reflexive candidates for cross-network play; for same-LAN play
+      // host candidates still win.
+      iceServers: [{ urls: STUN_URL }],
       sendSignal: function (toIdx, data) { if (party) party.sendTo(toIdx, data); },
       // No onInput: the display only sends acks back over fastlane, never
       // data packets, so onInput would never fire on the controller side.
@@ -132,6 +131,10 @@ function connect() {
       if (fastlane) {
         fastlane.setSelfIndex(peerIndex);
         fastlane.closeAll();
+        // closeAll fires onPeerClosed → arms a retry at whatever delay we'd
+        // accumulated. Fresh join means we want to restart from 2 s baseline,
+        // not inherit 30 s from a prior bad session.
+        cancelFastlaneReopen();
         // Offer flows asynchronously; sendToDisplay falls back to WS until
         // the channel is open.
         fastlane.open(0).catch(function (err) {
@@ -199,13 +202,17 @@ function startPing() {
   stopPing();
   lastPongTime = Date.now();
   pingTimer = setInterval(function () {
-    // Stays on WS — relay-liveness check, drives PONG_TIMEOUT_MS reconnect
-    // and the relay status chip. Input-path RTT comes from fastlane acks
-    // via the onRtt callback, not from this PING.
+    // Relay-liveness ping. Stays on WS — input-path RTT comes from fastlane
+    // acks via onRtt. The display tracks each controller's lastPingTime for
+    // its own liveness check (LIVENESS_TIMEOUT_MS), so this must keep firing
+    // at 1 Hz unconditionally.
     sendToDisplay(MSG.PING, { t: Date.now() });
-    // Show "Bad Connection" if pong is overdue, but keep pinging.
-    // Actual reconnect is handled by party.onClose when WebSocket dies.
-    if (Date.now() - lastPongTime > PONG_TIMEOUT_MS) {
+    // Surface "Bad Connection" when PONG is overdue. Skip when fastlane is
+    // open — its own watchdog handles input-path health, and we don't want
+    // WS-relay weather to nuke a chip currently showing real P2P RTT from
+    // onRtt. Actual reconnect is handled by party.onClose.
+    if (Date.now() - lastPongTime > PONG_TIMEOUT_MS &&
+        !(fastlane && fastlane.isOpen(0))) {
       updateLatencyDisplay(-1);
     }
   }, PING_INTERVAL_MS);

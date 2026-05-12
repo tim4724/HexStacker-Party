@@ -79,7 +79,12 @@ function handleMessage(data) {
         break;
       case MSG.PONG:
         lastPongTime = Date.now();
-        if (data.t) {
+        // Only drive the chip from WS when fastlane isn't already feeding it
+        // higher-fidelity P2P samples via onRtt. Without this gate the
+        // 1 Hz WS RTT (~12 ms via relay) clobbers the fastlane chip every
+        // second, visibly bouncing the number — and lights the bolt icon
+        // over a non-fastlane reading.
+        if (data.t && !(fastlane && fastlane.isOpen(0))) {
           var rtt = Date.now() - data.t;
           updateLatencyDisplay(Math.round(rtt / 2));
         }
