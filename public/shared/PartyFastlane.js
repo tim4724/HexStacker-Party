@@ -217,32 +217,20 @@
     return !!(peer && peer.channel && peer.channel.readyState === 'open');
   };
 
-  // Per-peer instrumentation. Shape:
+  // Per-peer packet counters. Minimal surface — the only thing the lib
+  // genuinely tracks for diagnostics. RTT is surfaced via the onRtt
+  // callback; anything else (ring depth, applied/acked event seq) lives
+  // on the peer object and is internal state.
   //   out          packets sent to this peer (data + heartbeats + acks)
   //   received     packets received from this peer
-  //   lastPsSeen   highest inbound ps observed (= peer's max event seq,
-  //                when peer is the sender)
-  //   appliedEs    events we've applied from this peer (receiver side)
-  //   ackedEs      events this peer has acked back to us (sender side)
-  //   lostEvents   max(0, lastPsSeen - appliedEs) — receiver-side approx
-  //   ring         current ring depth (sender side)
-  //   srtt         smoothed RTT in ms (sender side)
+  //   lastPsSeen   highest inbound ps observed (= peer's max event seq)
   PartyFastlane.prototype.getStats = function (peerIdx) {
     var s = this._stats.get(peerIdx);
     if (!s) return null;
-    var peer = this.peers.get(peerIdx);
-    var applied = peer ? peer.lastAppliedEs : 0;
-    var acked = peer ? peer.lastAckedEs : 0;
-    var lost = Math.max(0, s.lastPsSeen - applied);
     return {
       out: s.out,
       received: s.received,
       lastPsSeen: s.lastPsSeen,
-      appliedEs: applied,
-      ackedEs: acked,
-      lostEvents: lost,
-      ring: peer ? peer.ring.length : 0,
-      srtt: peer ? peer.srtt : 0,
     };
   };
 

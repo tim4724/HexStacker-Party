@@ -7,20 +7,6 @@
 // See also: DisplayLiveness.js (heartbeat monitoring, extracted)
 // =====================================================================
 
-// Phase 0 instrumentation: log fastlane packet stats every 5s when
-// ?debug=1 is set. Symmetric with the controller-side logger; on the
-// display we expect to see inbound stats from every connected controller.
-var _fastlaneDebugTimer = null;
-function startFastlaneDebugLog() {
-  if (_fastlaneDebugTimer) return;
-  if (new URLSearchParams(location.search).get('debug') !== '1') return;
-  _fastlaneDebugTimer = setInterval(function () {
-    if (!fastlane) return;
-    var stats = fastlane.getAllStats();
-    if (Object.keys(stats).length === 0) return;
-    console.log('[fastlane stats]', stats);
-  }, 5000);
-}
 
 function connectAndCreateRoom() {
   if (party) party.close();
@@ -48,7 +34,6 @@ function connectAndCreateRoom() {
       sendSignal: function (toIdx, data) { if (party) party.sendTo(toIdx, data); },
       onInput: function (fromIdx, data) { handleControllerMessage(fromIdx, data); },
     });
-    startFastlaneDebugLog();
   }
 
   party.onOpen = function() {

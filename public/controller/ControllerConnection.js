@@ -6,22 +6,6 @@
 // Called by: controller.js (init, event handlers)
 // =====================================================================
 
-// Phase 0 instrumentation: log fastlane packet stats every 5s when
-// ?debug=1 is set. Gives us a console-side view of inbound packet loss
-// (gap between highest seen seq and received count) before designing for
-// hypothetical loss. No-op in production sessions.
-var _fastlaneDebugTimer = null;
-function startFastlaneDebugLog() {
-  if (_fastlaneDebugTimer) return;
-  if (new URLSearchParams(location.search).get('debug') !== '1') return;
-  _fastlaneDebugTimer = setInterval(function () {
-    if (!fastlane) return;
-    var stats = fastlane.getAllStats();
-    if (Object.keys(stats).length === 0) return;
-    console.log('[fastlane stats]', stats);
-  }, 5000);
-}
-
 // Auto-reopen the fastlane after a watchdog teardown or any other
 // channel-closed event while the WS is still alive. Without this, a
 // transient WiFi blip that kills the fastlane silently leaves inputs on
@@ -118,7 +102,6 @@ function connect() {
         if (peerIdx === 0) scheduleFastlaneReopen();
       },
     });
-    startFastlaneDebugLog();
   }
 
   party.onOpen = function () {
