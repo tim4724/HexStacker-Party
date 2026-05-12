@@ -5,13 +5,15 @@
  * existing relay/signal channel (e.g. PartyConnection).
  *
  * The lib doesn't own a WebSocket — signaling rides on the integrator's
- * `sendSignal` callback. The data path implements "input netcode": sequence-numbered
- * packets carrying a sliding window of recent events, with ack-clears-ring
- * redundancy and a bidirectional watchdog. The pattern is the same as
- * Quake/Source/Unreal input forwarding; see Glenn Fiedler's "Gaffer on
- * Games" series for the underlying theory. RTT measurement uses the
- * RTCP RR trick (RFC 3550 §6.4): the ack echoes the data packet's send
- * timestamp so the sender can compute round-trip.
+ * `sendSignal` callback. The data path is inspired by classic game input
+ * netcode (Quake/Source-style) and Glenn Fiedler's "Reliable Ordered
+ * Messages" — specifically the rolling-window-of-recent-events-per-packet
+ * idea. We diverge from those references in a few places: cumulative
+ * single-field ack instead of a 32-bit bitmask, no order preservation
+ * (forward-only dedup), and a time-based TTL instead of a buffer-sized
+ * window. RTT is measured via the RTCP RR trick (RFC 3550 §6.4): the ack
+ * echoes the data packet's send timestamp so the sender computes RTT
+ * directly.
  *
  * Wire format (over the DataChannel):
  *
