@@ -107,10 +107,6 @@
     return true;
   };
 
-  PartyFastlane.prototype.onPeerLeft = function (peerIdx) {
-    this._teardownPeer(peerIdx);
-  };
-
   PartyFastlane.prototype.open = async function (peerIdx, opts) {
     opts = opts || {};
     if (this.selfIndex == null) throw new Error('PartyFastlane: selfIndex not set');
@@ -168,12 +164,11 @@
         if (done) return;
         done = true;
         clearTimeout(timer);
-        activePeer._waitResolvers = (activePeer._waitResolvers || [])
+        activePeer._waitResolvers = activePeer._waitResolvers
           .filter(function (r) { return r !== entry; });
         if (err) reject(err); else resolve();
       };
       var entry = { settle: settle };
-      activePeer._waitResolvers = (activePeer._waitResolvers || []);
       activePeer._waitResolvers.push(entry);
 
       var timer = setTimeout(function () {
@@ -440,7 +435,7 @@
     var self = this;
     channel.onopen = function () {
       if (self.onPeerReady) self.onPeerReady(peerIdx);
-      var waiters = peer._waitResolvers || [];
+      var waiters = peer._waitResolvers;
       peer._waitResolvers = [];
       for (var i = 0; i < waiters.length; i++) waiters[i].settle();
       // Start idle heartbeat schedule (sender side). First enqueue cancels
@@ -533,7 +528,7 @@
     if (peer.idleTimer) clearTimeout(peer.idleTimer);
     if (peer.watchdogTimer) clearTimeout(peer.watchdogTimer);
 
-    var waiters = peer._waitResolvers || [];
+    var waiters = peer._waitResolvers;
     peer._waitResolvers = [];
     for (var i = 0; i < waiters.length; i++) {
       waiters[i].settle(new Error('fastlane to ' + peerIdx + ' closed'));

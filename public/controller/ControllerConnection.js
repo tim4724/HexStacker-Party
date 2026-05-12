@@ -75,7 +75,7 @@ function connect() {
   // existing PartyConnection via party.sendTo. Skipped in AirConsole mode
   // (window.airconsole is set there and PartyConnection is replaced by
   // AirConsoleAdapter, which doesn't have a WS to piggyback on).
-  if (typeof PartyFastlane !== 'undefined' && !(typeof window !== 'undefined' && window.airconsole)) {
+  if (typeof PartyFastlane !== 'undefined' && !window.airconsole) {
     fastlane = new PartyFastlane({
       // First-party STUN — self-hosted on the same infra as hexstacker.com.
       // Lets WebRTC gather server-reflexive candidates so cross-network play

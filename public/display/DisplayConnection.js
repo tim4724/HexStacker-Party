@@ -28,7 +28,7 @@ function connectAndCreateRoom() {
   // join; the display only needs to auto-accept inbound offers and forward
   // received DataChannel messages to handleControllerMessage. Skipped in
   // AirConsole mode (no WS to piggyback on).
-  if (typeof PartyFastlane !== 'undefined' && !(typeof window !== 'undefined' && window.airconsole)) {
+  if (typeof PartyFastlane !== 'undefined' && !window.airconsole) {
     fastlane = new PartyFastlane({
       // First-party STUN — same self-hosted server as the controller side
       // configures. Symmetric ICE config is needed for cross-network
