@@ -46,11 +46,14 @@ cp "$BUILD_DIR/controller/controller.html" "$BUILD_DIR/controller.html"
 # Bake the build version into the HTML <meta name="app-version"> tag.
 # Clients read it via AirConsoleAdapter.appVersion(). Mirrors server/index.js,
 # which does the same substitution at HTTP-serve time for the web flow.
+# Using @ as the sed delimiter so a slash in APP_VERSION wouldn't break the
+# pattern; semver disallows slashes/backslashes/ampersands so no escaping
+# of the replacement is needed.
 # Portable sed -i (macOS requires '' suffix, Linux doesn't)
 if [[ "$OSTYPE" == "darwin"* ]]; then
-  sed -i '' "s/__APP_VERSION__/$APP_VERSION/g" "$BUILD_DIR/screen.html" "$BUILD_DIR/controller.html"
+  sed -i '' "s@__APP_VERSION__@$APP_VERSION@g" "$BUILD_DIR/screen.html" "$BUILD_DIR/controller.html"
 else
-  sed -i "s/__APP_VERSION__/$APP_VERSION/g" "$BUILD_DIR/screen.html" "$BUILD_DIR/controller.html"
+  sed -i "s@__APP_VERSION__@$APP_VERSION@g" "$BUILD_DIR/screen.html" "$BUILD_DIR/controller.html"
 fi
 echo "Injected version: $APP_VERSION"
 

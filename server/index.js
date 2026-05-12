@@ -16,6 +16,9 @@ function getShortSha(sha) {
   return sha ? sha.slice(0, 7) : null;
 }
 
+// Computed once at boot — same for every HTML response.
+const VERSION_LABEL = APP_VERSION + (APP_ENV !== 'production' && getShortSha(GIT_SHA) ? ' (#' + getShortSha(GIT_SHA) + ')' : '');
+
 // Explicit allowlist of engine modules serveable via /engine/ route
 const ENGINE_FILES = new Set([
   'constants.js',
@@ -170,11 +173,13 @@ const server = http.createServer((req, res) => {
     // page running" anchor used for staleness detection AND footer display.
     // The non-prod " (#sha)" suffix used to live in client-side code that
     // hit /api/version; computing it here folds both responsibilities into
-    // one place.
+    // one place. Guard avoids the string round-trip for HTML files (gallery,
+    // privacy, imprint) that don't carry the placeholder.
     if (ext === '.html') {
-      const shortSha = getShortSha(GIT_SHA);
-      const versionLabel = APP_VERSION + (APP_ENV !== 'production' && shortSha ? ' (#' + shortSha + ')' : '');
-      data = Buffer.from(data.toString('utf8').replace(/__APP_VERSION__/g, versionLabel));
+      const text = data.toString('utf8');
+      if (text.includes('__APP_VERSION__')) {
+        data = Buffer.from(text.replace(/__APP_VERSION__/g, VERSION_LABEL));
+      }
     }
 
     // Non-production: never cache — file edits take effect on the next
