@@ -47,6 +47,7 @@ function showCursor() {
   gameToolbar.classList.remove('toolbar-autohide');
   clearTimeout(cursorTimer);
   cursorTimer = setTimeout(function() {
+    cursorTimer = null;
     document.body.classList.add('cursor-hidden');
     if (currentScreen === SCREEN.GAME) {
       gameToolbar.classList.add('toolbar-autohide');

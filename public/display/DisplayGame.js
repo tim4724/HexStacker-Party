@@ -362,14 +362,18 @@ function runGameLocallyWithSeed(seed) {
 
 function onCountdownDisplay(value) {
   gameState = null;
-  if (currentScreen !== SCREEN.GAME) {
+  var enteringCountdown = currentScreen !== SCREEN.GAME;
+  if (enteringCountdown) {
     history.pushState({ screen: 'game' }, '');
   }
   showScreen(SCREEN.GAME);
-  clearTimeout(cursorTimer);
-  cursorTimer = null;
-  document.body.classList.add('cursor-hidden');
-  gameToolbar.classList.add('toolbar-autohide');
+  // Only force-hide on the first tick into countdown, and only if the user
+  // isn't actively interacting — otherwise we'd fight showCursor() every
+  // second and the mute/pause buttons become unclickable.
+  if (enteringCountdown && cursorTimer === null) {
+    document.body.classList.add('cursor-hidden');
+    gameToolbar.classList.add('toolbar-autohide');
+  }
   countdownOverlay.classList.remove('hidden');
   countdownNumber.textContent = value;
   playCountdownBeep(value === 'GO');
