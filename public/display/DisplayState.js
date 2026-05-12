@@ -14,6 +14,11 @@ var debugCount = parseInt(urlParams.get('debug'), 10) || 0;
 // --- State ---
 var currentScreen = SCREEN.WELCOME;
 var party = null;
+// Optional P2P DataChannel layer keyed by controller peerIndex. Controllers
+// initiate; the display auto-accepts via fastlane.handleSignal. Inbound
+// fastlane messages funnel into the same handleControllerMessage as WS.
+// Stays null in AirConsole mode (no WebRTC) and ?test=1 harness mode.
+var fastlane = null;
 var roomCode = null;
 var joinUrl = null;
 var lastRoomCode = null;

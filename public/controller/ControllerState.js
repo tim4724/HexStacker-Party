@@ -21,6 +21,11 @@ if (new URLSearchParams(location.search).get('test') === '1' && navigator.vibrat
 
 // --- State ---
 var party = null;
+// Optional P2P DataChannel layer to the display (slot 0) for input messages.
+// Stays null in AirConsole mode (no WebRTC there) and during ?scenario= gallery
+// previews. See ControllerConnection.js for setup; sendToDisplay routes
+// MSG.INPUT / MSG.SOFT_DROP over fastlane when open and falls back to WS.
+var fastlane = null;
 var clientId = null;
 var peerIndex = null;          // relay/AirConsole slot id; display-facing playerId
 var playerColor = null;       // hex, resolved locally from colorIndex

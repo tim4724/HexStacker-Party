@@ -133,7 +133,12 @@
       </div>
     </div>
     <div id="game-bottom-bar">
-      <span id="latency-display" class="latency-display">-- ms</span>
+      <span id="latency-display" class="latency-display">
+        <svg class="latency-display__bolt" viewBox="0 0 10 14" width="8" height="11" aria-hidden="true" focusable="false">
+          <path d="M6 0 L0 8 L4 8 L3 14 L10 5 L6 5 Z" fill="currentColor"/>
+        </svg>
+        <span class="latency-display__text">-- ms</span>
+      </span>
     </div>
   </div>
 
@@ -204,6 +209,7 @@
   <script src="/engine/constants.js"></script>
   <script src="/engine/Piece.js"></script>
   <script src="/shared/PartyConnection.js"></script>
+  <script src="/shared/PartyFastlane.js"></script>
   <script src="/shared/AirConsoleAdapter.js"></script>
   <script src="/shared/protocol.js"></script>
   <script src="/shared/i18n.js"></script>

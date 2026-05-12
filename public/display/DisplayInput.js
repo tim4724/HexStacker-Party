@@ -63,6 +63,8 @@ function handleControllerMessage(fromId, msg) {
         onSetDisplayMute(fromId, msg);
         break;
       case MSG.PING:
+        // PING/PONG measures relay-mediated RTT (WS). Input-path RTT is
+        // measured separately via fastlane acks (PartyFastlane onRtt).
         party.sendTo(fromId, { type: MSG.PONG, t: msg.t });
         break;
     }

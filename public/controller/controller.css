@@ -948,6 +948,17 @@ html, body {
   font-size: 0.7rem;
   font-family: 'Orbitron', monospace;
   opacity: 0.5;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.latency-display__bolt {
+  display: none;
+  flex-shrink: 0;
+}
+/* Bolt appears when the input/ping path is on the P2P DataChannel. */
+.latency-display--fastlane .latency-display__bolt {
+  display: inline-block;
 }
 .ping-good { color: var(--ping-good); }
 .ping-ok { color: var(--ping-ok); }
