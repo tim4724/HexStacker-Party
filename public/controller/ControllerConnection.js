@@ -240,9 +240,11 @@ function updateLatencyDisplay(ms) {
 // input-path RTT comes from fastlane acks via onRtt.
 var FASTLANE_TYPES = { input: true, soft_drop: true };
 
+// Note: mutates payload by adding .type — callers must pass a fresh object.
 function sendToDisplay(type, payload) {
   if (!party) return;
-  var msg = Object.assign({}, payload, { type: type });
+  var msg = payload || {};
+  msg.type = type;
   if (fastlane && FASTLANE_TYPES[type] && fastlane.enqueue(0, msg) === 'p2p') return;
   party.sendTo(0, msg);
 }
