@@ -344,6 +344,9 @@
   PartyFastlane.prototype._handleAck = function (peer, peerIdx, ack) {
     if (typeof ack.pa === 'number' && ack.pa > peer.lastAckedEs) {
       peer.lastAckedEs = ack.pa;
+      // pa is cumulative-highest-applied, so filtering out es <= pa always
+      // leaves a contiguous tail. This is what lets the receiver decode
+      // es[i] = ps - i without an explicit per-entry seq field.
       peer.ring = peer.ring.filter(function (e) { return e.es > ack.pa; });
       if (peer.ring.length === 0 && peer.sendTimer) {
         clearTimeout(peer.sendTimer);

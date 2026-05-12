@@ -164,7 +164,10 @@ function connect() {
     } else if (type === 'peer_joined') {
       if (msg.index === 0 && fastlane) {
         // Display is back — re-establish the fastlane immediately rather
-        // than waiting for the next watchdog or retry tick.
+        // than waiting for the next watchdog or retry tick. Cancel any
+        // pending retry first so it doesn't race with this fresh attempt
+        // (would otherwise re-enter open() ~2 s into ICE).
+        cancelFastlaneReopen();
         fastlane.open(0).catch(function (err) {
           console.warn('[fastlane] open failed', err);
         });
@@ -264,8 +267,9 @@ function updateLatencyDisplay(ms) {
 // Latency-sensitive message types — enqueued to the fastlane's rolling-
 // window send loop when the DataChannel is open, otherwise sent reliably
 // over the WebSocket. PING/PONG stays on WS now (relay-liveness check);
-// input-path RTT comes from fastlane acks via onRtt.
-var FASTLANE_TYPES = { input: true, soft_drop: true };
+// input-path RTT comes from fastlane acks via onRtt. Keyed by MSG
+// constants so a rename in protocol.js is caught automatically.
+var FASTLANE_TYPES = { [MSG.INPUT]: true, [MSG.SOFT_DROP]: true };
 
 // Note: mutates payload by adding .type — callers must pass a fresh object.
 function sendToDisplay(type, payload) {
