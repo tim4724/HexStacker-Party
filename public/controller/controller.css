@@ -700,7 +700,7 @@ html, body {
 }
 
 .hint-bar-item__icon svg {
-  transform: scale(1.3);
+  transform: scale(1.4);
 }
 
 .hint-bar-item__verb {
@@ -1691,7 +1691,7 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   }
 
   .hint-bar-item__icon svg {
-    transform: scale(1.1);
+    transform: scale(1.2);
   }
 
   /* Centre column: touchpad, full height */
