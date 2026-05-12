@@ -62,12 +62,12 @@
   // TICK_MS:     resend cadence while ring has unacked events.
   // TTL_MS:      how long a re-sendable event stays in the ring (3× TICK_MS).
   // IDLE_MS:     heartbeat cadence when ring is empty.
-  // WATCHDOG_MS: silence threshold before declaring the peer dead. 3× IDLE_MS
-  //              so a transient missed heartbeat doesn't trigger teardown.
+  // WATCHDOG_MS: silence threshold before declaring the peer dead. 6× IDLE_MS
+  //              so several transient missed heartbeats don't trigger teardown.
   // RTT_ALPHA:   exponential smoothing factor on the RTT estimator (Gaffer).
   var TICK_MS = 50;
   var TTL_MS = 150;
-  var IDLE_MS = 1000;
+  var IDLE_MS = 500;
   var WATCHDOG_MS = 3000;
   var RTT_ALPHA = 0.1;
 
