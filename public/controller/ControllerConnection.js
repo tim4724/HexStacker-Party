@@ -77,6 +77,12 @@ function connect() {
   // AirConsoleAdapter, which doesn't have a WS to piggyback on).
   if (typeof PartyFastlane !== 'undefined' && !(typeof window !== 'undefined' && window.airconsole)) {
     fastlane = new PartyFastlane({
+      // First-party STUN — self-hosted on the same infra as hexstacker.com.
+      // Lets WebRTC gather server-reflexive candidates so cross-network play
+      // can find a route when host candidates aren't reachable (e.g. WiFi
+      // client isolation). For same-LAN play, host candidates still win and
+      // the STUN server sees only the initial binding request.
+      iceServers: [{ urls: 'stun:stun.hexstacker.com:3478' }],
       sendSignal: function (toIdx, data) { if (party) party.sendTo(toIdx, data); },
       onInput: function (fromIdx, data) {
         // Display is always slot 0 — same gate as the WS path.

@@ -30,6 +30,10 @@ function connectAndCreateRoom() {
   // AirConsole mode (no WS to piggyback on).
   if (typeof PartyFastlane !== 'undefined' && !(typeof window !== 'undefined' && window.airconsole)) {
     fastlane = new PartyFastlane({
+      // First-party STUN — same self-hosted server as the controller side
+      // configures. Symmetric ICE config is needed for cross-network
+      // handshakes to find each other.
+      iceServers: [{ urls: 'stun:stun.hexstacker.com:3478' }],
       selfIndex: 0,
       sendSignal: function (toIdx, data) { if (party) party.sendTo(toIdx, data); },
       onInput: function (fromIdx, data) { handleControllerMessage(fromIdx, data); },
