@@ -40,15 +40,6 @@ class PartyConnection {
   }
 
   connect() {
-    // Defence: AirConsole bootstraps replace PartyConnection with AirConsoleAdapter.
-    // If that replacement ever fails to land, this direct connect path would
-    // leak a Party-Sockets WebSocket from an embedded AC session — belt and
-    // braces check the global the AC bootstrap installs.
-    if (typeof window !== 'undefined' && window.airconsole) {
-      console.warn('[PartyConnection] refusing to connect — AirConsole session detected');
-      return;
-    }
-
     this._discardOldWs();
 
     this._shouldReconnect = true;
