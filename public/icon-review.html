@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instruction icon weight review</title>
+<link rel="stylesheet" href="/shared/fonts/orbitron.css">
+<link rel="stylesheet" href="/shared/theme.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    font-size: 1.25rem;
+    margin-bottom: 4px;
+  }
+
+  .lead {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-bottom: 24px;
+    max-width: 60ch;
+  }
+
+  .panel {
+    background: var(--bg-board);
+    border-radius: 10px;
+    padding: 16px 12px 18px;
+    margin-bottom: 20px;
+  }
+
+  .panel-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    text-align: center;
+  }
+
+  /* hint-bar copied 1:1 from controller.css so this preview is faithful */
+  .hint-bar {
+    display: flex;
+    justify-content: space-evenly;
+    padding: 10px 8px 12px;
+  }
+  .hint-bar-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    color: color-mix(in srgb, var(--player-color, #888) 55%, white);
+  }
+  .hint-bar-item__icon {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .hint-bar-item__icon svg {
+    transform: scale(var(--icon-scale, 1.3));
+  }
+  .hint-bar-item__verb {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: color-mix(in srgb, var(--player-color, #888) 65%, white);
+    text-transform: uppercase;
+  }
+  .hint-bar-item__result {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-top: -3px;
+  }
+
+  .sweep {
+    display: grid;
+    grid-template-columns: 60px repeat(4, 1fr);
+    gap: 4px 0;
+    align-items: center;
+    padding: 8px 4px;
+  }
+  .sweep-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    letter-spacing: 0.1em;
+    text-align: right;
+    padding-right: 12px;
+  }
+  .sweep-cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 48px;
+    color: color-mix(in srgb, #888 55%, white);
+  }
+  .sweep-cell svg {
+    transform: scale(1.3);
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    background: var(--bg-board);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  @media (min-width: 640px) {
+    .controls { grid-template-columns: 1fr 1fr; }
+  }
+
+  .control {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .control-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+  .control-value {
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+  }
+  .control input[type="range"] {
+    width: 100%;
+    accent-color: #C0C0C0;
+  }
+  .control-hint {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    opacity: 0.8;
+  }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  button {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--text-secondary);
+    background: transparent;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+  button:hover { background: rgba(255, 255, 255, 0.06); }
+  button.primary {
+    background: var(--medal-silver);
+    color: #1E1A2B;
+    border-color: var(--medal-silver);
+  }
+
+  pre {
+    background: #0c0a14;
+    color: var(--text-primary);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    overflow-x: auto;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  pre .k { color: #C0C0C0; }
+</style>
+</head>
+<body>
+
+<h1>Instruction icon weight review</h1>
+<p class="lead">
+  These are the gesture hint icons that sit above the touchpad on the controller
+  (Swipe, Tap, Flick down, Flick up). Use the sliders to dial in more weight /
+  boldness — stroke width, opacity, fill size, and overall scale — then copy the
+  resulting values into the SVGs in <code>public/controller/index.html</code>.
+</p>
+
+<div class="panel">
+  <div class="panel-label">Baseline · current production values (stroke 1.4 · 50% boost · 1.05× dot · 1.4× scale)</div>
+  <div id="baseline" class="hint-bar"></div>
+</div>
+
+<div class="panel">
+  <div class="panel-label">Live preview · adjust below</div>
+  <div id="preview" class="hint-bar"></div>
+</div>
+
+<div class="panel">
+  <div class="panel-label">Stroke-width sweep (1.2 · 1.4 · 1.6 · 1.8) — baseline opacity / dot scale applied</div>
+  <div id="sweep" class="sweep"></div>
+</div>
+
+<div class="controls">
+  <div class="control">
+    <div class="control-header">
+      <span>Stroke width</span>
+      <span class="control-value" id="strokeVal">1.4</span>
+    </div>
+    <input type="range" id="stroke" min="0.5" max="4" step="0.1" value="1.4">
+    <div class="control-hint">Baseline: 1.4 — applied to every line, chevron, and ring outline.</div>
+  </div>
+
+  <div class="control">
+    <div class="control-header">
+      <span>Opacity boost</span>
+      <span class="control-value" id="boostVal">50%</span>
+    </div>
+    <input type="range" id="boost" min="0" max="1" step="0.01" value="0.5">
+    <div class="control-hint">0% = original ghosted layering (0.1–0.5). 100% = every element fully opaque. Baseline: 50%.</div>
+  </div>
+
+  <div class="control">
+    <div class="control-header">
+      <span>Filled dot scale</span>
+      <span class="control-value" id="dotVal">1.05×</span>
+    </div>
+    <input type="range" id="dot" min="0.5" max="2" step="0.05" value="1.05">
+    <div class="control-hint">Baseline: 1.05× — scales the solid circle radius on Swipe / Tap / Flick icons.</div>
+  </div>
+
+  <div class="control">
+    <div class="control-header">
+      <span>Icon scale (CSS transform)</span>
+      <span class="control-value" id="scaleVal">1.40×</span>
+    </div>
+    <input type="range" id="scale" min="0.8" max="2" step="0.05" value="1.4">
+    <div class="control-hint">Baseline: 1.40× — global zoom of every icon SVG.</div>
+  </div>
+</div>
+
+<div class="actions">
+  <button id="reset">Reset to baseline</button>
+  <button id="copy" class="primary">Copy current SVG markup</button>
+</div>
+
+<pre id="output"></pre>
+
+
+<script src="/icon-review.js"></script>
+
+</body>
+</html>
