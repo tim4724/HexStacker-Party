@@ -1,6 +1,6 @@
 'use strict';
 
-// i18n — lightweight internationalization for HexStacker Party
+// i18n: lightweight internationalization for HexStacker Party
 // Locale data is embedded to avoid async loading and flash of untranslated content.
 
 var LOCALES = {
@@ -83,11 +83,11 @@ var LOCALES = {
     privacy_postal_address: 'Postal address:',
     privacy_see_imprint: 'see imprint',
     privacy_data: 'data',
-    privacy_data_detail: 'IP addresses are processed by the web server, the WebSocket relay, and — when direct peer-to-peer connections are established between game devices — by the STUN server stun.hexstacker.com. Web server access logs are retained for a maximum of 7 days for security and operational purposes and then automatically deleted. The relay itself stores no connection data; any infrastructure-level logs by our processor are retained solely for security and operational purposes. The STUN server stores no data persistently. Recipients of the connection data are the controller and the processor disclosed under "Hosting"; no further disclosure takes place. Processing is based on legitimate interest in operating the service (Art. 6(1)(f) GDPR). Providing your IP address is technically necessary to access the website and participate in the game; without this data the service cannot be used. There is no further statutory or contractual obligation to provide data.',
+    privacy_data_detail: 'IP addresses are processed by the web server and the WebSocket relay. When direct peer-to-peer connections are established between game devices, they are also processed by the STUN server stun.hexstacker.com. Web server access logs are retained for a maximum of 7 days for security and operational purposes and then automatically deleted. The relay itself stores no connection data; any infrastructure-level logs by our processor are retained solely for security and operational purposes. The STUN server stores no data persistently. Recipients of the connection data are the controller and the processor disclosed under "Hosting"; no further disclosure takes place. Processing is based on legitimate interest in operating the service (Art. 6(1)(f) GDPR). Providing your IP address is technically necessary to access the website and participate in the game; without this data the service cannot be used. There is no further statutory or contractual obligation to provide data.',
     privacy_tracking: 'tracking and local storage',
-    privacy_tracking_detail: 'No cookies, no analytics or advertising services, and no third-party trackers are used. Settings strictly necessary for service operation within the meaning of § 25(2) no. 2 TDDDG are stored locally in the browser (e.g. the last-entered player name, chosen color, mute state, further display preferences, and a device ID for reconnection). This data remains in the browser and is not transmitted to us.',
+    privacy_tracking_detail: 'No cookies, no analytics or advertising services, and no third-party trackers are used. Settings strictly necessary for service operation within the meaning of Section 25(2) No. 2 TDDDG are stored locally in the browser (e.g. the last-entered player name, chosen color, mute state, further display preferences, and a device ID for reconnection). This data remains in the browser and is not transmitted to us.',
     privacy_gameplay: 'gameplay',
-    privacy_gameplay_detail: 'Player names and inputs are transmitted between players during a session and are not retained beyond the session. For lower input latency, inputs may — where technically possible — be transmitted directly between the participating devices; otherwise transmission goes via the relay. Processing is based on legitimate interest in operating the service (Art. 6(1)(f) GDPR).',
+    privacy_gameplay_detail: 'Player names and inputs are transmitted between players during a session and are not retained beyond the session. For lower input latency, inputs may, where technically possible, be transmitted directly between the participating devices; otherwise transmission goes via the relay. Processing is based on legitimate interest in operating the service (Art. 6(1)(f) GDPR).',
     privacy_hosting: 'hosting',
     privacy_hosting_detail: 'The website and the STUN server (stun.hexstacker.com) are hosted on servers in Germany operated by the controller. The WebSocket relay used for multiplayer (ws.hexstacker.com) is operated for us by Fly.io, Inc. (Chicago, USA) as a processor under Art. 28 GDPR. Because the relay runs in multiple regions, traffic may pass through locations outside the EEA; such transfers are safeguarded by the EU Standard Contractual Clauses (Decision (EU) 2021/914, Module 2 pursuant to Art. 46(2)(c) GDPR) and supplementary technical measures (TLS encryption in transit). Fly.io, Inc. is also certified under the EU-US Data Privacy Framework (adequacy decision (EU) 2023/1795). A copy of the Standard Contractual Clauses is available on request.',
     privacy_rights: 'your rights',
@@ -95,15 +95,15 @@ var LOCALES = {
     privacy_authority: 'supervisory authority',
     privacy_authority_detail: 'You have the right to lodge a complaint with a data protection supervisory authority (Art. 77 GDPR). The competent authority is: Bayerisches Landesamt für Datenschutzaufsicht (BayLDA), Promenade 18, 91522 Ansbach.',
     privacy_objection: 'Right to object (Art. 21 GDPR)',
-    privacy_objection_detail: 'You have the right at any time, on grounds relating to your particular situation, to object to the processing of personal data concerning you which is based on legitimate interest (Art. 6(1)(f) GDPR) — Art. 21(1) GDPR. An informal e-mail to the address stated in the imprint is sufficient to exercise this right.',
+    privacy_objection_detail: 'You have the right at any time, on grounds relating to your particular situation, to object pursuant to Art. 21(1) GDPR to the processing of personal data concerning you which is based on legitimate interest (Art. 6(1)(f) GDPR). An informal e-mail to the address stated in the imprint is sufficient to exercise this right.',
     privacy_updated: 'Last updated May 2026',
 
     // Imprint page
     imprint_title: 'IMPRINT',
-    imprint_notice: 'Information pursuant to § 5 DDG',
+    imprint_notice: 'Information pursuant to Section 5 DDG',
     imprint_contact: 'contact',
-    imprint_page_title: 'Imprint — HexStacker Party',
-    privacy_page_title: 'Privacy — HexStacker Party',
+    imprint_page_title: 'Imprint · HexStacker Party',
+    privacy_page_title: 'Privacy · HexStacker Party',
 
     // Credits
     stacked_by: 'Stacked by Tim',
@@ -187,8 +187,8 @@ var LOCALES = {
     imprint_title: 'IMPRESSUM',
     imprint_notice: 'Angaben gemäß § 5 DDG',
     imprint_contact: 'Kontakt',
-    imprint_page_title: 'Impressum — HexStacker Party',
-    privacy_page_title: 'Datenschutz — HexStacker Party',
+    imprint_page_title: 'Impressum · HexStacker Party',
+    privacy_page_title: 'Datenschutz · HexStacker Party',
     back: 'Zurück',
     privacy_title: 'DATENSCHUTZ\u00ADERKLÄRUNG',
     privacy_controller: 'Verantwortlicher',
@@ -196,11 +196,11 @@ var LOCALES = {
     privacy_postal_address: 'Postanschrift:',
     privacy_see_imprint: 'siehe Impressum',
     privacy_data: 'Daten',
-    privacy_data_detail: 'IP-Adressen werden vom Webserver, dem WebSocket-Relay und — beim Aufbau direkter Peer-to-Peer-Verbindungen zwischen Spielgeräten — vom STUN-Server stun.hexstacker.com verarbeitet. Zugriffslogs des Webservers werden zu Sicherheits- und Betriebszwecken für maximal 7 Tage gespeichert und anschließend automatisch gelöscht. Das Relay selbst speichert keine Verbindungsdaten; etwaige infrastrukturseitige Logs unseres Auftragsverarbeiters werden ausschließlich zu Sicherheits- und Betriebszwecken aufbewahrt. Der STUN-Server speichert keine Daten persistent. Empfänger der Verbindungsdaten ist neben dem Verantwortlichen ausschließlich der unter „Hosting" benannte Auftragsverarbeiter; eine darüber hinausgehende Weitergabe findet nicht statt. Die Verarbeitung erfolgt auf Grundlage des berechtigten Interesses am Betrieb des Dienstes (Art. 6 Abs. 1 lit. f DSGVO). Eine Bereitstellung Ihrer IP-Adresse ist technisch notwendig, um die Website abzurufen und am Spiel teilzunehmen; ohne diese Daten ist eine Nutzung des Dienstes nicht möglich. Eine darüber hinausgehende gesetzliche oder vertragliche Pflicht zur Bereitstellung besteht nicht.',
+    privacy_data_detail: 'IP-Adressen werden vom Webserver und vom WebSocket-Relay verarbeitet. Beim Aufbau direkter Peer-to-Peer-Verbindungen zwischen Spielgeräten werden sie zudem vom STUN-Server stun.hexstacker.com verarbeitet. Zugriffslogs des Webservers werden zu Sicherheits- und Betriebszwecken für maximal 7 Tage gespeichert und anschließend automatisch gelöscht. Das Relay selbst speichert keine Verbindungsdaten; etwaige infrastrukturseitige Logs unseres Auftragsverarbeiters werden ausschließlich zu Sicherheits- und Betriebszwecken aufbewahrt. Der STUN-Server speichert keine Daten persistent. Empfänger der Verbindungsdaten ist neben dem Verantwortlichen ausschließlich der unter „Hosting" benannte Auftragsverarbeiter; eine darüber hinausgehende Weitergabe findet nicht statt. Die Verarbeitung erfolgt auf Grundlage des berechtigten Interesses am Betrieb des Dienstes (Art. 6 Abs. 1 lit. f DSGVO). Eine Bereitstellung Ihrer IP-Adresse ist technisch notwendig, um die Website abzurufen und am Spiel teilzunehmen; ohne diese Daten ist eine Nutzung des Dienstes nicht möglich. Eine darüber hinausgehende gesetzliche oder vertragliche Pflicht zur Bereitstellung besteht nicht.',
     privacy_tracking: 'Tracking und lokale Speicherung',
     privacy_tracking_detail: 'Es werden keine Cookies, keine Analyse- oder Werbedienste und keine Drittanbieter-Tracker eingesetzt. Für den Spielbetrieb unbedingt erforderlich i.S.v. § 25 Abs. 2 Nr. 2 TDDDG ist die lokale Speicherung weniger Einstellungen im Browser des Endgeräts (z. B. zuletzt eingegebener Spielername, gewählte Spielfarbe, Stummschaltung, weitere Anzeigeeinstellungen und eine Geräte-ID zur Wiederverbindung). Diese Daten verbleiben ausschließlich im Browser und werden nicht an uns übertragen.',
     privacy_gameplay: 'Spielbetrieb',
-    privacy_gameplay_detail: 'Spielernamen und Eingaben werden während einer Sitzung zwischen den Spielern übertragen und nicht über die Sitzung hinaus gespeichert. Für niedrigere Eingabelatenz können Eingaben — sofern technisch möglich — direkt zwischen den beteiligten Geräten übertragen werden; andernfalls läuft die Übertragung über das Relay. Die Verarbeitung erfolgt auf Grundlage des berechtigten Interesses am Betrieb des Dienstes (Art. 6 Abs. 1 lit. f DSGVO).',
+    privacy_gameplay_detail: 'Spielernamen und Eingaben werden während einer Sitzung zwischen den Spielern übertragen und nicht über die Sitzung hinaus gespeichert. Für niedrigere Eingabelatenz können Eingaben, sofern technisch möglich, direkt zwischen den beteiligten Geräten übertragen werden; andernfalls läuft die Übertragung über das Relay. Die Verarbeitung erfolgt auf Grundlage des berechtigten Interesses am Betrieb des Dienstes (Art. 6 Abs. 1 lit. f DSGVO).',
     privacy_hosting: 'Hosting',
     privacy_hosting_detail: 'Die Website und der STUN-Server (stun.hexstacker.com) werden auf Servern des Verantwortlichen in Deutschland gehostet. Das für Multiplayer genutzte WebSocket-Relay (ws.hexstacker.com) wird für uns von Fly.io, Inc. (Chicago, USA) als Auftragsverarbeiter nach Art. 28 DSGVO betrieben. Da das Relay mehrregional läuft, kann Datenverkehr auch über Standorte außerhalb des EWR geroutet werden; solche Übermittlungen sind durch die EU-Standardvertragsklauseln (Beschluss (EU) 2021/914, Modul 2 nach Art. 46 Abs. 2 lit. c DSGVO) sowie ergänzende technische Maßnahmen (TLS-Verschlüsselung in Transit) abgesichert. Fly.io, Inc. ist zudem nach dem EU-US Data Privacy Framework (Angemessenheitsbeschluss (EU) 2023/1795) zertifiziert. Eine Kopie der Standardvertragsklauseln stellen wir auf Anfrage bereit.',
     privacy_rights: 'Rechte der Betroffenen',
@@ -776,7 +776,7 @@ function t(key, params) {
  * SECURITY: data-i18n-html renders the locale string as HTML via innerHTML.
  * It is ONLY safe because locale strings are hardcoded developer content in
  * this file. Do NOT pass user input, server-provided strings, or any
- * untrusted content through a data-i18n-html key — doing so is XSS. Prefer
+ * untrusted content through a data-i18n-html key. Doing so is XSS. Prefer
  * data-i18n (uses textContent) for any string that could include external
  * data, and keep the set of data-i18n-html keys minimal.
  */
@@ -799,7 +799,7 @@ function translatePage() {
   }
 
   // data-i18n-html renders the locale string as HTML. Only use for trusted
-  // locale content — never pass user input through this attribute.
+  // locale content. Never pass user input through this attribute.
   var htmlEls = document.querySelectorAll('[data-i18n-html]');
   for (var h = 0; h < htmlEls.length; h++) {
     htmlEls[h].innerHTML = t(htmlEls[h].getAttribute('data-i18n-html'));
