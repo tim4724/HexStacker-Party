@@ -235,7 +235,7 @@ describe('PartyFastlane / netcode', () => {
       assert.ok(Math.abs(rttSamples[1].half - peer.srtt / 2) < 0.001);
     });
 
-    test('discards out-of-range RTT samples (negative or >1s)', () => {
+    test('discards out-of-range RTT samples (negative or above the cutoff)', () => {
       const rttSamples = [];
       const { fastlane, peer, peerIdx } = makeFastlane({
         options: { onRtt: (idx, half) => rttSamples.push(half) },
@@ -244,7 +244,7 @@ describe('PartyFastlane / netcode', () => {
       fastlane._handleAck(peer, peerIdx, { pa: 0, t: Date.now() + 1000 });
       assert.strictEqual(peer.srtt, 0);
       assert.strictEqual(rttSamples.length, 0);
-      // Wild positive (>1s — clock jump)
+      // Wild positive — well beyond the 500 ms outlier cutoff
       fastlane._handleAck(peer, peerIdx, { pa: 0, t: Date.now() - 5000 });
       assert.strictEqual(peer.srtt, 0);
       assert.strictEqual(rttSamples.length, 0);

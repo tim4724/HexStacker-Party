@@ -84,10 +84,8 @@ function connect() {
       // the STUN server sees only the initial binding request.
       iceServers: [{ urls: 'stun:stun.hexstacker.com:3478' }],
       sendSignal: function (toIdx, data) { if (party) party.sendTo(toIdx, data); },
-      onInput: function (fromIdx, data) {
-        // Display is always slot 0 — same gate as the WS path.
-        if (fromIdx === 0) handleMessage(data);
-      },
+      // No onInput: the display only sends acks back over fastlane, never
+      // data packets, so onInput would never fire on the controller side.
       // Sender role: emit idle heartbeats so the RTT chip stays live when
       // there are no inputs flowing (lobby, between pieces). The display
       // doesn't reciprocate — it only emits acks in response to data.
@@ -242,11 +240,9 @@ function updateLatencyDisplay(ms) {
 // input-path RTT comes from fastlane acks via onRtt.
 var FASTLANE_TYPES = { input: true, soft_drop: true };
 
-// Note: mutates payload by adding .type — callers must pass a fresh object.
 function sendToDisplay(type, payload) {
   if (!party) return;
-  var msg = payload || {};
-  msg.type = type;
+  var msg = Object.assign({}, payload, { type: type });
   if (fastlane && FASTLANE_TYPES[type] && fastlane.enqueue(0, msg) === 'p2p') return;
   party.sendTo(0, msg);
 }

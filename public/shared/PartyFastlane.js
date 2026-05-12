@@ -352,7 +352,11 @@
     }
     if (typeof ack.t === 'number') {
       var rtt = Date.now() - ack.t;
-      if (rtt >= 0 && rtt < 1000) {
+      // Discard wild samples (clock jumps, very late acks). A 500 ms cap is
+      // tight enough that a stale ack carrying a 400 ms RTT can't shift a
+      // healthy srtt of 20 ms more than ~38 ms via the EWMA — and the
+      // chip recovers within a few subsequent good samples.
+      if (rtt >= 0 && rtt < 500) {
         if (peer.srtt === 0) peer.srtt = rtt;
         else peer.srtt = peer.srtt + (rtt - peer.srtt) * RTT_ALPHA;
         if (this.onRtt) this.onRtt(peerIdx, peer.srtt / 2);
@@ -405,6 +409,11 @@
 
     var self = this;
     pc.onicecandidate = function (ev) {
+      // Browsers fire onicecandidate with ev.candidate === null when ICE
+      // gathering completes. Forwarding the null is technically valid
+      // (end-of-candidates marker) but burns a WS message no implementation
+      // here acts on. Skip it.
+      if (!ev.candidate) return;
       self.sendSignal(peerIdx, { [RTC_KEY]: 'ice', candidate: ev.candidate });
     };
     pc.ondatachannel = function (ev) {
