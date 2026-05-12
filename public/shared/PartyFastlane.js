@@ -66,7 +66,7 @@
   //              so several transient missed heartbeats don't trigger teardown.
   // RTT_ALPHA:   exponential smoothing factor on the RTT estimator (Gaffer).
   var TICK_MS = 50;
-  var TTL_MS = 150;
+  var TTL_MS = 300;
   var IDLE_MS = 500;
   var WATCHDOG_MS = 3000;
   var RTT_ALPHA = 0.1;

@@ -143,13 +143,28 @@ function connect() {
       }
     } else if (type === 'peer_left') {
       if (msg.index === 0) {
-        if (fastlane) fastlane.close(0);
+        if (fastlane) {
+          fastlane.close(0);
+          // Display gone from the relay — pending retries would just throw
+          // offers into the void until the display reconnects. Cancel them
+          // here; the peer_joined(0) branch below re-arms a fresh attempt
+          // when the display comes back.
+          cancelFastlaneReopen();
+        }
         if (currentScreen === 'game') {
           reconnectOverlay.classList.remove('hidden');
           reconnectHeading.textContent = t('reconnecting');
           reconnectStatus.textContent = t('display_reconnecting');
           reconnectRejoinBtn.classList.add('hidden');
         }
+      }
+    } else if (type === 'peer_joined') {
+      if (msg.index === 0 && fastlane) {
+        // Display is back — re-establish the fastlane immediately rather
+        // than waiting for the next watchdog or retry tick.
+        fastlane.open(0).catch(function (err) {
+          console.warn('[fastlane] open failed', err);
+        });
       }
     } else if (type === 'error') {
       if (msg.message === 'Room not found') bailToWelcome('room_not_found');
