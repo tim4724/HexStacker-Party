@@ -165,6 +165,18 @@ const server = http.createServer((req, res) => {
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
     const headers = { 'Content-Type': contentType };
 
+    // Bake the build version into HTML responses. Clients read it from the
+    // <meta name="app-version"> tag — that's the atomic "what version is this
+    // page running" anchor used for staleness detection AND footer display.
+    // The non-prod " (#sha)" suffix used to live in client-side code that
+    // hit /api/version; computing it here folds both responsibilities into
+    // one place.
+    if (ext === '.html') {
+      const shortSha = getShortSha(GIT_SHA);
+      const versionLabel = APP_VERSION + (APP_ENV !== 'production' && shortSha ? ' (#' + shortSha + ')' : '');
+      data = Buffer.from(data.toString('utf8').replace(/__APP_VERSION__/g, versionLabel));
+    }
+
     // Non-production: never cache — file edits take effect on the next
     // request with no hard-reload needed. Production: HTML + JS are
     // already uncached to avoid stale-version mismatches (see commit

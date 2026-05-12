@@ -310,19 +310,18 @@ class AirConsoleAdapter {
     return shim;
   }
 
-  // Populate the given element with the current build version. The build
-  // script substitutes __AC_VERSION__ at HTML-generation time; in local dev
-  // the placeholder survives unsubstituted, so fall back to /api/version.
-  // (In real AC mode that fetch fails cross-origin and we silently leave
-  // the label empty — the placeholder branch covers production.)
+  // Populate the given element with the current build version, read from the
+  // <meta name="app-version"> tag baked into the HTML (by server/index.js for
+  // the web flow and by build-airconsole.sh for the AC zip).
   static injectVersionLabel(elementId) {
     var el = document.getElementById(elementId);
     if (!el) return;
-    var v = '__AC_VERSION__';
-    if (v !== '__AC_VERSION__') { el.textContent = v; return; }
-    fetch('/api/version').then(function(r) { return r.json(); }).then(function(d) {
-      el.textContent = d.version || '';
-    }).catch(function() {});
+    el.textContent = AirConsoleAdapter.appVersion();
+  }
+
+  static appVersion() {
+    var meta = document.querySelector('meta[name="app-version"]');
+    return meta ? meta.getAttribute('content') : '';
   }
 
   // Capture an early onReady callback from the SDK so we can replay it once
