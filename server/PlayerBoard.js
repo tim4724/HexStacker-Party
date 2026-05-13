@@ -42,6 +42,7 @@ class PlayerBoard {
     this.lockTimer = null;
     this.lockResets = 0;
     this.gravityCounter = 0;
+    this.rotatedSinceLastDrop = false;
     this.softDropping = false;
     this.softDropSpeed = SOFT_DROP_MULTIPLIER;
     this.pendingGarbage = [];
@@ -111,6 +112,7 @@ class PlayerBoard {
     this.holdUsed = false;
     this.lockTimer = null;
     this.lockResets = 0;
+    this.rotatedSinceLastDrop = false;
 
     if (!this.isValidPosition(this.currentPiece)) {
       this.alive = false;
@@ -139,6 +141,7 @@ class PlayerBoard {
     this.holdUsed = true;
     this.lockTimer = null;
     this.lockResets = 0;
+    this.rotatedSinceLastDrop = false;
 
     if (!this.isValidPosition(this.currentPiece)) {
       this.alive = false;
@@ -241,8 +244,13 @@ class PlayerBoard {
     this.gravityCounter += frames;
 
     let dropsThisTick = 0;
-    while (this.gravityCounter >= gravityFrames && dropsThisTick < MAX_DROPS_PER_TICK) {
-      this.gravityCounter -= gravityFrames;
+    // Each rotate doubles the time until the *next* drop, then the bonus is consumed.
+    // Unstallable: continuous rotation just halves effective gravity, never zero.
+    let effectiveFrames = this.rotatedSinceLastDrop ? gravityFrames * 2 : gravityFrames;
+    while (this.gravityCounter >= effectiveFrames && dropsThisTick < MAX_DROPS_PER_TICK) {
+      this.gravityCounter -= effectiveFrames;
+      this.rotatedSinceLastDrop = false;
+      effectiveFrames = gravityFrames;
       dropsThisTick++;
       if (this._hexDrop(this.currentPiece)) {
         if (this._isOnSurface()) {
@@ -380,6 +388,7 @@ class PlayerBoard {
       // Rotation (and any kick displacement) re-baselines the lateral up-bias.
       kicked._resetAnchorY();
       this.currentPiece = kicked;
+      this.rotatedSinceLastDrop = true;
       this._resetLockTimerIfOnSurface();
       return true;
     }
