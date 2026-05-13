@@ -452,6 +452,109 @@ describe('PlayerBoard - gravity and tick', () => {
   });
 });
 
+describe('PlayerBoard - rotate gravity grace', () => {
+  // At startLevel=1, gravityFrames = max(2, round(50/(1+1*0.45))) = 34
+  var GRAVITY_FRAMES_L1 = 34;
+
+  it('rotateCW sets rotatedSinceLastDrop', () => {
+    var b = new PlayerBoard('p1', 42, 1);
+    b.spawnPiece();
+    assert.equal(b.rotatedSinceLastDrop, false);
+    b.rotateCW();
+    assert.equal(b.rotatedSinceLastDrop, true);
+  });
+
+  it('rotateCCW sets rotatedSinceLastDrop', () => {
+    var b = new PlayerBoard('p1', 42, 1);
+    b.spawnPiece();
+    b.rotateCCW();
+    assert.equal(b.rotatedSinceLastDrop, true);
+  });
+
+  it('gravity tick with flag set requires doubled threshold (no drop yet)', () => {
+    var b = new PlayerBoard('p1', 42, 1);
+    b.spawnPiece();
+    var startRow = b.currentPiece.anchorRow;
+    b.rotateCW();
+    // Enough for a normal drop, not enough for a graced one.
+    b.gravityCounter = GRAVITY_FRAMES_L1 + 5;
+    b.tick(0);
+    assert.equal(b.currentPiece.anchorRow, startRow, 'piece must not drop with graced threshold');
+    assert.equal(b.rotatedSinceLastDrop, true, 'flag still set — no drop occurred');
+  });
+
+  it('flag is consumed after the first graced drop', () => {
+    var b = new PlayerBoard('p1', 42, 1);
+    b.spawnPiece();
+    b.rotateCW();
+    var startRow = b.currentPiece.anchorRow;
+    b.gravityCounter = GRAVITY_FRAMES_L1 * 2;
+    b.tick(0);
+    assert.equal(b.currentPiece.anchorRow, startRow + 1, 'piece dropped once');
+    assert.equal(b.rotatedSinceLastDrop, false, 'flag consumed');
+  });
+
+  it('subsequent drops in same tick use normal threshold', () => {
+    var b = new PlayerBoard('p1', 42, 1);
+    b.spawnPiece();
+    b.rotateCW();
+    var startRow = b.currentPiece.anchorRow;
+    // 2x + 1x = enough for one graced drop followed by one normal drop.
+    b.gravityCounter = GRAVITY_FRAMES_L1 * 3;
+    b.tick(0);
+    assert.equal(b.currentPiece.anchorRow, startRow + 2,
+      'graced drop then normal drop within the same tick');
+  });
+
+  it('flag resets on spawnPiece', () => {
+    var b = new PlayerBoard('p1', 42, 1);
+    b.spawnPiece();
+    b.rotateCW();
+    b.spawnPiece();
+    assert.equal(b.rotatedSinceLastDrop, false);
+  });
+
+  it('flag resets on hold', () => {
+    var b = new PlayerBoard('p1', 42, 1);
+    b.spawnPiece();
+    b.rotateCW();
+    b.hold();
+    assert.equal(b.rotatedSinceLastDrop, false);
+  });
+
+  it('failed rotation does not set the flag', () => {
+    // Wedge the piece so no kick succeeds: surround it with garbage.
+    var b = new PlayerBoard('p1', 42, 1);
+    b.spawnPiece();
+    for (var row = 0; row < HEX_TOTAL_ROWS; row++) {
+      for (var col = 0; col < HEX_COLS; col++) {
+        if (b.grid[row][col] === 0 &&
+            !b.currentPiece._absoluteBlocksFast().some(function(blk) {
+              return blk[0] === col && blk[1] === row;
+            })) {
+          b.grid[row][col] = HEX_GARBAGE_CELL;
+        }
+      }
+    }
+    var ok = b.rotateCW();
+    assert.equal(ok, false, 'rotation should fail when fully boxed in');
+    assert.equal(b.rotatedSinceLastDrop, false, 'flag stays false on failed rotate');
+  });
+
+  it('continuous rotation cannot prevent gravity (unstallable)', () => {
+    var b = new PlayerBoard('p1', 42, 1);
+    b.spawnPiece();
+    var startRow = b.currentPiece.anchorRow;
+    // Spam-rotate every tick for ~3.3 seconds of real time.
+    for (var i = 0; i < 200; i++) {
+      b.rotateCW();
+      b.tick(16);
+    }
+    assert.ok(b.currentPiece === null || b.currentPiece.anchorRow > startRow,
+      'piece must drop or lock despite spam-rotate');
+  });
+});
+
 describe('PlayerBoard - soft drop', () => {
   it('softDropStart resets gravityCounter', () => {
     var b = new PlayerBoard('p1', 42, 1);
