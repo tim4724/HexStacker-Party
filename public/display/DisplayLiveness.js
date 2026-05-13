@@ -18,8 +18,11 @@ function startLivenessCheck() {
     lastHeartbeatSent = now;
     party.sendTo(0, { type: '_heartbeat' });
 
-    // Check if our own connection is dead (no echo back within timeout)
-    var displayDead = heartbeatSent && (now - lastHeartbeatEcho > GameConstants.LIVENESS_TIMEOUT_MS);
+    // Check if our own connection is dead (no echo back within timeout).
+    // Uses SELF_HEARTBEAT_DEAD_MS, not LIVENESS_TIMEOUT_MS: with fastlane the
+    // WS carries only ~1 Hz traffic, so the self-loop is the lone canary and
+    // needs a wider margin than the per-controller liveness check below.
+    var displayDead = heartbeatSent && (now - lastHeartbeatEcho > GameConstants.SELF_HEARTBEAT_DEAD_MS);
     heartbeatSent = true;
 
     if (displayDead) {
