@@ -31,6 +31,13 @@ const COUNTDOWN_SECONDS = 3;
 // Display-side timing
 const SOFT_DROP_TIMEOUT_MS = 300;   // Auto-end soft drop if no message received within this window
 const LIVENESS_TIMEOUT_MS = 3000;   // Controller considered disconnected after this silence
+// Display self-heartbeat dead-detection threshold. The display loops a 1 Hz
+// `_heartbeat` back through the relay to itself; if echoes stop arriving for
+// this long it tears down the WS and reconnects. Set to 6x the heartbeat
+// interval to mirror PartyFastlane's watchdog margin: with fastlane in use
+// the WS is otherwise near-idle, so a single 2-3 s jitter spike would
+// otherwise trigger a false reconnect.
+const SELF_HEARTBEAT_DEAD_MS = 6000;
 
 // ===================== BOARD GEOMETRY =====================
 
@@ -253,6 +260,7 @@ exports.MAX_PLAYERS = MAX_PLAYERS;
 exports.COUNTDOWN_SECONDS = COUNTDOWN_SECONDS;
 exports.SOFT_DROP_TIMEOUT_MS = SOFT_DROP_TIMEOUT_MS;
 exports.LIVENESS_TIMEOUT_MS = LIVENESS_TIMEOUT_MS;
+exports.SELF_HEARTBEAT_DEAD_MS = SELF_HEARTBEAT_DEAD_MS;
 exports.COLS = COLS;
 exports.TOTAL_ROWS = TOTAL_ROWS;
 exports.BUFFER_ROWS = BUFFER_ROWS;
