@@ -17,9 +17,7 @@ HexStacker Party supports 1 to 8 players on a single shared display. One browser
 ```mermaid
 graph LR
     P[Phone Controllers] -- "signaling + input fallback (WebSocket)" --> R[Party-Sockets Relay]
-    R -- "signaling (WebSocket)" --> D[Display Browser]
-    D -- "game events (WebSocket)" --> R
-    R -- "game events (WebSocket)" --> P
+    R -- "signaling + input fallback (WebSocket)" --> D[Display Browser]
     P -- "input (WebRTC DataChannel)" --> D
 ```
 
