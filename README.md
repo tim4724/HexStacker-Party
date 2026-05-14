@@ -29,7 +29,6 @@ The display browser runs the authoritative game engine and renders all player bo
 
 - 1–8 players on one screen
 - QR code join – scan and play, no app install
-- Reconnect QR codes – display shows a rejoin QR when a player disconnects
 - Touch gesture controls with haptic feedback
 - Flat-top hexagonal grid with dual-zigzag line clears
 - Competitive mode with garbage lines
