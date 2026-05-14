@@ -19,8 +19,8 @@ HexStacker Party supports 1 to 8 players on a single shared display. One browser
 title: Controller input
 ---
 graph LR
-    P[Phone Controllers] -- "signaling (WebSocket)" --> R[Party-Sockets Relay]
-    R -- "signaling (WebSocket)" --> D[Display Browser]
+    P[Phone Controllers] <-- "signaling (WebSocket)" --> R[Party-Sockets Relay]
+    R <-- "signaling (WebSocket)" --> D[Display Browser]
     P -- "input (DataChannel)" --> D
     linkStyle 2 stroke:#22c55e,stroke-width:2px
 ```
