@@ -20,12 +20,8 @@ graph LR
     R -- "signaling (WebSocket)" --> D[Display Browser]
     P -- "input (DataChannel)" --> D
     D -- "ack (DataChannel)" --> P
-    D -- "game events (WebSocket)" --> R
-    R -- "game events (WebSocket)" --> P
     linkStyle 2 stroke:#22c55e,stroke-width:2px
     linkStyle 3 stroke:#22c55e,stroke-width:2px
-    linkStyle 4 stroke:#888,stroke-dasharray:4
-    linkStyle 5 stroke:#888,stroke-dasharray:4
 ```
 
 The display browser runs the authoritative game engine and renders all player boards. After WebRTC negotiation via the relay, controllers send input directly to the display over a DataChannel. The relay also carries game events from the display to controllers and serves as an input fallback. The Node.js server only serves static files and a QR code API.
