@@ -25,6 +25,15 @@ graph LR
     linkStyle 2 stroke:#22c55e,stroke-width:2px
 ```
 
+```mermaid
+---
+title: Game events
+---
+graph LR
+    D[Display Browser] -- "game events (WebSocket)" --> R[Party-Sockets Relay]
+    R -- "game events (WebSocket)" --> P[Phone Controllers]
+```
+
 The display browser runs the authoritative game engine and renders all player boards. After WebRTC negotiation via the relay, controllers send input directly to the display over a DataChannel. The relay also carries game events from the display to controllers and serves as an input fallback. The Node.js server only serves static files and a QR code API.
 
 ## Features
