@@ -10,19 +10,35 @@ Multiplayer hex stacker where phones become controllers and a shared screen show
 
 ## Overview
 
-HexStacker Party supports 1 to 8 players on a single shared display. One browser window acts as the game screen (TV, monitor, or laptop), while each player joins by scanning a QR code with their phone. The phone becomes a touch-based controller with gesture input and haptic feedback. The display client runs the authoritative game engine, communicating with controllers through a lightweight WebSocket relay.
+HexStacker Party supports 1 to 8 players on a single shared display. One browser window acts as the game screen (TV, monitor, or laptop), while each player joins by scanning a QR code with their phone. The phone becomes a touch-based controller with gesture input and haptic feedback. The display client runs the authoritative game engine. Controllers send input directly to the display over WebRTC DataChannels; the relay handles WebRTC signaling, game event delivery, and input fallback.
 
 ## Architecture
 
 ```mermaid
+---
+title: Game events
+---
 graph LR
-    P[Phone Controllers] -- input --> R[Party-Sockets Relay]
-    R -- input --> D[Display Browser]
-    D -- game events --> R
-    R -- game events --> P
+    D[Display Browser] -- "game events (WebSocket)" --> R[Party-Sockets Relay]
+    R -- "game events (WebSocket)" --> P[Phone Controllers]
 ```
 
-The display browser runs the game engine and renders all player boards. Controllers send input through a [Party-Sockets](https://github.com/tim4724/Party-Sockets) WebSocket relay. The Node.js server only serves static files and a QR code API.
+```mermaid
+---
+title: Controller input path
+---
+graph LR
+    P[Phone Controllers] <-- "signaling (WebSocket)" --> R[Party-Sockets Relay]
+    R <-- "signaling (WebSocket)" --> D[Display Browser]
+    P -- "input fallback (WebSocket)" --> R
+    R -- "input fallback (WebSocket)" --> D
+    P -- "input (DataChannel)" --> D
+    linkStyle 2 stroke:#94a3b8,stroke-dasharray:4,stroke-width:1px
+    linkStyle 3 stroke:#94a3b8,stroke-dasharray:4,stroke-width:1px
+    linkStyle 4 stroke:#22c55e,stroke-width:2px
+```
+
+The display browser runs the authoritative game engine and renders all player boards. After WebRTC negotiation via the relay, controllers send input directly to the display over a DataChannel. The relay also carries game events from the display to controllers and serves as an input fallback. The Node.js server only serves static files and a QR code API.
 
 ## Features
 
@@ -107,7 +123,8 @@ Unit tests use Node.js's built-in `node:test` runner with `node:assert/strict` â
 ## Tech Stack
 
 - **Runtime**: Node.js
-- **Relay**: [Party-Sockets](https://github.com/tim4724/Party-Sockets) WebSocket relay
+- **Relay**: [Party-Sockets](https://github.com/tim4724/Party-Sockets) WebSocket relay (signaling + game events)
+- **P2P**: WebRTC DataChannels for low-latency controller input
 - **QR codes**: [qrcode](https://github.com/soldair/node-qrcode)
 - **Frontend**: Vanilla JavaScript, Canvas API
 - **Testing**: Node.js built-in test runner + Playwright

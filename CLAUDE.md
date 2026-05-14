@@ -17,3 +17,4 @@ npm run test:e2e:airconsole    # Playwright E2E AirConsole tests
 - Engine modules (`server/*.js`) use UMD — must work in both Node.js and browser
 - CSP headers in `server/index.js` — update when adding external resources
 - Relay URL configured in `public/shared/protocol.js`
+- Controller input uses WebRTC DataChannels (`public/shared/PartyFastlane.js`) with the relay as signaling channel and input fallback; game events flow display → relay → controllers over WebSocket
