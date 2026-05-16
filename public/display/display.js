@@ -197,6 +197,10 @@ if (watchTrailerBtn) {
 
 // --- Button Event Listeners ---
 newGameBtn.addEventListener('click', function() {
+  // Trailer modal is fixed-position and not focus-trapped, so a keyboard
+  // user can Shift+Tab past it and activate START underneath. Close it so
+  // it doesn't float over the lobby.
+  closeTrailer();
   initMusic();
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen().catch(function() {});
