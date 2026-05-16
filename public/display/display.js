@@ -155,6 +155,38 @@ var BAIL_KEYS = ['room_not_found', 'game_full', 'game_ended'];
   restoreDeviceChoice();
 })();
 
+// --- Trailer modal ---
+var trailerModal = document.getElementById('trailer-modal');
+var trailerVideo = document.getElementById('trailer-video');
+var trailerCloseBtn = document.getElementById('trailer-close-btn');
+var watchTrailerBtn = document.getElementById('watch-trailer-btn');
+
+function openTrailer() {
+  trailerModal.classList.remove('hidden');
+  // play() may reject if the browser blocks autoplay without user gesture;
+  // the click itself counts as a gesture so this normally succeeds.
+  var p = trailerVideo.play();
+  if (p && typeof p.catch === 'function') p.catch(function() {});
+  document.addEventListener('keydown', onTrailerKeydown);
+}
+
+function closeTrailer() {
+  trailerModal.classList.add('hidden');
+  trailerVideo.pause();
+  trailerVideo.currentTime = 0;
+  document.removeEventListener('keydown', onTrailerKeydown);
+}
+
+function onTrailerKeydown(e) {
+  if (e.key === 'Escape') closeTrailer();
+}
+
+watchTrailerBtn.addEventListener('click', openTrailer);
+trailerCloseBtn.addEventListener('click', closeTrailer);
+trailerModal.addEventListener('click', function(e) {
+  if (e.target === trailerModal) closeTrailer();
+});
+
 // --- Button Event Listeners ---
 newGameBtn.addEventListener('click', function() {
   initMusic();
