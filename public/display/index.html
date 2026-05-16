@@ -85,7 +85,13 @@
   <div id="welcome-screen" class="screen">
     <span id="welcome-version-label"></span>
     <h1 class="gradient-title">HEX STACKER<span class="gradient-title__sub">party</span></h1>
-    <button id="new-game-btn" class="btn btn-primary" data-i18n="start_new_game">START NEW GAME</button>
+    <div id="welcome-actions">
+      <button id="new-game-btn" class="btn btn-primary" data-i18n="start_new_game">START NEW GAME</button>
+      <button id="watch-trailer-btn" type="button" class="watch-trailer-btn" data-i18n-aria-label="watch_trailer" aria-label="Watch trailer">
+        <svg class="watch-trailer-btn__icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        <span data-i18n="watch_trailer">Watch trailer</span>
+      </button>
+    </div>
     <div id="welcome-footer">
       <div class="footer-row">
         <span class="footer-group">
@@ -101,6 +107,22 @@
         </span>
       </div>
     </div>
+  </div>
+
+  <!-- Trailer modal: click-to-play, no preload. Sibling of #welcome-screen so
+       it sits above the falling-piece background and welcome content. -->
+  <!-- role="dialog" without aria-modal — see comment on #device-choice for
+       the rationale. No focus trap implemented, and aria-modal without a
+       trap creates inconsistent SR vs. keyboard behaviour. `inert` on the
+       initially-hidden modal keeps the close button and video controls out
+       of the tab order until openTrailer() removes it. -->
+  <div id="trailer-modal" class="trailer-modal hidden" role="dialog" inert data-i18n-aria-label="trailer_dialog_title" aria-label="Game trailer">
+    <button id="trailer-close-btn" class="trailer-modal__close" type="button" data-i18n-aria-label="close" aria-label="Close">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <video id="trailer-video" class="trailer-modal__video" playsinline controls preload="none" poster="/artwork/gameplay-2x1.webp">
+      <source src="/artwork/ad-clip/final-clean-16x9.mp4" type="video/mp4">
+    </video>
   </div>
 
   <!-- Lobby screen: QR code + player list + start button -->

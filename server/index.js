@@ -43,7 +43,8 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon',
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
-  '.mp3': 'audio/mpeg'
+  '.mp3': 'audio/mpeg',
+  '.mp4': 'video/mp4'
 };
 
 function sendJson(res, statusCode, payload) {
@@ -157,6 +158,55 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // MP4: serve via streaming with Range support so the <video> element can
+  // seek. fs.readFile + res.end (the path below) sends the whole buffer
+  // without an Accept-Ranges header, which disables seeking in the browser
+  // controls. Currently only the welcome-screen trailer needs this.
+  if (path.extname(filePath).toLowerCase() === '.mp4') {
+    fs.stat(filePath, (err, stat) => {
+      if (err) { res.writeHead(404); res.end('Not Found'); return; }
+      const fileSize = stat.size;
+      const isProd = APP_ENV === 'production';
+      const baseHeaders = {
+        'Content-Type': MIME_TYPES['.mp4'],
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': isProd ? 'public, max-age=86400' : 'no-store',
+      };
+      const rangeHeader = req.headers.range;
+      if (rangeHeader) {
+        const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader);
+        if (!match) {
+          res.writeHead(416, Object.assign({}, baseHeaders, { 'Content-Range': 'bytes */' + fileSize }));
+          res.end();
+          return;
+        }
+        let start, end;
+        if (match[1] === '' && match[2] !== '') {
+          // Suffix range: last N bytes
+          start = Math.max(0, fileSize - parseInt(match[2], 10));
+          end = fileSize - 1;
+        } else {
+          start = match[1] ? parseInt(match[1], 10) : 0;
+          end = match[2] ? parseInt(match[2], 10) : fileSize - 1;
+        }
+        if (start >= fileSize || end >= fileSize || start > end) {
+          res.writeHead(416, Object.assign({}, baseHeaders, { 'Content-Range': 'bytes */' + fileSize }));
+          res.end();
+          return;
+        }
+        res.writeHead(206, Object.assign({}, baseHeaders, {
+          'Content-Range': 'bytes ' + start + '-' + end + '/' + fileSize,
+          'Content-Length': end - start + 1,
+        }));
+        fs.createReadStream(filePath, { start: start, end: end }).pipe(res);
+      } else {
+        res.writeHead(200, Object.assign({}, baseHeaders, { 'Content-Length': fileSize }));
+        fs.createReadStream(filePath).pipe(res);
+      }
+    });
+    return;
+  }
+
   fs.readFile(filePath, (err, data) => {
     if (err) {
       res.writeHead(404);
@@ -222,7 +272,7 @@ const server = http.createServer((req, res) => {
         // subject to connect-src in any major browser (Chrome ignores
         // `stun:` schemes there with a warning). No CSP directive is needed
         // for the fastlane's iceServers config.
-        headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' wss://ws.hexstacker.com https://ws.hexstacker.com; img-src 'self' data:; object-src 'none'; frame-src 'self'; frame-ancestors " + frameAncestors;
+        headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' wss://ws.hexstacker.com https://ws.hexstacker.com; img-src 'self' data:; media-src 'self'; object-src 'none'; frame-src 'self'; frame-ancestors " + frameAncestors;
       }
     }
 

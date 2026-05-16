@@ -155,8 +155,52 @@ var BAIL_KEYS = ['room_not_found', 'game_full', 'game_ended'];
   restoreDeviceChoice();
 })();
 
+// --- Trailer modal ---
+var trailerModal = document.getElementById('trailer-modal');
+var trailerVideo = document.getElementById('trailer-video');
+var trailerCloseBtn = document.getElementById('trailer-close-btn');
+var watchTrailerBtn = document.getElementById('watch-trailer-btn');
+
+function openTrailer() {
+  if (!trailerModal.classList.contains('hidden')) return;
+  trailerModal.classList.remove('hidden');
+  trailerModal.removeAttribute('inert');
+  // play() may reject if the browser blocks autoplay without user gesture;
+  // the click itself counts as a gesture so this normally succeeds.
+  var p = trailerVideo.play();
+  if (p && typeof p.catch === 'function') p.catch(function() {});
+  document.addEventListener('keydown', onTrailerKeydown);
+  trailerCloseBtn.focus();
+}
+
+function closeTrailer() {
+  trailerModal.classList.add('hidden');
+  trailerModal.setAttribute('inert', '');
+  trailerVideo.pause();
+  trailerVideo.currentTime = 0;
+  document.removeEventListener('keydown', onTrailerKeydown);
+  // WCAG 2.4.3 — return focus to the trigger when the dialog closes.
+  watchTrailerBtn.focus();
+}
+
+function onTrailerKeydown(e) {
+  if (e.key === 'Escape') closeTrailer();
+}
+
+if (watchTrailerBtn) {
+  watchTrailerBtn.addEventListener('click', openTrailer);
+  trailerCloseBtn.addEventListener('click', closeTrailer);
+  trailerModal.addEventListener('click', function(e) {
+    if (e.target === trailerModal) closeTrailer();
+  });
+}
+
 // --- Button Event Listeners ---
 newGameBtn.addEventListener('click', function() {
+  // Trailer modal is fixed-position and not focus-trapped, so a keyboard
+  // user can Shift+Tab past it and activate START underneath. Close it so
+  // it doesn't float over the lobby.
+  closeTrailer();
   initMusic();
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen().catch(function() {});
