@@ -26,7 +26,6 @@ var LOCALES = {
     // Buttons
     start_new_game: 'START NEW GAME',
     watch_trailer: 'Watch trailer',
-    close: 'Close',
     play_again: 'Play Again',
     new_game: 'New Game',
     continue_btn: 'Continue',
