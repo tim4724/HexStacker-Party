@@ -168,6 +168,7 @@ function openTrailer() {
   var p = trailerVideo.play();
   if (p && typeof p.catch === 'function') p.catch(function() {});
   document.addEventListener('keydown', onTrailerKeydown);
+  trailerCloseBtn.focus();
 }
 
 function closeTrailer() {
@@ -175,6 +176,8 @@ function closeTrailer() {
   trailerVideo.pause();
   trailerVideo.currentTime = 0;
   document.removeEventListener('keydown', onTrailerKeydown);
+  // WCAG 2.4.3 — return focus to the trigger when the dialog closes.
+  watchTrailerBtn.focus();
 }
 
 function onTrailerKeydown(e) {
