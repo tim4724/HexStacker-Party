@@ -112,16 +112,25 @@ body.airconsole #lobby-version-label { display: block; }
 .trailer-modal {
   position: fixed;
   inset: 0;
+  /* Above results-overlay (20), game-toolbar (50), and the unstacked
+     device-choice overlay. The trailer is only reachable from the welcome
+     screen, so this won't conflict with in-game UI. */
   z-index: 200;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: clamp(1rem, 4vh, 3rem);
   background: var(--overlay-bg);
-  animation: fadeIn 0.2s ease-out;
+  transition: opacity 0.2s ease-out;
 }
 
-.trailer-modal.hidden { display: none; }
+/* Opacity-based hide (not display:none) so open and close share the same
+   fade transition. Pointer-events + the `inert` attribute (toggled in JS)
+   keep the hidden modal out of click and keyboard reach. */
+.trailer-modal.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
 
 .trailer-modal__video {
   width: min(100%, 1280px);

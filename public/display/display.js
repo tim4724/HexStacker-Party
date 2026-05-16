@@ -162,7 +162,9 @@ var trailerCloseBtn = document.getElementById('trailer-close-btn');
 var watchTrailerBtn = document.getElementById('watch-trailer-btn');
 
 function openTrailer() {
+  if (!trailerModal.classList.contains('hidden')) return;
   trailerModal.classList.remove('hidden');
+  trailerModal.removeAttribute('inert');
   // play() may reject if the browser blocks autoplay without user gesture;
   // the click itself counts as a gesture so this normally succeeds.
   var p = trailerVideo.play();
@@ -173,6 +175,7 @@ function openTrailer() {
 
 function closeTrailer() {
   trailerModal.classList.add('hidden');
+  trailerModal.setAttribute('inert', '');
   trailerVideo.pause();
   trailerVideo.currentTime = 0;
   document.removeEventListener('keydown', onTrailerKeydown);
@@ -184,11 +187,13 @@ function onTrailerKeydown(e) {
   if (e.key === 'Escape') closeTrailer();
 }
 
-watchTrailerBtn.addEventListener('click', openTrailer);
-trailerCloseBtn.addEventListener('click', closeTrailer);
-trailerModal.addEventListener('click', function(e) {
-  if (e.target === trailerModal) closeTrailer();
-});
+if (watchTrailerBtn) {
+  watchTrailerBtn.addEventListener('click', openTrailer);
+  trailerCloseBtn.addEventListener('click', closeTrailer);
+  trailerModal.addEventListener('click', function(e) {
+    if (e.target === trailerModal) closeTrailer();
+  });
+}
 
 // --- Button Event Listeners ---
 newGameBtn.addEventListener('click', function() {
