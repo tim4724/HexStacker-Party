@@ -226,10 +226,20 @@ const server = http.createServer((req, res) => {
     // one place. Guard avoids the string round-trip for HTML files (gallery,
     // privacy, imprint) that don't carry the placeholder.
     if (ext === '.html') {
-      const text = data.toString('utf8');
+      let text = data.toString('utf8');
+      let mutated = false;
       if (text.includes('__APP_VERSION__')) {
-        data = Buffer.from(text.replace(/__APP_VERSION__/g, VERSION_LABEL));
+        text = text.replace(/__APP_VERSION__/g, VERSION_LABEL);
+        mutated = true;
       }
+      // __APP_V__ — URL-safe bare semver, used as a ?v= cache-busting query
+      // on CSS hrefs so returning visitors don't see stale stylesheets
+      // against fresh HTML (HTML/JS are no-store, but CSS gets a 24h cache).
+      if (text.includes('__APP_V__')) {
+        text = text.replace(/__APP_V__/g, APP_VERSION);
+        mutated = true;
+      }
+      if (mutated) data = Buffer.from(text);
     }
 
     // Non-production: never cache — file edits take effect on the next
