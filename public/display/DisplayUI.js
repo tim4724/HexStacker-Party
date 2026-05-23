@@ -417,6 +417,16 @@ function renderResults(results) {
     row.appendChild(info);
     resultsList.appendChild(row);
   }
+
+  if (gameMode === GameConstants.GAME_MODES.CLASSIC) {
+    var note = document.createElement('div');
+    note.className = 'classic-results-note';
+    var bestText = classicLastRank
+      ? t('classic_new_score', { rank: classicLastRank })
+      : t('classic_score_saved');
+    note.textContent = bestText;
+    resultsList.appendChild(note);
+  }
 }
 
 // --- Timer Rendering ---

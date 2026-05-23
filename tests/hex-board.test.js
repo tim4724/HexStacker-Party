@@ -60,6 +60,19 @@ describe('Piece', () => {
     }
   });
 
+  it('party helper pieces create valid 3-cell pieces', () => {
+    for (var t of ['i3', 'v3']) {
+      var p = new Piece(t);
+      var blocks = p.getAbsoluteBlocks();
+      assert.equal(p.cells.length, 3);
+      assert.equal(blocks.length, 3);
+      for (var b of blocks) {
+        assert.ok(b[0] >= 0 && b[0] < HEX_COLS, t + ' col in bounds');
+        assert.ok(b[1] >= 0, t + ' row non-negative');
+      }
+    }
+  });
+
   it('I has 4 cells', () => {
     var p = new Piece('I');
     assert.equal(p.cells.length, 4);

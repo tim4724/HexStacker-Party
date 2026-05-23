@@ -13,6 +13,16 @@ var debugCount = parseInt(urlParams.get('debug'), 10) || 0;
 
 // --- State ---
 var currentScreen = SCREEN.WELCOME;
+var APP_VIEW = { SELECT: 'select', PARTY: 'party', CLASSIC: 'classic' };
+function getAppViewFromPath() {
+  if (document.body && document.body.classList.contains('airconsole')) return APP_VIEW.PARTY;
+  var path = window.location.pathname.replace(/\/+$/, '') || '/';
+  if (path === '/party') return APP_VIEW.PARTY;
+  if (path === '/classic') return APP_VIEW.CLASSIC;
+  return APP_VIEW.SELECT;
+}
+var appView = getAppViewFromPath();
+var gameMode = appView === APP_VIEW.CLASSIC ? GameConstants.GAME_MODES.CLASSIC : GameConstants.GAME_MODES.PARTY;
 var party = null;
 // Optional P2P DataChannel layer keyed by controller peerIndex. Controllers
 // initiate; the display auto-accepts via fastlane.handleSignal. Inbound
@@ -138,6 +148,15 @@ var preCreatedRoom = null;  // { roomCode, joinUrl, qrMatrix }
 // Mute
 var muted = false;
 try { muted = localStorage.getItem('stacker_muted') === '1'; } catch (e) { /* iframe sandbox */ }
+
+// Classic mode local state
+var classicPlayerName = 'YOU';
+try {
+  var _classicStoredName = localStorage.getItem('hexstacker_classic_player_name_v1');
+  if (_classicStoredName) classicPlayerName = _classicStoredName;
+} catch (e) { /* iframe sandbox */ }
+var classicLastResult = null;
+var classicLastRank = null;
 
 // Render loop RAF handle (for stop/start)
 var rafId = null;
@@ -314,7 +333,18 @@ function electNextHost(excludeId) {
 
 // --- DOM References ---
 var welcomeScreen = document.getElementById('welcome-screen');
+var modeSelect = document.getElementById('mode-select');
+var partyWelcomeActions = document.getElementById('party-welcome-actions');
+var classicWelcome = document.getElementById('classic-welcome');
+var welcomeTitleSub = document.getElementById('welcome-title-sub');
+var watchTrailerBtn = document.getElementById('watch-trailer-btn');
+var partyModeBtn = document.getElementById('party-mode-btn');
+var classicModeBtn = document.getElementById('classic-mode-btn');
 var newGameBtn = document.getElementById('new-game-btn');
+var classicStartBtn = document.getElementById('classic-start-btn');
+var classicNameInput = document.getElementById('classic-name-input');
+var classicScoresList = document.getElementById('classic-scores-list');
+var classicResultPanel = document.getElementById('classic-result-panel');
 var lobbyScreen = document.getElementById('lobby-screen');
 var gameScreen = document.getElementById('game-screen');
 var resultsScreen = document.getElementById('results-screen');
@@ -380,6 +410,10 @@ function showScreen(name) {
     name === SCREEN.LOBBY && document.body.classList.contains('airconsole')
   );
   pauseBtn.classList.toggle('hidden', name !== SCREEN.GAME);
+  if (gameMode === GameConstants.GAME_MODES.CLASSIC) {
+    relayChip.classList.add('hidden');
+    if (relayReportBtn) relayReportBtn.classList.add('hidden');
+  }
   if (name !== SCREEN.GAME) {
     pauseOverlay.classList.add('hidden');
     reconnectOverlay.classList.add('hidden');

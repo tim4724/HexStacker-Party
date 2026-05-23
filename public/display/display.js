@@ -34,7 +34,67 @@ function resetToWelcome() {
   if (relayReportBtn) relayReportBtn.classList.add('hidden');
   preCreatedRoom = null;
   showScreen(SCREEN.WELCOME);
-  connectAndCreateRoom();
+  showWelcomeForCurrentView();
+  if (appView === APP_VIEW.PARTY) connectAndCreateRoom();
+}
+
+function setAppView(nextView, pushHistory) {
+  appView = nextView;
+  gameMode = nextView === APP_VIEW.CLASSIC
+    ? GameConstants.GAME_MODES.CLASSIC
+    : GameConstants.GAME_MODES.PARTY;
+  document.body.dataset.appView = nextView;
+  if (pushHistory) {
+    var path = nextView === APP_VIEW.PARTY ? '/party'
+      : nextView === APP_VIEW.CLASSIC ? '/classic'
+      : '/';
+    history.pushState({ appView: nextView }, '', path);
+  }
+  showWelcomeForCurrentView();
+}
+
+function showWelcomeForCurrentView() {
+  document.body.dataset.appView = appView;
+  if (modeSelect) modeSelect.classList.toggle('hidden', appView !== APP_VIEW.SELECT);
+  if (partyWelcomeActions) partyWelcomeActions.classList.toggle('hidden', appView !== APP_VIEW.PARTY);
+  if (classicWelcome) classicWelcome.classList.toggle('hidden', appView !== APP_VIEW.CLASSIC);
+  if (watchTrailerBtn) watchTrailerBtn.classList.toggle('hidden', appView !== APP_VIEW.SELECT);
+  if (welcomeTitleSub) welcomeTitleSub.textContent = appView === APP_VIEW.CLASSIC ? 'classic' : 'party';
+  if (classicNameInput) classicNameInput.value = classicPlayerName || 'YOU';
+  if (classicResultPanel && appView !== APP_VIEW.CLASSIC) classicResultPanel.classList.add('hidden');
+  if (appView === APP_VIEW.CLASSIC) renderClassicHighScores();
+}
+
+function enterPartyLobby(pushHistory, unlockMedia) {
+  appView = APP_VIEW.PARTY;
+  gameMode = GameConstants.GAME_MODES.PARTY;
+  document.body.dataset.appView = appView;
+  closeTrailer();
+
+  if (unlockMedia) {
+    initMusic();
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(function() {});
+    }
+  }
+
+  if (preCreatedRoom) {
+    var pre = preCreatedRoom;
+    preCreatedRoom = null;
+    applyRoomCreated(pre.roomCode, pre.joinUrl);
+    if (pre.qrMatrix) {
+      requestAnimationFrame(function() { renderQR(qrCode, pre.qrMatrix); });
+    }
+  } else {
+    // Show the lobby immediately; onRoomCreated will populate the QR once
+    // the relay responds.
+    showScreen(SCREEN.LOBBY);
+    connectAndCreateRoom();
+  }
+
+  if (pushHistory) {
+    history.pushState({ screen: SCREEN.LOBBY, appView: APP_VIEW.PARTY }, '', '/party');
+  }
 }
 
 // =====================================================================
@@ -159,7 +219,6 @@ var BAIL_KEYS = ['room_not_found', 'game_full', 'game_ended'];
 var trailerModal = document.getElementById('trailer-modal');
 var trailerVideo = document.getElementById('trailer-video');
 var trailerCloseBtn = document.getElementById('trailer-close-btn');
-var watchTrailerBtn = document.getElementById('watch-trailer-btn');
 
 function openTrailer() {
   if (!trailerModal.classList.contains('hidden')) return;
@@ -174,13 +233,14 @@ function openTrailer() {
 }
 
 function closeTrailer() {
+  var wasOpen = !trailerModal.classList.contains('hidden');
   trailerModal.classList.add('hidden');
   trailerModal.setAttribute('inert', '');
   trailerVideo.pause();
   trailerVideo.currentTime = 0;
   document.removeEventListener('keydown', onTrailerKeydown);
   // WCAG 2.4.3 — return focus to the trigger when the dialog closes.
-  watchTrailerBtn.focus();
+  if (wasOpen && watchTrailerBtn) watchTrailerBtn.focus();
 }
 
 function onTrailerKeydown(e) {
@@ -196,32 +256,50 @@ if (watchTrailerBtn) {
 }
 
 // --- Button Event Listeners ---
-newGameBtn.addEventListener('click', function() {
-  // Trailer modal is fixed-position and not focus-trapped, so a keyboard
-  // user can Shift+Tab past it and activate START underneath. Close it so
-  // it doesn't float over the lobby.
-  closeTrailer();
-  initMusic();
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen().catch(function() {});
-  }
+if (partyModeBtn) {
+  partyModeBtn.addEventListener('click', function() {
+    fetchBaseUrl();
+    enterPartyLobby(true, true);
+  });
+}
 
-  if (preCreatedRoom) {
-    var pre = preCreatedRoom;
-    preCreatedRoom = null;
-    applyRoomCreated(pre.roomCode, pre.joinUrl);
-    if (pre.qrMatrix) {
-      requestAnimationFrame(function() { renderQR(qrCode, pre.qrMatrix); });
+if (classicModeBtn) {
+  classicModeBtn.addEventListener('click', function() {
+    if (party) {
+      party.close();
+      party = null;
     }
-  } else {
-    // Relay hasn't responded yet — show lobby so onRoomCreated
-    // applies the room immediately instead of pre-caching it.
-    showScreen(SCREEN.LOBBY);
-    connectAndCreateRoom();
-  }
+    if (fastlane) {
+      fastlane.closeAll();
+      fastlane = null;
+    }
+    setAppView(APP_VIEW.CLASSIC, true);
+  });
+}
 
-  history.pushState({ screen: SCREEN.LOBBY }, '');
-});
+if (classicStartBtn) {
+  classicStartBtn.addEventListener('click', function() {
+    initMusic();
+    startClassicGame();
+    history.pushState({ screen: SCREEN.GAME, appView: APP_VIEW.CLASSIC }, '', '/classic');
+  });
+}
+
+if (classicNameInput) {
+  classicNameInput.addEventListener('change', syncClassicNameFromInput);
+  classicNameInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      syncClassicNameFromInput();
+      classicStartBtn.focus();
+    }
+  });
+}
+
+if (newGameBtn) {
+  newGameBtn.addEventListener('click', function() {
+    enterPartyLobby(true, true);
+  });
+}
 
 window.addEventListener('popstate', function(e) {
   if (suppressPopstate) {
@@ -239,6 +317,11 @@ window.addEventListener('popstate', function(e) {
   }
 
   var target = e.state && e.state.screen;
+  var targetView = (e.state && e.state.appView) || getAppViewFromPath();
+  if (currentScreen === SCREEN.WELCOME && targetView && targetView !== appView) {
+    setAppView(targetView, false);
+    return;
+  }
   if (currentScreen === SCREEN.WELCOME && target === SCREEN.LOBBY) {
     suppressPopstate = true;
     history.back();
@@ -247,9 +330,14 @@ window.addEventListener('popstate', function(e) {
       suppressPopstate = true;
       history.back();
     } else {
+      if (targetView && targetView !== appView) setAppView(targetView, false);
       resetToWelcome();
     }
   } else if (currentScreen === SCREEN.GAME || currentScreen === SCREEN.RESULTS) {
+    if (gameMode === GameConstants.GAME_MODES.CLASSIC) {
+      endClassicToMenu();
+      return;
+    }
     popstateNavigating = true;
     if (music) music.stop();
     showScreen(SCREEN.LOBBY);
@@ -280,11 +368,20 @@ window.addEventListener('pagehide', function() {
 
 playAgainBtn.addEventListener('click', function() {
   initMusic();
-  playAgain();
+  if (gameMode === GameConstants.GAME_MODES.CLASSIC) {
+    startClassicGame();
+    history.pushState({ screen: SCREEN.GAME, appView: APP_VIEW.CLASSIC }, '', '/classic');
+  } else {
+    playAgain();
+  }
 });
 
 newGameResultsBtn.addEventListener('click', function() {
-  returnToLobby();
+  if (gameMode === GameConstants.GAME_MODES.CLASSIC) {
+    endClassicToMenu();
+  } else {
+    returnToLobby();
+  }
 });
 
 // --- Mute ---
@@ -348,7 +445,11 @@ pauseContinueBtn.addEventListener('click', function() {
 });
 
 pauseNewGameBtn.addEventListener('click', function() {
-  returnToLobby();
+  if (gameMode === GameConstants.GAME_MODES.CLASSIC) {
+    endClassicToMenu();
+  } else {
+    returnToLobby();
+  }
 });
 
 reconnectBtn.addEventListener('click', function() {
@@ -373,6 +474,57 @@ if (!document.body.classList.contains('airconsole')) {
   var lobbyVersion = document.getElementById('lobby-version-label');
   if (lobbyVersion) lobbyVersion.textContent = label;
 }
+
+function getGameTextSnapshot() {
+  var playerSummaries = [];
+  if (gameState && gameState.players) {
+    for (var i = 0; i < gameState.players.length; i++) {
+      var p = gameState.players[i];
+      playerSummaries.push({
+        id: p.id,
+        alive: !!p.alive,
+        lines: p.lines || 0,
+        level: p.level || 1,
+        x: p.currentPiece ? p.currentPiece.x : null,
+        y: p.currentPiece ? p.currentPiece.y : null,
+        piece: p.currentPiece ? p.currentPiece.type : null,
+        next: p.nextPiece ? p.nextPiece.type : null,
+        hold: p.holdPiece ? p.holdPiece.type : null
+      });
+    }
+  }
+  return JSON.stringify({
+    coordinate_system: 'board columns increase right, rows increase downward',
+    path: location.pathname,
+    appView: appView,
+    gameMode: gameMode,
+    screen: currentScreen,
+    roomState: roomState,
+    paused: !!paused,
+    playerCount: players.size,
+    players: playerSummaries,
+    elapsedMs: gameState && gameState.elapsed != null ? Math.round(gameState.elapsed) : null,
+    classicScores: typeof readClassicScores === 'function' ? readClassicScores().length : null
+  });
+}
+
+window.render_game_to_text = getGameTextSnapshot;
+
+window.advanceTime = function(ms) {
+  if (!displayGame || roomState !== ROOM_STATE.PLAYING || paused) return getGameTextSnapshot();
+  var total = Math.max(0, Number(ms) || 0);
+  var steps = Math.max(1, Math.ceil(total / (1000 / 60)));
+  var stepMs = total / steps;
+  for (var i = 0; i < steps; i++) {
+    if (!displayGame || roomState !== ROOM_STATE.PLAYING || paused) break;
+    displayGame.update(stepMs);
+  }
+  if (displayGame) gameState = displayGame.getSnapshot();
+  if (ctx && gameState && (currentScreen === SCREEN.GAME || currentScreen === SCREEN.RESULTS)) {
+    renderFrame(performance.now());
+  }
+  return getGameTextSnapshot();
+};
 
 var bgCanvas = document.getElementById('bg-canvas');
 if (bgCanvas && (urlParams.get('test') !== '1' || urlParams.get('bg') === '1')) {
@@ -411,6 +563,7 @@ if (bgCanvas && (urlParams.get('test') !== '1' || urlParams.get('bg') === '1')) 
 
 // --- Debug or normal init ---
 var _scenarioParam = urlParams.get('scenario');
+showWelcomeForCurrentView();
 if (window.__TEST__ && (debugCount > 0 || _scenarioParam)) {
   var _hostParam = urlParams.get('host');
   // Honour players=0 explicitly (adclip lobby starts empty and pops players
@@ -423,10 +576,15 @@ if (window.__TEST__ && (debugCount > 0 || _scenarioParam)) {
     level: parseInt(urlParams.get('level'), 10) || 1,
     host: _hostParam === null ? null : parseInt(_hostParam, 10)
   });
+} else if (appView === APP_VIEW.PARTY) {
+  fetchBaseUrl();
+  enterPartyLobby(false, false);
 } else if (urlParams.get('test') === '1' || urlParams.get('adclip') === '1') {
   // Test / adclip mode: skip relay connection — driven externally
   fetchBaseUrl();
+} else if (appView === APP_VIEW.CLASSIC) {
+  fetchBaseUrl();
+  renderClassicHighScores();
 } else {
   fetchBaseUrl();
-  connectAndCreateRoom();
 }

@@ -126,7 +126,7 @@ function pauseGame() {
   if (roomState === ROOM_STATE.COUNTDOWN) {
     clearCountdownTimers();
   }
-  party.broadcast({ type: MSG.GAME_PAUSED });
+  if (party && typeof party.broadcast === 'function') party.broadcast({ type: MSG.GAME_PAUSED });
   onGamePaused();
 }
 
@@ -194,7 +194,7 @@ function resumeGame() {
   if (autoPaused) setAutoPaused(false);
   paused = false;
   if (roomState === ROOM_STATE.COUNTDOWN && countdown.callback) {
-    party.broadcast({ type: MSG.GAME_RESUMED });
+    if (party && typeof party.broadcast === 'function') party.broadcast({ type: MSG.GAME_RESUMED });
     onGameResumed();
     if (countdown.remaining === 0) {
       countdown.overlayTimer = setTimeout(function() {
@@ -211,7 +211,7 @@ function resumeGame() {
     }
     return;
   }
-  party.broadcast({ type: MSG.GAME_RESUMED });
+  if (party && typeof party.broadcast === 'function') party.broadcast({ type: MSG.GAME_RESUMED });
   onGameResumed();
 }
 
@@ -351,7 +351,9 @@ function runGameLocallyWithSeed(seed) {
       party.broadcast({ type: MSG.GAME_END, elapsed: results.elapsed, results: results.results });
       onGameEnd(results);
     }
-  }, seed);
+  }, seed, {
+    pieceTypes: GameConstants.GAME_MODE_RULES[gameMode || GameConstants.GAME_MODES.PARTY].pieceTypes
+  });
 
   displayGame.init();
 }

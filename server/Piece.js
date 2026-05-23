@@ -17,7 +17,6 @@ function axialToOffset(q, r) {
 }
 
 // Scratch arrays for getAbsoluteBlocks — avoids allocation on every call.
-// All PIECES have exactly 4 cells; update if a 5+ cell piece is added.
 var _absBlocksScratch = [[0,0],[0,0],[0,0],[0,0]];
 
 // ===================== PIECE DEFINITIONS =====================
@@ -39,6 +38,8 @@ var PIECES = {
   // would produce a steep zigzag instead of the gentle L/J silhouette.
   L:  [[-1,1],[0,0],[1,-1],[1,-2]],   // new — 3-cell up-right diagonal + top-right vertical extension
   J:  [[1,0],[0,0],[-1,0],[-1,-1]],   // new — 3-cell up-left diagonal + top-left vertical extension
+  i3: [[-1,0],[0,0],[1,0]],           // party helper — straight 3-chain
+  v3: [[0,0],[1,0],[1,-1]],           // party helper — compact corner
 };
 
 // The I piece spans 2 cells to one side of its anchor, so rotating it against a
@@ -100,6 +101,7 @@ class Piece {
   // Returns a shared scratch array — caller must consume before the next call.
   _absoluteBlocksFast() {
     while (_absBlocksScratch.length < this.cells.length) _absBlocksScratch.push([0, 0]);
+    _absBlocksScratch.length = this.cells.length;
     var ac = this.anchorCol, ar = this.anchorRow;
     var aq = ac, aRr = ar - ((ac - (ac & 1)) >> 1);
     for (var i = 0; i < this.cells.length; i++) {

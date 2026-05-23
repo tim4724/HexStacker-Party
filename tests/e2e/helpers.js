@@ -57,13 +57,12 @@ async function gotoDisplayTest(page) {
 async function createRoom(page) {
   // Display page needs a desktop viewport even when running in the controller project
   await page.setViewportSize({ width: 1280, height: 720 });
-  await page.goto('/?test=1', { waitUntil: 'networkidle' });
+  await page.goto('/party?test=1', { waitUntil: 'networkidle' });
   await waitForFont(page);
   const continueBtn = page.locator('#device-choice-continue');
   if (await continueBtn.isVisible()) {
     await continueBtn.click();
   }
-  await page.click('#new-game-btn');
   await page.waitForSelector('#lobby-screen:not(.hidden)', { timeout: 30000 });
   await page.waitForFunction(() => {
     const codeEl = document.querySelector('#join-url .join-url__code');

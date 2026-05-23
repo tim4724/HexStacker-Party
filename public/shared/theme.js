@@ -21,7 +21,7 @@ const PARTY_PALETTE = Object.freeze([
   '#FF8C42'  // 8 Tangerine  ← UI accent (secondary)
 ]);
 
-// --- Piece colors (1=I, 2=O, 3=S, 4=Z, 5=q, 6=p, 7=L, 8=J, 9=garbage) ---
+// --- Piece colors (1=I, 2=O, 3=S, 4=Z, 5=q, 6=p, 7=L, 8=J, 9=garbage, 10=i3, 11=v3) ---
 // Each piece maps to the palette slot matching its color family.
 const PIECE_COLORS = {
   0: '#000000',             // empty
@@ -33,7 +33,9 @@ const PIECE_COLORS = {
   6: PARTY_PALETTE[1],      // p - teal
   7: PARTY_PALETTE[5],      // L - magenta
   8: PARTY_PALETTE[6],      // J - indigo
-  9: '#808080'              // garbage - neutral gray (intentionally off-palette)
+  9: '#808080',             // garbage - neutral gray (intentionally off-palette)
+  10: PARTY_PALETTE[0],     // i3 - red
+  11: PARTY_PALETTE[4]      // v3 - mint
 };
 
 // Ghost piece colors — computed from PIECE_COLORS via ghostColor() (CanvasUtils.js).
@@ -43,7 +45,7 @@ const PIECE_COLORS = {
 // crash on its own — much more obvious than a startup warning.
 var GHOST_COLORS = {};
 if (typeof ghostColor === 'function') {
-  for (var _i = 1; _i <= 9; _i++) GHOST_COLORS[_i] = ghostColor(PIECE_COLORS[_i]);
+  for (var _i = 1; _i <= 11; _i++) GHOST_COLORS[_i] = ghostColor(PIECE_COLORS[_i]);
 }
 
 // Player accent colors — reordered from PARTY_PALETTE to follow the visible
@@ -199,7 +201,7 @@ if (typeof module !== 'undefined' && module.exports) {
       fill: 'rgba(' + r + ',' + g + ',' + b + ',' + fillA + ')'
     };
   };
-  for (var _k = 1; _k <= 9; _k++) {
+    for (var _k = 1; _k <= 11; _k++) {
     if (!GHOST_COLORS[_k]) GHOST_COLORS[_k] = _gc(PIECE_COLORS[_k]);
   }
   module.exports = {

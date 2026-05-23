@@ -8,7 +8,8 @@ var GarbageManager = ((typeof require !== 'undefined') ? require('./GarbageManag
 var mulberry32 = ((typeof require !== 'undefined') ? require('./Randomizer.js') : window.GameRandomizer).mulberry32;
 
 class Game {
-  constructor(players, callbacks, seed) {
+  constructor(players, callbacks, seed, options) {
+    options = options || {};
     this.callbacks = callbacks; // { onEvent, onGameEnd }
     this.boards = new Map();
     this.playerIds = [];
@@ -18,9 +19,12 @@ class Game {
     // Shared seed so all players get the same piece sequence
     if (seed == null) seed = (Math.random() * 0xFFFFFFFF) >>> 0;
     this.seed = seed;
+    this.options = options;
 
     for (const [id, opts] of players) {
-      const board = new PlayerBoard(id, seed, (opts && opts.startLevel) || 1);
+      const board = new PlayerBoard(id, seed, (opts && opts.startLevel) || 1, {
+        pieceTypes: options.pieceTypes
+      });
       this.boards.set(id, board);
       this.playerIds.push(id);
     }
@@ -64,6 +68,9 @@ class Game {
         break;
       case 'rotate_cw':
         board.rotateCW();
+        break;
+      case 'rotate_ccw':
+        board.rotateCCW();
         break;
       case 'hard_drop': {
         const result = board.hardDrop();

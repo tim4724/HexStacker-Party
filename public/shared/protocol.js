@@ -48,6 +48,7 @@ var INPUT = {
   LEFT: 'left',
   RIGHT: 'right',
   ROTATE_CW: 'rotate_cw',
+  ROTATE_CCW: 'rotate_ccw',
   HARD_DROP: 'hard_drop',
   HOLD: 'hold'
 };

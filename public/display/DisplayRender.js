@@ -63,7 +63,9 @@ function renderLoop(timestamp) {
       if (results) {
         setRoomState(ROOM_STATE.RESULTS);
         lastResults = results;
-        party.broadcast({ type: MSG.GAME_END, elapsed: results.elapsed, results: results.results });
+        if (party && typeof party.broadcast === 'function') {
+          party.broadcast({ type: MSG.GAME_END, elapsed: results.elapsed, results: results.results });
+        }
         onGameEnd(results);
       }
       return;

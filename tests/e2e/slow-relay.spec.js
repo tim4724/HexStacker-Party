@@ -46,8 +46,9 @@ test.describe('Slow relay', () => {
     // It might or might not be null depending on timing, but the test
     // verifies the lobby shows regardless — that's what matters.
 
-    // Click "New Game" — this is the critical moment
-    await page.click('#new-game-btn');
+    // Click "Party" — this should enter the lobby immediately, even before
+    // the delayed relay "created" response arrives.
+    await page.click('#party-mode-btn');
 
     // Lobby should appear (possibly empty, waiting for relay)
     await page.waitForSelector('#lobby-screen:not(.hidden)', { timeout: 10000 });

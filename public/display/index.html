@@ -84,13 +84,53 @@
   <!-- Welcome screen: unlocks audio via user gesture -->
   <div id="welcome-screen" class="screen">
     <span id="welcome-version-label"></span>
-    <h1 class="gradient-title">HEX STACKER<span class="gradient-title__sub">party</span></h1>
-    <div id="welcome-actions">
-      <button id="new-game-btn" class="btn btn-primary" data-i18n="start_new_game">START NEW GAME</button>
-      <button id="watch-trailer-btn" type="button" class="watch-trailer-btn" data-i18n-aria-label="watch_trailer" aria-label="Watch trailer">
-        <svg class="watch-trailer-btn__icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-        <span data-i18n="watch_trailer">Watch trailer</span>
+    <h1 class="gradient-title">HEX STACKER<span id="welcome-title-sub" class="gradient-title__sub">party</span></h1>
+    <div id="mode-select" class="mode-select">
+      <button id="party-mode-btn" type="button" class="mode-card mode-card--primary">
+        <span class="mode-card__title" data-i18n="mode_party_title">Party</span>
+        <span class="mode-card__line" data-i18n="mode_party_line1">Couch multiplayer</span>
+        <span class="mode-card__line" data-i18n="mode_party_line2">Phones as controllers</span>
+        <span class="mode-card__meta" data-i18n="mode_party_meta">1-8 players</span>
       </button>
+      <button id="classic-mode-btn" type="button" class="mode-card">
+        <span class="mode-card__title" data-i18n="mode_classic_title">Classic</span>
+        <span class="mode-card__line" data-i18n="mode_classic_line1">Solo stacker</span>
+        <span class="mode-card__line" data-i18n="mode_classic_line2">Keyboard controls</span>
+        <span class="mode-card__meta" data-i18n="mode_classic_meta">Local high scores</span>
+      </button>
+    </div>
+    <button id="watch-trailer-btn" type="button" class="watch-trailer-btn mode-trailer-btn" data-i18n-aria-label="watch_trailer" aria-label="Watch trailer">
+      <svg class="watch-trailer-btn__icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+      <span data-i18n="watch_trailer">Watch trailer</span>
+    </button>
+    <div id="party-welcome-actions" class="hidden">
+      <button id="new-game-btn" class="btn btn-primary" data-i18n="start_new_game">START NEW GAME</button>
+    </div>
+    <div id="classic-welcome" class="classic-menu hidden">
+      <div class="classic-menu__actions">
+        <label class="classic-name">
+          <span data-i18n="classic_name_label">Name</span>
+          <input id="classic-name-input" type="text" maxlength="12" autocomplete="off" spellcheck="false" value="YOU">
+        </label>
+        <button id="classic-start-btn" class="btn btn-primary" type="button" data-i18n="classic_start">START CLASSIC</button>
+      </div>
+      <div class="classic-menu__body">
+        <section class="classic-panel">
+          <h2 data-i18n="classic_controls_title">Controls</h2>
+          <div class="classic-controls">
+            <span data-i18n="classic_controls_move">Arrows move / soft drop</span>
+            <span data-i18n="classic_controls_rotate">Z / X / Up rotate</span>
+            <span data-i18n="classic_controls_drop">Space drops</span>
+            <span data-i18n="classic_controls_hold">C / Shift holds</span>
+            <span data-i18n="classic_controls_pause">P / Esc pauses</span>
+          </div>
+        </section>
+        <section class="classic-panel">
+          <h2 data-i18n="classic_high_scores">High Scores</h2>
+          <ol id="classic-scores-list" class="classic-scores"></ol>
+        </section>
+      </div>
+      <p id="classic-result-panel" class="classic-result hidden" role="status"></p>
     </div>
     <div id="welcome-footer">
       <div class="footer-row">
@@ -226,6 +266,7 @@
   <script src="/display/DisplayLiveness.js"></script>
   <script src="/display/DisplayInput.js"></script>
   <script src="/display/DisplayRender.js"></script>
+  <script src="/display/DisplayClassic.js"></script>
   <script src="/display/DisplayTestHarness.js"></script>
   <script src="/display/display.js"></script>
 </body>

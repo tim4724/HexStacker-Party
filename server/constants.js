@@ -47,12 +47,21 @@ const TOTAL_ROWS = 25;   // 4 buffer + 21 visible
 const BUFFER_ROWS = 4;
 const VISIBLE_ROWS = 21;
 
-// 8 piece types (1-indexed to match grid cell values).
-// All 4-hex pieces. Post-redesign set: T removed, q/p are the old L/J,
-// and L/J are new true-L/J shaped pieces.
+// Piece types (1-indexed to match grid cell values).
+// Classic uses the original 8 4-hex pieces. Party mode swaps to a friendlier
+// bag with two 3-hex helper pieces so casual players can repair stacks.
 const PIECE_TYPES = ['I', 'O', 'S', 'Z', 'q', 'p', 'L', 'J'];
-const PIECE_TYPE_TO_ID = { I: 1, O: 2, S: 3, Z: 4, q: 5, p: 6, L: 7, J: 8 };
+const PARTY_PIECE_TYPES = ['I', 'O', 'q', 'J', 'i3', 'v3'];
+const PIECE_TYPE_TO_ID = { I: 1, O: 2, S: 3, Z: 4, q: 5, p: 6, L: 7, J: 8, i3: 10, v3: 11 };
 const GARBAGE_CELL = 9;
+const GAME_MODES = Object.freeze({
+  PARTY: 'party',
+  CLASSIC: 'classic'
+});
+const GAME_MODE_RULES = Object.freeze({
+  party: Object.freeze({ pieceTypes: PARTY_PIECE_TYPES.slice() }),
+  classic: Object.freeze({ pieceTypes: PIECE_TYPES.slice() })
+});
 
 // ===================== ZIGZAG CLEAR DETECTION =====================
 // Shared by engine (PlayerBoard) and renderer (BoardRenderer clear preview).
@@ -266,8 +275,11 @@ exports.TOTAL_ROWS = TOTAL_ROWS;
 exports.BUFFER_ROWS = BUFFER_ROWS;
 exports.VISIBLE_ROWS = VISIBLE_ROWS;
 exports.PIECE_TYPES = PIECE_TYPES;
+exports.PARTY_PIECE_TYPES = PARTY_PIECE_TYPES;
 exports.PIECE_TYPE_TO_ID = PIECE_TYPE_TO_ID;
 exports.GARBAGE_CELL = GARBAGE_CELL;
+exports.GAME_MODES = GAME_MODES;
+exports.GAME_MODE_RULES = GAME_MODE_RULES;
 exports.findClearableZigzags = findClearableZigzags;
 exports.computeHexGeometry = computeHexGeometry;
 exports.computeHexOutlineVerts = computeHexOutlineVerts;

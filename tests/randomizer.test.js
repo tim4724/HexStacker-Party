@@ -3,6 +3,7 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const { Randomizer } = require('../server/Randomizer');
+const { PARTY_PIECE_TYPES } = require('../server/constants');
 
 const ALL_TYPES = ['I', 'O', 'S', 'Z', 'q', 'p', 'L', 'J'];
 const BAG_SIZE = ALL_TYPES.length;
@@ -94,6 +95,23 @@ describe('Randomizer - seeded determinism', () => {
       const pieces = drawBag(randomizer);
       const sorted = [...pieces].sort();
       assert.deepStrictEqual(sorted, [...ALL_TYPES].sort(), `Seeded bag ${bag + 1} should be a full set`);
+    }
+  });
+});
+
+describe('Randomizer - custom bags', () => {
+  test('party bag contains only friendly party pieces', () => {
+    const randomizer = new Randomizer(7, PARTY_PIECE_TYPES);
+    const pieces = Array.from({ length: PARTY_PIECE_TYPES.length }, () => randomizer.next());
+    const sorted = [...pieces].sort();
+    assert.deepStrictEqual(sorted, [...PARTY_PIECE_TYPES].sort());
+  });
+
+  test('custom bag remains deterministic', () => {
+    const a = new Randomizer(42, PARTY_PIECE_TYPES);
+    const b = new Randomizer(42, PARTY_PIECE_TYPES);
+    for (let i = 0; i < PARTY_PIECE_TYPES.length * 4; i++) {
+      assert.strictEqual(a.next(), b.next());
     }
   });
 });

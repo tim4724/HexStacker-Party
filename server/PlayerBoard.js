@@ -28,7 +28,8 @@ const KICKS = PieceModule.KICKS;
 const NEXT_QUEUE_SIZE = 4;
 
 class PlayerBoard {
-  constructor(playerId, seed, startLevel) {
+  constructor(playerId, seed, startLevel, options) {
+    options = options || {};
     this.playerId = playerId;
     this.grid = Array.from({ length: TOTAL_ROWS }, () => new Array(COLS).fill(0));
     this.currentPiece = null;
@@ -37,7 +38,7 @@ class PlayerBoard {
     this.nextPieces = [];
     this.lines = 0;
     this.startLevel = startLevel || 1;
-    this.randomizer = new Randomizer(seed);
+    this.randomizer = new Randomizer(seed, options.pieceTypes);
     this.alive = true;
     this.lockTimer = null;
     this.lockResets = 0;

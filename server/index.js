@@ -138,7 +138,7 @@ const server = http.createServer((req, res) => {
   }
 
   // Map directory paths to index.html
-  if (urlPath === '/') {
+  if (urlPath === '/' || urlPath === '/party' || urlPath === '/classic') {
     urlPath = '/display/index.html';
   } else if (urlPath === '/privacy') {
     urlPath = '/privacy.html';

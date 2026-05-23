@@ -115,6 +115,17 @@ describe('Game - win condition', () => {
     assert.strictEqual(results[0].alive, false);
   });
 
+  test('processInput supports counterclockwise rotation', () => {
+    const { game } = makeGame(['p1']);
+    const board = game.boards.get('p1');
+    const before = board.currentPiece.cells.map(c => [c.q, c.r]);
+
+    game.processInput('p1', 'rotate_ccw');
+
+    const after = board.currentPiece.cells.map(c => [c.q, c.r]);
+    assert.notDeepStrictEqual(after, before);
+  });
+
   test('3-player: game continues until only one remains', () => {
     const { game, gameEndCalls } = makeGame(['p1', 'p2', 'p3']);
 
