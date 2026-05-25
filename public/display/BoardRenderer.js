@@ -7,7 +7,7 @@ var HEX_VIS_ROWS = GameConstants.VISIBLE_ROWS;
 var HEX_COLS_N = GameConstants.COLS;
 var _hexScratch = { x: 0, y: 0 };
 var _hexLocalScratch = { x: 0, y: 0 };
-var _GHOST_KEY_STRIDE = 32; // key = col * stride + row; stride must exceed max visible row index (VISIBLE_ROWS - 1 = 20)
+var _GHOST_KEY_STRIDE = 32; // key = col * stride + row; stride must exceed max visible row index (VISIBLE_ROWS - 1)
 
 
 class BoardRenderer {
@@ -38,6 +38,11 @@ class BoardRenderer {
     this._prevGhostRotQ = 0;
     this._prevGhostRotR = 0;
     this._cachedPreviewCells = [];
+    // Near-clear pulse cache. The pulse depends only on the locked stack,
+    // so it's safe to keep the result until gridVersion changes (i.e. a
+    // piece locks). Avoids recomputing + allocating per frame.
+    this._cachedNcCells = [];
+    this._cachedNcGV = -1;
 
     // Grid cache: offscreen canvas for locked blocks (redrawn only when gridVersion changes)
     this._gridCache = null;
@@ -370,11 +375,14 @@ class BoardRenderer {
     // Reads the locked stack only (ghost ignored). Skips cells under the
     // active piece so the pulse doesn't compete with the moving piece.
     if (playerState.grid && playerState.alive !== false) {
-      var ncGrid = playerState.grid;
-      var ncGridRows = ncGrid.length;
-      var ncIsFilled = function(col, row) { return ncGrid[row][col] > 0; };
-
-      var ncCells = GameConstants.findNearClearZigzags(HEX_COLS_N, ncGridRows, ncIsFilled);
+      var ncGV = playerState.gridVersion ?? -1;
+      if (ncGV !== this._cachedNcGV) {
+        var ncGrid = playerState.grid;
+        var ncIsFilled = function(col, row) { return ncGrid[row][col] > 0; };
+        this._cachedNcCells = GameConstants.findNearClearZigzags(HEX_COLS_N, ncGrid.length, ncIsFilled);
+        this._cachedNcGV = ncGV;
+      }
+      var ncCells = this._cachedNcCells;
       if (ncCells.length > 0) {
         var ncPieceSet = null;
         if (playerState.currentPiece && playerState.currentPiece.blocks) {
