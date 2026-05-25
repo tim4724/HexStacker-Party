@@ -238,9 +238,12 @@ describe('PlayerBoard - rotation and wall kicks', () => {
     assert.equal(typeof result, 'boolean');
   });
 
-  // I piece spans 2 cells to one side of its anchor, so rotations against a wall
-  // need a ±2 wall kick. A ±1 kick alone cannot bring it back in-bounds.
-  it('I piece rotates at every valid position on an empty board', () => {
+  // I3 is center-anchored and spans ±1 from its anchor in every rotation, so
+  // a ±1 kick is always sufficient at every interior position. This sweep
+  // checks rotation succeeds (or fails cleanly) across every (col, row, rot)
+  // on an empty board — broad coverage that any future piece-set or KICKS
+  // table change can't break in-bounds rotation.
+  it('I3 piece rotates at every valid position on an empty board', () => {
     var { Piece } = require('../server/Piece');
     var { TOTAL_ROWS: HEX_TOTAL_ROWS } = require('../server/constants');
     for (var rotStep = 0; rotStep < 6; rotStep++) {
