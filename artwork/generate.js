@@ -8,7 +8,13 @@ const fs = require('fs');
 const { execFileSync } = require('child_process');
 const { PLAYER_COLORS } = require('../public/shared/theme.js');
 const { Piece } = require('../server/Piece.js');
-const { COLS: HEX_COLS, VISIBLE_ROWS: HEX_VISIBLE_ROWS } = require('../server/constants.js');
+const {
+  COLS: HEX_COLS,
+  VISIBLE_ROWS: HEX_VISIBLE_ROWS,
+  PIECE_TYPES,
+  GARBAGE_CELL,
+} = require('../server/constants.js');
+const { mulberry32 } = require('../server/Randomizer.js');
 
 // 3-player landscape scene — natural content aspect (~2:1) matches the
 // 2:1/16:9 frames better than 4 boards did, and cells render larger.
@@ -17,56 +23,68 @@ const BANNER_DIR = __dirname;
 const BASE_URL = 'http://localhost:4100';
 
 // --- Hex banner state ---
-// Hex cell IDs follow the v2 game mapping (server/constants.js):
-//   1=I, 2=O, 3=S, 4=Z, 5=q, 6=p, 7=L, 8=J, 9=garbage.
-function hexBannerGrid1() {
-  // Emma — Normal (level 3), shallow opening pile. Height ~5
+// Grids and piece selections are generated from the live engine constants
+// (PIECE_TYPES, COLS, VISIBLE_ROWS, GARBAGE_CELL), so future piece-set or
+// board-size changes don't require touching this file. Deterministic via
+// seeded RNG so banner regenerations are pixel-stable.
+
+const PIECE_ID_MAX = PIECE_TYPES.length;        // piece typeIds are 1..PIECE_ID_MAX
+const SPAWN_COL = HEX_COLS >> 1;
+const SPAWN_ROW_VISIBLE = 2;                    // a couple rows below the top of the visible area
+
+// Pseudo-random pile of `peakHeight` rows. Density tapers from sparse at the
+// top to dense at the bottom; ~10% of cells are garbage so the gray reads as
+// "real game" rather than a fresh stack. Identical seed → identical pile.
+function buildBannerGrid(seed, peakHeight) {
+  const rng = mulberry32(seed);
   const grid = Array.from({ length: HEX_VISIBLE_ROWS }, () => Array(HEX_COLS).fill(0));
-  grid[16] = [0,0,0,0,0,2,2,0,0,0,0];
-  grid[17] = [0,0,0,7,7,2,4,4,0,0,0];
-  grid[18] = [0,0,6,6,7,7,5,4,4,0,0];
-  grid[19] = [0,3,3,6,1,1,5,5,2,2,0];
-  grid[20] = [0,3,5,5,4,1,1,7,7,2,0];
+  for (let row = HEX_VISIBLE_ROWS - peakHeight; row < HEX_VISIBLE_ROWS; row++) {
+    const depthFrac = (row - (HEX_VISIBLE_ROWS - peakHeight)) / Math.max(1, peakHeight - 1);
+    const fillProbability = 0.45 + depthFrac * 0.55;  // 0.45 at top, 1.0 at bottom
+    for (let c = 0; c < HEX_COLS; c++) {
+      if (rng() < fillProbability) {
+        grid[row][c] = rng() < 0.10 ? GARBAGE_CELL : 1 + Math.floor(rng() * PIECE_ID_MAX);
+      }
+    }
+  }
   return grid;
 }
 
-function hexBannerGrid2() {
-  // Jake — Pillow (level 8), moderate board. Height ~7
-  const grid = Array.from({ length: HEX_VISIBLE_ROWS }, () => Array(HEX_COLS).fill(0));
-  grid[14] = [0,0,0,0,0,0,0,5,5,0,0];
-  grid[15] = [0,0,0,0,0,0,5,5,4,0,0];
-  grid[16] = [0,0,0,0,3,3,7,7,4,4,0];
-  grid[17] = [0,0,0,3,3,1,1,7,4,2,0];
-  grid[18] = [0,0,6,6,2,2,1,1,6,2,2];
-  grid[19] = [0,4,4,6,2,2,5,5,6,6,7];
-  grid[20] = [0,4,3,3,1,1,5,7,7,3,7];
-  return grid;
+// Pick `count` piece types from PIECE_TYPES with as much variety as possible:
+// each "bag" is a shuffled copy of the full set, so within a single bag every
+// type appears at most once. When count > bag size we draw across multiple
+// bags. Deterministic from `seed`.
+function pickPieces(seed, count) {
+  const rng = mulberry32(seed);
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(rng() * (i + 1));
+      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+  const result = [];
+  while (result.length < count) {
+    var bag = shuffle(PIECE_TYPES);
+    for (var k = 0; k < bag.length && result.length < count; k++) result.push(bag[k]);
+  }
+  return result;
 }
 
-function hexBannerGrid3() {
-  // Sofia — Neon (level 13), busy late-game pile. Height ~9
-  const grid = Array.from({ length: HEX_VISIBLE_ROWS }, () => Array(HEX_COLS).fill(0));
-  grid[12] = [0,0,0,0,3,0,0,0,0,0,0];
-  grid[13] = [0,0,0,3,3,0,0,0,4,0,0];
-  grid[14] = [0,0,5,5,3,0,0,4,4,0,0];
-  grid[15] = [0,0,5,2,2,0,0,4,7,7,0];
-  grid[16] = [0,5,1,2,2,0,7,7,6,6,0];
-  grid[17] = [0,1,1,1,6,6,7,5,5,6,0];
-  grid[18] = [0,3,3,4,4,6,2,2,5,5,0];
-  grid[19] = [0,3,4,4,1,1,1,2,7,7,0];
-  grid[20] = [0,2,2,5,5,1,6,6,7,3,3];
-  return grid;
-}
-
-const HEX_BANNER_GRIDS = [hexBannerGrid1, hexBannerGrid2, hexBannerGrid3];
+const HEX_BANNER_GRIDS = [
+  () => buildBannerGrid(0xB1, 5),   // Emma — shallow opening pile (height ~5)
+  () => buildBannerGrid(0xB2, 7),   // Jake — moderate (~7)
+  () => buildBannerGrid(0xB3, 9),   // Sofia — busy late-game (~9)
+];
 const HEX_BANNER_LEVELS = [3, 8, 13];
 const HEX_BANNER_LINES = [12, 60, 115];
-const HEX_BANNER_PIECE_TYPES = ['J', 'I', 'O'];
-const HEX_BANNER_HOLD = ['Z', 'L', 'q'];
+const HEX_BANNER_PIECE_TYPES = pickPieces(0xC1, 3);
+const HEX_BANNER_HOLD = pickPieces(0xC2, 3);
 const HEX_BANNER_NEXT = [
-  ['L', 'Z', 'I', 'p', 'O'],
-  ['J', 'S', 'O', 'L', 'Z'],
-  ['I', 'q', 'S', 'J', 'L'],
+  pickPieces(0xD1, 5),
+  pickPieces(0xD2, 5),
+  pickPieces(0xD3, 5),
 ];
 
 function buildHexBannerGameState(playerCount = NAMES.length) {
@@ -75,8 +93,8 @@ function buildHexBannerGameState(playerCount = NAMES.length) {
     players: NAMES.slice(0, count).map((name, i) => {
       const pieceType = HEX_BANNER_PIECE_TYPES[i];
       const piece = new Piece(pieceType);
-      piece.anchorCol = 5;
-      piece.anchorRow = 2;
+      piece.anchorCol = SPAWN_COL;
+      piece.anchorRow = SPAWN_ROW_VISIBLE;
       const blocks = piece.getAbsoluteBlocks();
 
       const ghostPiece = piece.clone();
@@ -232,13 +250,14 @@ async function generate() {
 
   await roomPage.click('#new-game-btn');
   await roomPage.waitForSelector('#lobby-screen:not(.hidden)', { timeout: 10000 });
+  // The host span populates before the relay returns the room code; waiting on
+  // the .join-url__code span specifically avoids racing the partial text.
   await roomPage.waitForFunction(() => {
-    const el = document.getElementById('join-url');
-    return el && el.textContent && el.textContent.length > 0;
-  }, null, { timeout: 10000 });
+    const el = document.querySelector('#join-url .join-url__code');
+    return el && el.textContent && el.textContent.trim().length > 0;
+  }, null, { timeout: 15000 });
 
-  const joinUrl = (await roomPage.textContent('#join-url')).trim();
-  const roomCode = joinUrl.split('/').pop();
+  const roomCode = (await roomPage.textContent('#join-url .join-url__code')).trim();
   console.log(`  Room created: ${roomCode}`);
 
   // Viewport aspect 300 × 600 (1:2) matches the inner phone-screen area

@@ -363,6 +363,55 @@ class BoardRenderer {
       this._cachedPreviewCells.length = 0;
     }
 
+    // Near-clear pulse: outline the empty cell of any zigzag that is exactly
+    // 1 cell away from clearing — i.e. dropping a single cell into that slot
+    // triggers a clear. Higher tiers (2-3 away) are intentionally not drawn:
+    // they'd mislead the player into thinking one drop completes the row.
+    // Reads the locked stack only (ghost ignored). Skips cells under the
+    // active piece so the pulse doesn't compete with the moving piece.
+    if (playerState.grid && playerState.alive !== false) {
+      var ncGrid = playerState.grid;
+      var ncGridRows = ncGrid.length;
+      var ncIsFilled = function(col, row) { return ncGrid[row][col] > 0; };
+
+      var ncCells = GameConstants.findNearClearZigzags(HEX_COLS_N, ncGridRows, ncIsFilled);
+      if (ncCells.length > 0) {
+        var ncPieceSet = null;
+        if (playerState.currentPiece && playerState.currentPiece.blocks) {
+          ncPieceSet = {};
+          var ncPB = playerState.currentPiece.blocks;
+          for (var ncpi = 0; ncpi < ncPB.length; ncpi++) {
+            ncPieceSet[ncPB[ncpi][0] * _GHOST_KEY_STRIDE + ncPB[ncpi][1]] = true;
+          }
+        }
+
+        var ncTime = timestamp || performance.now();
+        var ncAlpha = 0.60 + 0.20 * Math.sin(Math.PI * 2 * ncTime / 600);
+
+        ctx.beginPath();
+        var ncDrawn = false;
+        for (var nci = 0; nci < ncCells.length; nci++) {
+          var ncCol = ncCells[nci][0], ncRow = ncCells[nci][1];
+          if (ncRow < 0 || ncRow >= HEX_VIS_ROWS) continue;
+          if (ncPieceSet && ncPieceSet[ncCol * _GHOST_KEY_STRIDE + ncRow]) continue;
+          var ncp = this._hexCenter(ncCol, ncRow);
+          ctx.moveTo(ncp.x + sCell * HEX_UNIT_VERTICES[0], ncp.y + sCell * HEX_UNIT_VERTICES[1]);
+          for (var ncvi = 2; ncvi < 12; ncvi += 2) {
+            ctx.lineTo(ncp.x + sCell * HEX_UNIT_VERTICES[ncvi], ncp.y + sCell * HEX_UNIT_VERTICES[ncvi + 1]);
+          }
+          ctx.closePath();
+          ncDrawn = true;
+        }
+        if (ncDrawn) {
+          ctx.lineWidth = this._gridLineWidth * 1.5;
+          ctx.strokeStyle = THEME.color.nearClear;
+          ctx.globalAlpha = ncAlpha;
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      }
+    }
+
     // Current piece
     if (playerState.currentPiece && playerState.alive !== false) {
       var piece = playerState.currentPiece;

@@ -21,18 +21,18 @@ const PARTY_PALETTE = Object.freeze([
   '#FF8C42'  // 8 Tangerine  ← UI accent (secondary)
 ]);
 
-// --- Piece colors (1=I, 2=O, 3=S, 4=Z, 5=q, 6=p, 7=L, 8=J, 9=garbage) ---
-// Each piece maps to the palette slot matching its color family.
+// --- Piece colors (1=I3, 2=V3, 3=T3, 4=o, 5=d, 6=b, 9=garbage) ---
+// Slot 7 (Tangerine) is intentionally unused by pieces — it's the near-clear
+// pulse hue (THEME.color.nearClear), so the pulse never tonally collides with
+// a piece on the board.
 const PIECE_COLORS = {
   0: '#000000',             // empty
-  1: PARTY_PALETTE[0],      // I - red
-  2: PARTY_PALETTE[4],      // O - mint
-  3: PARTY_PALETTE[3],      // S - violet
-  4: PARTY_PALETTE[7],      // Z - tangerine
-  5: PARTY_PALETTE[2],      // q - honey
-  6: PARTY_PALETTE[1],      // p - teal
-  7: PARTY_PALETTE[5],      // L - magenta
-  8: PARTY_PALETTE[6],      // J - indigo
+  1: PARTY_PALETTE[0],      // I3 - red
+  2: PARTY_PALETTE[1],      // V3 - teal
+  3: PARTY_PALETTE[2],      // T3 - honey
+  4: PARTY_PALETTE[3],      // o  - violet
+  5: PARTY_PALETTE[4],      // d  - mint
+  6: PARTY_PALETTE[5],      // b  - magenta
   9: '#808080'              // garbage - neutral gray (intentionally off-palette)
 };
 
@@ -43,7 +43,9 @@ const PIECE_COLORS = {
 // crash on its own — much more obvious than a startup warning.
 var GHOST_COLORS = {};
 if (typeof ghostColor === 'function') {
-  for (var _i = 1; _i <= 9; _i++) GHOST_COLORS[_i] = ghostColor(PIECE_COLORS[_i]);
+  for (var _i = 1; _i <= 9; _i++) {
+    if (PIECE_COLORS[_i]) GHOST_COLORS[_i] = ghostColor(PIECE_COLORS[_i]);
+  }
 }
 
 // Player accent colors — reordered from PARTY_PALETTE to follow the visible
@@ -98,6 +100,7 @@ const THEME = Object.freeze({
       secondaryDark:'#E67A33',
     }),
     danger:  '#ff4444',
+    nearClear: '#FF8C42',     // Tangerine pulse — telegraphs zigzags 1-3 cells from clearing
     ko: Object.freeze({
       text: '#ff4444',
       glow: 'rgba(255, 50, 50, 0.6)',
@@ -200,7 +203,7 @@ if (typeof module !== 'undefined' && module.exports) {
     };
   };
   for (var _k = 1; _k <= 9; _k++) {
-    if (!GHOST_COLORS[_k]) GHOST_COLORS[_k] = _gc(PIECE_COLORS[_k]);
+    if (PIECE_COLORS[_k] && !GHOST_COLORS[_k]) GHOST_COLORS[_k] = _gc(PIECE_COLORS[_k]);
   }
   module.exports = {
     THEME,

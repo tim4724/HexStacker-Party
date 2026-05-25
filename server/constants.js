@@ -41,17 +41,20 @@ const SELF_HEARTBEAT_DEAD_MS = 6000;
 
 // ===================== BOARD GEOMETRY =====================
 
-// Grid dimensions (flat-top hex board)
-const COLS = 11;
-const TOTAL_ROWS = 25;   // 4 buffer + 21 visible
+// Grid dimensions (flat-top hex board). Sized for the casual mixed-bag pacing:
+// 9 cols * avg 3.5 cells/piece = 2.57 placements per zigzag row, matching the
+// Tetris baseline (10/4 = 2.5). 17 visible rows keeps games short enough that
+// a topped-out board doesn't feel like a slog to recover from.
+const COLS = 9;
+const TOTAL_ROWS = 21;   // 4 buffer + 17 visible
 const BUFFER_ROWS = 4;
-const VISIBLE_ROWS = 21;
+const VISIBLE_ROWS = 17;
 
-// 8 piece types (1-indexed to match grid cell values).
-// All 4-hex pieces. Post-redesign set: T removed, q/p are the old L/J,
-// and L/J are new true-L/J shaped pieces.
-const PIECE_TYPES = ['I', 'O', 'S', 'Z', 'q', 'p', 'L', 'J'];
-const PIECE_TYPE_TO_ID = { I: 1, O: 2, S: 3, Z: 4, q: 5, p: 6, L: 7, J: 8 };
+// 6-piece casual bag (1-indexed to match grid cell values): 3 trominoes for
+// low spatial-planning load + 3 small-footprint tetrominoes to keep the game
+// from going trivial. d/b are starter geometries — iterate once playtested.
+const PIECE_TYPES = ['I3', 'V3', 'T3', 'o', 'd', 'b'];
+const PIECE_TYPE_TO_ID = { I3: 1, V3: 2, T3: 3, o: 4, d: 5, b: 6 };
 const GARBAGE_CELL = 9;
 
 // ===================== ZIGZAG CLEAR DETECTION =====================
@@ -131,6 +134,39 @@ function findClearableZigzags(cols, totalRows, isFilled, ghostContributes, minRo
   }
 
   return { linesCleared: linesCleared, clearCells: clearCells };
+}
+
+// Find empty cells where filling that single cell would complete a zigzag
+// (down or up). Returns array of [col, row] pairs; an empty cell that's the
+// sole gap in more than one zigzag appears only once.
+function findNearClearZigzags(cols, totalRows, isFilled, minRow) {
+  var startRow = minRow != null ? minRow : 0;
+  var seen = {};
+  var out = [];
+
+  function scan(r, type) {
+    var gap = null;
+    for (var col = 0; col < cols; col++) {
+      var row = (type === 'up' && (col & 1)) ? r - 1 : r;
+      if (row < 0 || row >= totalRows) return;
+      if (!isFilled(col, row)) {
+        if (gap !== null) return; // 2+ empty cells — not a single-cell completer
+        gap = [col, row];
+      }
+    }
+    if (gap === null) return; // already complete
+    var key = gap[0] + ',' + gap[1];
+    if (!seen[key]) {
+      seen[key] = true;
+      out.push(gap);
+    }
+  }
+
+  for (var r = startRow; r < totalRows; r++) {
+    scan(r, 'down');
+    if (r >= 1) scan(r, 'up');
+  }
+  return out;
 }
 
 // ===================== HEX GEOMETRY =====================
@@ -269,6 +305,7 @@ exports.PIECE_TYPES = PIECE_TYPES;
 exports.PIECE_TYPE_TO_ID = PIECE_TYPE_TO_ID;
 exports.GARBAGE_CELL = GARBAGE_CELL;
 exports.findClearableZigzags = findClearableZigzags;
+exports.findNearClearZigzags = findNearClearZigzags;
 exports.computeHexGeometry = computeHexGeometry;
 exports.computeHexOutlineVerts = computeHexOutlineVerts;
 exports.traceHexOutline = traceHexOutline;

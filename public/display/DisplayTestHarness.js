@@ -276,6 +276,10 @@ if (urlParams.get('test') === '1' || debugCount > 0 || _adclipMode) {
     // so the renderer paints them in the player's tier style.
     primeForIClear: function(playerIdx, gapCol) {
       if (!displayGame) return false;
+      // The 4-tall vertical I piece no longer exists in the casual bag, so
+      // there's no piece that can quad-clear a 1-col, 4-row well. Bail out;
+      // the ad-clip will play out without forced quad clears (regen the mp4).
+      if (!GameConstants.PIECE_TYPE_TO_ID.I) return false;
       var id = playerOrder[playerIdx];
       if (!id) return false;
       var board = displayGame.boards.get(id);

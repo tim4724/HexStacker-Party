@@ -17,16 +17,16 @@ const { Game } = require('../server/Game');
 
 describe('Piece', () => {
   it('creates a piece with correct type and cells', () => {
-    var p = new Piece('L');
-    assert.equal(p.type, 'L');
-    assert.equal(p.typeId, 7);
+    var p = new Piece('d');
+    assert.equal(p.type, 'd');
+    assert.equal(p.typeId, 5);
     assert.equal(p.cells.length, 4);
   });
 
   it('getAbsoluteBlocks returns valid offset coordinates', () => {
-    var p = new Piece('q');
+    var p = new Piece('V3');
     var blocks = p.getAbsoluteBlocks();
-    assert.equal(blocks.length, 4);
+    assert.equal(blocks.length, 3);
     for (var b of blocks) {
       assert.ok(b[0] >= 0 && b[0] < HEX_COLS, 'col in bounds');
       assert.ok(b[1] >= 0, 'row non-negative');
@@ -34,21 +34,21 @@ describe('Piece', () => {
   });
 
   it('clone creates independent copy', () => {
-    var p = new Piece('S');
+    var p = new Piece('T3');
     var c = p.clone();
     c.anchorCol = 0;
     assert.notEqual(p.anchorCol, c.anchorCol);
   });
 
   it('rotateCW changes cell positions', () => {
-    var p = new Piece('L');
+    var p = new Piece('d');
     var before = JSON.stringify(p.cells);
     p.rotateCW();
     assert.notEqual(JSON.stringify(p.cells), before);
   });
 
-  it('all 8 piece types create valid pieces', () => {
-    var types = ['I', 'O', 'S', 'Z', 'q', 'p', 'L', 'J'];
+  it('all 6 piece types create valid pieces', () => {
+    var types = ['I3', 'V3', 'T3', 'o', 'd', 'b'];
     for (var t of types) {
       var p = new Piece(t);
       var blocks = p.getAbsoluteBlocks();
@@ -60,17 +60,20 @@ describe('Piece', () => {
     }
   });
 
-  it('I has 4 cells', () => {
-    var p = new Piece('I');
-    assert.equal(p.cells.length, 4);
+  it('trominoes have 3 cells, tetrominoes have 4', () => {
+    assert.equal(new Piece('I3').cells.length, 3);
+    assert.equal(new Piece('V3').cells.length, 3);
+    assert.equal(new Piece('T3').cells.length, 3);
+    assert.equal(new Piece('o').cells.length, 4);
+    assert.equal(new Piece('d').cells.length, 4);
+    assert.equal(new Piece('b').cells.length, 4);
   });
 
-  it('L, J, q, p all have 6 unique rotations (non-symmetric 4-cell pieces)', () => {
-    // Unlike tripod pieces, these are not rotationally symmetric — all 6 CW
-    // rotations should produce distinct cell sets. L/J are 4-chains with a
-    // single bend; q/p are triangle-plus-pendant shapes. Both lack the
-    // 3-fold symmetry that made old T repeat every 120°.
-    for (var type of ['L', 'J', 'q', 'p']) {
+  it('asymmetric pieces have 6 unique rotations', () => {
+    // V3 (single 60° bend), d, b (vertical stem + side bulge) lack any
+    // rotational symmetry — all 6 CW rotations should produce distinct
+    // cell sets. Symmetric pieces (I3, T3, o) repeat sooner and are skipped.
+    for (var type of ['V3', 'd', 'b']) {
       var p = new Piece(type);
       var seen = new Set();
       var cells = p.cells.map(c => ({ q: c.q, r: c.r }));
@@ -81,6 +84,24 @@ describe('Piece', () => {
       }
       assert.equal(seen.size, 6, type + ' should have 6 unique rotations');
     }
+  });
+
+  // Regression: _absoluteBlocksFast() returns a shared module-level scratch
+  // array. With a mixed bag of 3- and 4-cell pieces, a 4-cell call leaves a
+  // 4th entry that a subsequent 3-cell call must not expose, otherwise
+  // isValidPosition / lockPiece read stale coordinates and the game KOs or
+  // paints phantom cells.
+  it('_absoluteBlocksFast length matches piece cell count after mixed-size calls', () => {
+    var pTet = new Piece('d');           // 4 cells
+    var pTri = new Piece('V3');          // 3 cells
+    var tetBlocks = pTet._absoluteBlocksFast();
+    assert.equal(tetBlocks.length, 4, '4-cell piece exposes 4 blocks');
+    var triBlocks = pTri._absoluteBlocksFast();
+    assert.equal(triBlocks.length, 3, '3-cell piece exposes 3 blocks after a 4-cell call');
+    // And back the other way — a 3-cell call must not leave the scratch
+    // short for a subsequent 4-cell piece.
+    var tetBlocks2 = pTet._absoluteBlocksFast();
+    assert.equal(tetBlocks2.length, 4, '4-cell piece exposes 4 blocks after a 3-cell call');
   });
 });
 
@@ -102,14 +123,14 @@ describe('Piece - coordinate math', () => {
   });
 
   it('rotateCCW changes cell positions', () => {
-    var p = new Piece('L');
+    var p = new Piece('d');
     var before = JSON.stringify(p.cells);
     p.rotateCCW();
     assert.notEqual(JSON.stringify(p.cells), before);
   });
 
   it('rotateCW then rotateCCW returns to original', () => {
-    var p = new Piece('L');
+    var p = new Piece('d');
     var original = JSON.stringify(p.cells);
     p.rotateCW();
     p.rotateCCW();
@@ -117,7 +138,7 @@ describe('Piece - coordinate math', () => {
   });
 
   it('6 CW rotations return to original (hex symmetry)', () => {
-    var p = new Piece('I');
+    var p = new Piece('I3');
     var original = JSON.stringify(p.cells);
     for (var i = 0; i < 6; i++) p.rotateCW();
     assert.equal(JSON.stringify(p.cells), original);
@@ -226,7 +247,7 @@ describe('PlayerBoard - rotation and wall kicks', () => {
       for (var ac = -3; ac < HEX_COLS + 3; ac++) {
         for (var ar = 0; ar < HEX_TOTAL_ROWS; ar++) {
           var b = new PlayerBoard('p', 1, 1);
-          var piece = new Piece('I');
+          var piece = new Piece('I3');
           for (var k = 0; k < rotStep; k++) piece.rotateCW();
           piece._adjustAnchorRow();
           piece.anchorCol = ac;
@@ -306,6 +327,10 @@ describe('PlayerBoard - lateral up-bias', () => {
   it('alternates up/anchor across four presses in the same direction', () => {
     var b = new PlayerBoard('p1', 42, 1);
     b.spawnPiece();
+    // Park the piece on the right side so 4 left presses fit regardless of
+    // which type the bag served first (some pieces extend ±1 from anchor).
+    b.currentPiece.anchorCol = HEX_COLS - 2;
+    b.currentPiece._anchorY = 2 * b.currentPiece.anchorRow + (b.currentPiece.anchorCol & 1);
     var anchorY = b.currentPiece._anchorY;
     var expected = [anchorY - 1, anchorY, anchorY - 1, anchorY];
     for (var i = 0; i < 4; i++) {
@@ -378,7 +403,7 @@ describe('PlayerBoard - lateral up-bias', () => {
   it('fallback takes opposite diagonal when primary is blocked', () => {
     var b = new PlayerBoard('p1', 42, 1);
     // Use an O piece at anchor (5, 3) — O cells at (4,3),(5,3),(5,2),(6,3).
-    b.currentPiece = new Piece('O');
+    b.currentPiece = new Piece('o');
     b.currentPiece.anchorCol = 5;
     b.currentPiece.anchorRow = 3;
     b.currentPiece._anchorY = 2 * 3 + 1;  // at anchor
@@ -395,7 +420,7 @@ describe('PlayerBoard - lateral up-bias', () => {
 
   it('returns false when both primary and fallback are blocked', () => {
     var b = new PlayerBoard('p1', 42, 1);
-    b.currentPiece = new Piece('O');
+    b.currentPiece = new Piece('o');
     b.currentPiece.anchorCol = 5;
     b.currentPiece.anchorRow = 3;
     b.currentPiece._anchorY = 2 * 3 + 1;
@@ -845,6 +870,74 @@ describe('PlayerBoard - zigzag line clears', () => {
     for (var i = 0; i < result.clearCells.length; i++) {
       assert.equal(result.clearCells[i][1], 4, 'cleared cell at row 4 (zigzag-down)');
     }
+  });
+
+  it('findNearClearZigzags: single-gap cells in both directions, dedup, minRow', () => {
+    var { findNearClearZigzags } = require('../server/constants');
+
+    function makeGrid(rows) {
+      return Array.from({ length: rows }, function() { return new Array(HEX_COLS).fill(0); });
+    }
+    function isFilled(grid) {
+      return function(col, row) { return grid[row][col] !== 0; };
+    }
+
+    // 1-cell-away zigzag-down: fill all but col 3 at row 4.
+    var g1 = makeGrid(5);
+    for (var c = 0; c < HEX_COLS; c++) if (c !== 3) g1[4][c] = 1;
+    var r1 = findNearClearZigzags(HEX_COLS, 5, isFilled(g1));
+    assert.equal(r1.length, 1, 'one completer cell');
+    assert.deepEqual(r1[0], [3, 4]);
+
+    // 2+ cells missing: returns nothing (no single cell completes the row).
+    var g2 = makeGrid(5);
+    for (var c2 = 0; c2 < HEX_COLS - 2; c2++) g2[4][c2] = 1;
+    var r2 = findNearClearZigzags(HEX_COLS, 5, isFilled(g2));
+    assert.equal(r2.length, 0, '2-away is not a single-cell completer');
+
+    // 0-away (already complete) is NOT reported — handled upstream.
+    var g0 = makeGrid(5);
+    for (var c3 = 0; c3 < HEX_COLS; c3++) g0[4][c3] = 1;
+    var r0 = findNearClearZigzags(HEX_COLS, 5, isFilled(g0));
+    assert.equal(r0.length, 0, '0-away returns no completer');
+
+    // Zigzag-up at row 4 (even@4, odd@3) detected: leave only col 1 (odd, row 3) empty.
+    var gUp = makeGrid(5);
+    for (var c5 = 0; c5 < HEX_COLS; c5++) {
+      var row = (c5 & 1) ? 3 : 4;
+      if (c5 === 1) continue;
+      gUp[row][c5] = 1;
+    }
+    var rUp = findNearClearZigzags(HEX_COLS, 5, isFilled(gUp));
+    var upCell = rUp.find(function(c) { return c[0] === 1 && c[1] === 3; });
+    assert.ok(upCell, 'zigzag-up 1-away gap reported');
+
+    // Dedup: a single cell that's the sole gap in two overlapping zigzags
+    // appears once. Build so col 1 row 3 is the missing cell in both
+    // zigzag-down (row 3) AND zigzag-up (row 4).
+    var gDedup = makeGrid(5);
+    // zigzag-down at row 3: fill all cols except col 1 → 1-away at (1,3).
+    for (var c6 = 0; c6 < HEX_COLS; c6++) if (c6 !== 1) gDedup[3][c6] = 1;
+    // zigzag-up at row 4: even cols at row 4, odd cols at row 3.
+    // (1,3) is part of this zigzag (odd col → row 3). Fill the rest of the
+    // up-zigzag so (1,3) is its only gap too.
+    for (var c7 = 0; c7 < HEX_COLS; c7++) {
+      var rowUp = (c7 & 1) ? 3 : 4;
+      if (c7 === 1) continue;
+      if (gDedup[rowUp][c7]) continue;
+      gDedup[rowUp][c7] = 1;
+    }
+    var rDedup = findNearClearZigzags(HEX_COLS, 5, isFilled(gDedup));
+    var dedupHits = rDedup.filter(function(c) { return c[0] === 1 && c[1] === 3; });
+    assert.equal(dedupHits.length, 1, 'shared completer appears once');
+
+    // minRow parameter clamps scan range.
+    var gMin = makeGrid(5);
+    for (var c8 = 0; c8 < HEX_COLS; c8++) if (c8 !== 0) gMin[1][c8] = 1;
+    var rNoMin = findNearClearZigzags(HEX_COLS, 5, isFilled(gMin));
+    var rWithMin = findNearClearZigzags(HEX_COLS, 5, isFilled(gMin), 3);
+    assert.equal(rNoMin.length, 1, 'detected without minRow');
+    assert.equal(rWithMin.length, 0, 'minRow=3 skips row 1');
   });
 
   it('no cascade after gravity', () => {
