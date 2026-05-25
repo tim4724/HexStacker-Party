@@ -1,6 +1,6 @@
 # HexStacker Party
 
-![HexStacker Party gameplay banner](artwork/gameplay-21x9.png)
+![HexStacker Party gameplay banner](artwork/gameplay-16x9.png)
 
 Multiplayer hex stacker where phones become controllers and a shared screen shows the action.
 

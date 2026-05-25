@@ -22,17 +22,19 @@
 
     .display-img {
       position: absolute;
-      top: 0;
+      top: var(--display-top, -6.5%);
       left: 0;
       width: 100%;
     }
 
     .phone {
       position: absolute;
-      bottom: var(--phone-bottom, 2%);
+      bottom: var(--phone-bottom, 4%);
       left: var(--phone-left);
       width: 120px;
-      height: var(--phone-height, 195px);
+      height: 245px;
+      transform: scale(var(--phone-scale, 1.1));
+      transform-origin: bottom left;
       border-radius: 18px;
       background: #1a1420;
       border: 1px solid rgba(255,255,255,0.08);

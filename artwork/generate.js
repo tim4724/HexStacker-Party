@@ -32,24 +32,77 @@ const PIECE_ID_MAX = PIECE_TYPES.length;        // piece typeIds are 1..PIECE_ID
 const SPAWN_COL = HEX_COLS >> 1;
 const SPAWN_ROW_VISIBLE = 2;                    // a couple rows below the top of the visible area
 
-// Pseudo-random pile peaking around `peakHeight` rows. Per-column heights
-// follow a smoothed random walk and cells are filled bottom-up, so no cell
-// floats above an empty one in the same column — gravity-plausible. ~10%
-// of cells are garbage so the gray reads as "real game" rather than a
-// fresh stack. Identical seed → identical pile.
+// Pseudo-random pile peaking around `peakHeight` rows, modelling a real
+// mid-game state. Bottom 0-2 rows are GARBAGE_CELL with one hole each
+// (independent per row, since holes don't align after sequential garbage
+// events). Above, column heights come from a smoothed random walk
+// (neighbors differ by ≤1) giving a bumpy top profile. Each pile row
+// must have at least one empty cell at an even column — that single
+// invariant breaks both zigzag-down at r and zigzag-up at r regardless
+// of the gap's position — so otherwise-full deeper rows are carved with
+// a single bridge-plausible void (carved cell has a filled neighbor at
+// the same row). Gray appears only as garbage. Identical seed → identical
+// pile.
 function buildBannerGrid(seed, peakHeight) {
   const rng = mulberry32(seed);
   const grid = Array.from({ length: HEX_VISIBLE_ROWS }, () => Array(HEX_COLS).fill(0));
-  const minH = Math.max(1, peakHeight - 3);
-  const maxH = Math.min(HEX_VISIBLE_ROWS - 1, peakHeight);
-  let h = Math.max(minH, peakHeight - 1);
-  for (let c = 0; c < HEX_COLS; c++) {
-    const step = Math.floor(rng() * 3) - 1;  // -1, 0, +1
-    h = Math.max(minH, Math.min(maxH, h + step));
-    for (let row = HEX_VISIBLE_ROWS - h; row < HEX_VISIBLE_ROWS; row++) {
-      grid[row][c] = rng() < 0.10 ? GARBAGE_CELL : 1 + Math.floor(rng() * PIECE_ID_MAX);
+
+  const evenCols = [];
+  for (let c = 0; c < HEX_COLS; c += 2) evenCols.push(c);
+  const pickEvenCol = () => evenCols[Math.floor(rng() * evenCols.length)];
+
+  const garbageRows = Math.floor(rng() * 3);
+  for (let r = HEX_VISIBLE_ROWS - garbageRows; r < HEX_VISIBLE_ROWS; r++) {
+    const hole = pickEvenCol();
+    for (let c = 0; c < HEX_COLS; c++) {
+      grid[r][c] = c === hole ? 0 : GARBAGE_CELL;
     }
   }
+
+  const pileTop = HEX_VISIBLE_ROWS - garbageRows;
+  const minH = Math.max(1, peakHeight - 3);
+  const maxH = Math.min(pileTop - 1, peakHeight);
+  let h = Math.max(minH, peakHeight - 1);
+  const heights = new Array(HEX_COLS);
+  for (let c = 0; c < HEX_COLS; c++) {
+    const step = Math.floor(rng() * 3) - 1;
+    h = Math.max(minH, Math.min(maxH, h + step));
+    heights[c] = h;
+  }
+  // Cap any column to be no taller than at least one neighbor — a single
+  // top cell with shorter neighbors on both sides reads as floating in the
+  // hex-offset grid even though it's vertically supported.
+  for (let c = 0; c < HEX_COLS; c++) {
+    const leftH = c > 0 ? heights[c - 1] : -Infinity;
+    const rightH = c < HEX_COLS - 1 ? heights[c + 1] : -Infinity;
+    const maxN = Math.max(leftH, rightH);
+    if (heights[c] > maxN) heights[c] = maxN;
+  }
+  for (let c = 0; c < HEX_COLS; c++) {
+    for (let row = pileTop - heights[c]; row < pileTop; row++) {
+      grid[row][c] = 1 + Math.floor(rng() * PIECE_ID_MAX);
+    }
+  }
+
+  for (let row = 0; row < pileTop; row++) {
+    let hasEvenGap = false;
+    for (let c = 0; c < HEX_COLS; c += 2) {
+      if (grid[row][c] === 0) { hasEvenGap = true; break; }
+    }
+    if (hasEvenGap) continue;
+    const candidates = [];
+    for (let c = 0; c < HEX_COLS; c += 2) {
+      if (grid[row][c] === 0) continue;
+      const leftOk = c > 0 && grid[row][c - 1] !== 0;
+      const rightOk = c < HEX_COLS - 1 && grid[row][c + 1] !== 0;
+      if (leftOk || rightOk) candidates.push(c);
+    }
+    if (candidates.length > 0) {
+      const carve = candidates[Math.floor(rng() * candidates.length)];
+      grid[row][carve] = 0;
+    }
+  }
+
   return grid;
 }
 
@@ -76,9 +129,9 @@ function pickPieces(seed, count) {
 }
 
 const HEX_BANNER_GRIDS = [
-  () => buildBannerGrid(0xB1, 5),   // Emma — shallow opening pile (height ~5)
-  () => buildBannerGrid(0xB2, 7),   // Jake — moderate (~7)
-  () => buildBannerGrid(0xB3, 9),   // Sofia — busy late-game (~9)
+  () => buildBannerGrid(0xB1, 3),   // Emma — shallow opening pile (height ~3)
+  () => buildBannerGrid(0xB2, 4),   // Jake — moderate (~4)
+  () => buildBannerGrid(0xB3, 7),   // Sofia — busy late-game (~7)
 ];
 const HEX_BANNER_LEVELS = [3, 8, 13];
 const HEX_BANNER_LINES = [12, 60, 115];
@@ -168,25 +221,11 @@ const GAMEPLAY_VARIANTS = [
     name: 'gameplay-2x1.png',
     width: 1280, height: 640,
     displayViewport: { width: 1224, height: 608 }, // ~2:1, matches frame
-    phoneHeight: '245px',
-  },
-  {
-    name: 'gameplay-21x9.png',
-    width: 1280, height: 640,
-    displayViewport: { width: 1440, height: 608 }, // ~2.37:1, matches 21:9 clip
-    phoneHeight: '245px',
-    // Frame is clipped to 540px of a 640 viewport, so a plain `bottom: 2%`
-    // would put the phones below the visible area. 17% lifts them so
-    // their bottom sits ~2% above the clipped frame's bottom.
-    phoneBottom: '17%',
-    clipHeight: 540,
   },
   {
     name: 'gameplay-16x9.png',
     width: 1280, height: 720,
     displayViewport: { width: 1080, height: 608 }, // ~1.78:1, matches 16:9
-    phoneHeight: '245px',
-    pillTop: '30px',
   },
 ];
 
@@ -345,29 +384,10 @@ async function generate() {
       });
     }, controllerBase64s);
 
-    if (typeof options.phoneHeight === 'string') {
-      await page.evaluate((phoneHeight) => {
-        document.documentElement.style.setProperty('--phone-height', phoneHeight);
-      }, options.phoneHeight);
-    }
-    if (typeof options.phoneBottom === 'string') {
-      await page.evaluate((phoneBottom) => {
-        document.documentElement.style.setProperty('--phone-bottom', phoneBottom);
-      }, options.phoneBottom);
-    }
-    if (typeof options.pillTop === 'string') {
-      await page.evaluate((pillTop) => {
-        document.documentElement.style.setProperty('--pill-top', pillTop);
-      }, options.pillTop);
-    }
     await page.waitForTimeout(500);
 
     const outPath = path.resolve(BANNER_DIR, outputName);
-    const screenshotOpts = { path: outPath };
-    if (typeof options.clipHeight === 'number') {
-      screenshotOpts.clip = { x: 0, y: 0, width, height: options.clipHeight };
-    }
-    await page.screenshot(screenshotOpts);
+    await page.screenshot({ path: outPath });
     console.log(`  ${outPath} (${width}x${height} @2x)`);
   }
 
@@ -378,7 +398,7 @@ async function generate() {
   // Produce the device-choice hero in public/artwork/ as WebP (primary)
   // and JPEG (fallback for browsers without WebP). JPEG is ~6-10x smaller
   // at q=85 and visually identical for these screenshots.
-  // The 16x9 and 21x9 PNGs are kept in artwork/ for the README only —
+  // The 16x9 PNG is kept in artwork/ for the README only;
   // OG/Twitter cards use the separately-generated social-preview.png.
   const publicDir = path.resolve(BANNER_DIR, '..', 'public', 'artwork');
   fs.mkdirSync(publicDir, { recursive: true });
