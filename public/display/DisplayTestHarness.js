@@ -313,14 +313,15 @@ function _buildHexDebugState(debugPlayers, level) {
     grid[HV - 1] = fullRow((dj * 2 + 3) % HC);
     var pt = types[dj % types.length];
     var piece = new PieceModule.Piece(pt);
-    piece.anchorCol = 5; piece.anchorRow = 2;
+    var spawnCol = GameConstants.COLS >> 1;
+    piece.anchorCol = spawnCol; piece.anchorRow = 2;
     var blocks = piece.getAbsoluteBlocks();
     var ghostPiece = piece.clone(); ghostPiece.anchorRow = HV - 5;
     state.players.push({
       id: debugPlayers[dj].id, playerName: debugPlayers[dj].name,
       grid: grid, lines: [24,16,10,5,20,12,8,3][dj % 8], level: level || [3,2,2,1,3,2,1,1][dj % 8],
       alive: true,
-      currentPiece: { type: pt, typeId: piece.typeId, anchorCol: 5, anchorRow: 2, cells: piece.cells, blocks: blocks },
+      currentPiece: { type: pt, typeId: piece.typeId, anchorCol: spawnCol, anchorRow: 2, cells: piece.cells, blocks: blocks },
       ghost: { anchorCol: ghostPiece.anchorCol, anchorRow: ghostPiece.anchorRow, blocks: ghostPiece.getAbsoluteBlocks() },
       nextPieces: [types[(dj+1)%types.length], types[(dj+2)%types.length], types[(dj+3)%types.length]],
       holdPiece: types[(dj+4)%types.length],

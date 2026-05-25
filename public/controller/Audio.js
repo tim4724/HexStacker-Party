@@ -47,8 +47,10 @@ var ControllerAudio = (function () {
   function lineClear(count) {
     if (muted) return;
     var ctx = getCtx();
-    var baseFreq = count >= 4 ? 600 : count >= 3 ? 500 : count >= 2 ? 440 : 380;
-    var duration = count >= 4 ? 0.25 : 0.15;
+    // Triple is the top tier with the casual bag (max 3-row piece extent);
+    // quads are unreachable. count >= 3 gets the 500 Hz reward tone.
+    var baseFreq = count >= 3 ? 500 : count >= 2 ? 440 : 380;
+    var duration = 0.15;
     var osc = ctx.createOscillator();
     var gain = ctx.createGain();
     osc.connect(gain);

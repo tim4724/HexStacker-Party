@@ -428,7 +428,7 @@ describe('PlayerBoard - lateral up-bias', () => {
 
   it('fallback takes opposite diagonal when primary is blocked', () => {
     var b = new PlayerBoard('p1', 42, 1);
-    // Use an O piece at anchor (5, 3) — O cells at (4,3),(5,3),(5,2),(6,3).
+    // Use an o piece at anchor (5, 3); cells land at (4,3),(5,3),(5,2),(6,3).
     b.currentPiece = new Piece('o');
     b.currentPiece.anchorCol = 5;
     b.currentPiece.anchorRow = 3;
