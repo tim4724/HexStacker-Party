@@ -86,6 +86,29 @@ describe('Piece', () => {
     }
   });
 
+  // Regression: d and b were originally the same shape — old b was just d's
+  // r3 rotation, so the bag effectively had 5 distinct pieces, not 6. b's
+  // geometry was reworked to be a true visual mirror of d (bulge reflected
+  // across the vertical axis, not rotated). None of d's 6 rotations should
+  // match any of b's, and vice versa.
+  it('b is geometrically distinct from d (no rotation of d matches b)', () => {
+    function rotationSet(type) {
+      var p = new Piece(type);
+      var set = new Set();
+      for (var i = 0; i < 6; i++) {
+        set.add(p.cells.map(function(c) { return c.q + ',' + c.r; }).sort().join('|'));
+        p.rotateCW();
+      }
+      return set;
+    }
+    var dRotations = rotationSet('d');
+    var bRotations = rotationSet('b');
+    for (var bKey of bRotations) {
+      assert.ok(!dRotations.has(bKey),
+        'b rotation "' + bKey + '" must not appear in d\'s rotation set');
+    }
+  });
+
   // Regression: _absoluteBlocksFast() returns a shared module-level scratch
   // array. With a mixed bag of 3- and 4-cell pieces, a 4-cell call leaves a
   // 4th entry that a subsequent 3-cell call must not expose, otherwise
