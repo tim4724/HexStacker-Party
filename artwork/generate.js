@@ -32,19 +32,22 @@ const PIECE_ID_MAX = PIECE_TYPES.length;        // piece typeIds are 1..PIECE_ID
 const SPAWN_COL = HEX_COLS >> 1;
 const SPAWN_ROW_VISIBLE = 2;                    // a couple rows below the top of the visible area
 
-// Pseudo-random pile of `peakHeight` rows. Density tapers from sparse at the
-// top to dense at the bottom; ~10% of cells are garbage so the gray reads as
-// "real game" rather than a fresh stack. Identical seed → identical pile.
+// Pseudo-random pile peaking around `peakHeight` rows. Per-column heights
+// follow a smoothed random walk and cells are filled bottom-up, so no cell
+// floats above an empty one in the same column — gravity-plausible. ~10%
+// of cells are garbage so the gray reads as "real game" rather than a
+// fresh stack. Identical seed → identical pile.
 function buildBannerGrid(seed, peakHeight) {
   const rng = mulberry32(seed);
   const grid = Array.from({ length: HEX_VISIBLE_ROWS }, () => Array(HEX_COLS).fill(0));
-  for (let row = HEX_VISIBLE_ROWS - peakHeight; row < HEX_VISIBLE_ROWS; row++) {
-    const depthFrac = (row - (HEX_VISIBLE_ROWS - peakHeight)) / Math.max(1, peakHeight - 1);
-    const fillProbability = 0.45 + depthFrac * 0.55;  // 0.45 at top, 1.0 at bottom
-    for (let c = 0; c < HEX_COLS; c++) {
-      if (rng() < fillProbability) {
-        grid[row][c] = rng() < 0.10 ? GARBAGE_CELL : 1 + Math.floor(rng() * PIECE_ID_MAX);
-      }
+  const minH = Math.max(1, peakHeight - 3);
+  const maxH = Math.min(HEX_VISIBLE_ROWS - 1, peakHeight);
+  let h = Math.max(minH, peakHeight - 1);
+  for (let c = 0; c < HEX_COLS; c++) {
+    const step = Math.floor(rng() * 3) - 1;  // -1, 0, +1
+    h = Math.max(minH, Math.min(maxH, h + step));
+    for (let row = HEX_VISIBLE_ROWS - h; row < HEX_VISIBLE_ROWS; row++) {
+      grid[row][c] = rng() < 0.10 ? GARBAGE_CELL : 1 + Math.floor(rng() * PIECE_ID_MAX);
     }
   }
   return grid;
