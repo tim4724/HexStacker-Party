@@ -100,7 +100,7 @@ const THEME = Object.freeze({
       secondaryDark:'#E67A33',
     }),
     danger:  '#ff4444',
-    nearClear: '#FF8C42',     // Tangerine pulse — telegraphs zigzags 1-3 cells from clearing
+    nearClear: '#FF8C42',     // Tangerine pulse — telegraphs the single cell that would complete a zigzag
     ko: Object.freeze({
       text: '#ff4444',
       glow: 'rgba(255, 50, 50, 0.6)',

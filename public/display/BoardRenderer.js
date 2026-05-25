@@ -390,9 +390,11 @@ class BoardRenderer {
 
         ctx.beginPath();
         var ncDrawn = false;
+        // playerState.grid is the visible-rows slice (length === HEX_VIS_ROWS),
+        // so findNearClearZigzags never returns out-of-range rows — no bounds
+        // guard needed here.
         for (var nci = 0; nci < ncCells.length; nci++) {
           var ncCol = ncCells[nci][0], ncRow = ncCells[nci][1];
-          if (ncRow < 0 || ncRow >= HEX_VIS_ROWS) continue;
           if (ncPieceSet && ncPieceSet[ncCol * _GHOST_KEY_STRIDE + ncRow]) continue;
           var ncp = this._hexCenter(ncCol, ncRow);
           ctx.moveTo(ncp.x + sCell * HEX_UNIT_VERTICES[0], ncp.y + sCell * HEX_UNIT_VERTICES[1]);
