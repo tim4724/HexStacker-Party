@@ -53,19 +53,10 @@ const CLIPS = {
               seedOffset: 7,
               pace: { tapMin: 180, tapMax: 320, dropMin: 240, dropMax: 380 } },
   chaos8p:  { players: 8, level:  6, durationMs: 7000, startLines: 47,
-              // Three players start with a 4-row column-gap setup and an
-              // I-piece queued first — the AI's heuristic scores vertical-I
-              // into the well as a 4-line clear (linesCleared * 100 dominates),
-              // so on the natural piece lock the engine fires real line_clear
-              // events, GarbageManager picks lowest-stack opponents, garbage
-              // indicators light up, and rows rise after GARBAGE_DELAY_MS.
-              // Wave staggers ~500ms via the existing per-player nextActionAt
-              // offset (200 + i*80), so the three quads land 0.7-1.2s in.
-              clearSetups: [
-                { playerIdx: 0, gapCol: 3 },
-                { playerIdx: 3, gapCol: 5 },
-                { playerIdx: 6, gapCol: 7 },
-              ],
+              // No forced quad setups: with the casual bag's max 3-row piece
+              // extent, a single piece can't clear 4 rows. The clip relies on
+              // organic AI-driven clears + the prefilled stack height +
+              // GarbageManager exchange to read as "chaos."
               prefillRows: 5,
               pace: { tapMin: 130, tapMax: 220, dropMin: 170, dropMax: 250 } },
 };
@@ -80,11 +71,6 @@ export async function stage({ display, clip, seed, playerCount }) {
   const enginePlayers = cfg.players || playerCount;
   const playerInfo = rosterFor(enginePlayers, cfg);
   display.__TEST__.bootLocalGame({ playerInfo, seed, prefillRows: cfg.prefillRows });
-  if (cfg.clearSetups) {
-    for (const s of cfg.clearSetups) {
-      display.__TEST__.primeForIClear(s.playerIdx, s.gapCol);
-    }
-  }
   // Stash a hold piece on a deterministic subset (~5/8 players) so the hold
   // panel reads as "mid-game" instead of empty for everyone. The AI never
   // calls hold(), so this is purely a visual prefill. Type is picked from

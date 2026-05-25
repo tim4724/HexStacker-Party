@@ -46,12 +46,12 @@ const SELF_HEARTBEAT_DEAD_MS = 6000;
 
 // Grid dimensions (flat-top hex board). Sized for the casual mixed-bag pacing:
 // 9 cols * avg 3.5 cells/piece = 2.57 placements per zigzag row, matching the
-// Tetris baseline (10/4 = 2.5). 17 visible rows keeps games short enough that
+// Tetris baseline (10/4 = 2.5). 15 visible rows keeps games short enough that
 // a topped-out board doesn't feel like a slog to recover from.
 const COLS = 9;
-const TOTAL_ROWS = 21;   // 4 buffer + 17 visible
 const BUFFER_ROWS = 4;
-const VISIBLE_ROWS = 17;
+const VISIBLE_ROWS = 15;
+const TOTAL_ROWS = BUFFER_ROWS + VISIBLE_ROWS;
 
 // 6-piece casual bag (1-indexed to match grid cell values): 3 trominoes for
 // low spatial-planning load + 3 small-footprint tetrominoes to keep the game

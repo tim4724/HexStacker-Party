@@ -13,7 +13,6 @@ var LOCALES = {
     ko: 'KO',
     go: 'GO',
     scan_to_rejoin: 'SCAN TO REJOIN',
-    quad: 'QUAD!',
     triple: 'TRIPLE!',
     double: 'DOUBLE',
 
@@ -154,7 +153,7 @@ var LOCALES = {
   de: {
     hold: 'HOLD', next: 'NEXT', level: 'LEVEL', lines: 'ZEILEN',
     ko: 'K.O.', go: 'LOS', scan_to_rejoin: 'ERNEUT SCANNEN',
-    quad: 'QUAD!', triple: 'TRIPLE!', double: 'DOUBLE',
+    triple: 'TRIPLE!', double: 'DOUBLE',
     scan_to_join: 'Scannen',
     waiting_for_players: 'Warte auf Spieler...',
     start_n_players: { one: 'START ({count} Spieler)', other: 'START ({count} Spieler)' },
@@ -234,7 +233,7 @@ var LOCALES = {
   fr: {
     hold: 'HOLD', next: 'SUIVANT', level: 'NIVEAU', lines: 'LIGNES',
     ko: 'K.O.', go: 'GO', scan_to_rejoin: 'SCANNER POUR REJOINDRE',
-    quad: 'QUAD !', triple: 'TRIPLE !', double: 'DOUBLE',
+    triple: 'TRIPLE !', double: 'DOUBLE',
     scan_to_join: 'Scanner pour rejoindre',
     waiting_for_players: 'En attente de joueurs...',
     start_n_players: { one: 'LANCER ({count} joueur)', other: 'LANCER ({count} joueurs)' },
@@ -287,7 +286,7 @@ var LOCALES = {
   pt: {
     hold: 'HOLD', next: 'NEXT', level: 'NÍVEL', lines: 'LINHAS',
     ko: 'K.O.', go: 'JÁ!', scan_to_rejoin: 'ESCANEIA PARA VOLTAR',
-    quad: 'QUAD!', triple: 'TRIPLE!', double: 'DOUBLE',
+    triple: 'TRIPLE!', double: 'DOUBLE',
     scan_to_join: 'Escaneia para entrar',
     waiting_for_players: 'Aguardando jogadores...',
     start_n_players: { one: 'INICIAR ({count} jogador)', other: 'INICIAR ({count} jogadores)' },
@@ -340,7 +339,7 @@ var LOCALES = {
   es: {
     hold: 'HOLD', next: 'NEXT', level: 'NIVEL', lines: 'LÍNEAS',
     ko: 'K.O.', go: '¡YA!', scan_to_rejoin: 'ESCANEA PARA VOLVER',
-    quad: '¡QUAD!', triple: '¡TRIPLE!', double: 'DOBLE',
+    triple: '¡TRIPLE!', double: 'DOBLE',
     scan_to_join: 'Escanea para unirte',
     waiting_for_players: 'Esperando jugadores...',
     start_n_players: { one: 'INICIAR ({count} jugador)', other: 'INICIAR ({count} jugadores)' },
@@ -393,7 +392,7 @@ var LOCALES = {
   zh: {
     hold: '暂存', next: '下一个', level: '等级', lines: '行数',
     ko: 'K.O.', go: '开始', scan_to_rejoin: '扫码重新加入',
-    quad: '四连消!', triple: '三连消!', double: '二连消',
+    triple: '三连消!', double: '二连消',
     scan_to_join: '扫码加入',
     waiting_for_players: '等待玩家加入...',
     start_n_players: { other: '开始 ({count} 位玩家)' },
@@ -445,7 +444,7 @@ var LOCALES = {
   ja: {
     hold: 'ホールド', next: 'ネクスト', level: 'レベル', lines: 'ライン',
     ko: 'K.O.', go: 'GO', scan_to_rejoin: 'スキャンで再参加',
-    quad: '4ライン!', triple: '3ライン!', double: '2ライン',
+    triple: '3ライン!', double: '2ライン',
     scan_to_join: 'スキャンして参加',
     waiting_for_players: 'プレイヤー待ってる...',
     start_n_players: { other: 'スタート ({count}人)' },
@@ -498,7 +497,7 @@ var LOCALES = {
   ko: {
     hold: '홀드', next: '다음', level: '레벨', lines: '줄',
     ko: 'K.O.', go: 'GO', scan_to_rejoin: '스캔하여 재참가',
-    quad: '4줄!', triple: '3줄!', double: '2줄',
+    triple: '3줄!', double: '2줄',
     scan_to_join: '스캔하여 참가',
     waiting_for_players: '플레이어를 기다리는 중...',
     start_n_players: { other: '시작 ({count}명)' },
@@ -550,7 +549,7 @@ var LOCALES = {
   ru: {
     hold: 'ХОЛД', next: 'ДАЛЕЕ', level: 'УРОВЕНЬ', lines: 'ЛИНИИ',
     ko: 'K.O.', go: 'СТАРТ', scan_to_rejoin: 'СКАНИРУЙ И ВЕРНИСЬ',
-    quad: 'QUAD!', triple: 'TRIPLE!', double: 'DOUBLE',
+    triple: 'TRIPLE!', double: 'DOUBLE',
     scan_to_join: 'Сканируй и заходи',
     waiting_for_players: 'Ждём игроков...',
     start_n_players: {
@@ -609,7 +608,7 @@ var LOCALES = {
   it: {
     hold: 'HOLD', next: 'NEXT', level: 'LIVELLO', lines: 'LINEE',
     ko: 'K.O.', go: 'VIA!', scan_to_rejoin: 'SCANSIONA PER RIENTRARE',
-    quad: 'QUAD!', triple: 'TRIPLE!', double: 'DOUBLE',
+    triple: 'TRIPLE!', double: 'DOUBLE',
     scan_to_join: 'Scansiona per unirti',
     waiting_for_players: 'In attesa di giocatori...',
     start_n_players: { one: 'AVVIA ({count} giocatore)', other: 'AVVIA ({count} giocatori)' },
@@ -662,7 +661,7 @@ var LOCALES = {
   tr: {
     hold: 'HOLD', next: 'NEXT', level: 'SEVİYE', lines: 'SATIR',
     ko: 'K.O.', go: 'BAŞLA!', scan_to_rejoin: 'TEKRAR KATILMAK İÇİN TARA',
-    quad: 'DÖRTLÜ!', triple: 'ÜÇLÜ!', double: 'İKİLİ',
+    triple: 'ÜÇLÜ!', double: 'İKİLİ',
     scan_to_join: 'Katılmak için tara',
     waiting_for_players: 'Oyuncular bekleniyor...',
     start_n_players: { one: 'BAŞLAT ({count} oyuncu)', other: 'BAŞLAT ({count} oyuncu)' },

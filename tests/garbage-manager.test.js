@@ -116,11 +116,6 @@ describe('GarbageManager - processLineClear delivery', () => {
     assert.deepStrictEqual(result, { sent: 0, cancelled: 0, deliveries: [] });
   });
 
-  test('quad sends 4 garbage', () => {
-    const result = gm.processLineClear('p1', 4, () => 5);
-    assert.strictEqual(result.sent, 4);
-  });
-
   test('single sends 0 garbage', () => {
     const result = gm.processLineClear('p1', 1, () => 5);
     assert.strictEqual(result.sent, 0);

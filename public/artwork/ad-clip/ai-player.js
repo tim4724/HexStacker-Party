@@ -3,7 +3,7 @@
 // Approach: mutate-test-restore the live PlayerBoard for each candidate
 // rotation × column, score the resulting grid, then restore. The engine
 // does not advance gravity inside this synchronous search, so a single
-// frame budget is more than enough for 11 cols × 4 rotations.
+// frame budget is more than enough for the search (cols × ROTATIONS).
 //
 // Returned plan: a list of {action, delayMs} steps the gameplay-clip
 // orchestrator dispatches via display.__TEST__.applyMove and the matching

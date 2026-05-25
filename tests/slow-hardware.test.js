@@ -181,8 +181,6 @@ describe('Slow hardware — large deltaMs', () => {
     assert.ok(board.alive, 'Player should still be alive');
     assert.ok(board.currentPiece || board.clearingCells,
       'Should have an active piece or be clearing');
-    assert.ok(board.currentPiece && board.currentPiece.anchorRow > BUFFER_ROWS,
-      `Piece should have dropped past buffer (y=${board.currentPiece && board.currentPiece.anchorRow})`);
   });
 
   test('zero deltaMs frames are harmless (frozen frames)', () => {

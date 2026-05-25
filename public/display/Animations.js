@@ -3,8 +3,10 @@
 var _NO_SHAKE = Object.freeze({ x: 0, y: 0 });
 var _shakeResult = { x: 0, y: 0 };
 
-// Piece IDs 1..8 (skip 0=empty, 9=garbage) — palette hexes for confetti.
-var CONFETTI_IDS = Object.freeze([1, 2, 3, 4, 5, 6, 7, 8]);
+// Piece IDs 1..6 — palette hexes used for the rainbow confetti burst on a
+// triple clear (the new top-tier reward; quads are unreachable with the
+// casual bag's max 3-row piece extent).
+var CELEBRATION_PIECE_IDS = Object.freeze([1, 2, 3, 4, 5, 6]);
 
 class Animations {
   constructor(ctx) {
@@ -55,7 +57,8 @@ class Animations {
   addHexCellClear(br, cells, linesCleared) {
     if (!Array.isArray(cells) || cells.length === 0) return;
     var duration = THEME.timing.lineClear;
-    var isQuad = linesCleared >= 4;
+    // No piece in the casual bag spans more than 3 rows, so triple is the
+    // top tier — it gets the dopamine treatment (rainbow confetti + popup).
     var isTriple = linesCleared === 3;
 
     // Capture renderer values by value so the closure doesn't hold a stale br reference
@@ -74,7 +77,6 @@ class Animations {
         });
       }
     }
-    var quadColor = isQuad ? THEME.color.quad : '#ffffff';
 
     function hexCenter(col, row) {
       return {
@@ -88,7 +90,7 @@ class Animations {
       startTime: performance.now(),
       duration: duration,
       render: function(ctx, progress) {
-        ctx.fillStyle = quadColor;
+        ctx.fillStyle = '#ffffff';
         if (progress < 0.25) {
           ctx.globalAlpha = 0.9 * (1 - (progress / 0.25) * 0.5);
           for (var ci = 0; ci < cellPositions.length; ci++) {
@@ -113,30 +115,24 @@ class Animations {
     var firstCell = cells.find(function(c) { return c[1] >= 0; });
     if (firstCell) {
       var pos = hexCenter(Math.floor(GameConstants.COLS / 2), firstCell[1]);
-      if (isQuad) {
-        this.addTextPopup(pos.x, pos.y, t('quad'), THEME.color.quad, true, br.cellSize);
-      } else if (isTriple) {
+      if (isTriple) {
         this.addTextPopup(pos.x, pos.y, t('triple'), THEME.color.triple, true, br.cellSize);
       } else if (linesCleared === 2) {
         this.addTextPopup(pos.x, pos.y, t('double'), THEME.color.text.white, false, br.cellSize);
       }
     }
 
-    // Confetti particles — palette-colored hexes on quad, white on smaller clears.
+    // Confetti particles — palette-colored rainbow burst on triple (the new
+    // top-tier reward), white on doubles/singles.
     for (var si = 0; si < cells.length; si++) {
       var sc = cells[si][0], sr = cells[si][1];
       if (sr < 0) continue;
       var sparkPos = hexCenter(sc, sr);
-      var particleCount = isQuad ? 5 : isTriple ? 3 : 2;
+      var particleCount = isTriple ? 5 : 2;
       for (var j = 0; j < particleCount; j++) {
-        var pColor;
-        if (isQuad) {
-          pColor = PIECE_COLORS[CONFETTI_IDS[(Math.random() * CONFETTI_IDS.length) | 0]];
-        } else if (isTriple) {
-          pColor = THEME.color.triple;
-        } else {
-          pColor = '#ffffff';
-        }
+        var pColor = isTriple
+          ? PIECE_COLORS[CELEBRATION_PIECE_IDS[(Math.random() * CELEBRATION_PIECE_IDS.length) | 0]]
+          : '#ffffff';
         this._addSparkle(
           sparkPos.x + (Math.random() - 0.5) * hexSize * 2,
           sparkPos.y,

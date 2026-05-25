@@ -162,7 +162,7 @@ describe('Game - board-pending garbage cancellation', () => {
 
     const sent = events.find(e => e.type === 'garbage_sent');
     assert.ok(sent, 'garbage_sent event should fire');
-    assert.strictEqual(sent.lines, 4, 'full quad attack sent');
+    assert.strictEqual(sent.lines, 4, 'full attack sent (linesCleared falls back to itself, no table entry for 4)');
 
     const cancelled = events.find(e => e.type === 'garbage_cancelled');
     assert.strictEqual(cancelled, undefined, 'no cancellation event');

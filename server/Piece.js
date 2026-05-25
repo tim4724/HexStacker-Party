@@ -38,7 +38,7 @@ var PIECES = {
   T3: [[1,0],[0,0],[0,1]],             // tight 3-triangle (3 mutually-adjacent cells)
   o:  [[-1,0],[0,0],[0,-1],[1,-1]],    // compact 4-cell rhombus — safe placement piece
   d:  [[0,-1],[0,0],[0,1],[1,0]],      // 3-cell vertical stem + mid-right bulge
-  b:  [[0,-1],[0,0],[0,1],[-1,0]],     // mirror of d — 3-cell vertical stem + mid-left bulge
+  b:  [[0,-1],[0,0],[0,1],[-1,1]],     // visual mirror of d — bulge at offset (-1,0); axial (-1,1) here is the true reflection, NOT axial (-1,0) which is just d's r3 rotation
 };
 
 // No piece in the casual bag spans more than 1 cell from its anchor in any

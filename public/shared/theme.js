@@ -100,7 +100,7 @@ const THEME = Object.freeze({
       secondaryDark:'#E67A33',
     }),
     danger:  '#ff4444',
-    nearClear: '#FF8C42',     // Tangerine pulse — telegraphs the single cell that would complete a zigzag
+    nearClear: '#ffffff',     // White outline pulse — extends the "white = clear-related" vocabulary already used by the clear preview (white fill) and clear glow. Outline-only + animated keeps it distinct from the static preview.
     ko: Object.freeze({
       text: '#ff4444',
       glow: 'rgba(255, 50, 50, 0.6)',
@@ -108,8 +108,8 @@ const THEME = Object.freeze({
     btn: Object.freeze({
       primaryText: '#1E1A2B',  // mirrors --btn-primary-text in theme.css
     }),
-    // Animation-specific named colors (palette-aligned)
-    quad:    '#FF6B6B',        // palette slot 1 Red
+    // Animation-specific named colors (palette-aligned). Triple is the top
+    // celebration tier with the casual bag (quad is unreachable, see Piece.js).
     triple:  '#FFE066',        // palette slot 3 Honey
   }),
 

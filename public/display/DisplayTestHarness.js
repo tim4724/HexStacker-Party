@@ -262,13 +262,7 @@ if (urlParams.get('test') === '1' || debugCount > 0 || _adclipMode) {
       var senderId = playerOrder[(toPlayerIdx + 1) % playerOrder.length] || id;
       onGarbageSent({ toId: id, senderId: senderId, lines: lines });
       return true;
-    },
-
-    // Quad-clear staging is inoperative: the casual bag's tallest piece
-    // spans 3 rows in any rotation, so no piece can clear 4 zigzag rows
-    // in a single drop. Kept as a no-op so the ad-clip caller doesn't need
-    // to be conditional; the ad plays out without forced quad clears.
-    primeForIClear: function() { return false; }
+    }
   };
 
   // Hide irrelevant adclip-mode chrome — toolbar (mute/fullscreen/pause icons),

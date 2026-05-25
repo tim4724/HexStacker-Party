@@ -7,9 +7,12 @@ var HEX_VIS_ROWS = GameConstants.VISIBLE_ROWS;
 var HEX_COLS_N = GameConstants.COLS;
 var _hexScratch = { x: 0, y: 0 };
 var _hexLocalScratch = { x: 0, y: 0 };
-// key = col * stride + row; stride must exceed max visible row index.
-// Deriving from VISIBLE_ROWS keeps the key collision-free if the board grows.
-var _GHOST_KEY_STRIDE = GameConstants.VISIBLE_ROWS;
+// key = col * stride + row. Block rows come from getState() shifted by
+// -BUFFER_ROWS, so they range over [-BUFFER_ROWS, VISIBLE_ROWS-1] — i.e. a
+// span of TOTAL_ROWS values. Stride must exceed that span to keep keys
+// collision-free; VISIBLE_ROWS alone is too small (a buffer-zone block at
+// (c+1, -1) collides with a visible cell at (c, VISIBLE_ROWS-1)).
+var _GHOST_KEY_STRIDE = GameConstants.TOTAL_ROWS;
 
 
 class BoardRenderer {
@@ -376,16 +379,39 @@ class BoardRenderer {
     // they'd mislead the player into thinking one drop completes the row.
     // Reads the locked stack only (ghost ignored). Skips cells under the
     // active piece so the pulse doesn't compete with the moving piece.
+    //
+    // During a line-clear animation, only pulse cells whose row is below the
+    // lowest clearing row stay visible. Those positions are gravity-stable
+    // (post-clear gravity only shifts rows above the clear), so they won't
+    // jump mid-animation. Pulses on or above the clear are hidden because
+    // their position would shift when gravity settles.
     if (playerState.grid && playerState.alive !== false) {
-      var ncGV = playerState.gridVersion ?? -1;
-      if (ncGV !== this._cachedNcGV) {
-        var ncGrid = playerState.grid;
-        var ncIsFilled = function(col, row) { return ncGrid[row][col] > 0; };
-        this._cachedNcCells = GameConstants.findNearClearZigzags(HEX_COLS_N, ncGrid.length, ncIsFilled);
-        this._cachedNcGV = ncGV;
+      var ncClearing = playerState.clearingCells && playerState.clearingCells.length > 0
+        ? playerState.clearingCells
+        : null;
+      // Refresh cache against the current grid unless we're mid-clear (the
+      // cached cells are still correct for the rows we'll render, and
+      // recomputing against the with-clearing-row-filled grid is wasted work).
+      if (!ncClearing) {
+        var ncGV = playerState.gridVersion ?? -1;
+        if (ncGV !== this._cachedNcGV) {
+          var ncGrid = playerState.grid;
+          var ncIsFilled = function(col, row) { return ncGrid[row][col] > 0; };
+          this._cachedNcCells = GameConstants.findNearClearZigzags(HEX_COLS_N, ncGrid.length, ncIsFilled);
+          this._cachedNcGV = ncGV;
+        }
       }
       var ncCells = this._cachedNcCells;
       if (ncCells.length > 0) {
+        // rowFloor: only render cells with row > rowFloor. -1 = no filter.
+        // Mid-clear: floor is the lowest clearing row index.
+        var rowFloor = -1;
+        if (ncClearing) {
+          for (var cci = 0; cci < ncClearing.length; cci++) {
+            if (ncClearing[cci][1] > rowFloor) rowFloor = ncClearing[cci][1];
+          }
+        }
+
         var ncPieceSet = null;
         if (playerState.currentPiece && playerState.currentPiece.blocks) {
           ncPieceSet = {};
@@ -405,6 +431,7 @@ class BoardRenderer {
         // guard needed here.
         for (var nci = 0; nci < ncCells.length; nci++) {
           var ncCol = ncCells[nci][0], ncRow = ncCells[nci][1];
+          if (ncRow <= rowFloor) continue;
           if (ncPieceSet && ncPieceSet[ncCol * _GHOST_KEY_STRIDE + ncRow]) continue;
           var ncp = this._hexCenter(ncCol, ncRow);
           ctx.moveTo(ncp.x + sCell * HEX_UNIT_VERTICES[0], ncp.y + sCell * HEX_UNIT_VERTICES[1]);
@@ -422,6 +449,12 @@ class BoardRenderer {
           ctx.globalAlpha = 1;
         }
       }
+    } else {
+      // Mirror the clear-preview cache reset: when the board disappears (game
+      // transitions, KO), drop the cached near-clear cells so a stale entry
+      // can't surface if the same player re-spawns at gridVersion 0.
+      this._cachedNcCells.length = 0;
+      this._cachedNcGV = -1;
     }
 
     // Current piece

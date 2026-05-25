@@ -856,7 +856,7 @@ describe('PlayerBoard - zigzag line clears', () => {
   it('zigzag-down wins tie-break over zigzag-up at same row', () => {
     // Test the shared findClearableZigzags directly to verify tie-breaking
     var { findClearableZigzags } = require('../server/constants');
-    // Build a small test grid: 11 cols, 5 rows
+    // Build a small test grid: HEX_COLS wide, 5 rows.
     var grid = Array.from({ length: 5 }, function() { return new Array(HEX_COLS).fill(0); });
     // Fill zigzag-down at row 4 (all cells at row 4)
     for (var c = 0; c < HEX_COLS; c++) grid[4][c] = 1;

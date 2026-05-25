@@ -25,9 +25,8 @@ function countCells(grid) {
   return n;
 }
 
-// Force the next spawn to be a specific piece type. Mirrors the harness's
-// primeForIClear pattern: push at the front of the queue, null the current
-// piece, respawn.
+// Force the next spawn to be a specific piece type: push at the front of the
+// next queue, null the current piece, respawn.
 function forceNextPiece(board, type) {
   board.nextPieces.unshift(type);
   board.currentPiece = null;
@@ -189,6 +188,8 @@ describe('Gameplay - full loop', () => {
     b.moveLeft();
     var result = b.hardDrop();
     assert.equal(result.alive, true, 'still alive after hold+rotate+softdrop+drop');
+    // Board is empty before this drop, so a single lock can't complete any
+    // zigzag — gridVersion advances by exactly 1 (the lock), no clear cascade.
     assert.equal(b.gridVersion, 1, 'exactly one lock recorded');
   });
 });
