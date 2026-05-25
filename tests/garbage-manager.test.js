@@ -131,9 +131,9 @@ describe('GarbageManager - processLineClear delivery', () => {
     assert.strictEqual(result.sent, 1);
   });
 
-  test('triple sends 2 garbage', () => {
+  test('triple sends 3 garbage', () => {
     const result = gm.processLineClear('p1', 3, () => 5);
-    assert.strictEqual(result.sent, 2);
+    assert.strictEqual(result.sent, 3);
   });
 });
 

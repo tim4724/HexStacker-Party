@@ -14,11 +14,14 @@ const MAX_DROPS_PER_TICK = 5;    // Safety cap to prevent teleporting
 const LOGIC_TICK_MS = 1000 / 60;    // 60Hz game logic
 
 // Garbage lines sent for competitive mode
+// No piece in the casual bag spans more than 3 rows in any rotation, so a
+// quad clear is unreachable. Triple is the new top-end reward; bumping its
+// send count from 2 to 3 restores the progressive escalation the old quad
+// provided (was 0,1,2,4; now 0,1,3).
 const GARBAGE_TABLE = {
   1: 0,  // single sends 0
   2: 1,  // double sends 1
-  3: 2,  // triple sends 2
-  4: 4   // quad sends 4
+  3: 3,  // triple sends 3 — the new ceiling
 };
 
 const GARBAGE_DELAY_MS = 2000;   // Milliseconds before garbage rises, allowing counterplay

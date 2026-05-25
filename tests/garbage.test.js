@@ -23,16 +23,10 @@ describe('GarbageManager - garbage lines sent per clear type', () => {
     assert.strictEqual(sent, 1);
   });
 
-  test('triple clear sends 2 garbage lines', () => {
+  test('triple clear sends 3 garbage lines', () => {
     const mgr = makeManager('p1', 'p2');
     const { sent } = mgr.processLineClear('p1', 3);
-    assert.strictEqual(sent, 2);
-  });
-
-  test('quad sends 4 garbage lines', () => {
-    const mgr = makeManager('p1', 'p2');
-    const { sent } = mgr.processLineClear('p1', 4);
-    assert.strictEqual(sent, 4);
+    assert.strictEqual(sent, 3);
   });
 });
 

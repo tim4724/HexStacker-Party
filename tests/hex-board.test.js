@@ -1017,7 +1017,6 @@ describe('PlayerBoard - clear preview matches actual clear', () => {
     var { PIECE_TYPES: HEX_PIECE_TYPES } = require('../server/constants');
     for (var ti = 0; ti < HEX_PIECE_TYPES.length; ti++) {
       var type = HEX_PIECE_TYPES[ti];
-      if (type === 'O') continue; // O is rotationally symmetric
       var p = new Piece(type);
       var seen = Object.create(null);
       for (var r = 0; r < 6; r++) {
