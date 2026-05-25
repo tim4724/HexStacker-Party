@@ -4,7 +4,7 @@ const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const { Randomizer } = require('../server/Randomizer');
 
-const ALL_TYPES = ['I', 'O', 'S', 'Z', 'q', 'p', 'L', 'J'];
+const ALL_TYPES = ['I3', 'V3', 'T3', 'o', 'd', 'b'];
 const BAG_SIZE = ALL_TYPES.length;
 
 function drawBag(randomizer) {

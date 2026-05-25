@@ -26,7 +26,7 @@ const SQRT3 = Math.sqrt(3);
 // sizes where multi-cell shapes muddy together. Color sourced from
 // PIECE_COLORS so it tracks the game palette.
 const CELLS = [[0, 0]];
-const PIECE_COLOR = PIECE_COLORS[1]; // I → PARTY_PALETTE[0] (red, #FF6B6B)
+const PIECE_COLOR = PIECE_COLORS[1]; // I3 → PARTY_PALETTE[0] (red, #FF6B6B)
 
 // Pillow-tier rendering constants (ported from CanvasUtils.js _stampHexPillow).
 const CORNER_FRAC       = 0.15;   // cornerR / circumradius

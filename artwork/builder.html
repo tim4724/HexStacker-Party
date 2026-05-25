@@ -543,21 +543,22 @@
   }
 
   // ============================================================
-  // Piece geometry — mirrors server/HexPiece.js so the pieces-stage template
-  // renders the actual game pieces (I, O, S, Z, q, p, L, J).
+  // Piece geometry — must mirror server/Piece.js. Sync this block when the
+  // game's piece set changes. Builder runs via file:// so it can't require()
+  // the engine; the generators reuse this constant to render stages.
   // ============================================================
   const PIECES = {
-    I: [[-1,0],[0,0],[1,0],[2,0]],
-    O: [[-1,0],[0,0],[0,-1],[1,-1]],
-    S: [[-2,1],[-1,1],[0,0],[1,0]],
-    Z: [[-1,1],[0,0],[1,0],[2,-1]],
-    q: [[-1,0],[0,0],[1,0],[1,-1]],
-    p: [[-1,1],[0,0],[1,-1],[-1,0]],
-    L: [[-1,1],[0,0],[1,-1],[1,-2]],
-    J: [[1,0],[0,0],[-1,0],[-1,-1]],
+    I3: [[-1,0],[0,0],[1,0]],
+    V3: [[-1,0],[0,0],[0,1]],
+    T3: [[1,0],[0,0],[0,1]],
+    o:  [[-1,0],[0,0],[0,-1],[1,-1]],
+    d:  [[0,-1],[0,0],[0,1],[1,0]],
+    b:  [[0,-1],[0,0],[0,1],[-1,0]],
   };
-  // Each piece → palette slot (keeps color identity consistent with the game)
-  const PIECE_SLOT = { I: 0, O: 4, S: 3, Z: 7, q: 2, p: 1, L: 5, J: 6 };
+  // Each piece → palette slot. Mirrors PIECE_COLORS in public/shared/theme.js
+  // (slots reference PARTY_PALETTE indices). Slot 7 (Tangerine) is reserved
+  // for the near-clear pulse, so pieces never claim it.
+  const PIECE_SLOT = { I3: 0, V3: 1, T3: 2, o: 3, d: 4, b: 5 };
 
   // Axial 60° CW rotation: (q, r) → (-r, q+r). rotatedCells applies n rotations.
   function rotateAxialCW(q, r) { return [-r, q + r]; }
@@ -1045,14 +1046,14 @@
       overrideSize: true, globalSize: 42,
       overrideTrail: true, globalTrail: 364,
       pieces: [
-        { type: 'Z', x: 336, y: 147, size: 52, trailLen: 360, rot: 3 },
-        { type: 'q', x: 591, y: 861, size: 52, trailLen: 380, rot: 0 },
-        { type: 'S', x: 659, y: 183, size: 54, trailLen: 0,   rot: 3 },
-        { type: 'L', x: 776, y: 750, size: 54, trailLen: 0,   rot: 1 },
-        { type: 'p', x: 127, y: 751, size: 52, trailLen: 0,   rot: 0 },
-        { type: 'J', x: 152, y: 323, size: 50, trailLen: 0,   rot: 5 },
-        { type: 'I', x: 368, y: 798, size: 50, trailLen: 0,   rot: 2 },
-        { type: 'O', x: 846, y: 391, size: 50, trailLen: 0,   rot: 0 },
+        { type: 'V3', x: 336, y: 147, size: 52, trailLen: 360, rot: 3 },
+        { type: 'd',  x: 591, y: 861, size: 52, trailLen: 380, rot: 0 },
+        { type: 'V3', x: 659, y: 183, size: 54, trailLen: 0,   rot: 1 },
+        { type: 'T3', x: 776, y: 750, size: 54, trailLen: 0,   rot: 1 },
+        { type: 'b',  x: 127, y: 751, size: 52, trailLen: 0,   rot: 0 },
+        { type: 'T3', x: 152, y: 323, size: 50, trailLen: 0,   rot: 4 },
+        { type: 'I3', x: 368, y: 798, size: 50, trailLen: 0,   rot: 2 },
+        { type: 'o',  x: 846, y: 391, size: 50, trailLen: 0,   rot: 0 },
       ],
       selectedPiece: -1,
     },
@@ -1067,14 +1068,14 @@
       overrideSize: true, globalSize: 36,
       overrideTrail: true, globalTrail: 220,
       pieces: [
-        { type: 'O', x: 211,  y: 112, size: 32, trailLen: 0, rot: 0 },
-        { type: 'p', x: 600,  y: 86,  size: 34, trailLen: 0, rot: 0 },
-        { type: 'S', x: 977,  y: 71,  size: 36, trailLen: 0, rot: 0 },
-        { type: 'q', x: 328,  y: 468, size: 34, trailLen: 0, rot: 1 },
-        { type: 'Z', x: 1067, y: 403, size: 32, trailLen: 0, rot: 0 },
-        { type: 'L', x: 100,  y: 455, size: 36, trailLen: 0, rot: 1 },
-        { type: 'I', x: 577,  y: 484, size: 42, trailLen: 0, rot: 0 },
-        { type: 'J', x: 897,  y: 527, size: 36, trailLen: 0, rot: 0 },
+        { type: 'o',  x: 211,  y: 112, size: 32, trailLen: 0, rot: 0 },
+        { type: 'b',  x: 600,  y: 86,  size: 34, trailLen: 0, rot: 0 },
+        { type: 'V3', x: 977,  y: 71,  size: 36, trailLen: 0, rot: 0 },
+        { type: 'd',  x: 328,  y: 468, size: 34, trailLen: 0, rot: 1 },
+        { type: 'V3', x: 1067, y: 403, size: 32, trailLen: 0, rot: 3 },
+        { type: 'T3', x: 100,  y: 455, size: 36, trailLen: 0, rot: 1 },
+        { type: 'I3', x: 577,  y: 484, size: 42, trailLen: 0, rot: 0 },
+        { type: 'T3', x: 897,  y: 527, size: 36, trailLen: 0, rot: 3 },
       ],
       selectedPiece: -1,
     },
@@ -1132,7 +1133,7 @@
   // Pieces-stage custom UI — title controls + add-piece button + per-piece
   // rows with type, position, size, trail, delete.
   // ============================================================
-  const PIECE_TYPES = ['I','O','S','Z','q','p','L','J'];
+  const PIECE_TYPES = ['I3','V3','T3','o','d','b'];
 
   function buildPiecesStageUI(container) {
     // Title toggle + position

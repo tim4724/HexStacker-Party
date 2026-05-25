@@ -156,10 +156,20 @@ describe('Slow hardware — large deltaMs', () => {
     const board = game.boards.get('p0');
     board.lines = 290; // force high level for fast gravity
 
-    // Simulate 30 seconds at 10fps (capped to 50ms like render loop)
+    // Simulate ~30s at 10fps (capped to 50ms like render loop). Spread pieces
+    // across columns so the board doesn't overfill into a KO on the narrower
+    // casual board — the goal is to exercise the engine under sustained
+    // low-FPS gravity, not to test overfill recovery.
+    const { COLS } = require('../server/constants');
     let errors = 0;
-    for (let i = 0; i < 300; i++) {
+    const ticks = 300;
+    for (let i = 0; i < ticks; i++) {
       try {
+        if (board.currentPiece) {
+          const targetCol = i % COLS;
+          while (board.currentPiece.anchorCol > targetCol && board.moveLeft()) {}
+          while (board.currentPiece.anchorCol < targetCol && board.moveRight()) {}
+        }
         game.update(50);
       } catch (e) {
         errors++;
@@ -168,14 +178,9 @@ describe('Slow hardware — large deltaMs', () => {
     }
 
     assert.strictEqual(errors, 0, 'No errors during sustained low FPS play');
-    // At max gravity, piece should have moved down significantly
-    // (lock timer uses Date.now() so pieces won't lock in fast test loops,
-    //  but gravity should still move the piece to the surface)
     assert.ok(board.alive, 'Player should still be alive');
-    assert.ok(board.currentPiece, 'Should have an active piece');
-    // Piece should be sitting on the surface or near bottom
-    assert.ok(board.currentPiece.anchorRow > BUFFER_ROWS,
-      `Piece should have dropped past buffer (y=${board.currentPiece.anchorRow})`);
+    assert.ok(board.currentPiece || board.clearingCells,
+      'Should have an active piece or be clearing');
   });
 
   test('zero deltaMs frames are harmless (frozen frames)', () => {

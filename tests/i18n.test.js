@@ -125,7 +125,7 @@ describe('i18n', function () {
   describe('all locales have required keys', function () {
     var requiredKeys = [
       'hold', 'next', 'level', 'lines', 'ko', 'go',
-      'scan_to_rejoin', 'quad', 'triple', 'double',
+      'scan_to_rejoin', 'triple', 'double',
       'scan_to_join',
       'waiting_for_players', 'start_n_players', 'start',
       'start_new_game', 'play_again',

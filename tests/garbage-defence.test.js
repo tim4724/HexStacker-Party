@@ -41,7 +41,9 @@ describe('GarbageManager - defenseLines parameter', () => {
 
     assert.strictEqual(result.cancelled, 1, 'only 1 line cancelled from queue');
     assert.strictEqual(gm.queues.get('p1')[0].lines, 3, '3 lines remain in queue');
-    // Attack is still based on 4 lines cleared: GARBAGE_TABLE[4]=4, minus 1 cancelled = 3
+    // Attack is still based on 4 lines cleared: GarbageManager falls back to
+    // linesCleared when the count isn't in GARBAGE_TABLE (no entry for 4 since
+    // the casual bag can't clear 4 rows in a single drop), minus 1 cancelled = 3
     assert.strictEqual(result.sent, 3, 'net attack = 4 - 1 = 3');
   });
 
@@ -160,7 +162,7 @@ describe('Game - board-pending garbage cancellation', () => {
 
     const sent = events.find(e => e.type === 'garbage_sent');
     assert.ok(sent, 'garbage_sent event should fire');
-    assert.strictEqual(sent.lines, 4, 'full quad attack sent');
+    assert.strictEqual(sent.lines, 4, 'full attack sent (linesCleared falls back to itself, no table entry for 4)');
 
     const cancelled = events.find(e => e.type === 'garbage_cancelled');
     assert.strictEqual(cancelled, undefined, 'no cancellation event');

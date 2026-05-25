@@ -262,49 +262,6 @@ if (urlParams.get('test') === '1' || debugCount > 0 || _adclipMode) {
       var senderId = playerOrder[(toPlayerIdx + 1) % playerOrder.length] || id;
       onGarbageSent({ toId: id, senderId: senderId, lines: lines });
       return true;
-    },
-
-    // Stage a 4-row near-clear setup on a player's board and force-spawn an
-    // I-piece so the AI's natural plan (vertical I → drop into the gap)
-    // actually completes the rows. The clear, garbage send, and indicator
-    // then flow through the engine's real handleLineClear path on lock —
-    // pieces visibly cause the clear instead of cells appearing magically.
-    //
-    // gapCol fixes the empty column across the bottom 4 rows; rows TR-4..TR-1
-    // become a vertical "well" exactly the size of a rotated I-piece. The
-    // prefill's gap-pattern in those rows is overwritten; cells cycle types
-    // so the renderer paints them in the player's tier style.
-    primeForIClear: function(playerIdx, gapCol) {
-      if (!displayGame) return false;
-      var id = playerOrder[playerIdx];
-      if (!id) return false;
-      var board = displayGame.boards.get(id);
-      if (!board || !board.alive) return false;
-
-      var HC = GameConstants.COLS;
-      var TR = GameConstants.TOTAL_ROWS;
-      var nTypes = GameConstants.PIECE_TYPES.length;
-      gapCol = ((gapCol % HC) + HC) % HC;
-
-      // Clear gapCol all the way up so the falling I-piece has an
-      // unobstructed path to the bottom of the well.
-      for (var r = 0; r < TR - 4; r++) {
-        board.grid[r][gapCol] = 0;
-      }
-      for (var r = TR - 4; r < TR; r++) {
-        for (var c = 0; c < HC; c++) {
-          board.grid[r][c] = (c === gapCol) ? 0 : (((c + r) % nTypes) + 1);
-        }
-      }
-      board.gridVersion++;
-
-      // Force the next piece to be I and respawn so the AI's first plan sees
-      // a vertical I-piece in front of a 4-row column gap — the 4-line clear
-      // then dominates planNextPlacement's heuristic (linesCleared * 100).
-      board.nextPieces.unshift('I');
-      board.currentPiece = null;
-      board.spawnPiece();
-      return true;
     }
   };
 
@@ -356,14 +313,15 @@ function _buildHexDebugState(debugPlayers, level) {
     grid[HV - 1] = fullRow((dj * 2 + 3) % HC);
     var pt = types[dj % types.length];
     var piece = new PieceModule.Piece(pt);
-    piece.anchorCol = 5; piece.anchorRow = 2;
+    var spawnCol = GameConstants.COLS >> 1;
+    piece.anchorCol = spawnCol; piece.anchorRow = 2;
     var blocks = piece.getAbsoluteBlocks();
     var ghostPiece = piece.clone(); ghostPiece.anchorRow = HV - 5;
     state.players.push({
       id: debugPlayers[dj].id, playerName: debugPlayers[dj].name,
       grid: grid, lines: [24,16,10,5,20,12,8,3][dj % 8], level: level || [3,2,2,1,3,2,1,1][dj % 8],
       alive: true,
-      currentPiece: { type: pt, typeId: piece.typeId, anchorCol: 5, anchorRow: 2, cells: piece.cells, blocks: blocks },
+      currentPiece: { type: pt, typeId: piece.typeId, anchorCol: spawnCol, anchorRow: 2, cells: piece.cells, blocks: blocks },
       ghost: { anchorCol: ghostPiece.anchorCol, anchorRow: ghostPiece.anchorRow, blocks: ghostPiece.getAbsoluteBlocks() },
       nextPieces: [types[(dj+1)%types.length], types[(dj+2)%types.length], types[(dj+3)%types.length]],
       holdPiece: types[(dj+4)%types.length],
