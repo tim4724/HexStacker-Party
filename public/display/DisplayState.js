@@ -31,9 +31,13 @@ var players = new Map();       // peerIndex (number) -> { playerName, playerInde
 var playerOrder = [];          // compact list of active controller peerIndices for game layout. Lobby
                                // cards and in-game boards both sort by joinedAt; playerIndex is the
                                // chosen color slot only.
-var hostPeerIndex = null;      // sticky host — the first joiner owns this slot; handoff happens
-                               // only when the host actually leaves via onPeerLeft. Color changes
-                               // do not affect it. See getHostPeerIndex() / electNextHost() below.
+var hostPeerIndex = null;      // sticky host (first joiner owns this slot). The slot only moves
+                               // when the holder leaves in LOBBY/RESULTS, or when we transition into
+                               // LOBBY/RESULTS and the holder is gone (see reconcileStickyHost). A
+                               // mid-game blip leaves the slot untouched so a reconnecting host
+                               // reclaims; getHostPeerIndex's read-only fallback covers any host-only
+                               // action needed during the disconnect window. Color changes never
+                               // affect it. See getHostPeerIndex() / electNextHost() below.
 var _joinSequence = 0;         // monotonic counter for player.joinedAt — Date.now() collides
                                // when two peers arrive in the same ms, which matters for the
                                // electNextHost tiebreak and calculateLayout's stable sort.
@@ -54,6 +58,12 @@ function setRoomState(newState) {
     return false;
   }
   roomState = newState;
+  // Host changes are deferred during gameplay so brief blips don't demote
+  // the original host. Commit any pending handoff at the moment a host is
+  // actually needed (Lobby's Start / Results' Play Again).
+  if (newState === ROOM_STATE.LOBBY || newState === ROOM_STATE.RESULTS) {
+    reconcileStickyHost();
+  }
   return true;
 }
 
@@ -232,10 +242,8 @@ function sanitizePlayerName(name, peerIndex, requestedAutoName) {
 // "menus can only be controlled by the Master Controller"). In AirConsole mode
 // we defer to the platform (premium devices get priority); otherwise we fall
 // back to the sticky host — the first player to join. The stored slot survives
-// color changes (host stays host when they pick a new palette slot) and brief
-// disconnects (a reconnecting host keeps their role). Handoff happens only
-// when the host actually leaves the room via onPeerLeft, which calls
-// electNextHost() to reassign the slot to the next-oldest present player.
+// color changes and disconnects: a host that blips mid-game keeps their slot
+// and reclaims on reconnect.
 //
 // During COUNTDOWN/PLAYING/RESULTS the candidate set is restricted to active
 // game participants (playerOrder). A late joiner — promoted to AC master, or
@@ -248,7 +256,9 @@ function sanitizePlayerName(name, peerIndex, requestedAutoName) {
 // role temporarily defers to a present player during a mid-game reconnect.
 // If the stored hostPeerIndex is unavailable (disconnected / ineligible), the
 // fallback returns the oldest-joined present player WITHOUT mutating
-// hostPeerIndex — the sticky slot only moves when onPeerLeft hands it off.
+// hostPeerIndex; the sticky slot is committed by reconcileStickyHost() when
+// the room enters LOBBY/RESULTS, or by onPeerLeft when a player departs from
+// LOBBY/RESULTS directly.
 // NOTE: tests/display-state.test.js mirrors this algorithm — keep in sync.
 function getHostPeerIndex() {
   var restricted = (roomState === ROOM_STATE.PLAYING
@@ -293,10 +303,11 @@ function getHostPeerIndex() {
 }
 
 // Pick the oldest-joined present player other than `excludeId` to become
-// the new sticky host. Used by onPeerLeft when the departing player held
-// the host slot. Returns null if nobody else qualifies (room will promote
-// the next joiner via onPeerJoined's null-check).
-// NOTE: tests/display-state.test.js mirrors this algorithm — keep in sync.
+// the new sticky host. Used by onPeerLeft (in LOBBY/RESULTS) and
+// reconcileStickyHost (on state transition into LOBBY/RESULTS) when the
+// current holder is gone. Returns null if nobody else qualifies (room will
+// promote the next joiner via onPeerJoined's null-check).
+// NOTE: tests/display-state.test.js mirrors this algorithm, keep in sync.
 function electNextHost(excludeId) {
   var nextId = null;
   var nextJoin = Infinity;
@@ -310,6 +321,27 @@ function electNextHost(excludeId) {
     }
   }
   return nextId;
+}
+
+// Commit any pending sticky-host handoff. Called by setRoomState when the
+// room enters LOBBY or RESULTS (i.e. the moments where host duty is
+// actually exercised: Start, Play Again). If the stored host is still
+// present and connected we keep them; otherwise the slot moves to the
+// oldest-joined present player. A null result is fine; onPeerJoined will
+// promote the next arrival.
+// NOTE: tests/display-state.test.js mirrors this algorithm, keep in sync.
+function reconcileStickyHost() {
+  // Guard against pre-reset call sites: applyRoomCreated and resetToWelcome
+  // call setRoomState(LOBBY) before resetRoomData(), so reconcile can briefly
+  // see the previous session's players map. resetRoomData clears it moments
+  // later, but skip on empty rooms so we never commit a stale handoff.
+  if (players.size === 0) return;
+  if (hostPeerIndex != null
+      && players.has(hostPeerIndex)
+      && !disconnectedQRs.has(hostPeerIndex)) {
+    return;
+  }
+  hostPeerIndex = electNextHost(hostPeerIndex);
 }
 
 // --- DOM References ---
