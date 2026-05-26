@@ -600,12 +600,12 @@ function onGamePaused(data) {
   clearTimeout(selfPausingTimer);
   if (!pausedBySettings) pauseOverlay.classList.remove('hidden');
   pauseBtn.disabled = true;
-  pauseStatus.textContent = '';
   if (data && data.byName) {
     var byColor = data.byColor != null ? PLAYER_COLORS[data.byColor] : null;
     renderHostBanner(pauseStatus, 'paused_by', data.byName, byColor);
     pauseStatus.classList.remove('hidden');
   } else {
+    pauseStatus.textContent = '';
     pauseStatus.classList.add('hidden');
   }
   pauseButtons.classList.remove('hidden');

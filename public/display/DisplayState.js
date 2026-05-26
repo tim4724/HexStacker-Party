@@ -131,6 +131,8 @@ function resetRoomData() {
   hostPeerIndex = null;
   _joinSequence = 0;
   paused = false;
+  pausedByName = null;
+  pausedByColorIndex = null;
   setAutoPaused(false);
   clearLateJoinerGraceTimer();
   gameState = null;

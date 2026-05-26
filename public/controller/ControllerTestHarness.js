@@ -179,6 +179,16 @@
       window.__TEST__.replay = function() { restartAnimation(pauseButtons); };
       break;
 
+    case 'paused-by-player':
+      applyIdentity({ isHost: !!params.get('host') });
+      showPlaying();
+      // Attribute the pause to a player whose color differs from the viewer
+      // so the colored name reads against the surrounding UI.
+      onGamePaused({ byName: 'Jake', byColor: 1 });
+      updateHostVisibility();
+      window.__TEST__.replay = function() { restartAnimation(pauseButtons); };
+      break;
+
     case 'ko':
       applyIdentity({ isHost: false });
       showPlaying();

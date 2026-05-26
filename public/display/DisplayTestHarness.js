@@ -69,8 +69,8 @@ if (urlParams.get('test') === '1' || debugCount > 0 || _adclipMode) {
       onGameEnd(results);
     },
 
-    injectPause: function() {
-      onGamePaused();
+    injectPause: function(byName, byColor) {
+      onGamePaused(byName, byColor);
     },
 
     injectKO: function(playerId) {
@@ -552,6 +552,14 @@ function initScenario(opts) {
 
   if (scenario === 'pause') {
     window.__TEST__.injectPause();
+    return;
+  }
+  if (scenario === 'pause-by-player') {
+    // Attribute the pause to a non-host player so the attribution is
+    // visually distinct from the host viewer's color tint.
+    var attribIdx = (hostSlot === 1 ? 2 : 1);
+    var attribName = debugPlayers[Math.min(attribIdx, debugPlayers.length - 1)].name;
+    window.__TEST__.injectPause(attribName, attribIdx);
     return;
   }
   if (scenario === 'ko') {

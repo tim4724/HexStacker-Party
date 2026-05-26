@@ -475,6 +475,13 @@
   margin: 0;
 }
 
+/* Display has no global .hidden rule (unlike controller.css), and
+   .status-banner sets display:flex which would otherwise win over the
+   .hidden -> display:none expectation. Both pages need this. */
+.status-banner.hidden {
+  display: none;
+}
+
 #pause-status {
   font-family: 'Orbitron', sans-serif;
   animation: fadeUp 0.5s 0.2s ease-out both;

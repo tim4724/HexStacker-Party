@@ -516,11 +516,11 @@ function onGamePaused(pausedByName, pausedByColorIndex) {
   if (displayGame) displayGame.pause();
   if (pauseContinueBtn) pauseContinueBtn.disabled = false;
   if (pauseStatus) {
-    pauseStatus.textContent = '';
     if (pausedByName) {
       renderColoredNameTemplate(pauseStatus, 'paused_by', pausedByName, pausedByColorIndex);
       pauseStatus.classList.remove('hidden');
     } else {
+      pauseStatus.textContent = '';
       pauseStatus.classList.add('hidden');
     }
   }
@@ -538,6 +538,7 @@ function onGamePaused(pausedByName, pausedByColorIndex) {
 // host element is `display: flex` (otherwise the trailing space before {name}
 // would be stripped at the flex-item boundary).
 function renderColoredNameTemplate(element, key, name, colorIndex) {
+  element.textContent = '';
   var tmpl = t(key, { name: '\x00' });
   var parts = tmpl.split('\x00');
   var wrap = document.createElement('span');
