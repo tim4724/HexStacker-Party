@@ -20,6 +20,12 @@ const OUTPUT_DIR = path.resolve(__dirname, 'output');
 const RAW_DIR = path.join(OUTPUT_DIR, 'raw');
 const FRAME_EXT = 'jpg';
 const MUSIC_PATH = path.resolve(__dirname, '..', '..', 'public', 'shared', 'music', 'lunar-joyride.mp3');
+// The `clean` variant is the published trailer (display/index.html plays it
+// from /artwork/trailer.mp4). Mirroring at the end of stitch keeps the
+// output/ copies for side-by-side iteration without manual mirror steps.
+const PUBLISH_VARIANT = 'clean';
+const PUBLISH_ASPECT = '16x9';
+const PUBLISH_PATH = path.resolve(__dirname, '..', '..', 'public', 'artwork', 'trailer.mp4');
 
 // Music level — drop to ~50% so the upbeat loop sits behind the visual.
 // 0 disables audio entirely.
@@ -82,6 +88,15 @@ function main() {
     for (const aspect of ASPECTS) {
       stitchAspect(variant, aspect);
     }
+  }
+
+  const publishSource = path.join(OUTPUT_DIR, `final-${PUBLISH_VARIANT}-${PUBLISH_ASPECT}.mp4`);
+  if (fs.existsSync(publishSource)) {
+    fs.mkdirSync(path.dirname(PUBLISH_PATH), { recursive: true });
+    fs.copyFileSync(publishSource, PUBLISH_PATH);
+    console.log(`Published: ${path.relative(process.cwd(), PUBLISH_PATH)}`);
+  } else {
+    console.log(`Skipping publish: ${PUBLISH_VARIANT}/${PUBLISH_ASPECT} not produced this run.`);
   }
 }
 

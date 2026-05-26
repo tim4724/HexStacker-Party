@@ -8,6 +8,10 @@ const QRCode = require('qrcode');
 
 const PORT = parseInt(process.env.PORT, 10) || 4000;
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+// Build-time ad-clip composite rig — loaded only by artwork/ad-clip/capture.js
+// driving Playwright against the running dev server. The artwork/ tree is not
+// copied into the Docker image, so /artwork/ad-clip/* naturally 404s in prod.
+const AD_CLIP_COMPOSITE_DIR = path.join(__dirname, '..', 'artwork', 'ad-clip', 'composite');
 const APP_VERSION = require('../package.json').version;
 const APP_ENV = String(process.env.APP_ENV || (process.env.NODE_ENV === 'production' ? 'production' : 'development')).toLowerCase();
 const GIT_SHA = String(process.env.GIT_SHA || '').trim();
@@ -149,10 +153,19 @@ const server = http.createServer((req, res) => {
     urlPath = '/controller/index.html';
   }
 
-  const filePath = path.join(PUBLIC_DIR, urlPath);
+  let baseDir = PUBLIC_DIR;
+  let lookupPath = urlPath;
+  if (urlPath.startsWith('/artwork/ad-clip/')) {
+    baseDir = AD_CLIP_COMPOSITE_DIR;
+    lookupPath = urlPath.slice('/artwork/ad-clip'.length);
+  }
 
-  // Prevent directory traversal
-  if (!filePath.startsWith(PUBLIC_DIR)) {
+  const filePath = path.join(baseDir, lookupPath);
+
+  // Prevent directory traversal. The trailing separator is load-bearing:
+  // without it, `/public-evil/...` (resolved via `..` segments in lookupPath)
+  // would slip past the prefix check against `/public`.
+  if (!filePath.startsWith(baseDir + path.sep)) {
     res.writeHead(403);
     res.end('Forbidden');
     return;
