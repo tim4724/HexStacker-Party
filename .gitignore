@@ -19,8 +19,7 @@ public/artwork/*
 !public/artwork/gameplay-2p-1x1.jpg
 !public/artwork/gameplay-2p-1x1.webp
 !public/artwork/social-preview.png
-!public/artwork/ad-clip/
-!public/artwork/ad-clip/**
+!public/artwork/trailer.mp4
 artwork/ad-clip/output/raw/
 build/
 .dev-certs/

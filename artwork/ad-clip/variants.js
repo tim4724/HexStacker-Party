@@ -4,7 +4,7 @@
 // `npm run ad` refreshes all deliverables while sharing common captures.
 // Clip definitions themselves (durations, AI pacing, prefill, per-player
 // levels, etc.) live in the per-clip modules under
-// public/artwork/ad-clip/clips/. Variants only choose which clips and in
+// artwork/ad-clip/composite/clips/. Variants only choose which clips and in
 // what order.
 //
 // Adding a new variant: pick a name, list the clips. It will automatically
