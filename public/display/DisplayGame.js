@@ -119,17 +119,19 @@ function clearCountdownTimers() {
   if (countdown.overlayTimer) { clearTimeout(countdown.overlayTimer); countdown.overlayTimer = null; }
 }
 
-function pauseGame(pausedByName, pausedByColorIndex) {
+function pauseGame(byName, byColorIndex) {
   if (paused) return;
   if (roomState !== ROOM_STATE.PLAYING && roomState !== ROOM_STATE.COUNTDOWN) return;
   paused = true;
+  pausedByName = byName || null;
+  pausedByColorIndex = byColorIndex != null ? byColorIndex : null;
   if (roomState === ROOM_STATE.COUNTDOWN) {
     clearCountdownTimers();
   }
   party.broadcast({
     type: MSG.GAME_PAUSED,
-    byName: pausedByName || null,
-    byColor: pausedByColorIndex != null ? pausedByColorIndex : null
+    byName: pausedByName,
+    byColor: pausedByColorIndex
   });
   onGamePaused(pausedByName, pausedByColorIndex);
 }
@@ -197,6 +199,8 @@ function resumeGame() {
   if (!canResumeGame()) return;
   if (autoPaused) setAutoPaused(false);
   paused = false;
+  pausedByName = null;
+  pausedByColorIndex = null;
   if (roomState === ROOM_STATE.COUNTDOWN && countdown.callback) {
     party.broadcast({ type: MSG.GAME_RESUMED });
     onGameResumed();
@@ -539,6 +543,7 @@ function renderColoredNameTemplate(element, key, name, colorIndex) {
     nameSpan.style.color = PLAYER_COLORS[colorIndex];
   }
   if (parts.length < 2) {
+    console.warn('[renderColoredNameTemplate] missing {name} placeholder in locale key:', key);
     element.appendChild(document.createTextNode(parts[0] + ' '));
     element.appendChild(nameSpan);
     return;

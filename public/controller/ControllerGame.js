@@ -482,7 +482,7 @@ function onWelcome(data) {
     removeKoOverlay();
     pauseBtn.classList.remove('hidden');
     if (data.paused) {
-      onGamePaused();
+      onGamePaused(data.pausedByName ? { byName: data.pausedByName, byColor: data.pausedByColor } : null);
     } else {
       pauseOverlay.classList.add('hidden');
     }

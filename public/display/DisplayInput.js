@@ -135,6 +135,10 @@ function onHello(fromId, msg) {
     if (!isLateJoiner) {
       welcomeMsg.alive = lastAliveState[fromId] != null ? lastAliveState[fromId] : true;
       welcomeMsg.paused = paused;
+      if (paused && pausedByName) {
+        welcomeMsg.pausedByName = pausedByName;
+        welcomeMsg.pausedByColor = pausedByColorIndex;
+      }
     }
     if (roomState === ROOM_STATE.RESULTS && lastResults) {
       welcomeMsg.results = lastResults.results;

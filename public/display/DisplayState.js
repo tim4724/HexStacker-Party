@@ -68,6 +68,11 @@ function setRoomState(newState) {
 }
 
 var paused = false;
+// Identity of the controller player whose PAUSE_GAME triggered the current
+// pause, so reconnecting controllers' WELCOME can carry attribution too.
+// Both null for display-side pause (toolbar button) and auto-pause.
+var pausedByName = null;
+var pausedByColorIndex = null;
 var autoPaused = false;
 var lateJoinerGraceTimer = null;
 var boardRenderers = [];
