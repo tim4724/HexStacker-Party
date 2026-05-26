@@ -75,8 +75,12 @@ class BoardRenderer {
     this._gridStrokeOpaque = rgb ? 'rgb(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ')' : 'rgb(255,255,255)';
     this._wallStroke = rgb ? 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + THEME.opacity.strong + ')' : 'rgba(255,255,255,' + THEME.opacity.soft + ')';
 
-    // Board background + grid cache (built lazily on first render)
+    // Board background + grid cache (built lazily on first render).
+    // _cachedBgTier tracks the tier the cache was built for, so a
+    // level-up that flips into/out of NEON_FLAT triggers a rebuild
+    // (neon swaps the well to black; other tiers use the tinted gradient).
     this._boardBgCache = null;
+    this._cachedBgTier = null;
   }
 
   _buildBoardBgCache() {
@@ -108,9 +112,9 @@ class BoardRenderer {
     // below stays in board-local coordinates.
     gc.translate(pad, pad);
 
-    // 1. Clip to hex outline and fill board background — tactile recipe:
-    //    vertical gradient (cardSoft → card), player-tint wash, top bevel
-    //    highlight inside the clipped zigzag shape.
+    // 1. Clip to hex outline and fill board background. Recipe is tier-aware:
+    //    neon → pure black for max contrast against bright-rim pieces;
+    //    pillow/normal → vertical gradient (secondary → board) + player tint.
     var bgv = this._bgOutlineVerts;
     var ox = this.x, oy = this.y;
     gc.save();
@@ -120,17 +124,25 @@ class BoardRenderer {
     gc.closePath();
     gc.clip();
 
-    // Deeper plum base so the player tint adds identity without brightening
-    // the well (which would wash out piece contrast).
-    var bgGrad = gc.createLinearGradient(0, 0, 0, h);
-    bgGrad.addColorStop(0, THEME.color.bg.secondary);
-    bgGrad.addColorStop(1, THEME.color.bg.board);
-    gc.fillStyle = bgGrad;
-    gc.fillRect(0, 0, w, h);
-
-    if (this._tintFill) {
-      gc.fillStyle = this._tintFill;
+    if (this._styleTier === STYLE_TIERS.NEON_FLAT) {
+      // Neon tier: drop the well to pure black for maximum contrast against
+      // the bright-rim pieces. Player identity is preserved by the tinted
+      // grid lines and wall stroke baked in below.
+      gc.fillStyle = '#000';
       gc.fillRect(0, 0, w, h);
+    } else {
+      // Deeper plum base so the player tint adds identity without brightening
+      // the well (which would wash out piece contrast).
+      var bgGrad = gc.createLinearGradient(0, 0, 0, h);
+      bgGrad.addColorStop(0, THEME.color.bg.secondary);
+      bgGrad.addColorStop(1, THEME.color.bg.board);
+      gc.fillStyle = bgGrad;
+      gc.fillRect(0, 0, w, h);
+
+      if (this._tintFill) {
+        gc.fillStyle = this._tintFill;
+        gc.fillRect(0, 0, w, h);
+      }
     }
 
     gc.restore();
@@ -249,8 +261,10 @@ class BoardRenderer {
     var _bgPh = Math.ceil(_bgCssH * _dpr);
     if (!this._boardBgCache ||
         this._boardBgCache.width !== _bgPw ||
-        this._boardBgCache.height !== _bgPh) {
+        this._boardBgCache.height !== _bgPh ||
+        this._cachedBgTier !== newTier) {
       this._boardBgCache = this._buildBoardBgCache();
+      this._cachedBgTier = newTier;
     }
     var bgc = this._boardBgCache;
     ctx.drawImage(bgc, 0, 0, bgc.width, bgc.height,
