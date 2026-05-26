@@ -147,9 +147,31 @@ class Piece {
   }
 }
 
+// Drop the piece by repeatedly incrementing anchorRow until any block would
+// leave the grid or hit a filled cell. Mutates anchorRow in place; does not
+// touch _anchorY (rendering-only, irrelevant for ghost/preview callers).
+// Shared by PlayerBoard._ghostOf and the display test harness so the gallery
+// matches in-game ghost placement.
+function dropToFloor(piece, grid, totalRows, cols) {
+  while (piece.anchorRow + 1 < totalRows) {
+    piece.anchorRow += 1;
+    var blocks = piece._absoluteBlocksFast();
+    var valid = true;
+    for (var i = 0; i < blocks.length; i++) {
+      var col = blocks[i][0], row = blocks[i][1];
+      if (col < 0 || col >= cols || row < 0 || row >= totalRows || grid[row][col] !== 0) {
+        valid = false; break;
+      }
+    }
+    if (!valid) { piece.anchorRow -= 1; return piece; }
+  }
+  return piece;
+}
+
 exports.PIECES = PIECES;
 exports.KICKS = KICKS;
 exports.Piece = Piece;
+exports.dropToFloor = dropToFloor;
 exports.offsetToAxial = offsetToAxial;
 exports.axialToOffset = axialToOffset;
 

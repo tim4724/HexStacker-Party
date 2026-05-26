@@ -24,6 +24,7 @@ const GARBAGE_CELL = constants.GARBAGE_CELL;
 const Randomizer = GameRandomizer.Randomizer;
 const Piece = PieceModule.Piece;
 const KICKS = PieceModule.KICKS;
+const dropToFloor = PieceModule.dropToFloor;
 
 const NEXT_QUEUE_SIZE = 4;
 
@@ -306,9 +307,7 @@ class PlayerBoard {
       return this._cachedGhost;
     }
     let g = piece.clone();
-    for (let i = 0; i < TOTAL_ROWS; i++) {
-      if (!this._hexDrop(g)) break;
-    }
+    dropToFloor(g, this.grid, TOTAL_ROWS, COLS);
     this._cachedGhost = g;
     this._ghostKeyCol = piece.anchorCol; this._ghostKeyRow = piece.anchorRow;
     this._ghostKeyRot = piece._rotId; this._ghostKeyGV = this.gridVersion;
