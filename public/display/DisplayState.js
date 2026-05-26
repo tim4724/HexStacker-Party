@@ -363,6 +363,7 @@ var gameToolbar = document.getElementById('game-toolbar');
 var fullscreenBtn = document.getElementById('fullscreen-btn');
 var pauseBtn = document.getElementById('pause-btn');
 var pauseOverlay = document.getElementById('pause-overlay');
+var pauseStatus = document.getElementById('pause-status');
 var pauseContinueBtn = document.getElementById('pause-continue-btn');
 var pauseNewGameBtn = document.getElementById('pause-newgame-btn');
 var reconnectOverlay = document.getElementById('reconnect-overlay');

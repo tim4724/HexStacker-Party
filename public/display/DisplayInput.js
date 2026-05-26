@@ -45,7 +45,7 @@ function handleControllerMessage(fromId, msg) {
         returnToLobby();
         break;
       case MSG.PAUSE_GAME:
-        pauseGame();
+        pauseGame(senderPlayer ? senderPlayer.playerName : null);
         break;
       case MSG.RESUME_GAME:
         resumeGame();
