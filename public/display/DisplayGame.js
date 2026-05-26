@@ -534,9 +534,13 @@ function onGamePaused(pausedByName, pausedByColorIndex) {
 // color. Splits the template on a \x00 sentinel placed at {name} (same trick
 // as ControllerGame.js#renderHostBanner) so the colored span doesn't expose
 // us to HTML injection — every part is a text node except the styled span.
+// Wraps everything in a single span so the parts stay one flex item if the
+// host element is `display: flex` (otherwise the trailing space before {name}
+// would be stripped at the flex-item boundary).
 function renderColoredNameTemplate(element, key, name, colorIndex) {
   var tmpl = t(key, { name: '\x00' });
   var parts = tmpl.split('\x00');
+  var wrap = document.createElement('span');
   var nameSpan = document.createElement('span');
   nameSpan.textContent = name;
   if (colorIndex != null && PLAYER_COLORS[colorIndex]) {
@@ -544,13 +548,14 @@ function renderColoredNameTemplate(element, key, name, colorIndex) {
   }
   if (parts.length < 2) {
     console.warn('[renderColoredNameTemplate] missing {name} placeholder in locale key:', key);
-    element.appendChild(document.createTextNode(parts[0] + ' '));
-    element.appendChild(nameSpan);
-    return;
+    wrap.appendChild(document.createTextNode(parts[0] + ' '));
+    wrap.appendChild(nameSpan);
+  } else {
+    wrap.appendChild(document.createTextNode(parts[0]));
+    wrap.appendChild(nameSpan);
+    wrap.appendChild(document.createTextNode(parts[1]));
   }
-  element.appendChild(document.createTextNode(parts[0]));
-  element.appendChild(nameSpan);
-  element.appendChild(document.createTextNode(parts[1]));
+  element.appendChild(wrap);
 }
 
 function dismissAutoPausedOverlay() {
