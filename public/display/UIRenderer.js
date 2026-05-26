@@ -86,10 +86,13 @@ class UIRenderer {
     this._panelStroke = rgb ? 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + THEME.opacity.soft + ')' : 'rgba(255, 255, 255, ' + THEME.opacity.tint + ')';
 
     // Offscreen caches for hold/next chrome (header label + panel rect).
-    // Built lazily on first render; invalidated when fonts change.
+    // Built lazily on first render; invalidated when fonts change or when
+    // _styleTier flips into/out of NEON_FLAT (neon swaps the panel fill to
+    // pure black to match the neon board well).
     this._holdChromeCache = null;
     this._nextChromeCache = null;
     this._nextChromeCacheBoxH = 0;
+    this._cachedChromeTier = null;
 
     // Cached font strings
     this._updateCachedFonts();
@@ -126,6 +129,11 @@ class UIRenderer {
 
   render(playerState, timestamp) {
     this._styleTier = getStyleTier(playerState.level || 1);
+    if (this._cachedChromeTier !== this._styleTier) {
+      this._holdChromeCache = null;
+      this._nextChromeCache = null;
+      this._cachedChromeTier = this._styleTier;
+    }
     if (getDisplayFont() !== this._cachedFontFamily) this._updateCachedFonts();
     var nextLayout = this._nextPanelLayout(playerState);
     this.drawPlayerName(playerState);
@@ -371,18 +379,25 @@ class UIRenderer {
     var r = THEME.radius.panel(this.cellSize);
     var cellSize = this.cellSize;
 
-    // Gradient fill + optional player-color wash — reuse the path (fill()
-    // doesn't consume it) so the tint overlays the gradient precisely.
-    var gradient = c.createLinearGradient(x, y, x, y + h);
-    gradient.addColorStop(0, THEME.color.bg.cardSoft);
-    gradient.addColorStop(1, THEME.color.bg.card);
     c.beginPath();
     _addRoundRectSubPath(c, x, y, w, h, r);
-    c.fillStyle = gradient;
-    c.fill();
-    if (this._panelTintFill) {
-      c.fillStyle = this._panelTintFill;
+    if (this._styleTier === STYLE_TIERS.NEON_FLAT) {
+      // Neon tier: pure black fill to match the black board well. Identity
+      // is carried by the player-tinted rim stroke below.
+      c.fillStyle = '#000';
       c.fill();
+    } else {
+      // Gradient fill + optional player-color wash — reuse the path (fill()
+      // doesn't consume it) so the tint overlays the gradient precisely.
+      var gradient = c.createLinearGradient(x, y, x, y + h);
+      gradient.addColorStop(0, THEME.color.bg.cardSoft);
+      gradient.addColorStop(1, THEME.color.bg.card);
+      c.fillStyle = gradient;
+      c.fill();
+      if (this._panelTintFill) {
+        c.fillStyle = this._panelTintFill;
+        c.fill();
+      }
     }
 
     // Inset top bevel — thin bright horizontal line just inside the top rim.
