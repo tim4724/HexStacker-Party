@@ -382,8 +382,9 @@ class UIRenderer {
     c.beginPath();
     _addRoundRectSubPath(c, x, y, w, h, r);
     if (this._styleTier === STYLE_TIERS.NEON_FLAT) {
-      // Neon tier: pure black fill to match the black board well. Identity
-      // is carried by the player-tinted rim stroke below.
+      // Neon tier: pure black fill to match the black board well, no bevel.
+      // A 14% white bevel on #000 reads as a stray grey edge that breaks the
+      // matte look. Identity is carried by the player-tinted rim stroke below.
       c.fillStyle = '#000';
       c.fill();
     } else {
@@ -398,21 +399,21 @@ class UIRenderer {
         c.fillStyle = this._panelTintFill;
         c.fill();
       }
-    }
 
-    // Inset top bevel — thin bright horizontal line just inside the top rim.
-    c.save();
-    c.beginPath();
-    _addRoundRectSubPath(c, x, y, w, h, r);
-    c.clip();
-    c.strokeStyle = 'rgba(255, 255, 255, 0.14)';
-    c.lineWidth = Math.max(1, cellSize * 0.03);
-    c.beginPath();
-    var bevelInset = Math.max(1, cellSize * 0.015);
-    c.moveTo(x + r * 0.5, y + bevelInset);
-    c.lineTo(x + w - r * 0.5, y + bevelInset);
-    c.stroke();
-    c.restore();
+      // Inset top bevel — thin bright horizontal line just inside the top rim.
+      c.save();
+      c.beginPath();
+      _addRoundRectSubPath(c, x, y, w, h, r);
+      c.clip();
+      c.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+      c.lineWidth = Math.max(1, cellSize * 0.03);
+      c.beginPath();
+      var bevelInset = Math.max(1, cellSize * 0.015);
+      c.moveTo(x + r * 0.5, y + bevelInset);
+      c.lineTo(x + w - r * 0.5, y + bevelInset);
+      c.stroke();
+      c.restore();
+    }
 
     // Thin player-tinted rim stroke for identity.
     c.strokeStyle = this._panelStroke;
