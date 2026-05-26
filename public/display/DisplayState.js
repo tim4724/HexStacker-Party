@@ -68,6 +68,11 @@ function setRoomState(newState) {
 }
 
 var paused = false;
+// Identity of the controller player whose PAUSE_GAME triggered the current
+// pause, so reconnecting controllers' WELCOME can carry attribution too.
+// Both null for display-side pause (toolbar button) and auto-pause.
+var pausedByName = null;
+var pausedByColorIndex = null;
 var autoPaused = false;
 var lateJoinerGraceTimer = null;
 var boardRenderers = [];
@@ -126,6 +131,8 @@ function resetRoomData() {
   hostPeerIndex = null;
   _joinSequence = 0;
   paused = false;
+  pausedByName = null;
+  pausedByColorIndex = null;
   setAutoPaused(false);
   clearLateJoinerGraceTimer();
   gameState = null;
@@ -363,6 +370,7 @@ var gameToolbar = document.getElementById('game-toolbar');
 var fullscreenBtn = document.getElementById('fullscreen-btn');
 var pauseBtn = document.getElementById('pause-btn');
 var pauseOverlay = document.getElementById('pause-overlay');
+var pauseStatus = document.getElementById('pause-status');
 var pauseContinueBtn = document.getElementById('pause-continue-btn');
 var pauseNewGameBtn = document.getElementById('pause-newgame-btn');
 var reconnectOverlay = document.getElementById('reconnect-overlay');

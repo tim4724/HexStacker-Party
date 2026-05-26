@@ -119,15 +119,21 @@ function clearCountdownTimers() {
   if (countdown.overlayTimer) { clearTimeout(countdown.overlayTimer); countdown.overlayTimer = null; }
 }
 
-function pauseGame() {
+function pauseGame(byName, byColorIndex) {
   if (paused) return;
   if (roomState !== ROOM_STATE.PLAYING && roomState !== ROOM_STATE.COUNTDOWN) return;
   paused = true;
+  pausedByName = byName || null;
+  pausedByColorIndex = byColorIndex != null ? byColorIndex : null;
   if (roomState === ROOM_STATE.COUNTDOWN) {
     clearCountdownTimers();
   }
-  party.broadcast({ type: MSG.GAME_PAUSED });
-  onGamePaused();
+  party.broadcast({
+    type: MSG.GAME_PAUSED,
+    byName: pausedByName,
+    byColor: pausedByColorIndex
+  });
+  onGamePaused(pausedByName, pausedByColorIndex);
 }
 
 // Check if all game participants are disconnected — auto-pause if so
@@ -193,6 +199,8 @@ function resumeGame() {
   if (!canResumeGame()) return;
   if (autoPaused) setAutoPaused(false);
   paused = false;
+  pausedByName = null;
+  pausedByColorIndex = null;
   if (roomState === ROOM_STATE.COUNTDOWN && countdown.callback) {
     party.broadcast({ type: MSG.GAME_RESUMED });
     onGameResumed();
@@ -504,13 +512,51 @@ function onGameEnd(msg) {
   showScreen(SCREEN.RESULTS);
 }
 
-function onGamePaused() {
+function onGamePaused(pausedByName, pausedByColorIndex) {
   if (displayGame) displayGame.pause();
   if (pauseContinueBtn) pauseContinueBtn.disabled = false;
+  if (pauseStatus) {
+    if (pausedByName) {
+      renderColoredNameTemplate(pauseStatus, 'paused_by', pausedByName, pausedByColorIndex);
+      pauseStatus.classList.remove('hidden');
+    } else {
+      pauseStatus.textContent = '';
+      pauseStatus.classList.add('hidden');
+    }
+  }
   pauseOverlay.classList.remove('hidden');
   gameToolbar.classList.add('hidden');
   countdownOverlay.classList.add('paused');
   if (music) music.pause();
+}
+
+// Renders `t(key, {name})` into `element` with the player name in their accent
+// color. Splits the template on a \x00 sentinel placed at {name} (same trick
+// as ControllerGame.js#renderHostBanner) so the colored span doesn't expose
+// us to HTML injection — every part is a text node except the styled span.
+// Wraps the parts in a single span to mirror renderHostBanner's contract
+// (also keeps the trailing space safe if the host element is ever switched
+// to display:flex, where direct text-node children become separate items).
+function renderColoredNameTemplate(element, key, name, colorIndex) {
+  element.textContent = '';
+  var tmpl = t(key, { name: '\x00' });
+  var parts = tmpl.split('\x00');
+  var wrap = document.createElement('span');
+  var nameSpan = document.createElement('span');
+  nameSpan.textContent = name;
+  if (colorIndex != null && PLAYER_COLORS[colorIndex]) {
+    nameSpan.style.color = PLAYER_COLORS[colorIndex];
+  }
+  if (parts.length < 2) {
+    console.warn('[renderColoredNameTemplate] missing {name} placeholder in locale key:', key);
+    wrap.appendChild(document.createTextNode(parts[0] + ' '));
+    wrap.appendChild(nameSpan);
+  } else {
+    wrap.appendChild(document.createTextNode(parts[0]));
+    wrap.appendChild(nameSpan);
+    wrap.appendChild(document.createTextNode(parts[1]));
+  }
+  element.appendChild(wrap);
 }
 
 function dismissAutoPausedOverlay() {
