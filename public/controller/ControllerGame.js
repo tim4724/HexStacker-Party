@@ -594,13 +594,16 @@ var selfPausingTimer = null;
 var pausedBySettings = false;
 
 function onGamePaused(data) {
+  var wasSelfPausing = selfPausing;
   gameScreen.classList.add('paused');
-  pauseOverlay.classList.toggle('pause-overlay--self', selfPausing);
+  pauseOverlay.classList.toggle('pause-overlay--self', wasSelfPausing);
   selfPausing = false;
   clearTimeout(selfPausingTimer);
   if (!pausedBySettings) pauseOverlay.classList.remove('hidden');
   pauseBtn.disabled = true;
-  if (data && data.byName) {
+  // Suppress the "by {name}" sub-line for the player who initiated the pause —
+  // they already know it was them. Others still see who paused.
+  if (data && data.byName && !wasSelfPausing) {
     var byColor = data.byColor != null ? PLAYER_COLORS[data.byColor] : null;
     renderHostBanner(pauseStatus, 'paused_by', data.byName, byColor);
     pauseStatus.classList.remove('hidden');
