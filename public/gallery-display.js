@@ -4,18 +4,17 @@
 // through a real session. Cards-per-row is set by the header control.
 //
 // Card shape:
-//   { key, title, hostVariant?, level?, animated?, staticPath?, minPlayers? }
+//   { key, title, hostVariant?, level?, animated?, staticPath? }
 // hostVariant cards swap their `host` URL param when the view-as selector
 // changes (no iframe rebuild). staticPath cards render /privacy or /imprint.
-// minPlayers gates cards that need ≥N players (game effects need 4 boards).
 var DISPLAY_CARDS = [
   { key: 'welcome',          title: 'Welcome' },
   { key: 'lobby',            title: 'Lobby (Standard)',   hostVariant: true },
   { key: 'airconsole-lobby', title: 'Lobby (AirConsole)', hostVariant: true },
   { key: 'countdown',        title: 'Countdown', replayable: true },
-  { key: 'effects-combo',    title: 'Game (Normal · Lv 1)',  level: 1,  animated: true, minPlayers: 4, replayable: true },
-  { key: 'effects-combo',    title: 'Game (Pillow · Lv 8)',  level: 8,  animated: true, minPlayers: 4, replayable: true },
-  { key: 'effects-combo',    title: 'Game (Neon · Lv 12)',   level: 12, animated: true, minPlayers: 4, replayable: true },
+  { key: 'effects-combo',    title: 'Game (Normal · Lv 1)',  level: 1,  animated: true, replayable: true },
+  { key: 'effects-combo',    title: 'Game (Pillow · Lv 8)',  level: 8,  animated: true, replayable: true },
+  { key: 'effects-combo',    title: 'Game (Neon · Lv 12)',   level: 12, animated: true, replayable: true },
   { key: 'reconnecting',     title: 'Reconnecting' },
   { key: 'pause',            title: 'Paused',       hostVariant: true },
   { key: 'disconnected',     title: 'Disconnected', hostVariant: true },
@@ -80,7 +79,6 @@ function render() {
   var d = dims();
   for (var i = 0; i < DISPLAY_CARDS.length; i++) {
     var c = DISPLAY_CARDS[i];
-    if (c.minPlayers && state.players < c.minPlayers) continue;
     var card = Gallery.makeCard({
       title: c.title,
       tag: cardTag(c),

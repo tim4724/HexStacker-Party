@@ -316,7 +316,8 @@ function _buildHexDebugState(debugPlayers, level) {
     var spawnCol = GameConstants.COLS >> 1;
     piece.anchorCol = spawnCol; piece.anchorRow = 2;
     var blocks = piece.getAbsoluteBlocks();
-    var ghostPiece = piece.clone(); ghostPiece.anchorRow = HV - 5;
+    var ghostPiece = piece.clone();
+    PieceModule.dropToFloor(ghostPiece, grid, HV, HC);
     state.players.push({
       id: debugPlayers[dj].id, playerName: debugPlayers[dj].name,
       grid: grid, lines: [24,16,10,5,20,12,8,3][dj % 8], level: level || [3,2,2,1,3,2,1,1][dj % 8],
@@ -624,8 +625,10 @@ function initScenario(opts) {
   if (scenario === 'effects-combo') {
     // Gallery combo: boards 0–3 each demonstrate one effect at once so a
     // single preview tile covers line-clear / garbage-in / defend / KO.
-    // Gated to players>=4 by the gallery, but guard anyway.
-    if (state.players.length < 4) return;
+    // Each effect needs its own board, so at lower player counts the higher-
+    // indexed effects are simply skipped rather than gating the whole tile.
+    var nP = state.players.length;
+    if (nP < 1) return;
 
     var HC_c = GameConstants.COLS;
     var HV_c = GameConstants.VISIBLE_ROWS;
@@ -649,9 +652,9 @@ function initScenario(opts) {
         }
       }
       state.players[0].gridVersion = 0;
-      state.players[1].pendingGarbage = 0;
-      state.players[2].pendingGarbage = 3;
-      state.players[3].alive = true;
+      if (nP > 1) state.players[1].pendingGarbage = 0;
+      if (nP > 2) state.players[2].pendingGarbage = 3;
+      if (nP > 3) state.players[3].alive = true;
     }
 
     function runEffects() {
@@ -665,18 +668,23 @@ function initScenario(opts) {
           state.players[0].gridVersion++;
         }, GameConstants.LINE_CLEAR_DELAY_MS);
 
-        onGarbageSent({
-          toId: debugPlayers[1].id,
-          senderId: debugPlayers[2].id,
-          lines: 3
-        });
-        state.players[1].pendingGarbage = 3;
+        // Garbage-in needs both a receiver (board 1) and a sender (board 2).
+        if (nP > 2) {
+          onGarbageSent({
+            toId: debugPlayers[1].id,
+            senderId: debugPlayers[2].id,
+            lines: 3
+          });
+          state.players[1].pendingGarbage = 3;
 
-        onGarbageCancelled({ playerId: debugPlayers[2].id, lines: 2 });
-        state.players[2].pendingGarbage = 1;
+          onGarbageCancelled({ playerId: debugPlayers[2].id, lines: 2 });
+          state.players[2].pendingGarbage = 1;
+        }
 
-        window.__TEST__.injectKO(debugPlayers[3].id);
-        state.players[3].alive = false;
+        if (nP > 3) {
+          window.__TEST__.injectKO(debugPlayers[3].id);
+          state.players[3].alive = false;
+        }
       });
     }
     seedBoards();
