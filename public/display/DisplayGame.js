@@ -119,15 +119,19 @@ function clearCountdownTimers() {
   if (countdown.overlayTimer) { clearTimeout(countdown.overlayTimer); countdown.overlayTimer = null; }
 }
 
-function pauseGame(pausedByName) {
+function pauseGame(pausedByName, pausedByColorIndex) {
   if (paused) return;
   if (roomState !== ROOM_STATE.PLAYING && roomState !== ROOM_STATE.COUNTDOWN) return;
   paused = true;
   if (roomState === ROOM_STATE.COUNTDOWN) {
     clearCountdownTimers();
   }
-  party.broadcast({ type: MSG.GAME_PAUSED });
-  onGamePaused(pausedByName);
+  party.broadcast({
+    type: MSG.GAME_PAUSED,
+    byName: pausedByName || null,
+    byColor: pausedByColorIndex != null ? pausedByColorIndex : null
+  });
+  onGamePaused(pausedByName, pausedByColorIndex);
 }
 
 // Check if all game participants are disconnected — auto-pause if so
@@ -504,15 +508,15 @@ function onGameEnd(msg) {
   showScreen(SCREEN.RESULTS);
 }
 
-function onGamePaused(pausedByName) {
+function onGamePaused(pausedByName, pausedByColorIndex) {
   if (displayGame) displayGame.pause();
   if (pauseContinueBtn) pauseContinueBtn.disabled = false;
   if (pauseStatus) {
+    pauseStatus.textContent = '';
     if (pausedByName) {
-      pauseStatus.textContent = t('paused_by', { name: pausedByName });
+      renderColoredNameTemplate(pauseStatus, 'paused_by', pausedByName, pausedByColorIndex);
       pauseStatus.classList.remove('hidden');
     } else {
-      pauseStatus.textContent = '';
       pauseStatus.classList.add('hidden');
     }
   }
@@ -520,6 +524,28 @@ function onGamePaused(pausedByName) {
   gameToolbar.classList.add('hidden');
   countdownOverlay.classList.add('paused');
   if (music) music.pause();
+}
+
+// Renders `t(key, {name})` into `element` with the player name in their accent
+// color. Splits the template on a \x00 sentinel placed at {name} (same trick
+// as ControllerGame.js#renderHostBanner) so the colored span doesn't expose
+// us to HTML injection — every part is a text node except the styled span.
+function renderColoredNameTemplate(element, key, name, colorIndex) {
+  var tmpl = t(key, { name: '\x00' });
+  var parts = tmpl.split('\x00');
+  var nameSpan = document.createElement('span');
+  nameSpan.textContent = name;
+  if (colorIndex != null && PLAYER_COLORS[colorIndex]) {
+    nameSpan.style.color = PLAYER_COLORS[colorIndex];
+  }
+  if (parts.length < 2) {
+    element.appendChild(document.createTextNode(parts[0] + ' '));
+    element.appendChild(nameSpan);
+    return;
+  }
+  element.appendChild(document.createTextNode(parts[0]));
+  element.appendChild(nameSpan);
+  element.appendChild(document.createTextNode(parts[1]));
 }
 
 function dismissAutoPausedOverlay() {

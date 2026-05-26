@@ -928,6 +928,12 @@ html, body {
 }
 
 
+/* Zero the <p>'s default margin so spacing is exactly the flex gap of the
+   parent .game-overlay (matches display.css). */
+#pause-status {
+  margin: 0;
+}
+
 /* Pause button */
 #pause-btn:active .pause-icon::before,
 #pause-btn:active .pause-icon::after {

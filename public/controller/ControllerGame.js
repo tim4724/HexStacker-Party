@@ -593,7 +593,7 @@ var selfPausingTimer = null;
 // and we don't want the pause overlay flashing behind it.
 var pausedBySettings = false;
 
-function onGamePaused() {
+function onGamePaused(data) {
   gameScreen.classList.add('paused');
   pauseOverlay.classList.toggle('pause-overlay--self', selfPausing);
   selfPausing = false;
@@ -601,6 +601,13 @@ function onGamePaused() {
   if (!pausedBySettings) pauseOverlay.classList.remove('hidden');
   pauseBtn.disabled = true;
   pauseStatus.textContent = '';
+  if (data && data.byName) {
+    var byColor = data.byColor != null ? PLAYER_COLORS[data.byColor] : null;
+    renderHostBanner(pauseStatus, 'paused_by', data.byName, byColor);
+    pauseStatus.classList.remove('hidden');
+  } else {
+    pauseStatus.classList.add('hidden');
+  }
   pauseButtons.classList.remove('hidden');
 }
 

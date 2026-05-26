@@ -59,7 +59,7 @@ function handleMessage(data) {
         onGameEnd(data);
         break;
       case MSG.GAME_PAUSED:
-        onGamePaused();
+        onGamePaused(data);
         break;
       case MSG.GAME_RESUMED:
         onGameResumed();

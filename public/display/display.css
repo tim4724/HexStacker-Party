@@ -746,9 +746,13 @@ body.airconsole #qr-container,
 }
 
 /* When the status line is visible, group it with the heading: collapse the
-   heading's margin-bottom so h1 + status read as one unit above the buttons. */
+   heading's margin-bottom so h1 + status read as one unit above the buttons.
+   Also zero the <p>'s default top margin so spacing is exactly the flex gap. */
 #pause-overlay h1:has(+ #pause-status:not(.hidden)) {
   margin-bottom: 0;
+}
+#pause-status {
+  margin: 0;
 }
 
 /* No misclick gate on the display — it's a TV/monitor, not a phone. */

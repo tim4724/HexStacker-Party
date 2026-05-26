@@ -133,7 +133,7 @@ describe('i18n', function () {
       'reconnect', 'rejoin', 'join', 'share_aria',
       'reconnecting', 'disconnected', 'connecting', 'connection_lost',
       'attempt_n_of_m', 'display_reconnecting', 'bad_connection',
-      'paused', 'device_choice_continue',
+      'paused', 'paused_by', 'device_choice_continue',
       'chip_players', 'chip_players_sub',
       'chip_install', 'chip_install_sub',
       'chip_controller', 'chip_controller_sub',
@@ -168,13 +168,14 @@ describe('i18n', function () {
     }
   });
 
-  describe('waiting_for_host banner keys', function () {
-    // renderHostBanner splits these strings on a \x00 sentinel placed at
-    // {name}. Every locale must contain {name} exactly once or the banner
-    // will render the template text colliding with the name.
-    var bannerKeys = ['waiting_for_host_to_start', 'waiting_for_host_to_continue'];
+  describe('colored-name template keys', function () {
+    // renderHostBanner / renderColoredNameTemplate split these strings on a
+    // \x00 sentinel placed at {name}. Every locale must contain {name}
+    // exactly once or the colored span renders adjacent to the template text
+    // instead of replacing it.
+    var bannerKeys = ['waiting_for_host_to_start', 'waiting_for_host_to_continue', 'paused_by'];
     for (var locale of Object.keys(LOCALES)) {
-      it('locale "' + locale + '" banner keys contain exactly one {name}', function () {
+      it('locale "' + locale + '" colored-name template keys contain exactly one {name}', function () {
         for (var key of bannerKeys) {
           var val = LOCALES[locale][key];
           if (val === undefined) continue; // covered by required-keys test
