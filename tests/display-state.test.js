@@ -292,6 +292,7 @@ function electNextHost(players, disconnectedQRs, excludeId) {
 // Mirrors DisplayState.js reconcileStickyHost, keep in sync.
 function reconcileStickyHost(players, disconnectedQRs, hostPeerIndex) {
   const disconnected = disconnectedQRs || new Map();
+  if (players.size === 0) return hostPeerIndex;
   if (hostPeerIndex != null
       && players.has(hostPeerIndex)
       && !disconnected.has(hostPeerIndex)) {
@@ -363,6 +364,29 @@ describe('getHostPeerIndex (sticky host)', () => {
     players.delete('alice');
     assert.equal(hostId, 'bob');
     assert.equal(getHostPeerIndex(players, null, undefined, undefined, undefined, hostId), 'bob');
+  });
+
+  it('RESULTS departure: hostPeerIndex is reassigned eagerly (not deferred)', () => {
+    // Symmetric to the LOBBY case. The onPeerLeft RESULTS branch deletes the
+    // player outright, so we eagerly hand off the slot rather than waiting
+    // for a later state transition (which may never come if the user clicks
+    // Play Again, since RESULTS -> COUNTDOWN doesn't trigger reconcile).
+    const players = new Map([
+      ['alice', { playerIndex: 0, joinedAt: 1 }],
+      ['bob',   { playerIndex: 1, joinedAt: 2 }]
+    ]);
+    const playerOrder = ['alice', 'bob'];
+    let hostId = 'alice';
+    // Reproduces the production guard: midGame = PLAYING || COUNTDOWN; RESULTS
+    // is not midGame, so the eager handoff fires.
+    const midGame = false;
+    if (!midGame && hostId === 'alice') hostId = electNextHost(players, null, 'alice');
+    players.delete('alice');
+    assert.equal(hostId, 'bob');
+    assert.equal(
+      getHostPeerIndex(players, null, ROOM_STATE.RESULTS, playerOrder.filter(id => id !== 'alice'), null, hostId),
+      'bob'
+    );
   });
 
   it('LOBBY: a returning original host does NOT reclaim after intentional leave', () => {
@@ -611,6 +635,14 @@ describe('getHostPeerIndex (sticky host)', () => {
     const players = new Map([['alice', { playerIndex: 0, joinedAt: 1 }]]);
     const disconnectedQRs = new Map([['alice', null]]);
     assert.equal(reconcileStickyHost(players, disconnectedQRs, 'alice'), null);
+  });
+
+  it('reconcileStickyHost: no-op on empty players (pre-resetRoomData call sites)', () => {
+    // setRoomState(LOBBY) inside applyRoomCreated / resetToWelcome runs before
+    // resetRoomData wipes the previous session's players map. Skipping on an
+    // empty room prevents reconcile from committing a stale handoff.
+    const players = new Map();
+    assert.equal(reconcileStickyHost(players, null, 'alice'), 'alice');
   });
 
   it('reconcileStickyHost: leaves a present sticky host alone even if another player joined earlier (shouldn\'t happen, but safe)', () => {

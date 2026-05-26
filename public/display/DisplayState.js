@@ -331,6 +331,11 @@ function electNextHost(excludeId) {
 // promote the next arrival.
 // NOTE: tests/display-state.test.js mirrors this algorithm, keep in sync.
 function reconcileStickyHost() {
+  // Guard against pre-reset call sites: applyRoomCreated and resetToWelcome
+  // call setRoomState(LOBBY) before resetRoomData(), so reconcile can briefly
+  // see the previous session's players map. resetRoomData clears it moments
+  // later, but skip on empty rooms so we never commit a stale handoff.
+  if (players.size === 0) return;
   if (hostPeerIndex != null
       && players.has(hostPeerIndex)
       && !disconnectedQRs.has(hostPeerIndex)) {
