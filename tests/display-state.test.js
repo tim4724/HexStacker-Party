@@ -220,18 +220,22 @@ describe('sanitizePlayerName', () => {
 // getHostPeerIndex — AirConsole master-controller rule (lowest playerIndex)
 // =========================================================================
 
-// Mirrors DisplayState.js getHostPeerIndex / electNextHost — keep in sync.
+// Mirrors DisplayState.js getHostPeerIndex / electNextHost / reconcileStickyHost, keep in sync.
 //
 // Sticky host: `hostPeerIndex` is a stored slot (not a computed min).
 // It is:
 //   - Initialized by the first joiner (onPeerJoined / onHello).
-//   - Reassigned by electNextHost() when the holder leaves (onPeerLeft),
-//     which picks the oldest-joined remaining present player.
-//   - Preserved across color changes and temporary disconnects.
+//   - Reassigned by electNextHost() when the holder leaves the room in
+//     LOBBY/RESULTS (onPeerLeft), i.e. a real departure since those
+//     screens delete the player outright.
+//   - Reconciled by reconcileStickyHost() when the room enters LOBBY or
+//     RESULTS (the moments where host duty is actually exercised).
+//   - Preserved across color changes and mid-game disconnects so a host
+//     who briefly blips reclaims their role on reconnect.
 // getHostPeerIndex returns the stored host when available; otherwise it
 // returns a read-only fallback (oldest-joined present eligible player)
 // so mid-game disconnect transparently defers host duty until the
-// reassignment happens in the next onPeerLeft.
+// reconcile step runs at LOBBY/RESULTS entry.
 function getHostPeerIndex(players, party, roomState, playerOrder, disconnectedQRs, hostPeerIndex) {
   const restricted = (roomState === ROOM_STATE.PLAYING
                    || roomState === ROOM_STATE.COUNTDOWN
@@ -284,6 +288,18 @@ function electNextHost(players, disconnectedQRs, excludeId) {
   return nextId;
 }
 
+// Returns the (possibly new) hostPeerIndex after reconciliation.
+// Mirrors DisplayState.js reconcileStickyHost, keep in sync.
+function reconcileStickyHost(players, disconnectedQRs, hostPeerIndex) {
+  const disconnected = disconnectedQRs || new Map();
+  if (hostPeerIndex != null
+      && players.has(hostPeerIndex)
+      && !disconnected.has(hostPeerIndex)) {
+    return hostPeerIndex;
+  }
+  return electNextHost(players, disconnected, hostPeerIndex);
+}
+
 // Small helper for tests — create an entry with a monotonic joinedAt so
 // tests don't have to hand-pick timestamps. Each call gets a larger value.
 let _testJoinCounter = 0;
@@ -334,25 +350,26 @@ describe('getHostPeerIndex (sticky host)', () => {
     assert.equal(electNextHost(players, null, 'alice'), 'bob');
   });
 
-  it('handoff flow: onPeerLeft reassigns then getHostPeerIndex returns new host', () => {
-    // Simulates what DisplayConnection does: electNextHost → delete player.
+  it('LOBBY handoff: onPeerLeft reassigns then getHostPeerIndex returns new host', () => {
+    // In LOBBY/RESULTS, departures are real (no reconnect grace) so onPeerLeft
+    // runs electNextHost before deleting the player.
     const players = new Map([
       ['alice', { playerIndex: 0, joinedAt: 1 }],
       ['bob',   { playerIndex: 1, joinedAt: 2 }]
     ]);
     let hostId = 'alice';
     assert.equal(getHostPeerIndex(players, null, undefined, undefined, undefined, hostId), 'alice');
-    // Alice leaves — onPeerLeft runs electNextHost BEFORE removing her.
     hostId = electNextHost(players, null, 'alice');
     players.delete('alice');
     assert.equal(hostId, 'bob');
     assert.equal(getHostPeerIndex(players, null, undefined, undefined, undefined, hostId), 'bob');
   });
 
-  it('sticky: a returning original host does NOT reclaim', () => {
-    // Alice (host) leaves. onPeerLeft reassigns host to Bob.
-    // Later Alice rejoins — she's a new entry with a new joinedAt and
-    // hostPeerIndex still points to Bob.
+  it('LOBBY: a returning original host does NOT reclaim after intentional leave', () => {
+    // Alice (host) leaves the lobby. onPeerLeft reassigns host to Bob and
+    // deletes Alice. Later Alice rejoins as a brand-new entry; hostPeerIndex
+    // still points to Bob. This is intentional: a true leave (vs. a mid-game
+    // blip) commits the handoff.
     const players = new Map([
       ['alice', { playerIndex: 0, joinedAt: 1 }],
       ['bob',   { playerIndex: 1, joinedAt: 2 }]
@@ -444,10 +461,10 @@ describe('getHostPeerIndex (sticky host)', () => {
 
   it('PLAYING: disconnected sticky host → read-only fallback to next-oldest', () => {
     // Alice is sticky host but currently disconnected. During the blip the
-    // fallback returns bob (oldest other active), without mutating hostPeerIndex.
-    // (In production, onPeerLeft has already been invoked and hostPeerIndex was
-    // transferred to bob — this test covers the brief window BEFORE that runs,
-    // or any race where getHostPeerIndex is called with stale hostPeerIndex.)
+    // fallback returns bob (oldest other active) for any host-only menu action,
+    // without mutating hostPeerIndex. The stored slot is preserved so Alice
+    // reclaims when she reconnects (or the slot moves to a present player when
+    // we transition into RESULTS / LOBBY via reconcileStickyHost).
     const players = new Map([
       ['alice', { playerIndex: 0, joinedAt: 1 }],
       ['bob',   { playerIndex: 1, joinedAt: 2 }],
@@ -504,6 +521,108 @@ describe('getHostPeerIndex (sticky host)', () => {
     const disconnectedQRs = new Map([['bob', null]]);
     // Alice leaves; Bob is next-oldest but disconnected; Carol wins.
     assert.equal(electNextHost(players, disconnectedQRs, 'alice'), 'carol');
+  });
+
+  // -----------------------------------------------------------------------
+  // Deferred mid-game handoff: a brief disconnect does not demote the host
+  // -----------------------------------------------------------------------
+
+  it('PLAYING blip: hostPeerIndex is preserved while the host is disconnected', () => {
+    // onPeerLeft fires mid-game when Alice's WS drops. Under the deferred-
+    // handoff model the stored slot stays pinned to her so she reclaims on
+    // reconnect; getHostPeerIndex's read-only fallback covers any host-only
+    // menu action in the meantime.
+    const players = new Map([
+      ['alice', { playerIndex: 0, joinedAt: 1 }],
+      ['bob',   { playerIndex: 1, joinedAt: 2 }]
+    ]);
+    const playerOrder = ['alice', 'bob'];
+    const disconnectedQRs = new Map([['alice', null]]);
+    let hostPeerIndex = 'alice';
+    // No electNextHost call here; that is the production behavior in
+    // DisplayConnection.onPeerLeft when roomState is PLAYING/COUNTDOWN.
+    assert.equal(hostPeerIndex, 'alice');
+    assert.equal(
+      getHostPeerIndex(players, null, ROOM_STATE.PLAYING, playerOrder, disconnectedQRs, hostPeerIndex),
+      'bob'
+    );
+  });
+
+  it('PLAYING blip: original host reclaims when reconnect re-keys the slot', () => {
+    // claimReconnectPeer rekeys the host slot from the old peerIndex to the
+    // new one when the holder reconnects. Because the slot was preserved,
+    // Alice (new id 'alice2') becomes host again.
+    const players = new Map([
+      ['alice', { playerIndex: 0, joinedAt: 1 }],
+      ['bob',   { playerIndex: 1, joinedAt: 2 }]
+    ]);
+    let hostPeerIndex = 'alice';
+    // Mid-game blip: hostPeerIndex unchanged.
+    assert.equal(hostPeerIndex, 'alice');
+    // Reconnect: claimReconnectPeer rekeys 'alice' -> 'alice2'. The reproduced
+    // line below mirrors DisplayConnection.js claimReconnectPeer's rekey:
+    //   if (hostPeerIndex === oldId || hostPeerIndex == null) hostPeerIndex = fromId;
+    const existing = players.get('alice');
+    players.delete('alice');
+    players.set('alice2', existing);
+    if (hostPeerIndex === 'alice' || hostPeerIndex == null) hostPeerIndex = 'alice2';
+    assert.equal(
+      getHostPeerIndex(players, null, ROOM_STATE.PLAYING, ['alice2', 'bob'], null, hostPeerIndex),
+      'alice2'
+    );
+  });
+
+  // -----------------------------------------------------------------------
+  // reconcileStickyHost: commits any pending handoff at LOBBY/RESULTS entry
+  // -----------------------------------------------------------------------
+
+  it('reconcileStickyHost: keeps the slot when the stored host is present and connected', () => {
+    const players = new Map([
+      ['alice', { playerIndex: 0, joinedAt: 1 }],
+      ['bob',   { playerIndex: 1, joinedAt: 2 }]
+    ]);
+    assert.equal(reconcileStickyHost(players, null, 'alice'), 'alice');
+  });
+
+  it('reconcileStickyHost: commits handoff when the stored host has been removed', () => {
+    // Mid-game: Alice blipped and never reconnected before game ended. The
+    // post-game cleanup removed her from `players` entirely, leaving the
+    // stored hostPeerIndex dangling. Reconcile picks the next-oldest.
+    const players = new Map([
+      ['bob',   { playerIndex: 1, joinedAt: 2 }],
+      ['carol', { playerIndex: 2, joinedAt: 3 }]
+    ]);
+    assert.equal(reconcileStickyHost(players, null, 'alice'), 'bob');
+  });
+
+  it('reconcileStickyHost: commits handoff when the stored host is still in players but disconnected', () => {
+    // Mid-game: Alice blipped and never reconnected. Entering RESULTS calls
+    // reconcileStickyHost; she's still in `players` (for the disconnect QR)
+    // but flagged via disconnectedQRs, so the slot moves to Bob.
+    const players = new Map([
+      ['alice', { playerIndex: 0, joinedAt: 1 }],
+      ['bob',   { playerIndex: 1, joinedAt: 2 }]
+    ]);
+    const disconnectedQRs = new Map([['alice', null]]);
+    assert.equal(reconcileStickyHost(players, disconnectedQRs, 'alice'), 'bob');
+  });
+
+  it('reconcileStickyHost: returns null when nobody is connected', () => {
+    const players = new Map([['alice', { playerIndex: 0, joinedAt: 1 }]]);
+    const disconnectedQRs = new Map([['alice', null]]);
+    assert.equal(reconcileStickyHost(players, disconnectedQRs, 'alice'), null);
+  });
+
+  it('reconcileStickyHost: leaves a present sticky host alone even if another player joined earlier (shouldn\'t happen, but safe)', () => {
+    // Defensive: even if hostPeerIndex somehow points at a non-oldest player,
+    // reconcile keeps them as long as they're present + connected (sticky
+    // semantics, not "oldest wins").
+    const players = new Map([
+      ['carol', { playerIndex: 2, joinedAt: 3 }],
+      ['alice', { playerIndex: 0, joinedAt: 1 }],
+      ['bob',   { playerIndex: 1, joinedAt: 2 }]
+    ]);
+    assert.equal(reconcileStickyHost(players, null, 'carol'), 'carol');
   });
 });
 

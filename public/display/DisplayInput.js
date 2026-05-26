@@ -140,12 +140,13 @@ function onHello(fromId, msg) {
 
     // Refresh host info on the other controllers too.
     //
-    // - Standard mode: a reconnecting ex-host does NOT reclaim — onPeerLeft
-    //   already handed hostPeerIndex off via electNextHost when they dropped.
-    //   The call is still useful here to flip the temp host's Return-to-
-    //   lobby button visibility back, since getHostPeerIndex's read-only
-    //   fallback (oldest-joined) was the host while the slot's owner was
-    //   disconnected, and now resolves cleanly to the stored hostPeerIndex.
+    // - Standard mode: a reconnecting ex-host reclaims their role.
+    //   onPeerLeft kept hostPeerIndex pinned through the disconnect, and
+    //   claimReconnectPeer rekeyed it from the old peerIndex to the new
+    //   one. The temp host (oldest-joined present player who was acting
+    //   via getHostPeerIndex's read-only fallback) cedes back, so the
+    //   broadcast flips their Return-to-lobby button off and the original
+    //   host's on.
     // - AirConsole mode: getMasterPeerIndex() takes priority in
     //   getHostPeerIndex, so the platform CAN re-elect the reconnecting
     //   player as master if they were the AC master before. The dedup

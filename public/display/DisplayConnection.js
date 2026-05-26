@@ -385,15 +385,17 @@ function onPeerLeft(peerIndex) {
 
   cleanupPlayerInput(peerIndex);
 
-  // Sticky host: transfer the slot immediately if the departing player
-  // held it, in ANY room state. Doing this BEFORE any subsequent mutation
-  // (including the disconnectedQRs flag added by the PLAYING branch below)
-  // ensures the reassignment is picked up by the LOBBY_UPDATE broadcasts
-  // that the state-specific branches trigger. Consequence: a reconnecting
-  // mid-game host does NOT reclaim — they were promoted to a regular
-  // player the instant their WS dropped. This is the intended behavior
-  // per the "sticky host" design.
-  if (hostPeerIndex === peerIndex) {
+  // Sticky host: hand off the slot only when the player is actually being
+  // removed from the room (i.e. LOBBY and RESULTS, where onPeerLeft deletes
+  // them outright). Mid-game (PLAYING/COUNTDOWN) we keep the slot pinned to
+  // the original host through a disconnect; the disconnectedQRs flag added
+  // below makes getHostPeerIndex's read-only fallback elect a present player
+  // for any host action needed during the blip, and a reconnect via
+  // claimReconnectPeer rekeys the slot to the new peerIndex. If they never
+  // return, the handoff is committed by reconcileStickyHost when we
+  // transition into RESULTS or LOBBY.
+  var midGame = roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN;
+  if (!midGame && hostPeerIndex === peerIndex) {
     hostPeerIndex = electNextHost(peerIndex);
   }
 
@@ -402,10 +404,11 @@ function onPeerLeft(peerIndex) {
       // Active game participant — keep in Map for seamless reconnect
       showDisconnectQR(peerIndex);
       checkAllPlayersDisconnected();
-      // Host may have handed off — refresh isHost flags so the pause-overlay
-      // Return-to-lobby button appears on the new host's controller and the
-      // gone player's stale flag clears before we reach RESULTS. Skip when
-      // everyone is gone (nobody left to notify).
+      // The stored host doesn't move mid-game (see comment above), but if
+      // the departing player WAS the host then getHostPeerIndex's read-only
+      // fallback now elects a present player as temp host. Re-broadcast so
+      // their controller's pause-overlay Return-to-lobby button appears.
+      // Skip when everyone is gone (nobody left to notify).
       if (!allPlayersDisconnected()) maybeBroadcastHostChange();
     } else {
       // Late joiner (never in the game) — remove silently
@@ -527,8 +530,11 @@ function claimReconnectPeer(fromId, msg) {
   for (var i = 0; i < playerOrder.length; i++) {
     if (playerOrder[i] === oldId) playerOrder[i] = fromId;
   }
-  // If everyone was gone, onPeerLeft may have left no temporary host. The
-  // scanned controller becomes the host for that reclaimed game participant.
+  // Sticky host reclaim: the slot wasn't moved when this player disconnected
+  // mid-game, so hostPeerIndex still points at their old peerIndex; rekey
+  // it to the new one and the reconnecting host resumes their role. The
+  // null arm covers an unlikely race where everyone blipped and the room
+  // was rebuilt around the first returning controller.
   if (hostPeerIndex === oldId || hostPeerIndex == null) hostPeerIndex = fromId;
 
   if (lastAliveState[oldId] !== undefined) {
