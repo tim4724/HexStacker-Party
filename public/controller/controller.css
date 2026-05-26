@@ -581,6 +581,20 @@ html, body {
   }
 }
 
+.status-banner {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.8rem 1rem;
+  font-size: clamp(1rem, 4.5vw, 1.2rem);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.35;
+}
+
 #waiting-action-text {
   font-family: 'Orbitron', sans-serif;
   animation: fadeUp 0.5s 0.35s ease-out both;

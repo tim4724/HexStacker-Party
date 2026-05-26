@@ -534,9 +534,9 @@ function onGamePaused(pausedByName, pausedByColorIndex) {
 // color. Splits the template on a \x00 sentinel placed at {name} (same trick
 // as ControllerGame.js#renderHostBanner) so the colored span doesn't expose
 // us to HTML injection — every part is a text node except the styled span.
-// Wraps everything in a single span so the parts stay one flex item if the
-// host element is `display: flex` (otherwise the trailing space before {name}
-// would be stripped at the flex-item boundary).
+// Wraps the parts in a single span to mirror renderHostBanner's contract
+// (also keeps the trailing space safe if the host element is ever switched
+// to display:flex, where direct text-node children become separate items).
 function renderColoredNameTemplate(element, key, name, colorIndex) {
   element.textContent = '';
   var tmpl = t(key, { name: '\x00' });

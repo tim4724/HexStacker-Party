@@ -456,33 +456,3 @@
   letter-spacing: 0.04em;
 }
 
-/* Player-action attribution banner. Sized for TV read distance on the display
-   and phone hand distance on the controller. Used by:
-   - controller's "Waiting for {Host} to continue" (#waiting-action-text)
-   - pause overlay's "Paused by {Player}" (#pause-status). */
-.status-banner {
-  min-height: 52px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.8rem 1rem;
-  font-size: clamp(1rem, 4.5vw, 1.2rem);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--text-secondary);
-  text-align: center;
-  line-height: 1.35;
-  margin: 0;
-}
-
-/* Display has no global .hidden rule (unlike controller.css), and
-   .status-banner sets display:flex which would otherwise win over the
-   .hidden -> display:none expectation. Both pages need this. */
-.status-banner.hidden {
-  display: none;
-}
-
-#pause-status {
-  font-family: 'Orbitron', sans-serif;
-  animation: fadeUp 0.5s 0.2s ease-out both;
-}
