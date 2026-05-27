@@ -98,8 +98,13 @@ describe('Gameplay - state invariants across piece transitions', () => {
     for (var i = 0; i < 20; i++) {
       assert.equal(b.alive, true,
         'board should still be alive at iteration ' + i);
-      // Spread pieces across columns to avoid pile-up at center.
-      var targetCol = i % HEX_COLS;
+      // Spread pieces across the inner columns 1..7 — the spawn orientations
+      // of every piece type can anchor in that range, so targeting an
+      // edge col (0 or 8) where most pieces can't anchor would cluster them
+      // at the nearest reachable col and overfill before 20 drops. Stride
+      // of 3 (coprime with 7) hits each column ~3 times over 20 iterations
+      // without consecutive same-column drops.
+      var targetCol = 1 + ((i * 3) % 7);
       while (b.currentPiece.anchorCol > targetCol && b.moveLeft()) {}
       while (b.currentPiece.anchorCol < targetCol && b.moveRight()) {}
       var pieceCells = b.currentPiece.cells.length;

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Rotation Debug — HexStacker Party</title>
+<link rel="stylesheet" href="/shared/theme.css?v=__APP_V__">
+<link rel="stylesheet" href="/gallery.css?v=__APP_V__">
+<style>
+  .rot-intro { padding: 14px 20px 4px; color: #cfcfe8; font-size: 13px; line-height: 1.55; max-width: 920px; }
+  .rot-intro code { background: #13132a; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+  .rot-legend { display: flex; gap: 18px; flex-wrap: wrap; padding: 6px 20px 14px; font-size: 11px; color: #aaa; }
+  .rot-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .rot-legend .sw { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .rot-legend .sw.anchor { background: #ffffff; }
+  .rot-legend .sw.cell0 { background: transparent; border: 2px solid #ffffff; }
+
+  .rot-rail { padding: 0 20px 24px; display: flex; flex-direction: column; gap: 22px; }
+  .rot-piece {
+    background: #0b0b1a;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 12px 14px 14px;
+  }
+  .rot-piece-head {
+    display: flex; align-items: baseline; gap: 14px;
+    margin-bottom: 10px; padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .rot-piece-head .name { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: 0.04em; }
+  .rot-piece-head .type-id { font-size: 11px; color: #888; font-family: ui-monospace, Menlo, monospace; }
+  .rot-piece-head .seed {
+    font-size: 11px; color: #cfcfe8; font-family: ui-monospace, Menlo, monospace;
+    margin-left: auto;
+  }
+
+  /* Fixed 6-column track sizes every card at 1/6 of the row width regardless
+     of how many cycle entries the piece has, so T3 (2 cards) and V3/d/b
+     (6 cards) render at the same per-card size — short cycles leave the
+     trailing slots empty rather than stretching their cards. Mobile media
+     queries below collapse to fewer columns. */
+  .rot-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+  }
+  @media (max-width: 900px) {
+    .rot-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (max-width: 520px) {
+    .rot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  .rot-card {
+    background: #13132a;
+    border-radius: 8px;
+    padding: 8px;
+    display: flex; flex-direction: column; gap: 6px;
+    border: 1px solid rgba(255,255,255,0.04);
+    min-width: 0;
+  }
+  .rot-card-head {
+    font-size: 11px; color: #cfcfe8;
+    font-weight: 600; letter-spacing: 0.05em;
+  }
+  .rot-card canvas {
+    display: block; width: 100%; height: auto;
+    background: #15121F; border-radius: 4px;
+  }
+  .rot-card .meta {
+    font: 10px ui-monospace, Menlo, monospace;
+    color: #9a9ac0; line-height: 1.45;
+    white-space: pre;
+    overflow-x: auto;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>HEX STACKER · ROTATION DEBUG</h1>
+  <nav>
+    <a href="/gallery.html">Display</a>
+    <a href="/gallery-controller.html">Phone</a>
+    <a href="/gallery-rotations.html" class="active">Rotations</a>
+  </nav>
+</header>
+
+<section class="rot-intro">
+  Each piece is shown across the rotations <code>rotateCW()</code> actually
+  steps through. Shape-equivalent rotations are deduplicated, and within each
+  equivalence class the rotation whose visual centroid (axial <code>r + q/2</code>)
+  is closest to rot 0's is kept so rotating doesn't push the piece down a row.
+  The anchor is pinned at the grid's centre with ±2 rows of slack so
+  <code>_adjustAnchorRow</code>'s downward clamp never has to fire.
+</section>
+<div class="rot-legend">
+  <span><span class="sw anchor"></span>anchor cell (axial 0,0)</span>
+  <span><span class="sw cell0"></span>cells[0] — the rotation-keyed marker</span>
+</div>
+
+<section class="rot-rail" id="rot-rail"></section>
+
+<script src="/engine/constants.js"></script>
+<script src="/engine/Piece.js"></script>
+<script src="/shared/theme.js"></script>
+<script src="/gallery-rotations.js"></script>
+</body>
+</html>
