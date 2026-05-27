@@ -166,6 +166,10 @@
     case 'playing-settings':
       applyIdentity({ isHost: !!params.get('host') });
       showPlaying();
+      // Settings is only reachable from the pause overlay in real play —
+      // mirror that so the gallery state isn't misleading.
+      onGamePaused();
+      updateHostVisibility();
       // openSettings() itself calls updateSettingsHostUI, which hides/shows
       // the Music (display-mute) row based on isHost.
       window.openSettings();
