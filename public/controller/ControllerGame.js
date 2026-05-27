@@ -599,7 +599,6 @@ function onGamePaused() {
   clearTimeout(selfPausingTimer);
   pauseOverlay.classList.remove('hidden');
   pauseBtn.disabled = true;
-  pauseButtons.classList.remove('hidden');
 }
 
 function onGameResumed() {
