@@ -35,13 +35,21 @@
     margin-left: auto;
   }
 
-  /* auto-fit lets cards expand to fill the row when the cycle has fewer
-     entries (T3 has 2, I3/o have 3, V3/d/b have 6) instead of pinning a
-     fixed 6-column grid that leaves dead whitespace. */
+  /* Fixed 6-column track sizes every card at 1/6 of the row width regardless
+     of how many cycle entries the piece has, so T3 (2 cards) and V3/d/b
+     (6 cards) render at the same per-card size — short cycles leave the
+     trailing slots empty rather than stretching their cards. Mobile media
+     queries below collapse to fewer columns. */
   .rot-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 10px;
+  }
+  @media (max-width: 900px) {
+    .rot-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (max-width: 520px) {
+    .rot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   .rot-card {
     background: #13132a;
