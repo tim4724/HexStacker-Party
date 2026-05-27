@@ -45,10 +45,7 @@ function handleControllerMessage(fromId, msg) {
         returnToLobby();
         break;
       case MSG.PAUSE_GAME:
-        pauseGame(
-          senderPlayer ? senderPlayer.playerName : null,
-          senderPlayer ? senderPlayer.playerIndex : null
-        );
+        pauseGame();
         break;
       case MSG.RESUME_GAME:
         resumeGame();
@@ -135,10 +132,6 @@ function onHello(fromId, msg) {
     if (!isLateJoiner) {
       welcomeMsg.alive = lastAliveState[fromId] != null ? lastAliveState[fromId] : true;
       welcomeMsg.paused = paused;
-      if (paused && pausedByName) {
-        welcomeMsg.pausedByName = pausedByName;
-        welcomeMsg.pausedByColor = pausedByColorIndex;
-      }
     }
     if (roomState === ROOM_STATE.RESULTS && lastResults) {
       welcomeMsg.results = lastResults.results;

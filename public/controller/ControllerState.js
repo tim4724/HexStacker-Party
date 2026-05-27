@@ -184,7 +184,6 @@ var pauseBtn = document.getElementById('pause-btn');
 var pauseOverlay = document.getElementById('pause-overlay');
 var pauseContinueBtn = document.getElementById('pause-continue-btn');
 var pauseNewGameBtn = document.getElementById('pause-newgame-btn');
-var pauseStatus = document.getElementById('pause-status');
 var pauseButtons = document.getElementById('pause-buttons');
 var reconnectOverlay = document.getElementById('reconnect-overlay');
 var reconnectHeading = document.getElementById('reconnect-heading');

@@ -482,7 +482,7 @@ function onWelcome(data) {
     removeKoOverlay();
     pauseBtn.classList.remove('hidden');
     if (data.paused) {
-      onGamePaused(data.pausedByName ? { byName: data.pausedByName, byColor: data.pausedByColor } : null);
+      onGamePaused();
     } else {
       pauseOverlay.classList.add('hidden');
     }
@@ -592,24 +592,13 @@ function onGameEnd(data) {
 var selfPausing = false;
 var selfPausingTimer = null;
 
-function onGamePaused(data) {
-  var wasSelfPausing = selfPausing;
+function onGamePaused() {
   gameScreen.classList.add('paused');
-  pauseOverlay.classList.toggle('pause-overlay--self', wasSelfPausing);
+  pauseOverlay.classList.toggle('pause-overlay--self', selfPausing);
   selfPausing = false;
   clearTimeout(selfPausingTimer);
   pauseOverlay.classList.remove('hidden');
   pauseBtn.disabled = true;
-  // Suppress the "by {name}" sub-line for the player who initiated the pause —
-  // they already know it was them. Others still see who paused.
-  if (data && data.byName && !wasSelfPausing) {
-    var byColor = data.byColor != null ? PLAYER_COLORS[data.byColor] : null;
-    renderHostBanner(pauseStatus, 'paused_by', data.byName, byColor);
-    pauseStatus.classList.remove('hidden');
-  } else {
-    pauseStatus.textContent = '';
-    pauseStatus.classList.add('hidden');
-  }
   pauseButtons.classList.remove('hidden');
 }
 

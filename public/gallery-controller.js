@@ -29,7 +29,6 @@ var CONTROLLER_CARDS = [
   { key: 'ko',               title: 'KO',                  perColor: true },
   { key: 'paused',           title: 'Paused (host)',          perColor: true, extra: { host: '1' }, replayable: true },
   { key: 'paused',           title: 'Paused (non-host)',      perColor: true, extra: { host: '' }, replayable: true },
-  { key: 'paused-by-player', title: 'Paused by player',       perColor: true, extra: { host: '' }, replayable: true },
   { key: 'playing-settings', title: 'Settings (host)',     perColor: true, extra: { host: '1' } },
   { key: 'playing-settings', title: 'Settings (non-host)', perColor: true, extra: { host: '' } },
   { key: 'reconnecting',     title: 'Reconnecting',        perColor: true },
