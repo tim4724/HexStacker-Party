@@ -540,6 +540,11 @@ function onLobbyUpdate(data) {
 function onGameStart() {
   ControllerAudio.tick();
   lastLines = 0;
+  // Clear any stale pause-self state from the previous round. If GAME_END
+  // raced the relay's GAME_PAUSED echo, selfPausing could still be true
+  // here and wrongly suppress "Paused by X" in the next round.
+  selfPausing = false;
+  clearTimeout(selfPausingTimer);
   gameScreen.classList.remove('dead');
   gameScreen.classList.remove('paused');
   gameScreen.classList.remove('countdown');
