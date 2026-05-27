@@ -573,10 +573,8 @@ function onPlayerState(data) {
 
 function onGameEnd(data) {
   lastGameResults = data.results;
-  // Settings popup can stay open across GAME_END; close it so the stale
-  // pausedBySettings flag doesn't suppress a legitimate pause overlay in
-  // the next game, and so the DONE button doesn't RESUME_GAME into a
-  // display that has already transitioned to results.
+  // Close the settings popup if it was open — leaving it visible on top of
+  // the gameover screen would block the results UI.
   closeSettingsOverlay();
   renderGameResults(data.results);
   showScreen('gameover');
@@ -588,10 +586,6 @@ function onGameEnd(data) {
 
 var selfPausing = false;
 var selfPausingTimer = null;
-// Set by controller.js when settings is opened during gameplay. The PAUSE_GAME
-// is really a side-effect of entering settings — the settings panel is on top
-// and we don't want the pause overlay flashing behind it.
-var pausedBySettings = false;
 
 function onGamePaused(data) {
   var wasSelfPausing = selfPausing;
@@ -599,7 +593,7 @@ function onGamePaused(data) {
   pauseOverlay.classList.toggle('pause-overlay--self', wasSelfPausing);
   selfPausing = false;
   clearTimeout(selfPausingTimer);
-  if (!pausedBySettings) pauseOverlay.classList.remove('hidden');
+  pauseOverlay.classList.remove('hidden');
   pauseBtn.disabled = true;
   // Suppress the "by {name}" sub-line for the player who initiated the pause —
   // they already know it was them. Others still see who paused.

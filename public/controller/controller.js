@@ -382,15 +382,6 @@ var _cachedPreviewAccent = '';
 
 function openSettings() {
   vibrate(15);
-  // Pause the display while the user is in settings — but only when actively
-  // playing (not in lobby) and not already paused. onGamePaused checks the
-  // pausedBySettings flag and keeps its overlay hidden so we don't flash
-  // the pause screen behind the settings panel.
-  pausedBySettings = false;
-  if (currentScreen === 'game' && pauseOverlay.classList.contains('hidden')) {
-    pausedBySettings = true;
-    sendToDisplay(MSG.PAUSE_GAME);
-  }
   _cachedPreviewAccent = getComputedStyle(document.body).getPropertyValue('--player-color').trim()
     || getComputedStyle(document.documentElement).getPropertyValue('--accent-secondary').trim()
     || '#FF8C42';
@@ -413,32 +404,18 @@ function openSettings() {
   }
 }
 
-settingsBtn.addEventListener('click', openSettings);
+if (pauseSettingsBtn) pauseSettingsBtn.addEventListener('click', openSettings);
 if (lobbySettingsBtn) lobbySettingsBtn.addEventListener('click', openSettings);
 // Exposed for ControllerTestHarness — function declarations inside this
 // `else` block are block-scoped under strict mode and not otherwise reachable.
 window.openSettings = openSettings;
 
-// Shared close logic. `resume` controls whether we RESUME_GAME if the
-// open paused the display; silent callers (onGameEnd) pass false so they
-// don't resume a display that has already moved on.
-function hideSettings(resume) {
+function hideSettings() {
   if (!settingsOverlay) return;
   settingsOverlay.classList.add('hidden');
-  if (resume && pausedBySettings) {
-    sendToDisplay(MSG.RESUME_GAME);
-  }
-  pausedBySettings = false;
 }
 
-// Silently hide the popup and clear the pause-by-settings flag WITHOUT
-// sending RESUME_GAME. Called from onGameEnd. Intentionally does not
-// unwind the pushed history entry — onGameEnd just leaves the orphan and
-// the next back press falls through to the existing gameover→disconnect
-// path unchanged.
-window.closeSettingsOverlay = function () {
-  hideSettings(false);
-};
+window.closeSettingsOverlay = hideSettings;
 
 settingsCloseBtn.addEventListener('click', function () {
   vibrate(15);
@@ -448,7 +425,7 @@ settingsCloseBtn.addEventListener('click', function () {
   if (history.state && history.state.modal === 'settings') {
     history.back();
   } else {
-    hideSettings(true);
+    hideSettings();
   }
 });
 
@@ -835,7 +812,7 @@ window.addEventListener('popstate', function (e) {
   // Modal-first: close settings instead of falling through to a
   // screen-level back (which would disconnect).
   if (settingsOverlay && !settingsOverlay.classList.contains('hidden')) {
-    hideSettings(true);
+    hideSettings();
     return;
   }
   if (currentScreen === 'lobby' || currentScreen === 'game' || currentScreen === 'gameover') {

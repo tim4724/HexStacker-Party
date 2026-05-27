@@ -240,10 +240,10 @@
     case 'adclip': {
       applyIdentity({ isHost: false, playerCount: Math.max(1, parseInt(params.get('players'), 10) || 4) });
       showPlaying();
-      // Hide the bottom-bar latency label, top-bar settings/pause icons,
+      // Hide the bottom-bar latency label, top-bar pause icon,
       // and the gesture hint strip — the composite framing wants a clean
       // touchpad for the feedback to read.
-      ['settings-btn', 'pause-btn', 'latency-display', 'gesture-hints', 'game-bottom-bar'].forEach(function(id) {
+      ['pause-btn', 'latency-display', 'gesture-hints', 'game-bottom-bar'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) el.style.display = 'none';
       });
