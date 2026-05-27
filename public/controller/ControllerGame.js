@@ -482,7 +482,7 @@ function onWelcome(data) {
     removeKoOverlay();
     pauseBtn.classList.remove('hidden');
     if (data.paused) {
-      onGamePaused(data.pausedByName ? { byName: data.pausedByName, byColor: data.pausedByColor } : null);
+      onGamePaused();
     } else {
       pauseOverlay.classList.add('hidden');
     }
@@ -540,6 +540,11 @@ function onLobbyUpdate(data) {
 function onGameStart() {
   ControllerAudio.tick();
   lastLines = 0;
+  // Clear any stale pause-self state from the previous round. If GAME_END
+  // raced the relay's GAME_PAUSED echo, selfPausing could still be true
+  // here and wrongly suppress "Paused by X" in the next round.
+  selfPausing = false;
+  clearTimeout(selfPausingTimer);
   gameScreen.classList.remove('dead');
   gameScreen.classList.remove('paused');
   gameScreen.classList.remove('countdown');
@@ -573,10 +578,8 @@ function onPlayerState(data) {
 
 function onGameEnd(data) {
   lastGameResults = data.results;
-  // Settings popup can stay open across GAME_END; close it so the stale
-  // pausedBySettings flag doesn't suppress a legitimate pause overlay in
-  // the next game, and so the DONE button doesn't RESUME_GAME into a
-  // display that has already transitioned to results.
+  // Close the settings popup if it was open — leaving it visible on top of
+  // the gameover screen would block the results UI.
   closeSettingsOverlay();
   renderGameResults(data.results);
   showScreen('gameover');
@@ -588,27 +591,14 @@ function onGameEnd(data) {
 
 var selfPausing = false;
 var selfPausingTimer = null;
-// Set by controller.js when settings is opened during gameplay. The PAUSE_GAME
-// is really a side-effect of entering settings — the settings panel is on top
-// and we don't want the pause overlay flashing behind it.
-var pausedBySettings = false;
 
-function onGamePaused(data) {
+function onGamePaused() {
   gameScreen.classList.add('paused');
   pauseOverlay.classList.toggle('pause-overlay--self', selfPausing);
   selfPausing = false;
   clearTimeout(selfPausingTimer);
-  if (!pausedBySettings) pauseOverlay.classList.remove('hidden');
+  pauseOverlay.classList.remove('hidden');
   pauseBtn.disabled = true;
-  if (data && data.byName) {
-    var byColor = data.byColor != null ? PLAYER_COLORS[data.byColor] : null;
-    renderHostBanner(pauseStatus, 'paused_by', data.byName, byColor);
-    pauseStatus.classList.remove('hidden');
-  } else {
-    pauseStatus.textContent = '';
-    pauseStatus.classList.add('hidden');
-  }
-  pauseButtons.classList.remove('hidden');
 }
 
 function onGameResumed() {

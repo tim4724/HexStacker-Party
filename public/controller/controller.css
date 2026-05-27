@@ -251,6 +251,7 @@ html, body {
 #name-join-btn,
 #start-btn,
 #pause-continue-btn,
+#pause-settings-btn,
 #pause-newgame-btn,
 #reconnect-rejoin-btn,
 #play-again-btn,
@@ -965,9 +966,8 @@ html, body {
 .ping-bad { color: var(--ping-bad); }
 
 
-/* Settings button pushes the [settings pause] cluster to the right of
-   the top bar; pause stays the far-right icon. */
-#settings-btn {
+/* Push the pause icon to the right of the top bar; player name sits left. */
+#pause-btn {
   margin-left: auto;
 }
 
@@ -1571,10 +1571,6 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   /* Hide player name from the right column */
   #game-top-bar .game-name-label {
     display: none;
-  }
-
-  #settings-btn {
-    margin-left: 0;
   }
 
   /* Landscape Settings popup — grid: left column holds music/touch/haptics

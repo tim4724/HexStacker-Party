@@ -166,6 +166,10 @@
     case 'playing-settings':
       applyIdentity({ isHost: !!params.get('host') });
       showPlaying();
+      // Settings is only reachable from the pause overlay in real play —
+      // mirror that so the gallery state isn't misleading.
+      onGamePaused();
+      updateHostVisibility();
       // openSettings() itself calls updateSettingsHostUI, which hides/shows
       // the Music (display-mute) row based on isHost.
       window.openSettings();
@@ -175,16 +179,6 @@
       applyIdentity({ isHost: !!params.get('host') });
       showPlaying();
       onGamePaused();
-      updateHostVisibility();
-      window.__TEST__.replay = function() { restartAnimation(pauseButtons); };
-      break;
-
-    case 'paused-by-player':
-      applyIdentity({ isHost: !!params.get('host') });
-      showPlaying();
-      // Attribute the pause to a player whose color differs from the viewer
-      // so the colored name reads against the surrounding UI.
-      onGamePaused({ byName: 'Jake', byColor: 1 });
       updateHostVisibility();
       window.__TEST__.replay = function() { restartAnimation(pauseButtons); };
       break;
@@ -240,10 +234,10 @@
     case 'adclip': {
       applyIdentity({ isHost: false, playerCount: Math.max(1, parseInt(params.get('players'), 10) || 4) });
       showPlaying();
-      // Hide the bottom-bar latency label, top-bar settings/pause icons,
+      // Hide the bottom-bar latency label, top-bar pause icon,
       // and the gesture hint strip — the composite framing wants a clean
       // touchpad for the feedback to read.
-      ['settings-btn', 'pause-btn', 'latency-display', 'gesture-hints', 'game-bottom-bar'].forEach(function(id) {
+      ['pause-btn', 'latency-display', 'gesture-hints', 'game-bottom-bar'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) el.style.display = 'none';
       });
