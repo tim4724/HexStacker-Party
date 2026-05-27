@@ -1042,7 +1042,11 @@ describe('PlayerBoard - clear preview matches actual clear', () => {
       var type = HEX_PIECE_TYPES[ti];
       var p = new Piece(type);
       var seen = Object.create(null);
-      for (var r = 0; r < 6; r++) {
+      // Loop the piece's cycle length, not 6 — symmetric pieces (I3, T3, o)
+      // cycle through fewer than 6 distinct states, so cells[0] correctly
+      // repeats once the cycle wraps. The invariant is "cells[0] is unique
+      // across the distinct rotations the engine actually cycles through".
+      for (var r = 0; r < p.cycleLength; r++) {
         var key = p.cells[0].q + ',' + p.cells[0].r;
         // `key in seen` rather than `!seen[key]` — r=0 is falsy and would mask a collision.
         assert.ok(!(key in seen),

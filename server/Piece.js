@@ -28,17 +28,23 @@ var _absBlocksScratch = [[0,0],[0,0],[0,0],[0,0]];
 //
 // d and b are starter geometries — letter silhouettes are approximate in
 // flat-top odd-q with only 4 cells. Iterate visually if needed.
+// Spawn orientations chosen to minimize spawn-row span ("flattest possible"),
+// so the piece occupies as few rows as possible the moment it enters visible
+// area and top-out risk stays low. Within ties, the orientation with the
+// anchor near the top of the piece wins so rotation feels like a wrist-flick
+// rather than a swing.
+//
 // cells[0] must NOT be the (0,0) anchor — rotation keeps the anchor fixed,
 // so an anchor-first piece's cells[0] is invariant across rotations and the
 // renderer's ghost-preview cache can't tell rotations apart. List a non-anchor
 // cell first for every piece. (See "rotating a piece without moving it" test.)
 var PIECES = {
-  I3: [[-1,0],[0,0],[1,0]],            // straight 3-line, one rotation per hex axis
-  V3: [[-1,0],[0,0],[0,1]],            // 60° bend chain; anchor at the MIDDLE of the chain so rotation pivots in place instead of swinging around an endpoint
-  T3: [[1,0],[0,0],[0,1]],             // tight 3-triangle (3 mutually-adjacent cells)
-  o:  [[-1,0],[0,0],[0,-1],[1,-1]],    // compact 4-cell rhombus — safe placement piece
-  d:  [[0,-1],[0,0],[0,1],[1,0]],      // 3-cell vertical stem + mid-right bulge
-  b:  [[0,-1],[0,0],[0,1],[-1,1]],     // visual mirror of d — bulge at offset (-1,0); axial (-1,1) here is the true reflection, NOT axial (-1,0) which is just d's r3 rotation
+  I3: [[-1,0],[0,0],[1,0]],             // straight 3-line, one rotation per hex axis
+  V3: [[1,-1],[0,0],[-1,0]],            // 60° bend chain laid flat (V-shape, anchor at the bottom point)
+  T3: [[1,0],[0,0],[0,1]],              // tight 3-triangle (3 mutually-adjacent cells)
+  o:  [[-1,0],[0,0],[0,-1],[1,-1]],     // compact 4-cell rhombus — safe placement piece
+  d:  [[1,0],[0,0],[-1,0],[-1,1]],      // 4-cell wedge, anchor at the upper apex, bulk extends below-and-left (spawn is rot-2 of the original "d" stem)
+  b:  [[-1,1],[0,0],[1,-1],[1,0]],      // visual mirror of d, bulk extends below-and-right (spawn is rot-4 of the original "b" stem)
 };
 
 // No piece in the casual bag spans more than 1 cell from its anchor in any
@@ -49,12 +55,97 @@ var KICKS = [
   [-1,-1], [1,-1], [-1,1], [1,1]
 ];
 
+// ===================== ROTATION CYCLE TABLE =====================
+// rotateCW/rotateCCW cycle through PIECE_ROTATIONS[type], a precomputed list
+// of distinct piece orientations. Two rotations are "distinct" iff their
+// cells form different shapes — pieces with rotational symmetry (I3, T3, o)
+// have fewer than 6 entries. Within each shape-equivalence class, we pick the
+// rotation whose vertical centroid (axial r + q/2) is closest to rot 0's, so
+// rotating doesn't visually push the piece down off-screen.
+
+function _rotateCellsCW(cells) {
+  var out = new Array(cells.length);
+  for (var i = 0; i < cells.length; i++) {
+    out[i] = { q: -cells[i].r, r: cells[i].q + cells[i].r };
+  }
+  return out;
+}
+
+// Translation-invariant signature: cells with the same shape but different
+// positions get the same key.
+function _shapeKey(cells) {
+  var minQ = Infinity, minR = Infinity;
+  for (var i = 0; i < cells.length; i++) {
+    if (cells[i].q < minQ) minQ = cells[i].q;
+    if (cells[i].r < minR) minR = cells[i].r;
+  }
+  var parts = new Array(cells.length);
+  for (var j = 0; j < cells.length; j++) {
+    parts[j] = (cells[j].q - minQ) + ',' + (cells[j].r - minR);
+  }
+  parts.sort();
+  return parts.join('|');
+}
+
+// Visual vertical centroid offset from the anchor — derives directly from
+// the offset-row formula: vert(cell) = row + 0.5 * (col & 1) collapses to
+// r + q/2 regardless of column parity. Smaller value = piece sits higher.
+function _vertCentroid(cells) {
+  var sum = 0;
+  for (var i = 0; i < cells.length; i++) sum += cells[i].r + cells[i].q / 2;
+  return sum / cells.length;
+}
+
+function _buildRotationCycle(initialCells) {
+  var rotations = [initialCells];
+  for (var i = 1; i < 6; i++) rotations.push(_rotateCellsCW(rotations[i - 1]));
+
+  // Group rotations by shape, preserving first-occurrence order so rot 0's
+  // class is always first in the cycle.
+  var classOrder = [];                 // shapeKey, first-encountered order
+  var classMembers = {};               // shapeKey -> [rotIdx]
+  for (var r = 0; r < 6; r++) {
+    var key = _shapeKey(rotations[r]);
+    if (!classMembers[key]) { classMembers[key] = []; classOrder.push(key); }
+    classMembers[key].push(r);
+  }
+
+  // Pick the representative in each class whose vertical centroid is closest
+  // to rot 0's. This is what prevents the "rot 2 pushes the piece down" feel:
+  // among shape-equivalent rotations, the one whose visual vert matches the
+  // spawn stays at the spawn altitude.
+  var targetVert = _vertCentroid(rotations[0]);
+  var cycle = [];
+  for (var c = 0; c < classOrder.length; c++) {
+    var members = classMembers[classOrder[c]];
+    var bestIdx = members[0];
+    var bestDist = Math.abs(_vertCentroid(rotations[bestIdx]) - targetVert);
+    for (var m = 1; m < members.length; m++) {
+      var dist = Math.abs(_vertCentroid(rotations[members[m]]) - targetVert);
+      if (dist < bestDist) { bestDist = dist; bestIdx = members[m]; }
+    }
+    cycle.push(rotations[bestIdx]);
+  }
+  return cycle;
+}
+
+var PIECE_ROTATIONS = {};
+for (var _type in PIECES) {
+  var _initial = PIECES[_type].map(function(c) { return { q: c[0], r: c[1] }; });
+  PIECE_ROTATIONS[_type] = _buildRotationCycle(_initial);
+}
+
 // ===================== HEX PIECE CLASS =====================
 class Piece {
   constructor(type) {
     this.type = type;
     this.typeId = PIECE_TYPE_TO_ID[type];
-    this.cells = PIECES[type].map(function(c) { return { q: c[0], r: c[1] }; });
+    this._rotIndex = 0;
+    this._cycle = PIECE_ROTATIONS[type];     // shared, read-only — never mutate
+    this.cycleLength = this._cycle.length;   // 2 (T3), 3 (I3, o), or 6 (V3, d, b)
+    var src = this._cycle[0];
+    this.cells = new Array(src.length);
+    for (var i = 0; i < src.length; i++) this.cells[i] = { q: src[i].q, r: src[i].r };
     this.anchorCol = COLS >> 1;  // spawn at horizontal center
     this.anchorRow = 0;
     this._rotId = 0;    // incremented on rotate, used for ghost cache key
@@ -119,6 +210,9 @@ class Piece {
     var p = Object.create(Piece.prototype);
     p.type = this.type;
     p.typeId = this.typeId;
+    p._rotIndex = this._rotIndex;
+    p._cycle = this._cycle;
+    p.cycleLength = this.cycleLength;
     p.cells = this.cells.map(function(c) { return { q: c.q, r: c.r }; });
     p.anchorCol = this.anchorCol;
     p.anchorRow = this.anchorRow;
@@ -127,23 +221,26 @@ class Piece {
     return p;
   }
 
-  // Mutates cells in place — call on a clone() to preserve the original.
-  rotateCW() {
+  // Advance through the cached rotation cycle. For 2-/3-/6-step pieces this
+  // skips shape-equivalent orientations (e.g. T3 flips between two states,
+  // not six) and within each shape it lands on the centroid-matched
+  // representative, so the piece doesn't visually drift across rotations.
+  _setCells(index) {
     this._rotId++;
-    for (var i = 0; i < this.cells.length; i++) {
-      var q = this.cells[i].q, r = this.cells[i].r;
-      this.cells[i].q = -r;
-      this.cells[i].r = q + r;
+    this._rotIndex = index;
+    var src = this._cycle[index];
+    for (var i = 0; i < src.length; i++) {
+      this.cells[i].q = src[i].q;
+      this.cells[i].r = src[i].r;
     }
   }
 
+  rotateCW() {
+    this._setCells((this._rotIndex + 1) % this.cycleLength);
+  }
+
   rotateCCW() {
-    this._rotId++;
-    for (var i = 0; i < this.cells.length; i++) {
-      var q = this.cells[i].q, r = this.cells[i].r;
-      this.cells[i].q = q + r;
-      this.cells[i].r = -q;
-    }
+    this._setCells((this._rotIndex - 1 + this.cycleLength) % this.cycleLength);
   }
 }
 
@@ -169,6 +266,7 @@ function dropToFloor(piece, grid, totalRows, cols) {
 }
 
 exports.PIECES = PIECES;
+exports.PIECE_ROTATIONS = PIECE_ROTATIONS;
 exports.KICKS = KICKS;
 exports.Piece = Piece;
 exports.dropToFloor = dropToFloor;
