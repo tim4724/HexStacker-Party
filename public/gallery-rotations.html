@@ -35,37 +35,26 @@
     margin-left: auto;
   }
 
-  .sub-head {
-    font-size: 11px; color: #9a9ac0;
-    letter-spacing: 0.05em; text-transform: uppercase;
-    margin: 8px 0 6px;
-  }
-  .sub-head.accent { color: #ffe066; }
-
+  /* auto-fit lets cards expand to fill the row when the cycle has fewer
+     entries (T3 has 2, I3/o have 3, V3/d/b have 6) instead of pinning a
+     fixed 6-column grid that leaves dead whitespace. */
   .rot-grid {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 10px;
-    margin-bottom: 14px;
   }
-  .rot-card.engine { border-color: rgba(255, 224, 102, 0.35); }
   .rot-card {
     background: #13132a;
     border-radius: 8px;
     padding: 8px;
     display: flex; flex-direction: column; gap: 6px;
     border: 1px solid rgba(255,255,255,0.04);
+    min-width: 0;
   }
-  .rot-card.shifted { border-color: rgba(255, 140, 66, 0.45); }
-  .rot-card.duplicate { opacity: 0.55; }
   .rot-card-head {
-    display: flex; justify-content: space-between; align-items: baseline;
     font-size: 11px; color: #cfcfe8;
+    font-weight: 600; letter-spacing: 0.05em;
   }
-  .rot-card-head .label { font-weight: 600; letter-spacing: 0.05em; }
-  .rot-card-head .delta { font-family: ui-monospace, Menlo, monospace; font-size: 10px; }
-  .rot-card-head .delta.zero { color: #5db35d; }
-  .rot-card-head .delta.nonzero { color: #ff8c42; }
   .rot-card canvas {
     display: block; width: 100%; height: auto;
     background: #15121F; border-radius: 4px;
@@ -75,17 +64,6 @@
     color: #9a9ac0; line-height: 1.45;
     white-space: pre;
     overflow-x: auto;
-  }
-  .rot-card .dup-tag {
-    font-size: 9px; color: #888; letter-spacing: 0.05em;
-    text-transform: uppercase;
-  }
-
-  @media (max-width: 900px) {
-    .rot-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  }
-  @media (max-width: 520px) {
-    .rot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
 </style>
 </head>
@@ -100,19 +78,16 @@
 </header>
 
 <section class="rot-intro">
-  Two views per piece. <strong>Raw rotations</strong> applies the axial CW
-  transform six times so you see every orientation the math produces — dimmed
-  cards are shape-equivalent to an earlier rotation (translation, not a new
-  shape). <strong>Engine cycle</strong> is what <code>rotateCW()</code> actually
-  steps through now: shape-equivalent rotations are deduplicated, and within
-  each equivalence class the rotation whose visual centroid (axial
-  <code>r + q/2</code>) is closest to rot 0's is kept, so rotating doesn't
-  push the piece down off-screen.
+  Each piece is shown across the rotations <code>rotateCW()</code> actually
+  steps through. Shape-equivalent rotations are deduplicated, and within each
+  equivalence class the rotation whose visual centroid (axial <code>r + q/2</code>)
+  is closest to rot 0's is kept so rotating doesn't push the piece down a row.
+  The anchor is pinned at the grid's centre with ±2 rows of slack so
+  <code>_adjustAnchorRow</code>'s downward clamp never has to fire.
 </section>
 <div class="rot-legend">
   <span><span class="sw anchor"></span>anchor cell (axial 0,0)</span>
   <span><span class="sw cell0"></span>cells[0] — the rotation-keyed marker</span>
-  <span style="color:#ffe066;">yellow border = engine cycle entry</span>
 </div>
 
 <section class="rot-rail" id="rot-rail"></section>

@@ -7,7 +7,6 @@
 
 (function() {
   var Piece = PieceModule.Piece;
-  var PIECES = PieceModule.PIECES;
   var PIECE_ROTATIONS = PieceModule.PIECE_ROTATIONS;
   var offsetToAxial = PieceModule.offsetToAxial;
   var axialToOffset = PieceModule.axialToOffset;
@@ -23,7 +22,10 @@
   var GRID_ROWS = 5;
   var ANCHOR_COL = 2;              // center column (even → "high" parity)
   var ANCHOR_ROW = 2;              // center row — leaves ±2 offset rows of slack
-  var CELL_SIZE = 36;              // baseline; canvas is drawn at 2x for retina
+  // Bitmap is drawn at this base unit times DPR. CSS scales the canvas to fill
+  // the card; a generous base unit keeps it crisp when the card stretches to
+  // fill a wide column.
+  var CELL_SIZE = 56;
   var DPR = Math.min(window.devicePixelRatio || 1, 2);
 
   var geo = GameConstants.computeHexGeometry(GRID_COLS, GRID_ROWS, CELL_SIZE);
@@ -49,12 +51,15 @@
   function makeCanvas() {
     var canvas = document.createElement('canvas');
     var pad = 4;
-    var cssW = geo.boardWidth + pad * 2;
-    var cssH = geo.boardHeight + pad * 2;
-    canvas.style.width = cssW + 'px';
-    canvas.style.height = cssH + 'px';
-    canvas.width = Math.ceil(cssW * DPR);
-    canvas.height = Math.ceil(cssH * DPR);
+    var logicalW = geo.boardWidth + pad * 2;
+    var logicalH = geo.boardHeight + pad * 2;
+    // Bitmap dimensions stay fixed at base * DPR; CSS scales the element to
+    // fit the card's column width. Browsers preserve aspect ratio from the
+    // width/height attributes when CSS sets width:100% height:auto.
+    canvas.width = Math.ceil(logicalW * DPR);
+    canvas.height = Math.ceil(logicalH * DPR);
+    canvas.style.width = '100%';
+    canvas.style.height = 'auto';
     var ctx = canvas.getContext('2d');
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     ctx.translate(pad, pad);
@@ -137,31 +142,9 @@
     return parts.join(' ');
   }
 
-  // Raw axial CW rotation, applied directly to a cells array. Used by the
-  // "all 6 rotations" view to bypass piece.rotateCW(), which now cycles
-  // through the engine's dedup'd rotation table instead of stepping through
-  // all six raw orientations.
-  function rawRotateCellsCW(cells) {
-    for (var i = 0; i < cells.length; i++) {
-      var q = cells[i].q, r = cells[i].r;
-      cells[i].q = -r;
-      cells[i].r = q + r;
-    }
-  }
-
-  function cellsKey(cells) {
-    // Order-independent shape signature: sort axial cells and join. Lets us
-    // flag rotations that produce an identical block-set to a prior rotation
-    // (so the user can see at a glance which pieces have rotational symmetry).
-    var sorted = cells.slice().sort(function(a, b) {
-      return (a.q - b.q) || (a.r - b.r);
-    });
-    return sorted.map(function(c) { return c.q + ',' + c.r; }).join('|');
-  }
-
   // Shared rendering scaffold: builds a piece object pinned to the centered
   // anchor, then renders one card per orientation in `orientations`. Each
-  // orientation supplies its own cells, label, and meta builder.
+  // orientation supplies its own cells, label, and meta string.
   function renderOrientationGrid(piece, color, orientations) {
     var grid = document.createElement('div');
     grid.className = 'rot-grid';
@@ -174,33 +157,16 @@
         piece.cells[ci].r = o.cells[ci].r;
       }
       var card = document.createElement('div');
-      card.className = 'rot-card' + (o.cardClass ? ' ' + o.cardClass : '');
-      var ch = document.createElement('div');
-      ch.className = 'rot-card-head';
-      var lab = document.createElement('span');
-      lab.className = 'label';
+      card.className = 'rot-card';
+      var lab = document.createElement('div');
+      lab.className = 'rot-card-head';
       lab.textContent = o.label;
-      ch.appendChild(lab);
-      if (o.suffix) {
-        var sf = document.createElement('span');
-        sf.className = 'delta ' + (o.suffixState || 'zero');
-        sf.textContent = o.suffix;
-        ch.appendChild(sf);
-      }
-      card.appendChild(ch);
+      card.appendChild(lab);
       card.appendChild(renderPiece(piece, color));
-      if (o.meta) {
-        var meta = document.createElement('div');
-        meta.className = 'meta';
-        meta.textContent = o.meta;
-        card.appendChild(meta);
-      }
-      if (o.tag) {
-        var dt = document.createElement('div');
-        dt.className = 'dup-tag';
-        dt.textContent = o.tag;
-        card.appendChild(dt);
-      }
+      var meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = o.meta;
+      card.appendChild(meta);
       grid.appendChild(card);
     }
     return grid;
@@ -248,76 +214,21 @@
     piece.anchorCol = ANCHOR_COL;
     piece.anchorRow = ANCHOR_ROW;
 
-    // ---- View 1: raw 6 axial rotations (bypass the cycle) ----
-    var rawHead = document.createElement('div');
-    rawHead.className = 'sub-head';
-    rawHead.textContent = 'Raw 60° rotations · all 6 axial steps';
-    section.appendChild(rawHead);
-
-    var rawCells = PIECES[type].map(function(c) { return { q: c[0], r: c[1] }; });
-    var rawShapeFirstSeen = {};
-    var rawOrientations = [];
-    for (var r = 0; r < 6; r++) {
-      var key = cellsKey(rawCells);
-      var dupOf = rawShapeFirstSeen[key];
-      if (dupOf === undefined) rawShapeFirstSeen[key] = r;
-      rawOrientations.push({
-        label: 'rot ' + r,
-        cells: rawCells.map(function(c) { return { q: c.q, r: c.r }; }),
-        meta: null,   // filled after we re-mount each rotation
-        cardClass: dupOf !== undefined ? 'duplicate' : '',
-        tag: dupOf !== undefined ? '↻ same shape as rot ' + dupOf : null
-      });
-      rawRotateCellsCW(rawCells);
-    }
-    // Build meta with absolute blocks (now that piece.cells will be set per orientation).
-    for (var ri = 0; ri < rawOrientations.length; ri++) {
-      var ro = rawOrientations[ri];
-      // Temporarily set piece.cells to this orientation to compute blocks.
-      for (var rj = 0; rj < ro.cells.length; rj++) {
-        piece.cells[rj].q = ro.cells[rj].q;
-        piece.cells[rj].r = ro.cells[rj].r;
-      }
-      ro.meta = metaText(piece, ro.cells);
-    }
-    section.appendChild(renderOrientationGrid(piece, color, rawOrientations));
-
-    // ---- View 2: engine cycle (dedup'd + centroid-matched) ----
-    var cycleHead = document.createElement('div');
-    cycleHead.className = 'sub-head accent';
     var cycle = PIECE_ROTATIONS[type];
-    cycleHead.textContent = 'Engine cycle · ' + cycle.length
-      + (cycle.length === 1 ? ' state' : ' states')
-      + ' — what rotateCW() actually steps through';
-    section.appendChild(cycleHead);
-
-    // Map each cycle entry back to its raw-rotation index for cross-reference.
-    var cycleOrientations = [];
+    var orientations = [];
     for (var ci = 0; ci < cycle.length; ci++) {
       var entry = cycle[ci];
-      var entryKey = entry.map(function(c) { return c.q + ',' + c.r; }).sort().join('|');
-      // Find which raw rot index produced this cells set.
-      var rawIdx = ci;
-      var probeCells = PIECES[type].map(function(c) { return { q: c[0], r: c[1] }; });
-      for (var probe = 0; probe < 6; probe++) {
-        var probeKey = probeCells.map(function(c) { return c.q + ',' + c.r; }).sort().join('|');
-        if (probeKey === entryKey) { rawIdx = probe; break; }
-        rawRotateCellsCW(probeCells);
-      }
       for (var ej = 0; ej < entry.length; ej++) {
         piece.cells[ej].q = entry[ej].q;
         piece.cells[ej].r = entry[ej].r;
       }
-      cycleOrientations.push({
+      orientations.push({
         label: 'step ' + ci,
         cells: entry.map(function(c) { return { q: c.q, r: c.r }; }),
-        meta: metaText(piece, entry),
-        suffix: 'raw rot ' + rawIdx,
-        suffixState: 'zero',
-        cardClass: 'engine'
+        meta: metaText(piece, entry)
       });
     }
-    section.appendChild(renderOrientationGrid(piece, color, cycleOrientations));
+    section.appendChild(renderOrientationGrid(piece, color, orientations));
 
     return section;
   }
