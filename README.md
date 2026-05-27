@@ -6,7 +6,7 @@ Multiplayer hex stacker where phones become controllers and a shared screen show
 
 **Play now at [hexstacker.com](https://hexstacker.com)**
 
-**UI gallery**: [main.hexstacker.com/gallery.html](https://main.hexstacker.com/gallery.html) — every screen, every state (design reference)
+**Gallery**: [main.hexstacker.com/gallery.html](https://main.hexstacker.com/gallery.html) — reference pages for the display, the phone, and piece rotations
 
 ## Overview
 
