@@ -269,7 +269,11 @@ describe('PlayerBoard - rotation and wall kicks', () => {
   it('I3 piece rotates at every valid position on an empty board', () => {
     var { Piece } = require('../server/Piece');
     var { TOTAL_ROWS: HEX_TOTAL_ROWS } = require('../server/constants');
-    for (var rotStep = 0; rotStep < 6; rotStep++) {
+    // Bound by cycleLength so we sweep each distinct rotation exactly once.
+    // I3 has 3 distinct states (2-fold symmetric), so rotStep ∈ [0, 3) covers
+    // them all — looping to 6 would test the same three states twice.
+    var i3CycleLen = new Piece('I3').cycleLength;
+    for (var rotStep = 0; rotStep < i3CycleLen; rotStep++) {
       for (var ac = -3; ac < HEX_COLS + 3; ac++) {
         for (var ar = 0; ar < HEX_TOTAL_ROWS; ar++) {
           var b = new PlayerBoard('p', 1, 1);

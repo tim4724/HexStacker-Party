@@ -1,9 +1,10 @@
 'use strict';
 
-// Rotation debug: for each piece, render 6 consecutive CW rotations on a small
-// hex grid. The visualization mirrors PlayerBoard._tryRotate: rotateCW() →
-// _adjustAnchorRow(), no wall kicks. anchorCol is held at the grid center so
-// any change in anchorRow is the on-board drift you'd actually see.
+// Rotation debug: for each piece, render every step in the engine's
+// deduplicated rotation cycle on a small hex grid. The visualization
+// mirrors PlayerBoard._tryRotate: rotateCW() → _adjustAnchorRow(), no
+// wall kicks. anchorCol is held at the grid center so any change in
+// anchorRow is the on-board drift you'd actually see.
 
 (function() {
   var Piece = PieceModule.Piece;
@@ -142,45 +143,25 @@
     return parts.join(' ');
   }
 
-  // Shared rendering scaffold: builds a piece object pinned to the centered
-  // anchor, then renders one card per orientation in `orientations`. Each
-  // orientation supplies its own cells, label, and meta string.
-  function renderOrientationGrid(piece, color, orientations) {
-    var grid = document.createElement('div');
-    grid.className = 'rot-grid';
-    for (var oi = 0; oi < orientations.length; oi++) {
-      var o = orientations[oi];
-      // Mutate the piece's cells in place to match this orientation, then
-      // hand off to renderPiece (which reads piece.cells/anchorCol/anchorRow).
-      for (var ci = 0; ci < o.cells.length; ci++) {
-        piece.cells[ci].q = o.cells[ci].q;
-        piece.cells[ci].r = o.cells[ci].r;
-      }
-      var card = document.createElement('div');
-      card.className = 'rot-card';
-      var lab = document.createElement('div');
-      lab.className = 'rot-card-head';
-      lab.textContent = o.label;
-      card.appendChild(lab);
-      card.appendChild(renderPiece(piece, color));
-      var meta = document.createElement('div');
-      meta.className = 'meta';
-      meta.textContent = o.meta;
-      card.appendChild(meta);
-      grid.appendChild(card);
-    }
-    return grid;
-  }
-
-  function metaText(piece, cells) {
-    // Re-sync piece.cells from `cells` so getAbsoluteBlocks reads the right
-    // orientation; the caller has already mutated piece.cells, but the
-    // explicit parameter makes the dependency clear.
+  // Build one card for the piece's current orientation. Caller is responsible
+  // for setting piece._rotIndex/cells via _setCells before calling.
+  function renderCard(piece, color, label) {
+    var card = document.createElement('div');
+    card.className = 'rot-card';
+    var head = document.createElement('div');
+    head.className = 'rot-card-head';
+    head.textContent = label;
+    card.appendChild(head);
+    card.appendChild(renderPiece(piece, color));
     var blocks = piece.getAbsoluteBlocks();
     var blocksStr = blocks.map(function(b) { return '(' + b[0] + ',' + b[1] + ')'; }).join(' ');
-    return 'anchor (' + piece.anchorCol + ',' + piece.anchorRow + ')\n'
-      + 'cells:  ' + fmtCells(cells) + '\n'
+    var meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = 'anchor (' + piece.anchorCol + ',' + piece.anchorRow + ')\n'
+      + 'cells:  ' + fmtCells(piece.cells) + '\n'
       + 'blocks: ' + blocksStr;
+    card.appendChild(meta);
+    return card;
   }
 
   function buildPieceSection(type) {
@@ -214,21 +195,17 @@
     piece.anchorCol = ANCHOR_COL;
     piece.anchorRow = ANCHOR_ROW;
 
+    var grid = document.createElement('div');
+    grid.className = 'rot-grid';
     var cycle = PIECE_ROTATIONS[type];
-    var orientations = [];
     for (var ci = 0; ci < cycle.length; ci++) {
-      var entry = cycle[ci];
-      for (var ej = 0; ej < entry.length; ej++) {
-        piece.cells[ej].q = entry[ej].q;
-        piece.cells[ej].r = entry[ej].r;
-      }
-      orientations.push({
-        label: 'step ' + ci,
-        cells: entry.map(function(c) { return { q: c.q, r: c.r }; }),
-        meta: metaText(piece, entry)
-      });
+      // _setCells keeps piece.cells, piece._rotIndex, and piece._rotId in
+      // sync — manually mutating piece.cells would leave _rotIndex stale,
+      // which silently breaks anything that later calls piece.rotateCW().
+      piece._setCells(ci);
+      grid.appendChild(renderCard(piece, color, 'step ' + ci));
     }
-    section.appendChild(renderOrientationGrid(piece, color, orientations));
+    section.appendChild(grid);
 
     return section;
   }
