@@ -105,6 +105,11 @@ Callbacks (assigned as properties):
 
 Props: `relayUrl`, `clientId`, `reconnectAttempt`.
 
+The relay requires a `clientId`; if you omit it, one is auto-generated. An
+auto-generated id is stable for this instance (in-session reconnects keep the
+same slot) but not across page reloads — to reconnect across a reload, persist a
+`clientId` (e.g. `localStorage`) and pass it in.
+
 ### `AirConsoleAdapter` — drop-in `PartyConnection` over the AirConsole SDK
 
 ```js

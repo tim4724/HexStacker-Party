@@ -10,6 +10,12 @@
  * the wire in any other direction. Callers must keep clientId private (don't
  * embed it in app messages, URLs, or logs).
  *
+ * The relay requires a clientId, so one is auto-generated when the caller omits
+ * it. An auto-generated id is stable for the lifetime of this instance (so
+ * in-session reconnects land on the same slot) but NOT across page reloads — a
+ * game that wants reconnect to survive a reload should persist a clientId
+ * (e.g. in localStorage) and pass it in.
+ *
  * Party-Server protocol:
  *   Client → PS:  create { clientId, maxClients }
  *   Client → PS:  join   { clientId, room }
@@ -24,7 +30,8 @@
 class PartyConnection {
   constructor(relayUrl, options) {
     this.relayUrl = relayUrl;
-    this.clientId = (options && options.clientId) || null;
+    // The relay requires a clientId; generate a session-stable one if omitted.
+    this.clientId = (options && options.clientId) || PartyConnection._genClientId();
     this.ws = null;
     this._reconnectTimer = null;
     this._shouldReconnect = true;
@@ -37,6 +44,18 @@ class PartyConnection {
     this.onError = null;       // () => void
     this.onMessage = null;     // (from: number, data: object) => void
     this.onProtocol = null;    // (type: string, msg: object) => void
+  }
+
+  // Random, opaque clientId. crypto.randomUUID where available (browsers,
+  // Node 16+); a Math.random/time fallback otherwise. Not security-grade, just
+  // unique enough to key a relay slot.
+  static _genClientId() {
+    try {
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return 'pc-' + crypto.randomUUID();
+      }
+    } catch (e) { /* fall through */ }
+    return 'pc-' + Math.random().toString(36).slice(2) + '-' + Date.now().toString(36);
   }
 
   connect() {

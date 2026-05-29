@@ -66,6 +66,26 @@ describe('PartyConnection', () => {
     assert.strictEqual(MockWebSocket._instances[0].url, 'wss://test.example.com');
   });
 
+  test('auto-generates a clientId when none is provided', () => {
+    const a = new PartyConnection('wss://test.example.com');
+    const b = new PartyConnection('wss://test.example.com');
+    assert.equal(typeof a.clientId, 'string');
+    assert.ok(a.clientId.length > 0);
+    assert.notEqual(a.clientId, b.clientId);   // unique per instance
+  });
+
+  test('uses a provided clientId verbatim and sends it on create/join', () => {
+    const pc = new PartyConnection('wss://test.example.com', { clientId: 'abc' });
+    assert.equal(pc.clientId, 'abc');
+    pc.connect();
+    MockWebSocket._instances[0]._simulateOpen();
+    pc.create(4);
+    const inst = MockWebSocket._instances[0];
+    const sent = inst._sent[inst._sent.length - 1];
+    assert.equal(sent.type, 'create');
+    assert.equal(sent.clientId, 'abc');
+  });
+
   test('onOpen callback fires on connection', () => {
     const pc = new PartyConnection('wss://test.example.com');
     let opened = false;

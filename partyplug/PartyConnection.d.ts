@@ -33,6 +33,7 @@ declare class PartyConnection {
 
 declare namespace PartyConnection {
   interface Options {
+    /** Per-slot bearer token for reconnect. Auto-generated (session-stable) if omitted; persist + pass one for reconnect across page reloads. */
     clientId?: string;
     maxReconnectAttempts?: number;
   }
