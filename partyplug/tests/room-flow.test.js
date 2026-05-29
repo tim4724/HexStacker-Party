@@ -182,6 +182,18 @@ describe('RoomFlow — clearDisconnected', () => {
     f.clearDisconnected();
     assert.equal(log.length, 0);
   });
+
+  it('emits hostchange when clearing restores the effective host', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1); f.addPlayer(2);
+    f.transitionTo(S.COUNTDOWN); f.transitionTo(S.PLAYING);
+    f.markDisconnected(1);            // host blips -> effective host falls back to 2
+    assert.equal(f.host, 2);
+    const log = record(f);
+    f.clearDisconnected();           // 1 present again -> effective host back to 1
+    assert.equal(f.host, 1);
+    assert.ok(log.some(e => e[0] === 'hostchange'));
+  });
 });
 
 describe('RoomFlow — event ordering', () => {
@@ -360,6 +372,19 @@ describe('RoomFlow — state machine', () => {
     f.reset();
     assert.equal(log.some(e => e[0] === 'statechange'), false);
     assert.ok(log.some(e => e[0] === 'rosterchange'));
+  });
+
+  // Guards the `var players = flow.players` aliasing contract used by consumers
+  // (HexStacker's DisplayState): reset() MUST clear the Map in place, never
+  // reassign it, or aliases would silently point at a stale Map. This fails if
+  // a future edit makes reset() do `this.players = new Map()`.
+  it('reset() keeps the same players Map reference (alias safety)', () => {
+    const f = new RoomFlow();
+    const ref = f.players;
+    f.addPlayer(1); f.addPlayer(2);
+    f.reset();
+    assert.equal(f.players, ref);
+    assert.equal(f.players.size, 0);
   });
 });
 
