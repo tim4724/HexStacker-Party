@@ -25,30 +25,43 @@ construction, so the kit never depends on the game.
 
 `RoomFlow.js` is the room/lobby/host **state machine**, extracted from
 `public/display/DisplayState.js`. It owns room state
-(`lobby -> countdown -> playing -> results`), the player roster + color-slot
-assignment, sticky-host election, the lobby countdown, and disconnection
-tracking. It emits events; the view subscribes and renders.
+(`lobby -> countdown -> playing -> results`), the player roster (identity, join
+order, presence), sticky-host election, an optional lobby countdown, and
+disconnection tracking. It emits events; the view subscribes and renders.
 
-It touches **no** DOM, transport, or rendering. Two deliberate changes make it
-agnostic: the AirConsole master-controller rule is injected as a
-`masterProvider` callback (not a direct `party.getMasterPeerIndex()` call), and
-disconnection is tracked as a Set (not inferred from the `disconnectedQRs` DOM
-map). Game-specific per-player config (e.g. `startLevel`) lives in `player.meta`.
+It touches **no** DOM, transport, or rendering, and **no** game concepts. It has
+no notion of color, name, score, or level: a player record is
+`{ peerIndex, joinedAt, connected, ...gameFields }` where RoomFlow owns the
+first three and treats whatever the game passes to `addPlayer()` as opaque
+fields it stores but never reads. The game mutates those fields on the live
+record directly. The only things RoomFlow reads off a player are `joinedAt`
+(host-election tiebreak) and presence. Two more deliberate decoupling choices:
+the AirConsole master-controller rule is injected as a `masterProvider` callback
+(not a direct `party.getMasterPeerIndex()` call), and disconnection is tracked
+as a Set (not inferred from the `disconnectedQRs` DOM map).
+
+Two integration styles are supported. Event-driven (recommended for new games),
+where RoomFlow runs the countdown and the view reacts to events:
 
 ```js
-const flow = new RoomFlow({ maxPlayers: 8, masterProvider: () => party.getMasterPeerIndex?.() });
+const flow = new RoomFlow({ masterProvider: () => party.getMasterPeerIndex?.() });
 flow.on('statechange', e => showScreen(SCREEN_FOR[e.to]));
 flow.on('hostchange', renderHostUI);
 flow.on('rosterchange', updatePlayerList);
 party.onProtocol = (type, msg) => {
-  if (type === 'peer_joined') flow.addPlayer(msg.peerIndex, parseHello(msg));
+  if (type === 'peer_joined') flow.addPlayer(msg.peerIndex, { name: msg.name });
   if (type === 'peer_left')   flow.removePlayer(msg.peerIndex);
 };
+flow.requestStart(); // -> countdown -> playing
 ```
 
-**Status:** module built and unit-tested (`tests/room-flow.test.js`), but **not
-yet wired into HexStacker's live display** — that is the Phase-2 proof. The
-existing `DisplayState.js` logic is unchanged.
+Or imperative (how HexStacker uses it), where the game keeps its own countdown
+and drives the machine with `transitionTo()`, reads `flow.host` / `flow.state`,
+and feeds its participant order via `setActiveOrder()`.
+
+**Status:** wired into HexStacker's live display. `flow.players` is the roster
+backing store; `getHostPeerIndex`/`setRoomState`/`hostPeerIndex`/`roomState`
+delegate to the kit.
 
 ## The seam (how a game plugs in)
 
@@ -128,22 +141,25 @@ the display auto-accepts. 3s of silence fires `onPeerClosed`.
 ### `RoomFlow` — headless room/lobby/host state machine
 
 ```js
-new RoomFlow({ maxPlayers = 8, countdownSeconds = 3, goMs = 600, masterProvider?, timers? })
+new RoomFlow({ countdownSeconds = 3, goMs = 600, masterProvider?, timers? })
 RoomFlow.STATES // { LOBBY, COUNTDOWN, PLAYING, RESULTS }
 ```
 
-Roster:
+Roster (the `fields` object is opaque game data: color, name, level, etc.):
 
 | Method | Purpose |
 | --- | --- |
-| `addPlayer(peerIndex, { name?, colorIndex?, meta? })` | Add or reconnect; returns the player record |
+| `addPlayer(peerIndex, fields?)` | Add (or reconnect/refresh) a player; returns the live record |
 | `removePlayer(peerIndex)` | Hard leave |
+| `rekey(oldId, newId)` | Reconnect-claim: move a record to a new peerIndex, preserving it + host slot |
 | `markDisconnected(peerIndex)` / `markReconnected(peerIndex)` | Soft blip window |
-| `setColor(peerIndex, colorIndex)` | Validated (range + collision); returns bool |
-| `setMeta(peerIndex, patch)` | Game-specific per-player data (e.g. `startLevel`) |
 
-Lifecycle: `requestStart()`, `playAgain()`, `endGame(results)`,
-`returnToLobby()`, `cancelCountdown()`, `reset()`.
+The game owns its per-player fields and mutates them on the record directly
+(e.g. `flow.get(id).startLevel = 9`); RoomFlow never reads them.
+
+Lifecycle: `transitionTo(state)` (imperative), `requestStart()`, `playAgain()`,
+`endGame(results)`, `returnToLobby()`, `cancelCountdown()`,
+`setActiveOrder(peerIndices)`, `reset()`.
 
 Reads: `state`, `host` (effective), `hostPeerIndex` (sticky), `isHost(peerIndex)`,
 `list()`, `get(peerIndex)`, `has(peerIndex)`, `size`, `connectedCount`,
@@ -160,18 +176,15 @@ Events (`flow.on(type, fn)` returns an unsubscribe function; `'*'` receives all)
 | `hostchange` | `{ hostPeerIndex }` |
 | `countdown` / `go` | `{ remaining }` / `{}` |
 
-Player record: `{ peerIndex, name, colorIndex, joinedAt, connected, meta }`.
+Player record: `{ peerIndex, joinedAt, connected, ...gameFields }`.
 
 ## Not yet extracted (deliberately)
 
-The networking layer is the part that is genuinely the same for every game and
-was already cleanly decoupled, so it went first. The following are reusable in
-principle but are still entangled with HexStacker specifics. They should be
-split **against a second game**, not speculatively against this one:
+The networking and flow layers are the parts genuinely shared by every game in
+this style, so they went first. The following are reusable in principle but are
+still entangled with HexStacker specifics. They should be split **against a
+second game**, not speculatively against this one:
 
-- **Wiring `RoomFlow` into the live display** (replacing `DisplayState.js`'s
-  inline state machine + host logic with the kit module). Built and tested; not
-  yet routed through the running app.
 - **Lobby + join flow** (QR, roster, name/color picker, screen shell)
 - **Liveness** (heartbeat, reconnect, fastlane backoff)
 - **Theming tokens + i18n engine**

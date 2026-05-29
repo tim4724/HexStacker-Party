@@ -68,7 +68,7 @@ function startNewGame() {
     }
   }
   for (var gi = 0; gi < goneIds.length; gi++) {
-    players.delete(goneIds[gi]);
+    flow.removePlayer(goneIds[gi]);
     playerOrder = playerOrder.filter(function(pid) { return pid !== goneIds[gi]; });
   }
   // Clear stale disconnected-QR flags from the previous game so they don't
@@ -76,6 +76,7 @@ function startNewGame() {
   // keep the disconnected state through RESULTS so the host role hands off
   // correctly; see getHostPeerIndex().)
   disconnectedQRs.clear();
+  flow.clearDisconnected();
   // Everyone who remained was disconnected — don't launch an empty game.
   // Both callers (startGame, playAgain) check players.size before this prune,
   // so neither catches the all-disconnected case. From RESULTS, returnToLobby()
@@ -269,7 +270,7 @@ function returnToLobby() {
   }
 
   for (var i = 0; i < disconnectedIds.length; i++) {
-    players.delete(disconnectedIds[i]);
+    flow.removePlayer(disconnectedIds[i]);
     playerOrder = playerOrder.filter(function(id) { return id !== disconnectedIds[i]; });
   }
 
@@ -293,6 +294,7 @@ function returnToLobbyUI() {
   gameState = null;
   prevFrameTime = 0;
   disconnectedQRs.clear();
+  flow.clearDisconnected();
   garbageIndicatorEffects.clear();
   garbageDefenceEffects.clear();
   showScreen(SCREEN.LOBBY);
@@ -335,6 +337,9 @@ function runGameLocallyWithSeed(seed) {
   });
   // Snapshot playerOrder at game start — prevents mid-game layout drift
   playerOrder = playerOrder.slice();
+  // Feed the participant order to flow so host eligibility (restricted to
+  // participants mid-game) matches the game's board layout exactly.
+  flow.setActiveOrder(playerOrder);
   var gamePlayers = new Map();
   for (var i = 0; i < playerOrder.length; i++) {
     var pInfo = players.get(playerOrder[i]);

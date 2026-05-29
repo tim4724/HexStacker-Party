@@ -4,21 +4,28 @@
 // RoomFlow — headless room/lobby/host state machine for PartyPlug.
 //
 // Owns: room state (lobby -> countdown -> playing -> results), the player
-// roster, sticky-host election, the lobby countdown, and disconnection
-// tracking. Emits events; the view subscribes and renders.
+// roster (identity + join order + presence), sticky-host election, an
+// optional lobby countdown, and disconnection tracking. Emits events; the
+// view subscribes and renders.
 //
 // Knows NOTHING about: the DOM, canvases, QR codes, the relay/transport,
-// or any specific game. Game-specific per-player config (e.g. a starting
-// level) lives in `player.meta`, never in the kit's own fields.
+// or any specific game's concepts. In particular it has NO notion of player
+// color, name, score, or level — those are game data. A player record is
+// `{ peerIndex, joinedAt, connected, ...gameFields }`: RoomFlow owns the
+// first three and treats everything the game passes to addPlayer() as
+// opaque fields it stores but never reads. The game mutates those fields on
+// the record object directly (get() returns the live object).
 //
-// This is the logic extracted from public/display/DisplayState.js — the
-// roomState machine, the players map + slot assignment, and the
-// getHostPeerIndex / electNextHost / reconcileStickyHost trio — with two
-// changes that make it transport- and DOM-agnostic:
-//   1. The AirConsole master-controller rule is injected as `masterProvider`
-//      instead of calling party.getMasterPeerIndex() directly.
-//   2. Disconnection is tracked as a fact (a Set) rather than inferred from
-//      the disconnectedQRs DOM map.
+// The only things RoomFlow reads off a player are `joinedAt` (host-election
+// tiebreak) and presence (the `_disconnected` set). That is what keeps it
+// reusable across games that look nothing like each other.
+//
+// Extracted from public/display/DisplayState.js (the roomState machine, the
+// players map, and the getHostPeerIndex / electNextHost / reconcileStickyHost
+// trio) with three changes that make it transport-, DOM-, and game-agnostic:
+//   1. The AirConsole master-controller rule is injected as `masterProvider`.
+//   2. Disconnection is a Set, not the disconnectedQRs DOM map.
+//   3. Color/name/level slot logic is removed — pure game data now.
 //
 // UMD: works under Node (tests) and the browser (<script src>).
 // =====================================================================
@@ -48,14 +55,9 @@
 
   function RoomFlow(opts) {
     opts = opts || {};
-    // Upper bound on color slots / players. Defaults generously; the host
-    // (game) should pass its real cap so slot assignment and color
-    // validation match the palette.
-    this.maxPlayers = opts.maxPlayers || 8;
     this.countdownSeconds = opts.countdownSeconds != null ? opts.countdownSeconds : 3;
     // How long the "GO" beat lingers after the count hits zero before the
-    // game actually starts (lets the view flash GO). Mirrors the goTimeout
-    // in DisplayState's countdown object.
+    // game actually starts (lets the view flash GO).
     this.goMs = opts.goMs != null ? opts.goMs : 600;
     // Optional () => peerIndex. When the transport designates a master
     // controller (AirConsole), supply it here. Returns null/undefined when
@@ -71,7 +73,7 @@
     this.hostPeerIndex = null;       // sticky host slot (raw; see `host` getter for effective)
     this._joinSeq = 0;               // monotonic joinedAt source (Date.now collides in same ms)
     this._disconnected = new Set();  // peerIndices currently in the disconnect window
-    this._order = [];                // active participants snapshot (set at countdown)
+    this._order = [];                // active participants (set at countdown, or via setActiveOrder)
     this._listeners = {};
     this._cdTimer = null;
     this.lastResults = null;
@@ -102,30 +104,27 @@
   // Roster
   // =====================================================================
 
-  // Add a player, or reconnect an existing one (same peerIndex).
-  // `attrs`: { name, colorIndex?, meta? }. Returns the player record.
-  RoomFlow.prototype.addPlayer = function (peerIndex, attrs) {
-    attrs = attrs || {};
+  // Add a player, or reconnect/refresh an existing one (same peerIndex).
+  // `fields` is opaque game data merged onto the record (name, color slot,
+  // level, ...). RoomFlow adds peerIndex/joinedAt/connected and never reads
+  // the game fields. Returns the live player record.
+  RoomFlow.prototype.addPlayer = function (peerIndex, fields) {
+    fields = fields || {};
     var existing = this.players.get(peerIndex);
     if (existing) {
-      // Reconnect: keep slot / joinedAt / host, just refresh presence.
+      // Reconnect: keep slot / joinedAt / host, refresh presence + fields.
+      Object.assign(existing, fields);
       existing.connected = true;
       this._disconnected.delete(peerIndex);
-      if (attrs.name != null) existing.name = attrs.name;
-      if (attrs.meta) existing.meta = Object.assign({}, existing.meta, attrs.meta);
-      if (attrs.colorIndex != null) this.setColor(peerIndex, attrs.colorIndex);
       this._emit('playerupdate', { player: existing });
       this._emit('rosterchange', { players: this.list() });
       return existing;
     }
-    var player = {
+    var player = Object.assign({}, fields, {
       peerIndex: peerIndex,
-      name: attrs.name != null ? attrs.name : null,
-      colorIndex: this._nextColorSlot(attrs.colorIndex),
       joinedAt: this._joinSeq++,
       connected: true,
-      meta: attrs.meta ? Object.assign({}, attrs.meta) : {},
-    };
+    });
     this.players.set(peerIndex, player);
     // First joiner owns the sticky host slot. Also covers the "room emptied
     // then someone joined" case (hostPeerIndex was reset to null).
@@ -147,12 +146,41 @@
     var wasHost = peerIndex === this.hostPeerIndex;
     this.players.delete(peerIndex);
     this._disconnected.delete(peerIndex);
+    var oi = this._order.indexOf(peerIndex);
+    if (oi >= 0) this._order.splice(oi, 1);
     if (wasHost && (this.state === STATES.LOBBY || this.state === STATES.RESULTS)) {
       this.hostPeerIndex = this._electNextHost(peerIndex);
       this._emit('hostchange', { hostPeerIndex: this.host });
     }
     this._emit('playerleave', { peerIndex: peerIndex });
     this._emit('rosterchange', { players: this.list() });
+  };
+
+  // Re-key a player from one peerIndex to another (reconnect-claim: a phone
+  // returns under a new relay slot and claims its old, still-present record).
+  // Preserves the record (incl. joinedAt) and rekeys host slot + order.
+  RoomFlow.prototype.rekey = function (oldId, newId) {
+    if (oldId === newId) return false;
+    var rec = this.players.get(oldId);
+    if (!rec) return false;
+    this.players.delete(oldId);
+    this.players.delete(newId); // drop the placeholder slot the returning peer got
+    rec.peerIndex = newId;
+    rec.connected = true;
+    this.players.set(newId, rec);
+    this._disconnected.delete(oldId);
+    this._disconnected.delete(newId);
+    for (var i = 0; i < this._order.length; i++) {
+      if (this._order[i] === oldId) this._order[i] = newId;
+    }
+    // The slot wasn't moved when this player blipped mid-game, so it still
+    // points at the old peerIndex; rekey it so a reconnecting host resumes.
+    if (this.hostPeerIndex === oldId || this.hostPeerIndex == null) {
+      this.hostPeerIndex = newId;
+    }
+    this._emit('hostchange', { hostPeerIndex: this.host });
+    this._emit('rosterchange', { players: this.list() });
+    return true;
   };
 
   // Soft disconnect window (the player record stays; presence flips false).
@@ -172,41 +200,14 @@
     this._emit('rosterchange', { players: this.list() });
   };
 
-  // Set a player's color slot. Rejects out-of-range and collisions with
-  // another player (mirrors the display's silent SET_COLOR validation).
-  // Returns true when applied (or a no-op same-color), false when rejected.
-  RoomFlow.prototype.setColor = function (peerIndex, colorIndex) {
-    var p = this.players.get(peerIndex);
-    if (!p) return false;
-    if (!Number.isInteger(colorIndex) || colorIndex < 0 || colorIndex >= this.maxPlayers) return false;
-    if (p.colorIndex === colorIndex) return true;
-    for (var entry of this.players) {
-      if (entry[0] !== peerIndex && entry[1].colorIndex === colorIndex) return false;
-    }
-    p.colorIndex = colorIndex;
-    this._emit('playerupdate', { player: p });
+  // Clear every disconnect flag, marking all current players present. Used at
+  // game start / lobby return where stale blip flags must not suppress host
+  // eligibility for the new round.
+  RoomFlow.prototype.clearDisconnected = function () {
+    if (this._disconnected.size === 0) return;
+    this._disconnected.clear();
+    for (var entry of this.players) entry[1].connected = true;
     this._emit('rosterchange', { players: this.list() });
-    return true;
-  };
-
-  // Merge game-specific per-player config (e.g. startLevel) into meta.
-  RoomFlow.prototype.setMeta = function (peerIndex, patch) {
-    var p = this.players.get(peerIndex);
-    if (!p || !patch) return false;
-    p.meta = Object.assign({}, p.meta, patch);
-    this._emit('playerupdate', { player: p });
-    return true;
-  };
-
-  // First free color slot, honoring a requested slot when it's free.
-  RoomFlow.prototype._nextColorSlot = function (requested) {
-    var used = {};
-    for (var entry of this.players) used[entry[1].colorIndex] = true;
-    if (Number.isInteger(requested) && requested >= 0 && requested < this.maxPlayers && !used[requested]) {
-      return requested;
-    }
-    for (var i = 0; i < this.maxPlayers; i++) { if (!used[i]) return i; }
-    return -1;
   };
 
   // =====================================================================
@@ -214,9 +215,8 @@
   // =====================================================================
 
   // During COUNTDOWN/PLAYING/RESULTS the candidate set is restricted to the
-  // active participants snapshotted at game start, so a late joiner can't
-  // be handed host duty for menu actions they can't reach. Open to everyone
-  // in LOBBY.
+  // active participants (the `_order`), so a late joiner can't be handed host
+  // duty for menu actions they can't reach. Open to everyone in LOBBY.
   RoomFlow.prototype._restricted = function () {
     return (this.state === STATES.COUNTDOWN ||
             this.state === STATES.PLAYING ||
@@ -244,7 +244,7 @@
 
   // Effective host: platform master (if eligible) -> sticky host (if
   // eligible) -> oldest-joined eligible present player. Read-only; the
-  // sticky slot is only mutated by removePlayer / reconcileStickyHost.
+  // sticky slot is only mutated by removePlayer / rekey / reconcile.
   Object.defineProperty(RoomFlow.prototype, 'host', {
     get: function () {
       var restricted = this._restricted();
@@ -293,6 +293,8 @@
   // Lifecycle
   // =====================================================================
 
+  // Snapshot the current connected roster as the active participant order
+  // (join order). Called automatically when entering COUNTDOWN.
   RoomFlow.prototype._snapshotOrder = function () {
     var active = [];
     for (var entry of this.players) {
@@ -302,8 +304,20 @@
     this._order = active.map(function (p) { return p.peerIndex; });
   };
 
-  // Internal state transition with validation. Returns true if applied.
-  RoomFlow.prototype._transition = function (to) {
+  // Let a game that maintains its own participant order (e.g. for board
+  // layout) keep RoomFlow's host-eligibility set exactly in sync with it.
+  RoomFlow.prototype.setActiveOrder = function (peerIndices) {
+    var out = [];
+    for (var i = 0; i < (peerIndices || []).length; i++) {
+      if (this.players.has(peerIndices[i])) out.push(peerIndices[i]);
+    }
+    this._order = out;
+  };
+
+  // Validated state transition. Public so games that run their own countdown
+  // (like HexStacker) can drive the machine imperatively; the high-level
+  // helpers below call it too. Returns true if applied.
+  RoomFlow.prototype.transitionTo = function (to) {
     var from = this.state;
     if (to === from) return true;
     var allowed = VALID_TRANSITIONS[from];
@@ -321,43 +335,39 @@
     return true;
   };
 
-  // Host action: LOBBY -> COUNTDOWN -> (after countdown) PLAYING.
+  // High-level helpers (for games that want RoomFlow to run the countdown).
+
   RoomFlow.prototype.requestStart = function () {
-    if (!this._transition(STATES.COUNTDOWN)) return false;
+    if (!this.transitionTo(STATES.COUNTDOWN)) return false;
     var self = this;
     this._runCountdown(function () {
-      // Only advance if we're still counting down (not cancelled to lobby).
-      if (self.state === STATES.COUNTDOWN) self._transition(STATES.PLAYING);
+      if (self.state === STATES.COUNTDOWN) self.transitionTo(STATES.PLAYING);
     });
     return true;
   };
 
-  // Host action from results: RESULTS -> COUNTDOWN -> PLAYING.
   RoomFlow.prototype.playAgain = function () {
-    if (!this._transition(STATES.COUNTDOWN)) return false;
+    if (!this.transitionTo(STATES.COUNTDOWN)) return false;
     var self = this;
     this._runCountdown(function () {
-      if (self.state === STATES.COUNTDOWN) self._transition(STATES.PLAYING);
+      if (self.state === STATES.COUNTDOWN) self.transitionTo(STATES.PLAYING);
     });
     return true;
   };
 
-  // End of game: PLAYING -> RESULTS. `results` is opaque game data, stored
-  // for reconnecting controllers to read back.
   RoomFlow.prototype.endGame = function (results) {
     this.lastResults = results != null ? results : this.lastResults;
-    return this._transition(STATES.RESULTS);
+    return this.transitionTo(STATES.RESULTS);
   };
 
   RoomFlow.prototype.returnToLobby = function () {
     this._cancelCountdownTimers();
-    return this._transition(STATES.LOBBY);
+    return this.transitionTo(STATES.LOBBY);
   };
 
-  // Abort an in-progress countdown back to the lobby.
   RoomFlow.prototype.cancelCountdown = function () {
     this._cancelCountdownTimers();
-    if (this.state === STATES.COUNTDOWN) this._transition(STATES.LOBBY);
+    if (this.state === STATES.COUNTDOWN) this.transitionTo(STATES.LOBBY);
   };
 
   RoomFlow.prototype._cancelCountdownTimers = function () {

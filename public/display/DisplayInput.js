@@ -22,6 +22,7 @@ function handleControllerMessage(fromId, msg) {
     // Any message from a controller proves it's alive
     var wasDisconnected = disconnectedQRs.has(fromId);
     disconnectedQRs.delete(fromId);
+    if (wasDisconnected) flow.markReconnected(fromId);
     var senderPlayer = players.get(fromId);
     if (senderPlayer) senderPlayer.lastPingTime = Date.now();
 
@@ -168,17 +169,16 @@ function onHello(fromId, msg) {
   }
   var playerName = sanitizePlayerName(name, fromId, msg.autoName === true);
 
-  players.set(fromId, {
+  // flow.addPlayer assigns joinedAt + connected and makes the first joiner the
+  // sticky host. This branch only runs if HELLO beats the relay's peer_joined
+  // event; normally onPeerJoined gets here first and onHello takes the
+  // reconnect path (flow.addPlayer merges fields on the existing record).
+  flow.addPlayer(fromId, {
     playerName: playerName,
     playerIndex: index,
     startLevel: 1,
-    lastPingTime: Date.now(),
-    // Tiebreaker for sticky host election — see onPeerJoined. This branch
-    // only runs if HELLO beats the relay's peer_joined event; normally
-    // onPeerJoined gets here first and onHello takes the reconnect path.
-    joinedAt: ++_joinSequence
+    lastPingTime: Date.now()
   });
-  if (hostPeerIndex == null) hostPeerIndex = fromId;
   if (roomState === ROOM_STATE.LOBBY) {
     playerOrder.push(fromId);
   }

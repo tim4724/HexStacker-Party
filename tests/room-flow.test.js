@@ -36,7 +36,7 @@ function record(flow) {
   return log;
 }
 
-describe('RoomFlow — roster + slots', () => {
+describe('RoomFlow — roster', () => {
   it('starts empty in lobby', () => {
     const f = new RoomFlow();
     assert.equal(f.state, S.LOBBY);
@@ -44,25 +44,27 @@ describe('RoomFlow — roster + slots', () => {
     assert.equal(f.host, null);
   });
 
-  it('assigns sequential color slots and makes the first joiner host', () => {
+  it('stores opaque game fields, assigns joinedAt/connected, first joiner is host', () => {
     const f = new RoomFlow();
-    const a = f.addPlayer(10, { name: 'A' });
-    const b = f.addPlayer(11, { name: 'B' });
-    const c = f.addPlayer(12, { name: 'C' });
-    assert.deepEqual([a.colorIndex, b.colorIndex, c.colorIndex], [0, 1, 2]);
+    // RoomFlow never reads these fields (color/name/level are game data).
+    const a = f.addPlayer(10, { name: 'A', colorIndex: 3, startLevel: 5 });
+    const b = f.addPlayer(11, { name: 'B', colorIndex: 0 });
+    assert.equal(a.colorIndex, 3);        // passed through untouched
+    assert.equal(a.startLevel, 5);
+    assert.equal(a.connected, true);
+    assert.equal(a.joinedAt < b.joinedAt, true);
     assert.equal(f.host, 10);
-    assert.equal(f.connectedCount, 3);
+    assert.equal(f.connectedCount, 2);
   });
 
-  it('honors a requested free color slot, falls back when taken', () => {
+  it('lets the game mutate fields on the live record', () => {
     const f = new RoomFlow();
-    f.addPlayer(1, { colorIndex: 3 });
-    assert.equal(f.get(1).colorIndex, 3);
-    const second = f.addPlayer(2, { colorIndex: 3 }); // taken -> first free (0)
-    assert.equal(second.colorIndex, 0);
+    f.addPlayer(1, { startLevel: 1 });
+    f.get(1).startLevel = 9;             // game writes directly
+    assert.equal(f.players.get(1).startLevel, 9);
   });
 
-  it('reconnecting the same peerIndex keeps slot/join order/host', () => {
+  it('reconnecting the same peerIndex keeps joinedAt/host and merges fields', () => {
     const f = new RoomFlow();
     f.addPlayer(1, { name: 'A' });
     f.addPlayer(2, { name: 'B' });
@@ -71,24 +73,33 @@ describe('RoomFlow — roster + slots', () => {
     assert.equal(f.isDisconnected(1), true);
     const again = f.addPlayer(1, { name: 'A2' });
     assert.equal(again.joinedAt, before);
-    assert.equal(again.colorIndex, 0);
     assert.equal(again.name, 'A2');
     assert.equal(f.isDisconnected(1), false);
-    assert.equal(f.host, 1); // host slot retained
+    assert.equal(f.host, 1);
   });
 });
 
-describe('RoomFlow — color validation', () => {
-  it('rejects out-of-range and collisions, accepts free, no-ops same', () => {
-    const f = new RoomFlow({ maxPlayers: 4 });
-    f.addPlayer(1); // slot 0
-    f.addPlayer(2); // slot 1
-    assert.equal(f.setColor(1, 9), false);    // out of range
-    assert.equal(f.setColor(1, -1), false);   // out of range
-    assert.equal(f.setColor(1, 1), false);    // taken by peer 2
-    assert.equal(f.setColor(1, 0), true);     // no-op (already 0)
-    assert.equal(f.setColor(1, 2), true);     // free
-    assert.equal(f.get(1).colorIndex, 2);
+describe('RoomFlow — rekey (reconnect claim)', () => {
+  it('moves a record to a new peerIndex, preserving fields and host', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1, { name: 'A', colorIndex: 2 });
+    f.addPlayer(2, { name: 'B' });
+    f.requestStart(); f.transitionTo(S.PLAYING);  // order [1,2]
+    f.markDisconnected(1);                         // host blips mid-game
+    f.addPlayer(5, { name: 'A-again' });           // returns under a new slot
+    assert.equal(f.rekey(1, 5), true);
+    assert.equal(f.has(1), false);
+    assert.equal(f.get(5).name, 'A');              // original record kept
+    assert.equal(f.get(5).colorIndex, 2);
+    assert.equal(f.hostPeerIndex, 5);              // host slot followed
+    assert.deepEqual(f._order, [5, 2]);            // participant order rekeyed
+  });
+
+  it('is a no-op for unknown ids', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1);
+    assert.equal(f.rekey(9, 8), false);
+    assert.equal(f.rekey(1, 1), false);
   });
 });
 
@@ -99,38 +110,34 @@ describe('RoomFlow — host election', () => {
     assert.equal(f.host, 1);
     f.removePlayer(1);
     assert.equal(f.host, 2);
-    assert.equal(f.hostPeerIndex, 2); // sticky slot committed
+    assert.equal(f.hostPeerIndex, 2);
   });
 
   it('keeps the sticky slot when host leaves mid-game; getter falls back', () => {
     const f = new RoomFlow();
     f.addPlayer(1); f.addPlayer(2);
-    f.requestStart();              // snapshot order [1,2], -> countdown
-    f._transition(S.PLAYING);      // (skip countdown wait for this assertion)
-    f.removePlayer(1);             // host leaves mid-game
+    f.requestStart(); f.transitionTo(S.PLAYING);
+    f.removePlayer(1);
     assert.equal(f.hostPeerIndex, 1);  // slot untouched
-    assert.equal(f.host, 2);           // effective host falls back to participant
+    assert.equal(f.host, 2);           // effective host falls back
   });
 
-  it('a late joiner cannot become host mid-game (restricted to participants)', () => {
+  it('a late joiner cannot become host mid-game', () => {
     const f = new RoomFlow();
     f.addPlayer(1); f.addPlayer(2);
-    f.requestStart();
-    f._transition(S.PLAYING);          // order = [1,2]
-    f.addPlayer(3);                    // late joiner, not in order
-    f.markDisconnected(1);
-    f.markDisconnected(2);
-    // both participants gone -> nobody eligible (late joiner excluded)
-    assert.equal(f.host, null);
+    f.requestStart(); f.transitionTo(S.PLAYING);  // order [1,2]
+    f.addPlayer(3);                               // late joiner
+    f.markDisconnected(1); f.markDisconnected(2);
+    assert.equal(f.host, null);                   // 3 is excluded
   });
 
   it('uses masterProvider when eligible, ignores it when not', () => {
     let master = 2;
     const f = new RoomFlow({ masterProvider: () => master });
     f.addPlayer(1); f.addPlayer(2);
-    assert.equal(f.host, 2);           // master overrides sticky in lobby
-    master = 999;                      // master not a known player
-    assert.equal(f.host, 1);           // falls back to sticky
+    assert.equal(f.host, 2);
+    master = 999;
+    assert.equal(f.host, 1);
   });
 
   it('disconnected host falls back, restored on reconnect', () => {
@@ -145,11 +152,29 @@ describe('RoomFlow — host election', () => {
   it('reconcile on entering results commits a handoff when host is gone', () => {
     const f = new RoomFlow();
     f.addPlayer(1); f.addPlayer(2);
-    f.requestStart(); f._transition(S.PLAYING);
-    f.removePlayer(1);                 // mid-game: slot stays at 1
+    f.requestStart(); f.transitionTo(S.PLAYING);
+    f.removePlayer(1);
     assert.equal(f.hostPeerIndex, 1);
-    f.endGame([]);                     // -> RESULTS triggers reconcile
-    assert.equal(f.hostPeerIndex, 2);  // committed to surviving participant
+    f.endGame([]);
+    assert.equal(f.hostPeerIndex, 2);
+  });
+});
+
+describe('RoomFlow — active order', () => {
+  it('setActiveOrder syncs host eligibility with a game-owned order', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1); f.addPlayer(2); f.addPlayer(3);
+    f.transitionTo(S.COUNTDOWN);     // auto-snapshots [1,2,3]
+    f.setActiveOrder([2, 3]);        // game says only 2,3 are participants
+    f.markDisconnected(2);
+    assert.equal(f.host, 3);         // 1 excluded (not a participant), 2 gone
+  });
+
+  it('setActiveOrder drops ids not in the roster', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1);
+    f.setActiveOrder([1, 99]);
+    assert.deepEqual(f._order, [1]);
   });
 });
 
@@ -157,15 +182,15 @@ describe('RoomFlow — state machine', () => {
   it('rejects invalid transitions and keeps state', () => {
     const f = new RoomFlow();
     f.addPlayer(1);
-    assert.equal(f._transition(S.RESULTS), false); // lobby -> results invalid
+    assert.equal(f.transitionTo(S.RESULTS), false); // lobby -> results invalid
     assert.equal(f.state, S.LOBBY);
-    assert.equal(f._transition(S.LOBBY), true);     // same-state no-op
+    assert.equal(f.transitionTo(S.LOBBY), true);     // same-state no-op
   });
 
   it('endGame stores results and moves to results', () => {
     const f = new RoomFlow();
     f.addPlayer(1);
-    f.requestStart(); f._transition(S.PLAYING);
+    f.requestStart(); f.transitionTo(S.PLAYING);
     f.endGame([{ rank: 1, peerIndex: 1 }]);
     assert.equal(f.state, S.RESULTS);
     assert.deepEqual(f.lastResults, [{ rank: 1, peerIndex: 1 }]);
@@ -209,7 +234,7 @@ describe('RoomFlow — countdown', () => {
     f.requestStart();
     f.cancelCountdown();
     assert.equal(f.state, S.LOBBY);
-    clock.flush();                     // any stale timer must not advance us
+    clock.flush();
     assert.equal(f.state, S.LOBBY);
   });
 
