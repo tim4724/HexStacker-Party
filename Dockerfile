@@ -12,6 +12,9 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY package.json ./
 COPY server/ ./server/
 COPY public/ ./public/
+# PartyPlug kit lives at the repo root (served under /partyplug/, see
+# server/index.js). Must be copied into the image or /partyplug/* 404s.
+COPY partyplug/ ./partyplug/
 COPY scripts/generate-airconsole-html.js ./scripts/
 RUN node scripts/generate-airconsole-html.js
 USER nodejs
