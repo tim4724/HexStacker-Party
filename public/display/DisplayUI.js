@@ -378,6 +378,8 @@ function renderResults(results) {
     resultsScreen.style.setProperty('--winner-glow', rgbaFromHex(winnerColor, 0.08));
   }
 
+  // A late joiner counts toward the row total, so a 1-player game with one
+  // waiting joiner is intentionally not "solo": the rank column appears.
   var solo = sorted.length === 1;
 
   for (var i = 0; i < sorted.length; i++) {

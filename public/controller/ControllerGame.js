@@ -648,6 +648,9 @@ function renderGameResults(results) {
   // flagged newPlayer by the display: no rank/lines/level, a "new player"
   // status instead. They sort last (no rank).
   var sorted = results.slice().sort(function(a, b) { return (a.rank || 999) - (b.rank || 999); });
+  // A late joiner counts toward the row total, so a 1-player game with one
+  // waiting joiner is intentionally not "solo": the rank column appears (the
+  // player gets "1", the joiner "–").
   var solo = sorted.length === 1;
   for (var i = 0; i < sorted.length; i++) {
     var r = sorted[i];

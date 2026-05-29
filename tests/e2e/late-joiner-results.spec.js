@@ -30,9 +30,10 @@ async function joinMidGame(context, roomCode, name) {
   return page;
 }
 
-// A mid-game joiner sat out the round, so they never appear in the results
-// payload. Rather than land them on a board where they don't exist, their own
-// controller injects a "New player" row for themselves (no rank, no stats).
+// A mid-game joiner sat out the round, so the engine's results omit them (it's
+// built from playerIds). At game-end the display appends them to results.results
+// flagged newPlayer before broadcasting GAME_END, so every screen renders a
+// "New player" row (no rank, no stats) rather than dropping them from the board.
 test.describe('Late-joiner results row', () => {
   test.setTimeout(90000);
 
@@ -95,8 +96,10 @@ test.describe('Late-joiner results row', () => {
       expect(joining[0].rank, label).toBe('–');
     }
 
-    // is-me highlight only on Bob's own controller (the display has no "me").
+    // is-me highlight tracks the local player: Bob's joining row is is-me on
+    // his controller but not Alice's, and Alice's ranked row is is-me on hers.
     expect(bobRows.find((r) => r.joining).isMe).toBe(true);
     expect(aliceRows.find((r) => r.joining).isMe).toBe(false);
+    expect(aliceRows.find((r) => r.name === 'Alice').isMe).toBe(true);
   });
 });
