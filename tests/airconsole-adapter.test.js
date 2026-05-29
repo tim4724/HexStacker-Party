@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 // a minimal global before requiring the adapter.
 global.AirConsole = { SCREEN: 0 };
 
-const AirConsoleAdapter = require('../public/shared/AirConsoleAdapter');
+const AirConsoleAdapter = require('../partyplug/AirConsoleAdapter');
 
 function makeFakeAirConsole(overrides) {
   return Object.assign({
