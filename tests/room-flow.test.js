@@ -101,6 +101,86 @@ describe('RoomFlow — rekey (reconnect claim)', () => {
     assert.equal(f.rekey(9, 8), false);
     assert.equal(f.rekey(1, 1), false);
   });
+
+  it('rekeys to a brand-new id with no placeholder slot', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1, { name: 'A' });   // sole player + host
+    assert.equal(f.rekey(1, 7), true);
+    assert.equal(f.get(7).name, 'A');
+    assert.equal(f.hostPeerIndex, 7);
+  });
+
+  it('rekeys the host slot in lobby (no active order)', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1); f.addPlayer(2);
+    f.markDisconnected(1);
+    f.addPlayer(9);
+    assert.equal(f.rekey(1, 9), true);
+    assert.equal(f.hostPeerIndex, 9);
+  });
+
+  it('supports a double rekey', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1, { name: 'A' });
+    assert.equal(f.rekey(1, 5), true);
+    assert.equal(f.rekey(5, 6), true);
+    assert.equal(f.get(6).name, 'A');
+    assert.equal(f.hostPeerIndex, 6);
+  });
+
+  it('does not emit hostchange when a non-host player is rekeyed', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1); f.addPlayer(2);          // 1 is host
+    f.requestStart(); f.transitionTo(S.PLAYING);
+    f.markDisconnected(2);
+    f.addPlayer(8);
+    const log = record(f);
+    f.rekey(2, 8);                           // 2 is not the host
+    assert.equal(log.some(e => e[0] === 'hostchange'), false);
+  });
+});
+
+describe('RoomFlow — clearDisconnected', () => {
+  it('clears all disconnect flags and marks everyone present', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1); f.addPlayer(2);
+    f.markDisconnected(1); f.markDisconnected(2);
+    const log = record(f);
+    f.clearDisconnected();
+    assert.equal(f.isDisconnected(1), false);
+    assert.equal(f.isDisconnected(2), false);
+    assert.equal(f.get(1).connected, true);
+    assert.equal(log.some(e => e[0] === 'rosterchange'), true);
+  });
+
+  it('is a no-op (no event) when nobody is disconnected', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1);
+    const log = record(f);
+    f.clearDisconnected();
+    assert.equal(log.length, 0);
+  });
+});
+
+describe('RoomFlow — event ordering', () => {
+  it('emits playerjoin before rosterchange (non-first player)', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1);                 // first joiner (also hostchange)
+    const log = record(f);
+    f.addPlayer(2);
+    const types = log.map(e => e[0]);
+    assert.ok(types.indexOf('playerjoin') < types.indexOf('rosterchange'));
+    assert.equal(types.includes('hostchange'), false);
+  });
+
+  it('emits playerleave before rosterchange', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1); f.addPlayer(2);
+    const log = record(f);
+    f.removePlayer(2);             // non-host leave in lobby
+    const types = log.map(e => e[0]);
+    assert.ok(types.indexOf('playerleave') < types.indexOf('rosterchange'));
+  });
 });
 
 describe('RoomFlow — host election', () => {
@@ -235,6 +315,23 @@ describe('RoomFlow — countdown', () => {
     f.cancelCountdown();
     assert.equal(f.state, S.LOBBY);
     clock.flush();
+    assert.equal(f.state, S.LOBBY);
+  });
+
+  it('a stale countdown timer that fires after cancel does not start the game', () => {
+    // Clock whose clearTimeout is a no-op, so the queued tick survives the
+    // cancel and fires anyway — exercising the state guard in requestStart's
+    // onDone rather than relying on the timer being cleared.
+    const tasks = [];
+    const timers = {
+      setTimeout(fn) { tasks.push(fn); return tasks.length - 1; },
+      clearTimeout() { /* deliberately does not cancel */ },
+    };
+    const f = new RoomFlow({ countdownSeconds: 1, timers });
+    f.addPlayer(1);
+    f.requestStart();
+    f.returnToLobby();            // leaves COUNTDOWN; clearTimeout no-ops
+    while (tasks.length) { const fn = tasks.shift(); fn(); }  // force stale fire
     assert.equal(f.state, S.LOBBY);
   });
 

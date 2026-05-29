@@ -175,10 +175,11 @@
     }
     // The slot wasn't moved when this player blipped mid-game, so it still
     // points at the old peerIndex; rekey it so a reconnecting host resumes.
+    var prevHost = this.hostPeerIndex;
     if (this.hostPeerIndex === oldId || this.hostPeerIndex == null) {
       this.hostPeerIndex = newId;
     }
-    this._emit('hostchange', { hostPeerIndex: this.host });
+    if (this.hostPeerIndex !== prevHost) this._emit('hostchange', { hostPeerIndex: this.host });
     this._emit('rosterchange', { players: this.list() });
     return true;
   };
@@ -438,6 +439,9 @@
   // roster/host/countdown portion of DisplayState.resetRoomData.
   RoomFlow.prototype.reset = function () {
     this._cancelCountdownTimers();
+    // IMPORTANT: clear the Map in place — never reassign `this.players`.
+    // Consumers may alias this exact Map object as their roster (HexStacker's
+    // DisplayState does), so reassigning would leave them on a stale Map.
     this.players.clear();
     this._disconnected.clear();
     this._order = [];

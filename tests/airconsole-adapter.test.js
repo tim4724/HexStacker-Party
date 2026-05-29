@@ -89,7 +89,16 @@ describe('AirConsoleAdapter.installAirConsoleStorage', () => {
       },
     };
     global.window = { localStorage: undefined };
-    const shim = AirConsoleAdapter.installAirConsoleStorage(ac);
+    // The allowlist is injected by the caller now (the kit no longer bakes in
+    // game-specific keys). These are HexStacker's persisted settings keys.
+    const shim = AirConsoleAdapter.installAirConsoleStorage(ac, {
+      allowlist: [
+        'stacker_haptic_strength',
+        'stacker_touch_sensitivity',
+        'stacker_touch_sounds',
+        'stacker_color_index'
+      ]
+    });
     return { ac, shim, writes };
   }
 

@@ -23,6 +23,11 @@ class AirConsoleAdapter {
     this._connectCalled = false;
     this.reconnectAttempt = 0;
     this.maxReconnectAttempts = 5;
+    // Optional hook fired at the top of the SDK onReady, before the relay
+    // protocol ('created'/'joined') is synthesized. Games use it to apply
+    // locale or anything that must run before first paint; keeps the kit free
+    // of any game/i18n knowledge.
+    this.onReadyHook = (options && options.onReady) || null;
 
     // Callbacks (same signature as PartyConnection)
     this.onOpen = null;
@@ -39,11 +44,11 @@ class AirConsoleAdapter {
     var ac = this.airconsole;
 
     ac.onReady = function(code) {
-      // Apply the AC-profile locale before firing 'created'/'joined' so the
-      // lobby renders with the right strings on first paint. Per the AC
-      // checklist, the screen and controllers may have different languages
-      // — each device picks its own.
-      AirConsoleAdapter.applyLocale(ac);
+      // Run the game's pre-ready hook (e.g. apply the AC-profile locale) before
+      // firing 'created'/'joined' so the lobby renders correctly on first
+      // paint. Per the AC checklist, screen and controllers may differ; each
+      // device picks its own.
+      if (self.onReadyHook) self.onReadyHook(code, ac);
       self._acReady = true;
       self._acReadyCode = code;
       // If connect() was already called, fire the protocol synthesis now.
@@ -201,13 +206,13 @@ class AirConsoleAdapter {
   // is synchronous from the caller's perspective: reads return cached values
   // populated by onPersistentDataLoaded, writes go through immediately
   // (no debounce). Subscribers can wait for first hydration via onLoad().
-  static installAirConsoleStorage(airconsole) {
-    var ALLOWLIST = {
-      stacker_haptic_strength: 1,
-      stacker_touch_sensitivity: 1,
-      stacker_touch_sounds: 1,
-      stacker_color_index: 1
-    };
+  static installAirConsoleStorage(airconsole, opts) {
+    // Allowlist of localStorage keys that round-trip through AirConsole's
+    // persistent data. Game-specific by nature, so it is injected by the
+    // caller rather than baked into the kit. Keys not listed silently no-op.
+    var ALLOWLIST = {};
+    var allowKeys = (opts && opts.allowlist) || [];
+    for (var ai = 0; ai < allowKeys.length; ai++) ALLOWLIST[allowKeys[ai]] = 1;
     var cache = {};
     var loaded = false;
     var loadCallbacks = [];
@@ -341,21 +346,6 @@ class AirConsoleAdapter {
     };
   }
 
-  // Prefer the user's AirConsole-profile language over navigator.language.
-  // Only override the initial detectLocale result when AC's language is
-  // actually supported; otherwise setLocale would silently coerce to 'en' and
-  // discard a valid navigator.language fallback. Relies on i18n globals
-  // (LOCALES, setLocale, translatePage) being loaded by call time.
-  static applyLocale(airconsole) {
-    if (typeof airconsole.getLanguage !== 'function') return;
-    if (typeof LOCALES === 'undefined' || typeof setLocale !== 'function' || typeof translatePage !== 'function') return;
-    var acLang = airconsole.getLanguage();
-    var acCode = acLang && acLang.toLowerCase().split('-')[0];
-    if (acCode && LOCALES[acCode]) {
-      setLocale(acLang);
-      translatePage();
-    }
-  }
 }
 
 if (typeof window !== 'undefined') {

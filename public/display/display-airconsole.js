@@ -24,7 +24,20 @@ var airconsole = new AirConsole({
 // any incidental localStorage call from shared code (e.g. CSP-enabled
 // libraries) silently no-ops instead of bleeding state into the AC
 // iframe storage partition.
-AirConsoleAdapter.installAirConsoleStorage(airconsole);
+// The display reads/writes no allowlisted keys (muted is reset above), so the
+// shim installs with an empty allowlist purely to no-op incidental
+// localStorage calls inside the AC iframe storage partition.
+AirConsoleAdapter.installAirConsoleStorage(airconsole, { allowlist: [] });
+
+// Apply the AC-profile locale before the lobby's first paint. Passed to the
+// adapter as its onReady hook so the kit stays i18n-agnostic.
+function applyAcLocale() {
+  if (typeof airconsole.getLanguage !== 'function') return;
+  if (typeof LOCALES === 'undefined' || typeof setLocale !== 'function' || typeof translatePage !== 'function') return;
+  var acLang = airconsole.getLanguage();
+  var acCode = acLang && acLang.toLowerCase().split('-')[0];
+  if (acCode && LOCALES[acCode]) { setLocale(acLang); translatePage(); }
+}
 
 // Capture early onReady — the SDK may fire it before our adapter is wired up.
 var replayEarlyReady = AirConsoleAdapter.captureEarlyReady(airconsole);
@@ -105,7 +118,7 @@ setRoomState = function(newState) {
 // build, so no prior binding exists and strict-mode would reject a bare
 // assignment with ReferenceError.
 window.PartyConnection = function() {
-  return new AirConsoleAdapter(airconsole, { role: 'display' });
+  return new AirConsoleAdapter(airconsole, { role: 'display', onReady: applyAcLocale });
 };
 
 // After connectAndCreateRoom() creates the adapter via new PartyConnection()
@@ -114,9 +127,9 @@ window.PartyConnection = function() {
 var _originalConnectAndCreateRoom = connectAndCreateRoom;
 connectAndCreateRoom = function() {
   _originalConnectAndCreateRoom();
-  // The adapter's own onReady applies AC-profile locale before firing
-  // 'created'; we just need to replay any captured-early onReady so a
-  // fresh adapter on reconnect / Play Again reaches ready.
+  // The adapter's onReady hook (applyAcLocale) runs before 'created'; we just
+  // need to replay any captured-early onReady so a fresh adapter on
+  // reconnect / Play Again reaches ready.
   replayEarlyReady();
 };
 

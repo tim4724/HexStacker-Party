@@ -112,16 +112,27 @@ Props: `relayUrl`, `clientId`, `reconnectAttempt`.
 ### `AirConsoleAdapter` — drop-in `PartyConnection` over the AirConsole SDK
 
 ```js
-new AirConsoleAdapter(airconsole, { role: 'display' | 'controller' })
+new AirConsoleAdapter(airconsole, {
+  role: 'display' | 'controller',
+  onReady?: (code, ac) => void,   // runs before 'created'/'joined' is synthesized
+})
 ```
 
 Same interface and callbacks as `PartyConnection` (`onError` is a no-op, the SDK
 has no error event; `create` / `join` / `reconnectNow` are no-ops). Synthesizes
 the relay protocol events from SDK device events.
 
-AirConsole-only extras: `getMasterPeerIndex()` (the master-controller rule, feed
-it to `RoomFlow.masterProvider`), plus persistent-storage / app-version / locale
-helpers (see the file).
+The `onReady` hook is the kit's seam for anything a game must do before first
+paint (HexStacker applies its AirConsole-profile locale there). The kit carries
+no i18n knowledge itself.
+
+AirConsole-only extras:
+- `getMasterPeerIndex()` — the master-controller rule; feed it to `RoomFlow.masterProvider`.
+- `AirConsoleAdapter.installAirConsoleStorage(airconsole, { allowlist })` — a
+  localStorage shim backed by AC persistent data. The allowlist of keys is
+  **injected by the game** (the kit bakes in none), so a second game passes its
+  own keys.
+- `captureEarlyReady`, `injectVersionLabel` — AC bootstrap timing helpers.
 
 ### `PartyFastlane` — optional P2P DataChannel (low-latency input)
 
@@ -177,6 +188,29 @@ Events (`flow.on(type, fn)` returns an unsubscribe function; `'*'` receives all)
 | `countdown` / `go` | `{ remaining }` / `{}` |
 
 Player record: `{ peerIndex, joinedAt, connected, ...gameFields }`.
+
+## Design notes & intentional constraints
+
+Read these before building a second game on RoomFlow:
+
+- **The state machine is single-session, single-phase.** It models one
+  `lobby -> countdown -> playing -> results` cycle. There is no rounds/phases
+  concept, no `PAUSED` state, and the countdown is only reachable via
+  `requestStart()`/`playAgain()` (no free-form timer). Games that need rounds,
+  phases, or an in-game timer model those above the kit for now; these are the
+  first things to extend when a second game needs them.
+- **`requestStart()` vs `playAgain()`** are the same call from different states
+  (LOBBY vs RESULTS); both just enter COUNTDOWN. Use `transitionTo()` directly
+  if you run your own countdown (HexStacker does).
+- **Prefer the event-driven integration for new games.** HexStacker's display
+  uses an imperative retrofit (window getters for `roomState`/`hostPeerIndex`, a
+  `players = flow.players` alias, and a parallel `disconnectedQRs` map kept in
+  sync with flow's presence set). Those exist to minimize churn in an existing
+  codebase. A fresh game should instead subscribe to events and read `flow.state`
+  / `flow.host` directly, and query `flow.isDisconnected()` rather than keep a
+  second presence structure.
+- **`flow.players` is a stable Map; `reset()` clears it in place.** If you alias
+  it, that alias stays valid across `reset()`. Never reassign `flow.players`.
 
 ## Not yet extracted (deliberately)
 
