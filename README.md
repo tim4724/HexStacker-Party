@@ -10,23 +10,21 @@ Multiplayer hex stacker where phones become controllers and a shared screen show
 
 ## Overview
 
-HexStacker Party supports 1 to 8 players on a single shared display. One browser window acts as the game screen (TV, monitor, or laptop), while each player joins by scanning a QR code with their phone. The phone becomes a touch-based controller with gesture input and haptic feedback. The display client runs the authoritative game engine. Controllers send input directly to the display over WebRTC DataChannels; the relay handles WebRTC signaling, game event delivery, and input fallback.
+HexStacker Party supports 1 to 8 players on a single shared display. One browser window acts as the game screen (TV, monitor, or laptop), while each player joins by scanning a QR code with their phone. The display runs the authoritative game engine; the Node.js server only serves static files and a QR code API.
 
 ## Architecture
 
+**Game events** — display broadcasts state to all controllers via the relay.
+
 ```mermaid
----
-title: Game events
----
 graph LR
     D[Display Browser] -- "game events (WebSocket)" --> R[Party-Sockets Relay]
     R -- "game events (WebSocket)" --> P[Phone Controllers]
 ```
 
+**Controller input** — after WebRTC negotiation, input goes directly to the display over a DataChannel; the relay serves as signaling channel and input fallback.
+
 ```mermaid
----
-title: Controller input path
----
 graph LR
     P[Phone Controllers] <-- "signaling (WebSocket)" --> R[Party-Sockets Relay]
     R <-- "signaling (WebSocket)" --> D[Display Browser]
@@ -38,21 +36,16 @@ graph LR
     linkStyle 4 stroke:#22c55e,stroke-width:2px
 ```
 
-The display browser runs the authoritative game engine and renders all player boards. After WebRTC negotiation via the relay, controllers send input directly to the display over a DataChannel. The relay also carries game events from the display to controllers and serves as an input fallback. The Node.js server only serves static files and a QR code API.
-
 ## Features
 
-- 1–8 players on one screen
+- 1–8 players on one shared screen
 - QR code join – scan and play, no app install
-- Touch gesture controls with haptic feedback
-- Flat-top hexagonal grid with dual-zigzag line clears
-- Competitive mode with garbage lines
-- Rotation with wall kicks
-- 8-bag randomizer (I, O, S, Z, q, p, L, J)
-- Per-player start level selection (1–15) and color picker in lobby
-- Controller settings overlay: audio, haptics, touch sensitivity
+- Touch gesture controls with haptic feedback (Android)
+- Hexagonal grid with line clears and garbage attack
+- Per-player level selection (1–15) and color picker in lobby
+- Controller settings: audio, haptics, touch sensitivity
 - Localized UI (11 languages)
-- AirConsole platform support (`screen.html` / `controller.html`)
+- AirConsole platform support
 
 ## Quick Start
 
