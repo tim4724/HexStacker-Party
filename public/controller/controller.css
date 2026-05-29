@@ -870,6 +870,14 @@ html, body {
   outline: 1.5px solid color-mix(in srgb, var(--me-color, #888) 70%, transparent);
 }
 
+/* Non-participant who sat out this round (late joiner), not ranked.
+   Muted card + dashed border so it reads as "you'll be in the next one"
+   rather than a player who placed last. The is-me outline still applies. */
+.result-row--joining {
+  opacity: 0.75;
+  border-style: dashed;
+}
+
 .result-info {
   flex: 1;
   display: flex;

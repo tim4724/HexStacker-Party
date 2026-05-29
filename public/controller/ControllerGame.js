@@ -685,6 +685,52 @@ function renderGameResults(results) {
     row.appendChild(info);
     resultsList.appendChild(row);
   }
+
+  // Non-participant (a late joiner who sat out this round, or a controller
+  // that opened straight onto the results screen): they're absent from
+  // `results`, since it's built from the round's playerIds. Append a row for
+  // themselves so they aren't staring at a board they don't appear on. No
+  // rank, no lines/level (a "new player" status instead), so the missing
+  // stats read as intentional rather than a zero score or a render glitch.
+  // Gating on results-membership (not waitingForNextGame) is deliberate: the
+  // GAME_END handler clears that flag before onGameEnd renders, and a real
+  // participant is always present in `results`.
+  var meKnown = peerIndex != null || clientId != null;
+  var meInResults = sorted.some(function(r) {
+    return r.playerId === peerIndex || r.playerId === clientId;
+  });
+  if (meKnown && !meInResults) {
+    var meColor = playerColor || PLAYER_COLORS[0];
+    var joinRow = document.createElement('div');
+    joinRow.className = 'result-row result-row--joining is-me';
+    joinRow.style.setProperty('--row-delay', (0.2 + sorted.length * 0.08) + 's');
+
+    if (!solo) {
+      var joinRank = document.createElement('span');
+      joinRank.className = 'result-rank';
+      joinRank.textContent = '–';
+      joinRow.appendChild(joinRank);
+    }
+
+    var joinInfo = document.createElement('div');
+    joinInfo.className = 'result-info';
+
+    var joinName = document.createElement('span');
+    joinName.className = 'result-name';
+    joinName.textContent = playerName || t('player');
+    joinName.style.color = meColor;
+
+    var joinStatus = document.createElement('div');
+    joinStatus.className = 'result-stats';
+    var joinStatusText = document.createElement('span');
+    joinStatusText.textContent = t('new_player');
+    joinStatus.appendChild(joinStatusText);
+
+    joinInfo.appendChild(joinName);
+    joinInfo.appendChild(joinStatus);
+    joinRow.appendChild(joinInfo);
+    resultsList.appendChild(joinRow);
+  }
 }
 
 // =====================================================================
