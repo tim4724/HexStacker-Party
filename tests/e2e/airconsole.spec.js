@@ -53,6 +53,21 @@ async function setupMockPage(page, opts = {}) {
       if (o.deviceId) window.__AC_DEVICE_ID = o.deviceId;
     }, opts);
   }
+  // Kill CSS animations/transitions so Playwright's actionability "stable"
+  // check never races a one-shot entrance animation (e.g. the lobby start
+  // button's fadeUp) or the layout reflow when a player joins. Test-only —
+  // production animations are untouched. Elements with fill-mode both/
+  // forwards/backwards land on their end state instantly, so visibility and
+  // layout are correct, just not animated.
+  await page.addInitScript(() => {
+    const apply = () => {
+      const style = document.createElement('style');
+      style.textContent = '*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;transition-duration:0s!important;transition-delay:0s!important;scroll-behavior:auto!important;}';
+      (document.head || document.documentElement).appendChild(style);
+    };
+    if (document.head) apply();
+    else document.addEventListener('DOMContentLoaded', apply, { once: true });
+  });
   await page.addInitScript({ path: MOCK_SCRIPT });
 }
 
@@ -303,11 +318,13 @@ test.describe.serial('AirConsole Integration', () => {
 
     await s.screenFrame.waitForFunction(() => players.size >= 2, null, { timeout: 10000 });
 
-    const startVisible = await s.ctrlFrame.evaluate(() => {
+    // Wait for the host controller to reflect the 2nd join before clicking —
+    // otherwise the click can land mid-re-render. The button is gated on both
+    // visibility and the updated player count having propagated.
+    await s.ctrlFrame.waitForFunction(() => {
       const btn = document.getElementById('start-btn');
-      return btn && !btn.classList.contains('hidden');
-    });
-    expect(startVisible).toBeTruthy();
+      return btn && !btn.classList.contains('hidden') && playerCount >= 2;
+    }, null, { timeout: 10000 });
 
     await s.ctrlFrame.locator('#start-btn').click();
 

@@ -271,12 +271,30 @@ function updateLatencyDisplay(ms) {
 // constants so a rename in protocol.js is caught automatically.
 var FASTLANE_TYPES = { [MSG.INPUT]: true, [MSG.SOFT_DROP]: true };
 
+// AirConsole caps a device's outbound messages at ~10/sec; sustained overage
+// trips a platform-side rate-limit error. TouchInput emits SOFT_DROP at 20 Hz
+// (SOFT_DROP_INTERVAL_MS=50) while a drop is held, which alone blows the cap.
+// Web mode rides the WebRTC fastlane (its own pacing), but AC mode has no
+// fastlane, so coalesce SOFT_DROP to <=100 ms (10 Hz) here, right at the cap.
+// SOFT_DROP carries no state the display accumulates — it's "keep dropping at
+// speed X" and auto-ends after SOFT_DROP_TIMEOUT_MS (300 ms) — so dropping
+// intermediate ticks just updates the speed slightly less often, which is
+// imperceptible and well within the auto-end window. The latest speed always
+// lands on the next tick.
+var AC_SOFT_DROP_MIN_INTERVAL_MS = 100;
+var lastAcSoftDropTime = 0;
+
 // Note: mutates payload by adding .type — callers must pass a fresh object.
 function sendToDisplay(type, payload) {
   if (!party) return;
   var msg = payload || {};
   msg.type = type;
   if (fastlane && FASTLANE_TYPES[type] && fastlane.enqueue(0, msg) === 'p2p') return;
+  if (window.airconsole && type === MSG.SOFT_DROP) {
+    var now = Date.now();
+    if (now - lastAcSoftDropTime < AC_SOFT_DROP_MIN_INTERVAL_MS) return;
+    lastAcSoftDropTime = now;
+  }
   party.sendTo(0, msg);
 }
 
