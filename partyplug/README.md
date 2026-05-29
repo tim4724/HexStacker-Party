@@ -204,6 +204,17 @@ Events (`flow.on(type, fn)` returns an unsubscribe function; `'*'` receives all)
 
 Player record: `{ peerIndex, joinedAt, connected, ...gameFields }`.
 
+Event ordering / contract notes:
+- For the **first** player, `addPlayer` emits `hostchange` (they become host)
+  *before* `playerjoin`/`rosterchange`. A `playerjoin` handler that needs to
+  know "am I host?" should read `flow.isHost(...)` rather than rely on a prior
+  `hostchange`.
+- `hostchange` fires whenever the **effective** host changes, including mid-game
+  blips where the sticky slot stays put but the fallback shifts.
+- `rekey` (cross-device claim) emits `rosterchange` for the consumed placeholder
+  slot, **not** `playerleave` — so don't treat `playerleave` as a complete
+  "who's gone" signal on that path.
+
 #### How host election works
 
 Effective host (`flow.host`) resolves as: the platform master (via

@@ -163,6 +163,14 @@ const server = http.createServer((req, res) => {
     baseDir = AD_CLIP_COMPOSITE_DIR;
     lookupPath = urlPath.slice('/artwork/ad-clip'.length);
   } else if (urlPath.startsWith('/partyplug/')) {
+    // Only the runtime modules are browser-facing: a single flat `.js` file.
+    // This keeps the kit's dev/package artifacts (tests/, *.d.ts, package.json,
+    // README.md) unreachable, mirroring the /engine/ route's restriction.
+    if (!/^\/[\w.-]+\.js$/.test(urlPath.slice('/partyplug'.length))) {
+      res.writeHead(404);
+      res.end('Not Found');
+      return;
+    }
     baseDir = PARTYPLUG_DIR;
     lookupPath = urlPath.slice('/partyplug'.length);
   }
