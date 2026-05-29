@@ -171,14 +171,15 @@ The game owns its per-player fields and mutates them on the live record directly
 (e.g. `flow.get(id).score = 10`); RoomFlow never reads them. The only fields it
 touches are `peerIndex`, `joinedAt` (host-election tiebreak), and `connected`.
 
-Lifecycle: `transitionTo(state)` (the primary API), `endGame(results)` (sugar for
-`-> RESULTS` + stash results), `returnToLobby()`, `setActiveOrder(peerIndices)`,
-`reset()`. The countdown timer is the game's; the kit just exposes the
-`COUNTDOWN` state. Entering `COUNTDOWN` snapshots the participant order.
+Lifecycle: `transitionTo(state)` (the primary API), `endGame()` and
+`returnToLobby()` (readable sugar for `-> RESULTS` / `-> LOBBY`),
+`setActiveOrder(peerIndices)`, `reset()`. The countdown timer is the game's; the
+kit just exposes the `COUNTDOWN` state. Entering `COUNTDOWN` snapshots the
+participant order. Results data is the game's own — the kit does not store it.
 
 Reads: `state`, `host` (effective), `hostPeerIndex` (sticky), `isHost(peerIndex)`,
 `list()`, `get(peerIndex)`, `has(peerIndex)`, `size`, `connectedCount`,
-`isDisconnected(peerIndex)`, `lastResults`.
+`isDisconnected(peerIndex)`.
 
 Static: `RoomFlow.lowestFreeSlot(used, max)` returns the lowest free dense slot
 in `[0, max)` given the slot values in use. Pure and **sparse-safe** — pass slot

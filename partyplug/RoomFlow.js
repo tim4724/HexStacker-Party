@@ -68,7 +68,6 @@
     this._disconnected = new Set();  // peerIndices currently in the disconnect window
     this._order = [];                // active participants (snapshotted on COUNTDOWN, or via setActiveOrder)
     this._listeners = {};
-    this.lastResults = null;
   }
 
   RoomFlow.STATES = STATES;
@@ -179,10 +178,13 @@
     for (var i = 0; i < this._order.length; i++) {
       if (this._order[i] === oldId) this._order[i] = newId;
     }
-    // The slot wasn't moved when this player blipped mid-game, so it still
-    // points at the old peerIndex; rekey it so a reconnecting host resumes.
+    // The slot wasn't moved when this player blipped mid-game, so if it still
+    // points at the old peerIndex, rekey it so the reconnecting host resumes.
+    // Only the host's own slot is rekeyed; a non-host claim never promotes
+    // (when there's no sticky host, the `host` getter's oldest-eligible
+    // fallback already picks the right player).
     var prevHost = this.hostPeerIndex;
-    if (this.hostPeerIndex === oldId || this.hostPeerIndex == null) {
+    if (this.hostPeerIndex === oldId) {
       this.hostPeerIndex = newId;
     }
     if (this.hostPeerIndex !== prevHost) this._emit('hostchange', { hostPeerIndex: this.host });
@@ -346,8 +348,9 @@
   // game-owned (its visuals and controller messaging are game-flavored): a game
   // drives transitionTo(COUNTDOWN) -> run its own countdown -> transitionTo(PLAYING).
 
-  RoomFlow.prototype.endGame = function (results) {
-    this.lastResults = results != null ? results : this.lastResults;
+  // Readable sugar for `transitionTo('results')`. Results data is the game's
+  // own (it knows the scoring); the kit does not store it.
+  RoomFlow.prototype.endGame = function () {
     return this.transitionTo(STATES.RESULTS);
   };
 
@@ -396,7 +399,6 @@
     this._order = [];
     this.hostPeerIndex = null;
     this._joinSeq = 0;
-    this.lastResults = null;
     this.state = STATES.LOBBY;
   };
 

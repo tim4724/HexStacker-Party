@@ -27,8 +27,6 @@ declare class RoomFlow {
   players: Map<number, RoomFlow.PlayerRecord>;
   /** Raw sticky-host slot. Read `host` for the effective host. */
   hostPeerIndex: number | null;
-  /** Opaque game results stashed by `endGame`. */
-  lastResults: any;
 
   /** Effective host (master -> sticky -> oldest-eligible), or null. */
   readonly host: number | null;
@@ -51,8 +49,8 @@ declare class RoomFlow {
   // --- lifecycle ---
   /** Validated state transition; the primary API. Returns false on an invalid transition. */
   transitionTo(state: RoomFlow.RoomState): boolean;
-  /** Sugar for transitionTo('results') plus stashing `results` in `lastResults`. */
-  endGame(results?: any): boolean;
+  /** Readable sugar for `transitionTo('results')`. Results data is the game's own. */
+  endGame(): boolean;
   returnToLobby(): boolean;
   /** Sync the participant order used for host eligibility with a game-owned list. */
   setActiveOrder(peerIndices: number[]): void;

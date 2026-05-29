@@ -135,6 +135,19 @@ describe('RoomFlow — rekey (reconnect claim)', () => {
     f.rekey(2, 8);                           // 2 is not the host
     assert.equal(log.some(e => e[0] === 'hostchange'), false);
   });
+
+  it('does not promote a non-host on rekey when there is no sticky host', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1); f.addPlayer(2);
+    f.transitionTo(S.COUNTDOWN); f.transitionTo(S.PLAYING);
+    f.markDisconnected(2);
+    f.addPlayer(8);                           // claimant joins (host still 1)
+    f.hostPeerIndex = null;                   // contrived: no sticky host, set last
+    const log = record(f);
+    assert.equal(f.rekey(2, 8), true);
+    assert.equal(f.hostPeerIndex, null);      // a non-host claim must not promote
+    assert.equal(log.some(e => e[0] === 'hostchange'), false);
+  });
 });
 
 describe('RoomFlow — clearDisconnected', () => {
@@ -232,7 +245,7 @@ describe('RoomFlow — host election', () => {
     f.transitionTo(S.COUNTDOWN); f.transitionTo(S.PLAYING);
     f.removePlayer(1);
     assert.equal(f.hostPeerIndex, 1);
-    f.endGame([]);
+    f.endGame();
     assert.equal(f.hostPeerIndex, 2);
   });
 });
@@ -264,13 +277,12 @@ describe('RoomFlow — state machine', () => {
     assert.equal(f.transitionTo(S.LOBBY), true);     // same-state no-op
   });
 
-  it('endGame stores results and moves to results', () => {
+  it('endGame moves to results', () => {
     const f = new RoomFlow();
     f.addPlayer(1);
     f.transitionTo(S.COUNTDOWN); f.transitionTo(S.PLAYING);
-    f.endGame([{ rank: 1, peerIndex: 1 }]);
+    f.endGame();
     assert.equal(f.state, S.RESULTS);
-    assert.deepEqual(f.lastResults, [{ rank: 1, peerIndex: 1 }]);
   });
 
   it('reset clears roster, host, state', () => {
@@ -290,7 +302,7 @@ describe('RoomFlow — order re-snapshot on COUNTDOWN', () => {
     const f = new RoomFlow();
     f.addPlayer(1); f.addPlayer(2);
     f.transitionTo(S.COUNTDOWN); f.transitionTo(S.PLAYING);  // order [1,2]
-    f.endGame([]);                       // results
+    f.endGame();                       // results
     f.addPlayer(3);                      // joins during results
     f.transitionTo(S.COUNTDOWN);         // re-snapshot should include 3
     assert.deepEqual(f._order, [1, 2, 3]);

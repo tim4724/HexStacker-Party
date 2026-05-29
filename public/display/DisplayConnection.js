@@ -611,7 +611,12 @@ function fetchQR(text, callback) {
 function showDisconnectQR(peerIndex) {
   // Set immediately so allPlayersDisconnected() can check synchronously
   disconnectedQRs.set(peerIndex, null);
-  // Mirror into flow so host eligibility skips this player during the blip.
+  // INVARIANT: disconnectedQRs (presence flag + QR canvas, for rendering) and
+  // flow's presence set must move together. Every site that adds/clears a
+  // disconnect must touch BOTH — markDisconnected/markReconnected/clearDisconnected
+  // here, and rekey() clears flow's flag on a cross-device claim. If they drift,
+  // host election (which reads flow) skips a present player. (Mirrors the
+  // disconnect into flow so host eligibility skips this player during the blip.)
   flow.markDisconnected(peerIndex);
   if (!joinUrl) return;
   // Splice the claim in before the fragment so the instance hash stays intact.
