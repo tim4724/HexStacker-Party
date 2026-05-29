@@ -47,7 +47,8 @@
     RESULTS: 'results',
   });
 
-  // Mirrors VALID_TRANSITIONS in DisplayState.js.
+  // Extracted from the former inline transition table in DisplayState.js
+  // (that game no longer defines its own — setRoomState delegates here).
   var VALID_TRANSITIONS = {};
   VALID_TRANSITIONS[STATES.LOBBY] = [STATES.COUNTDOWN];
   VALID_TRANSITIONS[STATES.COUNTDOWN] = [STATES.PLAYING, STATES.LOBBY];

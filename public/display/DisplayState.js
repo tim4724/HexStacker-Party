@@ -46,6 +46,9 @@ var playerOrder = [];          // compact list of active controller peerIndices 
 // hostPeerIndex (the sticky host slot) and joinedAt sequencing now live in
 // RoomFlow. Read the sticky slot via the getter below; it moves only through
 // flow.addPlayer / removePlayer / rekey. flow assigns joinedAt in addPlayer.
+// NOTE: this getter is the RAW sticky slot. Use getHostPeerIndex() for the
+// effective (fallback-resolved) host — the two differ during a mid-game blip
+// when the sticky holder is disconnected but their slot stays pinned.
 Object.defineProperty(window, 'hostPeerIndex', {
   configurable: true,
   get: function () { return flow.hostPeerIndex; }

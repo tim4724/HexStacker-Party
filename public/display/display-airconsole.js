@@ -108,7 +108,9 @@ checkAutoResume = function() {
 var _origSetRoomState = setRoomState;
 setRoomState = function(newState) {
   var ok = _origSetRoomState(newState);
-  if (newState === ROOM_STATE.RESULTS) {
+  // Only request the ad break when the transition actually committed (a
+  // redundant RESULTS->RESULTS call returns false and should not fire an ad).
+  if (ok && newState === ROOM_STATE.RESULTS) {
     try { airconsole.showAd(); } catch (e) {}
   }
   return ok;

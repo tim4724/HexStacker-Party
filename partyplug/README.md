@@ -13,7 +13,10 @@ and in the browser via a global. Serve this directory to the browser under
 It ships as a versioned package (`partyplug/package.json`, currently `0.1.0`)
 with hand-written `.d.ts` types per module and its own co-located test suite
 (`partyplug/tests/`). The runtime is CommonJS/UMD; a native-ESM build is a
-deliberate future step (see below).
+deliberate future step (see below). There is **no default export** — import each
+module by subpath (`require('partyplug/RoomFlow')`, or `/partyplug/RoomFlow.js`
+in the browser), as the `exports` map declares; a bare `require('partyplug')`
+intentionally resolves nothing.
 
 ## Mental model
 
