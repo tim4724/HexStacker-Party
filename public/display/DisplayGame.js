@@ -55,6 +55,14 @@ function startNewGame() {
   clearLateJoinerGraceTimer();
   lastResults = null;
   lastAliveState = {};
+  // Drop players still flagged as disconnected from the previous game so they
+  // don't carry into the new one. disconnectedQRs is the unified disconnect
+  // signal across relay and AirConsole modes (peerLivenessExpired is a no-op
+  // under AirConsole); reconnects clear the flag, so present players survive.
+  for (const id of Array.from(disconnectedQRs.keys())) {
+    players.delete(id);
+    playerOrder = playerOrder.filter(function(pid) { return pid !== id; });
+  }
   // Clear stale disconnected-QR flags from the previous game so they don't
   // suppress host eligibility here. (onGameEnd no longer clears them — we
   // keep the disconnected state through RESULTS so the host role hands off
@@ -228,10 +236,12 @@ function returnToLobby() {
   if (music) music.stop();
   stopDisplayGame(); // also calls clearCountdownTimers()
 
-  // Remove disconnected players
+  // Remove disconnected players. disconnectedQRs catches AirConsole mode,
+  // where peerLivenessExpired is always false; peerLivenessExpired catches
+  // relay-mode peers that went silent before a QR flag was set.
   var disconnectedIds = [];
   for (const entry of players) {
-    if (peerLivenessExpired(entry[1], Date.now())) {
+    if (disconnectedQRs.has(entry[0]) || peerLivenessExpired(entry[1], Date.now())) {
       disconnectedIds.push(entry[0]);
     }
   }
