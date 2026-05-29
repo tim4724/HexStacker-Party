@@ -1,93 +1,77 @@
 # PartyPlug
 
-Reusable framework for "shared screen + phones as controllers" party games. A
-game *plugs into* the comms layer (the **Party Sockets** relay server), hence
-the name. PartyPlug sits alongside Party Sockets: the server moves bytes, the
-kit gives games a transport to speak over.
+Reusable framework for "shared screen + phones as controllers" party games: one
+big display plus any number of phone controllers that join by QR code. A game
+*plugs into* the comms layer (the **Party Sockets** relay), hence the name.
+PartyPlug gives a game its transport and its room/lobby/host lifecycle; the game
+brings its own screens, input, and rules.
 
-This directory is intentionally outside `public/` so it is not tied to one
-game's assets. It is served to the browser under `/partyplug/` (see the
-`PARTYPLUG_DIR` remap in `server/index.js`).
+Vanilla JS, no build step. Every module is UMD — it works under Node (for tests)
+and in the browser via a global. Serve this directory to the browser under
+`/partyplug/` (add a static route in your server).
 
-## What's here today (v1: transport layer)
+## Mental model
+
+- **Slot 0 is the display; slots 1..N are controllers.**
+- **Transport is pluggable.** Talk to the Party Sockets relay
+  (`PartyConnection`) or run on AirConsole (`AirConsoleAdapter`) behind one
+  interface, with an optional P2P low-latency input path (`PartyFastlane`).
+- **`RoomFlow` is the brain** — who is in the room, who is host, what state we
+  are in. It is headless: it emits events, your view renders.
+- **The kit knows nothing about your game.** No DOM, no rendering, no colors,
+  names, scores, or rounds. Those are yours.
+
+## Modules
 
 | Module | Role |
 | --- | --- |
-| `PartyConnection.js` | WebSocket client for the Party Sockets relay. Slot 0 = display, 1..N = controllers. Stable `clientId` bearer token for reconnect. |
-| `PartyFastlane.js` | Optional P2P WebRTC DataChannel layer (low-latency input). Piggybacks on `PartyConnection` for signaling, falls back to the relay. |
-| `AirConsoleAdapter.js` | Drop-in `PartyConnection` replacement that speaks the AirConsole SDK instead of the relay. |
+| `PartyConnection.js` | WebSocket client for the Party Sockets relay. Stable `clientId` bearer token for reconnect. |
+| `AirConsoleAdapter.js` | Drop-in `PartyConnection` replacement that speaks the AirConsole SDK. |
+| `PartyFastlane.js` | Optional P2P WebRTC DataChannel layer (low-latency input). Piggybacks on the connection for signaling, falls back to it. |
+| `RoomFlow.js` | Headless room/lobby/host state machine: room state, roster, sticky-host election, presence. |
 
-These three are the proven, game-agnostic core: they read **no** game globals.
-All deployment config (relay URL, STUN server) is injected by the game at
-construction, so the kit never depends on the game.
+The transport modules read **no** game globals: deployment config (relay URL,
+STUN server) is injected at construction, so the kit never depends on the game.
 
-## Headless flow (v1.1: `RoomFlow.js`)
+## Quick start
 
-`RoomFlow.js` is the room/lobby/host **state machine**, extracted from
-`public/display/DisplayState.js`. It owns room state
-(`lobby -> countdown -> playing -> results`), the player roster (identity, join
-order, presence), sticky-host election, and disconnection tracking. It emits
-events; the view subscribes and renders. The countdown *timer* is game-owned
-(its visuals and controller messaging are game-flavored); RoomFlow only models
-the `COUNTDOWN` state.
-
-It touches **no** DOM, transport, or rendering, and **no** game concepts. It has
-no notion of color, name, score, or level: a player record is
-`{ peerIndex, joinedAt, connected, ...gameFields }` where RoomFlow owns the
-first three and treats whatever the game passes to `addPlayer()` as opaque
-fields it stores but never reads. The game mutates those fields on the live
-record directly. The only things RoomFlow reads off a player are `joinedAt`
-(host-election tiebreak) and presence. Two more deliberate decoupling choices:
-the AirConsole master-controller rule is injected as a `masterProvider` callback
-(not a direct `party.getMasterPeerIndex()` call), and disconnection is tracked
-as a Set (not inferred from the `disconnectedQRs` DOM map).
-
-Recommended integration for a new game: subscribe to events for rendering, feed
-the transport in, and drive transitions with `transitionTo()`. The game runs its
-own countdown between `COUNTDOWN` and `PLAYING`.
+Connect a transport, feed it into `RoomFlow`, render from events, and drive
+state transitions yourself. Your game owns the URLs and the countdown.
 
 ```js
+// 1. Connect. The game owns the relay / STUN URLs (the kit just receives them).
+const party = new PartyConnection(RELAY_URL + '/' + roomCode, { clientId: 'display' });
+const fastlane = new PartyFastlane({ iceServers: [{ urls: STUN_URL }], /* ... */ });
+
+// 2. The room/lobby/host brain.
 const flow = new RoomFlow({ masterProvider: () => party.getMasterPeerIndex?.() });
+
+// 3. Render off events.
 flow.on('statechange', e => showScreen(SCREEN_FOR[e.to]));
-flow.on('hostchange', renderHostUI);
-flow.on('rosterchange', updatePlayerList);
+flow.on('hostchange',  renderHostUI);
+flow.on('rosterchange', renderRoster);
+
+// 4. Feed the transport into the roster.
 party.onProtocol = (type, msg) => {
   if (type === 'peer_joined') flow.addPlayer(msg.peerIndex, { name: msg.name });
   if (type === 'peer_left')   flow.removePlayer(msg.peerIndex);
 };
-// Host pressed start:
-flow.transitionTo('countdown');
-runYourCountdown(3, () => flow.transitionTo('playing'));  // your timer + visuals
+
+// 5. Drive transitions. The countdown timer + visuals are yours.
+function startGame() {
+  flow.transitionTo('countdown');
+  runYourCountdown(3, () => flow.transitionTo('playing'));
+}
 ```
 
-HexStacker uses the same model but via an imperative retrofit (`setRoomState`
-wraps `transitionTo`, `flow.host`/`flow.state` behind window getters), kept that
-way to minimize churn in the existing codebase. A fresh game should use the
-event-driven shape above.
-
-**Status:** wired into HexStacker's live display. `flow.players` is the roster
-backing store; `getHostPeerIndex`/`setRoomState`/`hostPeerIndex`/`roomState`
-delegate to the kit.
-
-## The seam (how a game plugs in)
-
-```js
-// Game side (e.g. public/display/DisplayConnection.js) owns the config and
-// passes it IN. The kit stays generic.
-const party = new PartyConnection(RELAY_URL + '/' + roomCode, { clientId: 'display' });
-const fastlane = new PartyFastlane({ iceServers: [{ urls: STUN_URL }], /* ... */ });
-```
-
-`RELAY_URL` / `STUN_URL` live in the game's `public/shared/protocol.js`, not
-here. One Party Sockets relay can serve many games (rooms are namespaced by
-code), so relay config is deployment-level, not framework-level.
+One Party Sockets relay can serve many games (rooms are namespaced by code), so
+relay config is deployment-level, not framework-level.
 
 ## API reference
 
 Conceptual model: slot 0 is always the display, slots 1..N are controllers. The
 transport classes are interchangeable (`PartyConnection` and `AirConsoleAdapter`
-share one interface). Deployment config is injected by the game, never read from
-globals.
+share one interface).
 
 ### `PartyConnection` — relay WebSocket client
 
@@ -129,15 +113,15 @@ has no error event; `create` / `join` / `reconnectNow` are no-ops). Synthesizes
 the relay protocol events from SDK device events.
 
 The `onReady` hook is the kit's seam for anything a game must do before first
-paint (HexStacker applies its AirConsole-profile locale there). The kit carries
-no i18n knowledge itself.
+paint (e.g. applying the AirConsole-profile locale). The kit carries no i18n
+knowledge itself.
 
 AirConsole-only extras:
 - `getMasterPeerIndex()` — the master-controller rule; feed it to `RoomFlow.masterProvider`.
 - `AirConsoleAdapter.installAirConsoleStorage(airconsole, { allowlist })` — a
-  localStorage shim backed by AC persistent data. The allowlist of keys is
-  **injected by the game** (the kit bakes in none), so a second game passes its
-  own keys.
+  `localStorage` shim backed by AC persistent data. The allowlist of keys is
+  **injected by the game** (the kit bakes in none), e.g.
+  `{ allowlist: ['volume', 'difficulty'] }`.
 - `captureEarlyReady`, `injectVersionLabel` — AC bootstrap timing helpers.
 
 ### `PartyFastlane` — optional P2P DataChannel (low-latency input)
@@ -162,7 +146,7 @@ new RoomFlow({ masterProvider? })
 RoomFlow.STATES // { LOBBY, COUNTDOWN, PLAYING, RESULTS }
 ```
 
-Roster (the `fields` object is opaque game data: color, name, level, etc.):
+Roster (the `fields` object is opaque game data: color, name, score, etc.):
 
 | Method | Purpose |
 | --- | --- |
@@ -170,9 +154,11 @@ Roster (the `fields` object is opaque game data: color, name, level, etc.):
 | `removePlayer(peerIndex)` | Hard leave |
 | `rekey(oldId, newId)` | Reconnect-claim: move a record to a new peerIndex, preserving it + host slot |
 | `markDisconnected(peerIndex)` / `markReconnected(peerIndex)` | Soft blip window |
+| `clearDisconnected()` | Mark everyone present (e.g. at game start) |
 
-The game owns its per-player fields and mutates them on the record directly
-(e.g. `flow.get(id).startLevel = 9`); RoomFlow never reads them.
+The game owns its per-player fields and mutates them on the live record directly
+(e.g. `flow.get(id).score = 10`); RoomFlow never reads them. The only fields it
+touches are `peerIndex`, `joinedAt` (host-election tiebreak), and `connected`.
 
 Lifecycle: `transitionTo(state)` (the primary API), `endGame(results)` (sugar for
 `-> RESULTS` + stash results), `returnToLobby()`, `setActiveOrder(peerIndices)`,
@@ -195,41 +181,56 @@ Events (`flow.on(type, fn)` returns an unsubscribe function; `'*'` receives all)
 
 Player record: `{ peerIndex, joinedAt, connected, ...gameFields }`.
 
+#### How host election works
+
+Effective host (`flow.host`) resolves as: the platform master (via
+`masterProvider`, if eligible) → the sticky host slot (first joiner, if present
+and connected) → the oldest-joined eligible present player. During
+`COUNTDOWN`/`PLAYING`/`RESULTS` the candidate set is restricted to the
+participant order (so a late joiner can't be handed host duty for actions they
+can't reach). A mid-game host disconnect keeps the slot pinned (so a reconnect
+reclaims it) while `flow.host` transparently falls back to a present player; the
+handoff is committed when the room re-enters `LOBBY`/`RESULTS`.
+
+To keep host eligibility in sync with a game-maintained participant list, call
+`setActiveOrder(peerIndices)` whenever that list changes; otherwise entering
+`COUNTDOWN` snapshots the currently-connected roster automatically.
+
 ## Design notes & intentional constraints
 
-Read these before building a second game on RoomFlow:
+Read these before building a game on RoomFlow:
 
 - **The state machine is single-session, single-phase.** It models one
   `lobby -> countdown -> playing -> results` cycle. There is no rounds/phases
   concept and no `PAUSED` state. Games that need rounds, phases, or an in-game
-  timer model those above the kit for now; these are the first things to extend
-  when a second game needs them.
+  timer model those above the kit; these are the first things to extend if a
+  game needs them.
 - **The countdown is game-owned.** The kit exposes the `COUNTDOWN` state but runs
-  no timer: a game does `transitionTo('countdown')`, runs its own timer/visuals,
-  then `transitionTo('playing')`. (The kit deliberately carries no timer it
-  couldn't dogfood.)
-- **Prefer the event-driven integration for new games.** HexStacker's display
-  uses an imperative retrofit (window getters for `roomState`/`hostPeerIndex`, a
-  `players = flow.players` alias, and a parallel `disconnectedQRs` map kept in
-  sync with flow's presence set). Those exist to minimize churn in an existing
-  codebase. A fresh game should instead subscribe to events and read `flow.state`
-  / `flow.host` directly, and query `flow.isDisconnected()` rather than keep a
-  second presence structure.
+  no timer: a game does `transitionTo('countdown')`, runs its own
+  timer/visuals/controller messaging, then `transitionTo('playing')`.
+- **Two integration shapes; prefer event-driven.** The recommended shape is to
+  subscribe to events and read `flow.state` / `flow.host` directly, and query
+  `flow.isDisconnected()` rather than keeping a parallel presence structure. A
+  game retrofitting an existing codebase can instead wrap `transitionTo` and
+  alias the roster Map, but new games should use the event-driven shape.
 - **`flow.players` is a stable Map; `reset()` clears it in place.** If you alias
   it, that alias stays valid across `reset()`. Never reassign `flow.players`.
 
-## Not yet extracted (deliberately)
+## Not in the kit (yet)
 
 The networking and flow layers are the parts genuinely shared by every game in
-this style, so they went first. The following are reusable in principle but are
-still entangled with HexStacker specifics. They should be split **against a
-second game**, not speculatively against this one:
+this style, so they came first. The following are reusable in principle but are
+better extracted **against a second game** than guessed at from one:
 
-- **Lobby + join flow** (QR, roster, name/color picker, screen shell)
-- **Liveness** (heartbeat, reconnect, fastlane backoff)
-- **Theming tokens + i18n engine**
-- **The game contract** (`createGameDisplay` / `createGameController` interfaces,
-  per-game manifest) that lets a game declare its inputs/render without touching
-  the protocol.
+- **Lobby + join flow** (QR rendering, roster cards, name/identity picker, the
+  screen shell).
+- **Liveness** (heartbeat, reconnect UI, fastlane backoff policy).
+- **Theming tokens + i18n engine.**
+- **A view contract** (`createGameDisplay` / `createGameController` interfaces +
+  a per-game manifest) that lets a game declare its inputs and rendering without
+  touching the protocol.
 
-See the proposal in the repo history for the full phased plan.
+---
+
+*Origin: extracted from a production HexStacker party game, which remains the
+reference implementation.*
