@@ -251,6 +251,52 @@ test.describe.serial('AirConsole Integration', () => {
     return _session;
   }
 
+  // Mock-only: bring two controllers into a game, disconnect the second one
+  // mid-game, and play through to the RESULTS screen with that player still
+  // flagged as disconnected. The host (first joiner, device 101) never leaves,
+  // so it keeps the host role and its Play Again / New Game buttons. The
+  // leaver is device 102. Returns the session plus the leaver's page so the
+  // caller can drive a restart and assert the leaver was dropped.
+  // In AirConsole the players Map is keyed by deviceId (peerIndex === deviceId).
+  async function reachResultsWithDisconnectedLeaver(context, page) {
+    const s = await createSession(context, page);
+    await s.screenFrame.waitForFunction(() => players.size >= 1, null, { timeout: 15000 });
+    await s.ctrlFrame.waitForFunction(() => currentScreen === 'lobby' && playerColor !== null, null, { timeout: 15000 });
+
+    // Second controller (the player who will disconnect mid-game)
+    const leaverPage = await context.newPage();
+    await setupMockPage(leaverPage, { deviceId: 102, nickname: 'Leaver' });
+    await leaverPage.setViewportSize({ width: 390, height: 844 });
+    await leaverPage.goto('/controller.html');
+    await waitForFont(leaverPage);
+    await leaverPage.waitForSelector('#lobby-screen:not(.hidden)', { timeout: 10000 });
+    await s.screenFrame.waitForFunction(() => players.size === 2, null, { timeout: 15000 });
+
+    // High start level on both boards so the game tops out quickly.
+    for (const fr of [s.ctrlFrame, leaverPage.mainFrame()]) {
+      await fr.evaluate(() => {
+        const plus = document.getElementById('level-plus-btn');
+        for (let i = 0; i < 14; i++) plus.click();
+      });
+    }
+    await s.ctrlPage.waitForTimeout(300);
+
+    // Host starts the game; leaver disconnects during the countdown.
+    await s.ctrlFrame.locator('#start-btn').click();
+    await s.screenFrame.waitForFunction(() => roomState === 'countdown', null, { timeout: 15000 });
+    await leaverPage.evaluate(() => window.airconsole.triggerDisconnect());
+    await s.screenFrame.waitForFunction(() => disconnectedQRs.has(102), null, { timeout: 10000 });
+
+    // Game plays out with the host and reaches RESULTS.
+    await s.screenFrame.waitForSelector('#results-screen:not(.hidden)', { timeout: 60000 });
+    await s.ctrlFrame.waitForSelector('#gameover-screen:not(.hidden)', { timeout: 60000 });
+
+    // Precondition for the bug: the disconnected player is still in the room.
+    expect(await s.screenFrame.evaluate(() => players.has(102))).toBe(true);
+
+    return { s, leaverPage };
+  }
+
   test('screen shows lobby with AirConsoleAdapter', async ({ page, context }) => {
     const s = await createSession(context, page);
 
@@ -389,6 +435,45 @@ test.describe.serial('AirConsole Integration', () => {
     await s.ctrlFrame.waitForSelector('#game-screen:not(.hidden):not(.countdown)', { timeout: 15000 });
 
     expect(await s.screenFrame.evaluate(() => roomState)).toBe('playing');
+  });
+
+  test('Play Again drops a player who disconnected mid-game', async ({ page, context }) => {
+    if (!USE_MOCK) {
+      test.skip(true, 'Disconnect restart test only in mock mode');
+      return;
+    }
+    const { s, leaverPage } = await reachResultsWithDisconnectedLeaver(context, page);
+
+    try {
+      // Host clicks Play Again — the disconnected player must NOT carry over.
+      await s.ctrlFrame.locator('#play-again-btn').click();
+      await s.screenFrame.waitForFunction(
+        () => roomState === 'countdown' || roomState === 'playing', null, { timeout: 15000 });
+
+      expect(await s.screenFrame.evaluate(() => players.has(102))).toBe(false);
+      expect(await s.screenFrame.evaluate(() => players.size)).toBe(1);
+    } finally {
+      await leaverPage.close();
+    }
+  });
+
+  test('New Game drops a player who disconnected mid-game', async ({ page, context }) => {
+    if (!USE_MOCK) {
+      test.skip(true, 'Disconnect restart test only in mock mode');
+      return;
+    }
+    const { s, leaverPage } = await reachResultsWithDisconnectedLeaver(context, page);
+
+    try {
+      // Host clicks New Game — the disconnected player must NOT land in the lobby.
+      await s.ctrlFrame.locator('#new-game-btn').click();
+      await s.screenFrame.waitForFunction(() => roomState === 'lobby', null, { timeout: 15000 });
+
+      expect(await s.screenFrame.evaluate(() => players.has(102))).toBe(false);
+      expect(await s.screenFrame.evaluate(() => players.size)).toBe(1);
+    } finally {
+      await leaverPage.close();
+    }
   });
 
   test('controller disconnect detected by display', async ({ page, context }) => {
