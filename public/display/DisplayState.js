@@ -34,6 +34,16 @@ var flow = new RoomFlow({
       ? party.getMasterPeerIndex() : null;
   }
 });
+// ROOM_STATE (protocol.js, shared with controllers) and RoomFlow.STATES are
+// separate copies of the same string set — protocol.js can't depend on the kit.
+// Assert they stay in lockstep so a future rename in one can't silently diverge.
+console.assert(
+  ROOM_STATE.LOBBY === RoomFlow.STATES.LOBBY &&
+  ROOM_STATE.COUNTDOWN === RoomFlow.STATES.COUNTDOWN &&
+  ROOM_STATE.PLAYING === RoomFlow.STATES.PLAYING &&
+  ROOM_STATE.RESULTS === RoomFlow.STATES.RESULTS,
+  'ROOM_STATE and RoomFlow.STATES have drifted — keep the string values in sync'
+);
 // Roster backing store, aliased onto flow's map so existing reads
 // (players.get/has/size/for..of) keep working; writes go through flow
 // (addPlayer/removePlayer/rekey). flow.reset() clears this same Map.
@@ -51,14 +61,17 @@ var playerOrder = [];          // compact list of active controller peerIndices 
 // when the sticky holder is disconnected but their slot stays pinned.
 Object.defineProperty(window, 'hostPeerIndex', {
   configurable: true,
-  get: function () { return flow.hostPeerIndex; }
+  get: function () { return flow.hostPeerIndex; },
+  set: function () { throw new Error('hostPeerIndex is read-only; the host moves via flow (addPlayer/removePlayer/rekey)'); }
 });
 
 // roomState reads delegate to flow.state; the transition table and sticky-host
-// reconcile live in RoomFlow. setRoomState() drives the machine.
+// reconcile live in RoomFlow. setRoomState() drives the machine. The setter
+// throws so a stray `roomState = X` is caught loudly instead of silently lost.
 Object.defineProperty(window, 'roomState', {
   configurable: true,
-  get: function () { return flow.state; }
+  get: function () { return flow.state; },
+  set: function () { throw new Error('roomState is read-only; use setRoomState()'); }
 });
 
 function setRoomState(newState) {

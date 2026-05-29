@@ -36,7 +36,7 @@ if (urlParams.get('test') === '1' || debugCount > 0 || _adclipMode) {
         // Players=4). Falls back to sequential fill for the usual case.
         var index = (typeof p.slot === 'number') ? p.slot : nextAvailableSlot();
         // joinedAt = array position → stable, incrementing within the seed so
-        // calculateLayout()/electNextHost() get meaningful ordering. Using a
+        // calculateLayout()/getHostPeerIndex() get meaningful ordering. Using a
         // derived counter instead of Date.now() keeps scenarios deterministic.
         flow.addPlayer(p.id, {
           playerName: sanitizePlayerName(p.name, p.id),

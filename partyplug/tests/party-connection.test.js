@@ -86,6 +86,19 @@ describe('PartyConnection', () => {
     assert.equal(sent.clientId, 'abc');
   });
 
+  test('pinInstance assembles the sharded relay URL with encoding', () => {
+    const pc = new PartyConnection('wss://relay.example.com', { clientId: 'display' });
+    pc.pinInstance('wss://relay.example.com', 'MY-ROOM', 'inst-1');
+    assert.equal(pc.relayUrl, 'wss://relay.example.com/MY-ROOM?instance=inst-1');
+    // URI-special characters in room/instance are percent-encoded
+    pc.pinInstance('wss://relay.example.com', 'a b/c', 'i?d=1');
+    assert.equal(pc.relayUrl, 'wss://relay.example.com/a%20b%2Fc?instance=i%3Fd%3D1');
+    // a null/empty instance is a no-op (keeps the current URL)
+    const before = pc.relayUrl;
+    pc.pinInstance('wss://relay.example.com', 'X', null);
+    assert.equal(pc.relayUrl, before);
+  });
+
   test('onOpen callback fires on connection', () => {
     const pc = new PartyConnection('wss://test.example.com');
     let opened = false;
