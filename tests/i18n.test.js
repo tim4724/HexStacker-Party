@@ -20,6 +20,14 @@ describe('i18n', function () {
     it('returns key itself for unknown key', function () {
       assert.equal(t('nonexistent_key_xyz'), 'nonexistent_key_xyz');
     });
+
+    it('returns localized new_player label', function () {
+      assert.equal(t('new_player'), 'New player');
+      setLocale('de');
+      assert.equal(t('new_player'), 'Neuer Spieler');
+      setLocale('fr');
+      assert.equal(t('new_player'), 'Nouveau joueur');
+    });
   });
 
   describe('t() interpolation', function () {
@@ -141,7 +149,7 @@ describe('i18n', function () {
       'banner_open_large',
       'room_not_found', 'game_ended', 'game_full', 'game_in_progress',
       'waiting_for_host_to_start', 'waiting_for_host_to_continue',
-      'n_lines', 'level_n', 'player', 'level_heading',
+      'n_lines', 'level_n', 'player', 'new_player', 'level_heading',
       'enter_name', 'copied', 'touchpad', 'privacy', 'imprint', 'back',
       'stacked_by', 'music_by', 'hex_lines_level',
       'swipe', 'tap', 'flick', 'gesture_move', 'gesture_rotate',

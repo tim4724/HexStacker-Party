@@ -46,6 +46,15 @@
   animation-delay: var(--row-delay, 0.2s);
 }
 
+/* Non-participant who sat out this round (late joiner), not ranked. Muted
+   card + dashed border so it reads as "you'll be in the next one" rather than
+   a player who placed last. Overrides only the border style set above; on the
+   controller the is-me outline still applies on top. */
+.result-row--joining {
+  opacity: 0.75;
+  border-style: dashed;
+}
+
 /* --- Rank ordinal — color set via inline style from JS; fallback keeps it
    readable when no player color is available. --- */
 

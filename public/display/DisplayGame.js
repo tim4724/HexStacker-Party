@@ -370,14 +370,30 @@ function runGameLocallyWithSeed(seed) {
     onGameEnd: function(results) {
       // Enrich with player names
       if (results && results.results) {
+        var played = {};
         for (var j = 0; j < results.results.length; j++) {
           var r = results.results[j];
+          played[r.playerId] = true;
           var pInfo = players.get(r.playerId);
           if (pInfo) {
             r.playerName = pInfo.playerName;
             r.colorIndex = pInfo.playerIndex;
           }
         }
+        // Append connected players who sat out this round (joined mid-game).
+        // They're not in the engine's results (built from playerIds), so flag
+        // them newPlayer and let every screen render them as "New player"
+        // instead of omitting them.
+        players.forEach(function(info, peerIndex) {
+          if (!played[peerIndex]) {
+            results.results.push({
+              playerId: peerIndex,
+              playerName: info.playerName,
+              colorIndex: info.playerIndex,
+              newPlayer: true
+            });
+          }
+        });
       }
       setRoomState(ROOM_STATE.RESULTS);
       lastResults = results;
