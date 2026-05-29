@@ -60,33 +60,43 @@ test.describe('Late-joiner results row', () => {
     // waits for the "game in progress" waiting banner, confirming he's parked.
     const bob = await joinMidGame(context, roomCode, 'Bob');
 
-    // A player tops out → results broadcast reaches Bob's waiting controller.
+    // A player tops out → results broadcast reaches every screen.
     await bob.waitForSelector('#gameover-screen:not(.hidden)', { timeout: 60000 });
+    await alice.waitForSelector('#gameover-screen:not(.hidden)', { timeout: 60000 });
+    await page.waitForSelector('#results-screen:not(.hidden)', { timeout: 60000 });
 
-    const rows = await bob.evaluate(() => {
-      return [...document.querySelectorAll('#results-list .result-row')].map((r) => ({
+    const readRows = () =>
+      [...document.querySelectorAll('#results-list .result-row')].map((r) => ({
         joining: r.classList.contains('result-row--joining'),
         isMe: r.classList.contains('is-me'),
         name: (r.querySelector('.result-name') || {}).textContent || '',
         rank: (r.querySelector('.result-rank') || {}).textContent || '',
         statsText: [...r.querySelectorAll('.result-stats span')].map((s) => s.textContent).join(' '),
       }));
-    });
 
-    // The two players who actually played are ranked with lines/level stats.
-    const ranked = rows.filter((r) => !r.joining);
-    expect(ranked).toHaveLength(2);
-    expect(ranked.map((r) => r.name).sort()).toEqual(['Alice', 'Carol']);
-    expect(ranked.every((r) => /^[12]$/.test(r.rank))).toBe(true);
+    // The "New player" row shows on every screen: the late joiner's own
+    // controller, a participant's controller, and the display.
+    const bobRows = await bob.evaluate(readRows);
+    const aliceRows = await alice.evaluate(readRows);
+    const displayRows = await page.evaluate(readRows);
 
-    // Bob's own row: the injected "New player" row, highlighted as is-me,
-    // with the status label instead of lines/level stats and a dash for rank.
-    const joiningRows = rows.filter((r) => r.joining);
-    expect(joiningRows).toHaveLength(1);
-    const bobRow = joiningRows[0];
-    expect(bobRow.name).toBe('Bob');
-    expect(bobRow.isMe).toBe(true);
-    expect(bobRow.statsText).toBe('New player');
-    expect(bobRow.rank).toBe('–');
+    for (const [label, rows] of [['bob', bobRows], ['alice', aliceRows], ['display', displayRows]]) {
+      // Two ranked participants with lines/level stats.
+      const ranked = rows.filter((r) => !r.joining);
+      expect(ranked.map((r) => r.name).sort(), label).toEqual(['Alice', 'Carol']);
+      expect(ranked.every((r) => /^[12]$/.test(r.rank)), label).toBe(true);
+
+      // Exactly one "New player" row for Bob: no rank (dash), status label
+      // instead of lines/level stats.
+      const joining = rows.filter((r) => r.joining);
+      expect(joining, label).toHaveLength(1);
+      expect(joining[0].name, label).toBe('Bob');
+      expect(joining[0].statsText, label).toBe('New player');
+      expect(joining[0].rank, label).toBe('–');
+    }
+
+    // is-me highlight only on Bob's own controller (the display has no "me").
+    expect(bobRows.find((r) => r.joining).isMe).toBe(true);
+    expect(aliceRows.find((r) => r.joining).isMe).toBe(false);
   });
 });

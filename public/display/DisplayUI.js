@@ -367,7 +367,9 @@ function renderResults(results) {
   resultsList.innerHTML = '';
   if (!results) return;
 
-  var sorted = results.slice().sort(function(a, b) { return a.rank - b.rank; });
+  // newPlayer entries (late joiners who sat out this round) carry no rank, so
+  // they sort last and render a "New player" status in place of stats.
+  var sorted = results.slice().sort(function(a, b) { return (a.rank || 999) - (b.rank || 999); });
 
   var winner = sorted[0];
   if (winner) {
@@ -380,8 +382,11 @@ function renderResults(results) {
 
   for (var i = 0; i < sorted.length; i++) {
     var res = sorted[i];
+    var isNew = !!res.newPlayer;
     var row = document.createElement('div');
-    row.className = solo ? 'result-row' : 'result-row rank-' + res.rank;
+    row.className = 'result-row';
+    if (!solo && !isNew) row.className += ' rank-' + res.rank;
+    if (isNew) row.className += ' result-row--joining';
     row.style.setProperty('--row-delay', (0.2 + i * 0.08) + 's');
 
     var pInfo = players.get(res.playerId);
@@ -390,7 +395,7 @@ function renderResults(results) {
     if (!solo) {
       var rank = document.createElement('span');
       rank.className = 'result-rank';
-      rank.textContent = String(res.rank);
+      rank.textContent = isNew ? '–' : String(res.rank);
       if (pColor) rank.style.color = pColor;
       row.appendChild(rank);
     }
@@ -405,12 +410,18 @@ function renderResults(results) {
 
     var stats = document.createElement('div');
     stats.className = 'result-stats';
-    var linesSpan = document.createElement('span');
-    linesSpan.textContent = t('n_lines', { count: res.lines || 0 });
-    var levelSpan = document.createElement('span');
-    levelSpan.textContent = t('level_n', { level: res.level || 1 });
-    stats.appendChild(linesSpan);
-    stats.appendChild(levelSpan);
+    if (isNew) {
+      var statusSpan = document.createElement('span');
+      statusSpan.textContent = t('new_player');
+      stats.appendChild(statusSpan);
+    } else {
+      var linesSpan = document.createElement('span');
+      linesSpan.textContent = t('n_lines', { count: res.lines || 0 });
+      var levelSpan = document.createElement('span');
+      levelSpan.textContent = t('level_n', { level: res.level || 1 });
+      stats.appendChild(linesSpan);
+      stats.appendChild(levelSpan);
+    }
 
     info.appendChild(nameEl);
     info.appendChild(stats);

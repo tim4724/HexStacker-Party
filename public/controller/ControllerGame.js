@@ -644,21 +644,27 @@ function renderGameResults(results) {
 
   if (!results || !results.length) return;
 
-  var sorted = results.slice().sort(function(a, b) { return a.rank - b.rank; });
+  // Non-participants (late joiners who sat out this round) arrive in `results`
+  // flagged newPlayer by the display: no rank/lines/level, a "new player"
+  // status instead. They sort last (no rank).
+  var sorted = results.slice().sort(function(a, b) { return (a.rank || 999) - (b.rank || 999); });
   var solo = sorted.length === 1;
   for (var i = 0; i < sorted.length; i++) {
     var r = sorted[i];
+    var isNew = !!r.newPlayer;
     var pColor = PLAYER_COLORS[r.colorIndex] || PLAYER_COLORS[i % PLAYER_COLORS.length];
 
     var row = document.createElement('div');
-    row.className = solo ? 'result-row' : 'result-row rank-' + r.rank;
+    row.className = 'result-row';
+    if (!solo && !isNew) row.className += ' rank-' + r.rank;
+    if (isNew) row.className += ' result-row--joining';
     row.style.setProperty('--row-delay', (0.2 + i * 0.08) + 's');
     if (r.playerId === peerIndex || r.playerId === clientId) row.classList.add('is-me');
 
     if (!solo) {
       var rankEl = document.createElement('span');
       rankEl.className = 'result-rank';
-      rankEl.textContent = String(r.rank);
+      rankEl.textContent = isNew ? '–' : String(r.rank);
       rankEl.style.color = pColor;
       row.appendChild(rankEl);
     }
@@ -673,63 +679,23 @@ function renderGameResults(results) {
 
     var stats = document.createElement('div');
     stats.className = 'result-stats';
-    var linesSpan = document.createElement('span');
-    linesSpan.textContent = t('n_lines', { count: r.lines || 0 });
-    var levelSpan = document.createElement('span');
-    levelSpan.textContent = t('level_n', { level: r.level || 1 });
-    stats.appendChild(linesSpan);
-    stats.appendChild(levelSpan);
+    if (isNew) {
+      var statusSpan = document.createElement('span');
+      statusSpan.textContent = t('new_player');
+      stats.appendChild(statusSpan);
+    } else {
+      var linesSpan = document.createElement('span');
+      linesSpan.textContent = t('n_lines', { count: r.lines || 0 });
+      var levelSpan = document.createElement('span');
+      levelSpan.textContent = t('level_n', { level: r.level || 1 });
+      stats.appendChild(linesSpan);
+      stats.appendChild(levelSpan);
+    }
 
     info.appendChild(nameEl);
     info.appendChild(stats);
     row.appendChild(info);
     resultsList.appendChild(row);
-  }
-
-  // Non-participant (a late joiner who sat out this round, or a controller
-  // that opened straight onto the results screen): they're absent from
-  // `results`, since it's built from the round's playerIds. Append a row for
-  // themselves so they aren't staring at a board they don't appear on. No
-  // rank, no lines/level (a "new player" status instead), so the missing
-  // stats read as intentional rather than a zero score or a render glitch.
-  // Gating on results-membership (not waitingForNextGame) is deliberate: the
-  // GAME_END handler clears that flag before onGameEnd renders, and a real
-  // participant is always present in `results`. clientId is always set by the
-  // time we render, so absence from results is a sufficient signal.
-  var meInResults = sorted.some(function(r) {
-    return r.playerId === peerIndex || r.playerId === clientId;
-  });
-  if (!meInResults) {
-    var meColor = playerColor || PLAYER_COLORS[0];
-    var joinRow = document.createElement('div');
-    joinRow.className = 'result-row result-row--joining is-me';
-    joinRow.style.setProperty('--row-delay', (0.2 + sorted.length * 0.08) + 's');
-
-    if (!solo) {
-      var joinRank = document.createElement('span');
-      joinRank.className = 'result-rank';
-      joinRank.textContent = '–';
-      joinRow.appendChild(joinRank);
-    }
-
-    var joinInfo = document.createElement('div');
-    joinInfo.className = 'result-info';
-
-    var joinName = document.createElement('span');
-    joinName.className = 'result-name';
-    joinName.textContent = playerName || t('player');
-    joinName.style.color = meColor;
-
-    var joinStatus = document.createElement('div');
-    joinStatus.className = 'result-stats';
-    var joinStatusText = document.createElement('span');
-    joinStatusText.textContent = t('new_player');
-    joinStatus.appendChild(joinStatusText);
-
-    joinInfo.appendChild(joinName);
-    joinInfo.appendChild(joinStatus);
-    joinRow.appendChild(joinInfo);
-    resultsList.appendChild(joinRow);
   }
 }
 
