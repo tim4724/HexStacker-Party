@@ -57,17 +57,32 @@ function startNewGame() {
   lastAliveState = {};
   // Drop players still flagged as disconnected from the previous game so they
   // don't carry into the new one. disconnectedQRs is the unified disconnect
-  // signal across relay and AirConsole modes (peerLivenessExpired is a no-op
-  // under AirConsole); reconnects clear the flag, so present players survive.
-  for (const id of Array.from(disconnectedQRs.keys())) {
-    players.delete(id);
-    playerOrder = playerOrder.filter(function(pid) { return pid !== id; });
+  // signal across relay and AirConsole modes; peerLivenessExpired additionally
+  // catches a relay peer that dropped right as RESULTS appeared, before
+  // peer_left or the liveness tick flagged it (mirrors returnToLobby).
+  // Reconnects clear the flag, so present players survive.
+  var goneIds = [];
+  for (const entry of players) {
+    if (disconnectedQRs.has(entry[0]) || peerLivenessExpired(entry[1], Date.now())) {
+      goneIds.push(entry[0]);
+    }
+  }
+  for (var gi = 0; gi < goneIds.length; gi++) {
+    players.delete(goneIds[gi]);
+    playerOrder = playerOrder.filter(function(pid) { return pid !== goneIds[gi]; });
   }
   // Clear stale disconnected-QR flags from the previous game so they don't
   // suppress host eligibility here. (onGameEnd no longer clears them — we
   // keep the disconnected state through RESULTS so the host role hands off
   // correctly; see getHostPeerIndex().)
   disconnectedQRs.clear();
+  // Everyone who remained was disconnected — don't launch an empty game.
+  // playAgain()'s players.size guard runs before this prune, so it can't
+  // catch the all-disconnected case.
+  if (players.size < 1) {
+    returnToLobby();
+    return;
+  }
   // Add late joiners to playerOrder (preserving existing order)
   for (const id of players.keys()) {
     if (playerOrder.indexOf(id) < 0) playerOrder.push(id);
