@@ -77,10 +77,17 @@ function startNewGame() {
   // correctly; see getHostPeerIndex().)
   disconnectedQRs.clear();
   // Everyone who remained was disconnected — don't launch an empty game.
-  // playAgain()'s players.size guard runs before this prune, so it can't
-  // catch the all-disconnected case.
+  // Both callers (startGame, playAgain) check players.size before this prune,
+  // so neither catches the all-disconnected case. From RESULTS, returnToLobby()
+  // resets the UI; from a LOBBY start it would no-op (already in LOBBY), so
+  // refresh the lobby controls directly.
   if (players.size < 1) {
-    returnToLobby();
+    if (roomState === ROOM_STATE.LOBBY) {
+      updatePlayerList();
+      updateStartButton();
+    } else {
+      returnToLobby();
+    }
     return;
   }
   // Add late joiners to playerOrder (preserving existing order)

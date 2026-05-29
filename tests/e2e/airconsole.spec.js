@@ -444,15 +444,17 @@ test.describe.serial('AirConsole Integration', () => {
     }
     const { s, leaverPage } = await reachResultsWithDisconnectedLeaver(context, page);
 
-    // Host clicks Play Again — the disconnected player must NOT carry over.
-    await s.ctrlFrame.locator('#play-again-btn').click();
-    await s.screenFrame.waitForFunction(
-      () => roomState === 'countdown' || roomState === 'playing', null, { timeout: 15000 });
+    try {
+      // Host clicks Play Again — the disconnected player must NOT carry over.
+      await s.ctrlFrame.locator('#play-again-btn').click();
+      await s.screenFrame.waitForFunction(
+        () => roomState === 'countdown' || roomState === 'playing', null, { timeout: 15000 });
 
-    expect(await s.screenFrame.evaluate(() => players.has(102))).toBe(false);
-    expect(await s.screenFrame.evaluate(() => players.size)).toBe(1);
-
-    await leaverPage.close();
+      expect(await s.screenFrame.evaluate(() => players.has(102))).toBe(false);
+      expect(await s.screenFrame.evaluate(() => players.size)).toBe(1);
+    } finally {
+      await leaverPage.close();
+    }
   });
 
   test('New Game drops a player who disconnected mid-game', async ({ page, context }) => {
@@ -462,14 +464,16 @@ test.describe.serial('AirConsole Integration', () => {
     }
     const { s, leaverPage } = await reachResultsWithDisconnectedLeaver(context, page);
 
-    // Host clicks New Game — the disconnected player must NOT land in the lobby.
-    await s.ctrlFrame.locator('#new-game-btn').click();
-    await s.screenFrame.waitForFunction(() => roomState === 'lobby', null, { timeout: 15000 });
+    try {
+      // Host clicks New Game — the disconnected player must NOT land in the lobby.
+      await s.ctrlFrame.locator('#new-game-btn').click();
+      await s.screenFrame.waitForFunction(() => roomState === 'lobby', null, { timeout: 15000 });
 
-    expect(await s.screenFrame.evaluate(() => players.has(102))).toBe(false);
-    expect(await s.screenFrame.evaluate(() => players.size)).toBe(1);
-
-    await leaverPage.close();
+      expect(await s.screenFrame.evaluate(() => players.has(102))).toBe(false);
+      expect(await s.screenFrame.evaluate(() => players.size)).toBe(1);
+    } finally {
+      await leaverPage.close();
+    }
   });
 
   test('controller disconnect detected by display', async ({ page, context }) => {
