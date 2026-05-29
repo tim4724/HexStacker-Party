@@ -307,6 +307,28 @@ describe('RoomFlow — state machine', () => {
     assert.equal(f.state, S.LOBBY);
     assert.equal(f._joinSeq, 0);
   });
+
+  it('reset from a non-lobby state emits statechange + rosterchange + hostchange', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1); f.addPlayer(2);
+    f.transitionTo(S.COUNTDOWN); f.transitionTo(S.PLAYING);
+    const log = record(f);
+    f.reset();
+    const types = log.map(e => e[0]);
+    assert.ok(types.includes('statechange'));
+    assert.ok(types.includes('rosterchange'));
+    assert.ok(types.includes('hostchange'));
+    assert.equal(log.find(e => e[0] === 'statechange')[1].to, S.LOBBY);
+  });
+
+  it('reset while already in lobby emits no statechange but still clears the roster', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1);
+    const log = record(f);
+    f.reset();
+    assert.equal(log.some(e => e[0] === 'statechange'), false);
+    assert.ok(log.some(e => e[0] === 'rosterchange'));
+  });
 });
 
 describe('RoomFlow — order re-snapshot on COUNTDOWN', () => {

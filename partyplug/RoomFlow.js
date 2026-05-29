@@ -396,6 +396,8 @@
   // Reset to a fresh room (new room / return to welcome). Mirrors the
   // roster/host/state portion of DisplayState.resetRoomData.
   RoomFlow.prototype.reset = function () {
+    var prevState = this.state;
+    var hadHost = this.hostPeerIndex != null;
     // IMPORTANT: clear the Map in place — never reassign `this.players`.
     // Consumers may alias this exact Map object as their roster (HexStacker's
     // DisplayState does), so reassigning would leave them on a stale Map.
@@ -405,6 +407,12 @@
     this.hostPeerIndex = null;
     this._joinSeq = 0;
     this.state = STATES.LOBBY;
+    // Emit so event-driven consumers re-render on reset — every other state
+    // change goes through transitionTo (which emits), so reset must too or a
+    // game subscribed to statechange/rosterchange would miss the room wipe.
+    if (prevState !== STATES.LOBBY) this._emit('statechange', { from: prevState, to: STATES.LOBBY });
+    this._emit('rosterchange', { players: [] });
+    if (hadHost) this._emit('hostchange', { hostPeerIndex: null });
   };
 
   return RoomFlow;

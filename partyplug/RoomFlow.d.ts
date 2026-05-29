@@ -54,7 +54,12 @@ declare class RoomFlow {
   returnToLobby(): boolean;
   /** Sync the participant order used for host eligibility with a game-owned list. */
   setActiveOrder(peerIndices: number[]): void;
-  /** Clear roster/host/order/presence and return to lobby. Clears `players` in place. */
+  /**
+   * Clear roster/host/order/presence and return to lobby. Clears `players` in
+   * place (aliases stay valid). Emits `rosterchange` (+ `statechange` if leaving
+   * a non-lobby state, + `hostchange` if a host was set) so event-driven
+   * consumers re-render.
+   */
   reset(): void;
 
   // --- reads ---

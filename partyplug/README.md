@@ -176,6 +176,8 @@ Lifecycle: `transitionTo(state)` (the primary API), `endGame()` and
 `setActiveOrder(peerIndices)`, `reset()`. The countdown timer is the game's; the
 kit just exposes the `COUNTDOWN` state. Entering `COUNTDOWN` snapshots the
 participant order. Results data is the game's own — the kit does not store it.
+`reset()` emits `rosterchange` (plus `statechange`/`hostchange` as applicable) so
+event-driven consumers re-render on a room wipe.
 
 Reads: `state`, `host` (effective), `hostPeerIndex` (sticky), `isHost(peerIndex)`,
 `list()`, `get(peerIndex)`, `has(peerIndex)`, `size`, `connectedCount`,

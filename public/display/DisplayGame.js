@@ -338,7 +338,10 @@ function runGameLocallyWithSeed(seed) {
   // Snapshot playerOrder at game start — prevents mid-game layout drift
   playerOrder = playerOrder.slice();
   // Feed the participant order to flow so host eligibility (restricted to
-  // participants mid-game) matches the game's board layout exactly.
+  // participants mid-game) matches the game's board layout exactly. This
+  // overrides flow's own COUNTDOWN auto-snapshot; they normally agree (the
+  // disconnect flags were cleared just before COUNTDOWN), but this makes the
+  // game's playerOrder authoritative in case the two ever diverge.
   flow.setActiveOrder(playerOrder);
   var gamePlayers = new Map();
   for (var i = 0; i < playerOrder.length; i++) {

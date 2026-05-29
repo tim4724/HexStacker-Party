@@ -174,6 +174,9 @@ class AirConsoleAdapter {
   // No-ops — AirConsole handles connection lifecycle.
   // reconnectAttempt stays 0 and is never incremented because the heartbeat
   // self-echo always succeeds in AirConsole mode (displayDead is always false).
+  // create/join/reconnectNow are no-ops on purpose: the AirConsole SDK owns the
+  // connection lifecycle. reconnectNow is therefore never reached in practice
+  // (DisplayLiveness only calls it on displayDead, which can't happen in AC mode).
   create() {}
   join() {}
   reconnectNow() {}
