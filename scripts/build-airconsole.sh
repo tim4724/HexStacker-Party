@@ -32,6 +32,9 @@ cp -r "$PROJECT_DIR/public/controller" "$BUILD_DIR/controller"
 # /partyplug/. generate-airconsole-html.js rewrites its absolute paths to
 # relative ("partyplug/..."), so it ships at the zip root like the other dirs.
 cp -r "$PROJECT_DIR/partyplug" "$BUILD_DIR/partyplug"
+# Drop dev/package artifacts — only the runtime .js modules belong in the zip.
+rm -rf "$BUILD_DIR/partyplug/tests"
+rm -f "$BUILD_DIR/partyplug/package.json" "$BUILD_DIR/partyplug"/*.d.ts "$BUILD_DIR/partyplug/README.md"
 
 # Copy engine modules (from server/ to engine/ for browser access).
 # Every server/*.js except index.js is assumed to be a browser-compatible

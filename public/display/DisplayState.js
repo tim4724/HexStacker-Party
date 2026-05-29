@@ -160,14 +160,14 @@ var prevFrameTime = 0;
 // --- Slot Helpers ---
 // Find the first available player slot (0–3) not used by any current player
 function nextAvailableSlot() {
+  // Color slots are dense (0..MAX-1) and game-owned; peerIndex is NOT a slot
+  // (it can be a sparse AirConsole device_id), so we allocate from the color
+  // slots in use via the kit's sparse-safe helper.
   var used = [];
   for (const entry of players) {
     used.push(entry[1].playerIndex);
   }
-  for (var i = 0; i < GameConstants.MAX_PLAYERS; i++) {
-    if (used.indexOf(i) < 0) return i;
-  }
-  return -1;
+  return RoomFlow.lowestFreeSlot(used, GameConstants.MAX_PLAYERS);
 }
 
 var AUTO_PLAYER_NAME_RE = /^HX-([1-9][0-9]?)$/i;

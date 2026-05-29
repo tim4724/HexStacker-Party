@@ -52,7 +52,7 @@ MockWebSocket._instances = [];
 // Inject mock before importing
 global.WebSocket = MockWebSocket;
 
-const PartyConnection = require('../partyplug/PartyConnection');
+const PartyConnection = require('../PartyConnection');
 
 describe('PartyConnection', () => {
   beforeEach(() => {

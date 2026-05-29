@@ -3,7 +3,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const RoomFlow = require('../partyplug/RoomFlow');
+const RoomFlow = require('../RoomFlow');
 const S = RoomFlow.STATES;
 
 // Record every emitted event as [type, detail].
@@ -12,6 +12,26 @@ function record(flow) {
   flow.on('*', (type, detail) => log.push([type, detail]));
   return log;
 }
+
+describe('RoomFlow.lowestFreeSlot', () => {
+  it('allocates the lowest free dense slot', () => {
+    assert.equal(RoomFlow.lowestFreeSlot([], 4), 0);
+    assert.equal(RoomFlow.lowestFreeSlot([0, 1], 4), 2);
+    assert.equal(RoomFlow.lowestFreeSlot([0, 2], 4), 1);   // fills the gap
+    assert.equal(RoomFlow.lowestFreeSlot([0, 1, 2, 3], 4), -1);
+  });
+
+  it('is sparse-safe: out-of-range ids (e.g. AirConsole device_id) never block dense slots', () => {
+    // 5 and 9 are not valid slots in [0,4); they must be ignored, not treated
+    // as "slots 5 and 9 taken". This is the device_id-as-index footgun.
+    assert.equal(RoomFlow.lowestFreeSlot([5, 9], 4), 0);
+    assert.equal(RoomFlow.lowestFreeSlot([0, 42], 4), 1);
+  });
+
+  it('accepts a Set', () => {
+    assert.equal(RoomFlow.lowestFreeSlot(new Set([0, 1]), 4), 2);
+  });
+});
 
 describe('RoomFlow — roster', () => {
   it('starts empty in lobby', () => {

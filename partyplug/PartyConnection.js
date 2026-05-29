@@ -116,6 +116,16 @@ class PartyConnection {
     this._send({ type: 'join', clientId: this.clientId, room: room });
   }
 
+  // Pin auto-reconnect to a specific relay shard. After the relay assigns an
+  // instance (in the `created` reply), call this so reconnects rebuild the
+  // sharded URL and land back on the same instance, instead of the bare
+  // endpoint routing to whichever shard is least-loaded. The game supplies its
+  // base relay URL; the kit owns the URL shape so games don't hand-build it.
+  pinInstance(baseUrl, room, instance) {
+    if (!instance) return;
+    this.relayUrl = baseUrl + '/' + encodeURIComponent(room) + '?instance=' + encodeURIComponent(instance);
+  }
+
   sendTo(to, data) {
     this._send({ type: 'send', data: data, to: to });
   }

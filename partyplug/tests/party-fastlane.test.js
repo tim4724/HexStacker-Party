@@ -12,7 +12,7 @@ const assert = require('node:assert/strict');
 
 global.window = global.window || {};
 
-const PartyFastlane = require('../partyplug/PartyFastlane');
+const PartyFastlane = require('../PartyFastlane');
 
 function makeFakeChannel() {
   return {

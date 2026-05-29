@@ -73,6 +73,18 @@
 
   RoomFlow.STATES = STATES;
 
+  // Lowest free dense slot in [0, max) given the slots already in use. Pure
+  // and sparse-safe: callers pass the *slot values* in use (not peerIndices),
+  // so a non-contiguous transport id (e.g. an AirConsole device_id) is never
+  // mistaken for a dense seat/color index. Returns -1 when full. Both the
+  // display and any controller-seat allocator should route through this rather
+  // than reinventing it (and rather than indexing a palette by peerIndex).
+  RoomFlow.lowestFreeSlot = function (used, max) {
+    var taken = used instanceof Set ? used : new Set(used);
+    for (var i = 0; i < max; i++) { if (!taken.has(i)) return i; }
+    return -1;
+  };
+
   // ---- tiny event emitter (dependency-free; portable Node + browser) ----
   RoomFlow.prototype.on = function (type, handler) {
     (this._listeners[type] = this._listeners[type] || []).push(handler);

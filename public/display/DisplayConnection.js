@@ -134,10 +134,10 @@ function connectAndCreateRoom() {
 function onRoomCreated(partyRoomCode, instance) {
   lastInstance = instance || null;
   // Pin the WS URL so PartyConnection's auto-reconnect lands on the same
-  // instance — the relay's bare endpoint would otherwise route to whichever
-  // shard is currently least-loaded.
+  // instance (the relay's bare endpoint would otherwise route to whichever
+  // shard is currently least-loaded). The kit owns the sharded-URL shape.
   if (party && lastInstance) {
-    party.relayUrl = RELAY_URL + '/' + encodeURIComponent(partyRoomCode) + '?instance=' + encodeURIComponent(lastInstance);
+    party.pinInstance(RELAY_URL, partyRoomCode, lastInstance);
   }
 
   // Stash the instance in the URL fragment so it never hits the server in

@@ -10,6 +10,11 @@ Vanilla JS, no build step. Every module is UMD — it works under Node (for test
 and in the browser via a global. Serve this directory to the browser under
 `/partyplug/` (add a static route in your server).
 
+It ships as a versioned package (`partyplug/package.json`, currently `0.1.0`)
+with hand-written `.d.ts` types per module and its own co-located test suite
+(`partyplug/tests/`). The runtime is CommonJS/UMD; a native-ESM build is a
+deliberate future step (see below).
+
 ## Mental model
 
 - **Slot 0 is the display; slots 1..N are controllers.**
@@ -84,6 +89,7 @@ new PartyConnection(relayUrl, { clientId?, maxReconnectAttempts = 5 })
 | `connect()` | Open the socket (auto-reconnects up to max) |
 | `create(maxClients)` | Create a room (display, slot 0) |
 | `join(room)` | Join a room by code (controller) |
+| `pinInstance(baseUrl, room, instance)` | Pin auto-reconnect to a relay shard (rebuilds the sharded URL) |
 | `sendTo(to, data)` | Send to one slot |
 | `broadcast(data)` | Send to all peers |
 | `reconnectNow()` / `resetReconnectCount()` | Manual reconnect control |
@@ -169,6 +175,12 @@ Reads: `state`, `host` (effective), `hostPeerIndex` (sticky), `isHost(peerIndex)
 `list()`, `get(peerIndex)`, `has(peerIndex)`, `size`, `connectedCount`,
 `isDisconnected(peerIndex)`, `lastResults`.
 
+Static: `RoomFlow.lowestFreeSlot(used, max)` returns the lowest free dense slot
+in `[0, max)` given the slot values in use. Pure and **sparse-safe** — pass slot
+values, never `peerIndex`es, so a non-contiguous transport id (an AirConsole
+`device_id`) is never mistaken for a dense seat/color index. Use it for any
+per-player dense allocation (seat, color slot) instead of indexing by peerIndex.
+
 Events (`flow.on(type, fn)` returns an unsubscribe function; `'*'` receives all):
 
 | Event | Detail |
@@ -220,15 +232,25 @@ Read these before building a game on RoomFlow:
 
 The networking and flow layers are the parts genuinely shared by every game in
 this style, so they came first. The following are reusable in principle but are
-better extracted **against a second game** than guessed at from one:
+better extracted **against a second game** than guessed at from one. The first
+two are the next planned additions:
 
+- **Reconnect identity.** `rekey(oldId, newId)` is the mechanism, but matching a
+  returning client (bearer token / `clientId`) to its disconnected slot is still
+  game-side. A `flow.claim(token, newPeerIndex)` belongs here.
+- **Liveness.** A configurable heartbeat + timeout that calls
+  `markDisconnected`/`markReconnected` (today the game wires this; the kit only
+  exposes the manual flags).
 - **Lobby + join flow** (QR rendering, roster cards, name/identity picker, the
-  screen shell).
-- **Liveness** (heartbeat, reconnect UI, fastlane backoff policy).
+  screen shell). The DOM stays game-side; the *logic* (seat allocation via
+  `lowestFreeSlot`, host gating) is shareable.
 - **Theming tokens + i18n engine.**
 - **A view contract** (`createGameDisplay` / `createGameController` interfaces +
   a per-game manifest) that lets a game declare its inputs and rendering without
   touching the protocol.
+- **A native-ESM build.** Today the modules are CommonJS/UMD; an ESM build (or a
+  monorepo workspace package) would remove vendor-and-drift for bundler-based
+  games.
 
 ---
 
