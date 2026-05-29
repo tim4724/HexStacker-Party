@@ -107,10 +107,11 @@ checkAutoResume = function() {
 // AirConsole rate-limits showAd internally, so no extra throttle is needed.
 var _origSetRoomState = setRoomState;
 setRoomState = function(newState) {
-  _origSetRoomState(newState);
+  var ok = _origSetRoomState(newState);
   if (newState === ROOM_STATE.RESULTS) {
     try { airconsole.showAd(); } catch (e) {}
   }
+  return ok;
 };
 
 // Replace PartyConnection with a factory that returns AirConsoleAdapter.

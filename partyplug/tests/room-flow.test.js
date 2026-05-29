@@ -248,6 +248,18 @@ describe('RoomFlow — host election', () => {
     f.endGame();
     assert.equal(f.hostPeerIndex, 2);
   });
+
+  it('host leaving RESULTS does not promote a late joiner to the sticky slot', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1); f.addPlayer(2);
+    f.transitionTo(S.COUNTDOWN); f.transitionTo(S.PLAYING);  // participants [1,2]
+    f.endGame();                                             // RESULTS
+    f.addPlayer(3);                                          // late joiner, not a participant
+    f.markDisconnected(2);                                   // the other participant soft-drops
+    f.removePlayer(1);                                       // host leaves during RESULTS
+    assert.notEqual(f.hostPeerIndex, 3);   // late joiner must NOT become sticky host
+    assert.equal(f.hostPeerIndex, null);   // no eligible participant remains
+  });
 });
 
 describe('RoomFlow — active order', () => {

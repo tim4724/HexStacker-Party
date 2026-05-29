@@ -271,13 +271,18 @@
     return peerIndex != null && peerIndex === this.host;
   };
 
-  // Oldest-joined present player other than excludeId. Unrestricted (used
-  // when committing the sticky slot in LOBBY/RESULTS).
+  // Oldest-joined present player other than excludeId. Restricted to the
+  // participant order while in COUNTDOWN/PLAYING/RESULTS, so committing the
+  // sticky slot can never promote a late joiner (who is not in `_order`) over
+  // the actual game participants. Unrestricted in LOBBY, where everyone present
+  // is a valid candidate. Returns null when nobody qualifies.
   RoomFlow.prototype._electNextHost = function (excludeId) {
+    var eligible = this._restricted() ? new Set(this._order) : null;
     var nextId = null, nextJoin = Infinity;
     for (var entry of this.players) {
       if (entry[0] === excludeId) continue;
       if (this._disconnected.has(entry[0])) continue;
+      if (eligible != null && !eligible.has(entry[0])) continue;
       var ja = entry[1].joinedAt == null ? Infinity : entry[1].joinedAt;
       if (ja < nextJoin) { nextJoin = ja; nextId = entry[0]; }
     }
