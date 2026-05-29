@@ -116,7 +116,14 @@
     var existing = this.players.get(peerIndex);
     if (existing) {
       // Reconnect: keep slot / joinedAt / host, refresh presence + fields.
+      // Protect kit-owned fields against a caller passing them in `fields`
+      // (e.g. a serialized record round-tripped through JSON): joinedAt is the
+      // host-election tiebreak and peerIndex is the map key — neither may be
+      // clobbered by game data.
+      var savedJoinedAt = existing.joinedAt;
       Object.assign(existing, fields);
+      existing.joinedAt = savedJoinedAt;
+      existing.peerIndex = peerIndex;
       existing.connected = true;
       this._disconnected.delete(peerIndex);
       this._emit('playerupdate', { player: existing });
@@ -143,9 +150,12 @@
   // Hard leave (peer_left). The sticky slot only moves when the holder
   // departs from LOBBY/RESULTS; a mid-game leave leaves the slot untouched
   // so a reconnecting host reclaims it (the `host` getter falls back
-  // meanwhile). Matches DisplayState's onPeerLeft / reconcileStickyHost.
+  // meanwhile). hostchange fires whenever the EFFECTIVE host changes — including
+  // a mid-game departure where the sticky slot stays put but the getter's
+  // fallback shifts to a present player.
   RoomFlow.prototype.removePlayer = function (peerIndex) {
     if (!this.players.has(peerIndex)) return;
+    var prevHost = this.host;
     var wasHost = peerIndex === this.hostPeerIndex;
     this.players.delete(peerIndex);
     this._disconnected.delete(peerIndex);
@@ -153,8 +163,8 @@
     if (oi >= 0) this._order.splice(oi, 1);
     if (wasHost && (this.state === STATES.LOBBY || this.state === STATES.RESULTS)) {
       this.hostPeerIndex = this._electNextHost(peerIndex);
-      this._emit('hostchange', { hostPeerIndex: this.host });
     }
+    if (this.host !== prevHost) this._emit('hostchange', { hostPeerIndex: this.host });
     this._emit('playerleave', { peerIndex: peerIndex });
     this._emit('rosterchange', { players: this.list() });
   };
@@ -193,19 +203,25 @@
   };
 
   // Soft disconnect window (the player record stays; presence flips false).
+  // Emits hostchange if the effective host shifts (e.g. the host blips mid-game
+  // and the getter's fallback hands duty to a present player).
   RoomFlow.prototype.markDisconnected = function (peerIndex) {
     var p = this.players.get(peerIndex);
     if (!p) return;
+    var prevHost = this.host;
     p.connected = false;
     this._disconnected.add(peerIndex);
+    if (this.host !== prevHost) this._emit('hostchange', { hostPeerIndex: this.host });
     this._emit('rosterchange', { players: this.list() });
   };
 
   RoomFlow.prototype.markReconnected = function (peerIndex) {
     var p = this.players.get(peerIndex);
     if (!p) return;
+    var prevHost = this.host;
     p.connected = true;
     this._disconnected.delete(peerIndex);
+    if (this.host !== prevHost) this._emit('hostchange', { hostPeerIndex: this.host });
     this._emit('rosterchange', { players: this.list() });
   };
 
@@ -214,8 +230,10 @@
   // eligibility for the new round.
   RoomFlow.prototype.clearDisconnected = function () {
     if (this._disconnected.size === 0) return;
+    var prevHost = this.host;
     this._disconnected.clear();
     for (var entry of this.players) entry[1].connected = true;
+    if (this.host !== prevHost) this._emit('hostchange', { hostPeerIndex: this.host });
     this._emit('rosterchange', { players: this.list() });
   };
 

@@ -13,6 +13,8 @@ declare class AirConsoleAdapter {
   create(): void;
   /** No-op (the SDK owns joining). */
   join(): void;
+  /** No-op (the SDK owns the connection/shard; nothing to pin). */
+  pinInstance(): void;
   sendTo(to: number, data: any): void;
   broadcast(data: any): void;
   reconnectNow(): void;

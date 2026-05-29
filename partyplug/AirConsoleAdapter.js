@@ -179,6 +179,7 @@ class AirConsoleAdapter {
   // (DisplayLiveness only calls it on displayDead, which can't happen in AC mode).
   create() {}
   join() {}
+  pinInstance() {}
   reconnectNow() {}
   resetReconnectCount() { this.reconnectAttempt = 0; }
 

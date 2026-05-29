@@ -61,6 +61,18 @@ describe('RoomFlow — roster', () => {
     assert.equal(f.players.get(1).startLevel, 9);
   });
 
+  it('reconnect does not let game fields clobber kit-owned joinedAt/peerIndex', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1, { name: 'A' });
+    f.addPlayer(2, { name: 'B' });
+    const ja = f.get(2).joinedAt;
+    // A caller round-tripping a record could pass bad kit fields; ignore them.
+    f.addPlayer(2, { name: 'B2', joinedAt: undefined, peerIndex: 999 });
+    assert.equal(f.get(2).joinedAt, ja);   // preserved
+    assert.equal(f.get(2).peerIndex, 2);   // preserved
+    assert.equal(f.get(2).name, 'B2');     // game field still updates
+  });
+
   it('reconnecting the same peerIndex keeps joinedAt/host and merges fields', () => {
     const f = new RoomFlow();
     f.addPlayer(1, { name: 'A' });
@@ -247,6 +259,26 @@ describe('RoomFlow — host election', () => {
     assert.equal(f.hostPeerIndex, 1);
     f.endGame();
     assert.equal(f.hostPeerIndex, 2);
+  });
+
+  it('emits hostchange when the host departs mid-game (effective host shifts)', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1); f.addPlayer(2);
+    f.transitionTo(S.COUNTDOWN); f.transitionTo(S.PLAYING);
+    const log = record(f);
+    f.removePlayer(1);                 // sticky slot stays 1; effective host -> 2
+    assert.equal(f.hostPeerIndex, 1);  // sticky pinned mid-game
+    assert.equal(f.host, 2);           // effective shifted
+    assert.ok(log.some(e => e[0] === 'hostchange'));
+  });
+
+  it('emits hostchange when the host soft-disconnects mid-game', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1); f.addPlayer(2);
+    f.transitionTo(S.COUNTDOWN); f.transitionTo(S.PLAYING);
+    const log = record(f);
+    f.markDisconnected(1);             // host blips; effective host -> 2
+    assert.ok(log.some(e => e[0] === 'hostchange'));
   });
 
   it('host leaving RESULTS does not promote a late joiner to the sticky slot', () => {

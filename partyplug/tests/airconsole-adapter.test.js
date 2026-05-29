@@ -19,6 +19,23 @@ function makeFakeAirConsole(overrides) {
   }, overrides || {});
 }
 
+describe('AirConsoleAdapter PartyConnection interface', () => {
+  it('implements the lifecycle no-ops (create/join/pinInstance/reconnectNow) without throwing', () => {
+    const ac = makeFakeAirConsole();
+    const adapter = new AirConsoleAdapter(ac, { role: 'display' });
+    // The SDK owns the connection lifecycle; these must exist as safe no-ops so
+    // game code written against PartyConnection (e.g. onRoomCreated's
+    // pinInstance call) never throws when the adapter is swapped in.
+    assert.equal(typeof adapter.pinInstance, 'function');
+    assert.doesNotThrow(() => {
+      adapter.create();
+      adapter.join();
+      adapter.pinInstance('wss://x', 'ROOM', 'inst');
+      adapter.reconnectNow();
+    });
+  });
+});
+
 describe('AirConsoleAdapter.getMasterPeerIndex', () => {
   it('returns null when no controller is connected', () => {
     const ac = makeFakeAirConsole();
