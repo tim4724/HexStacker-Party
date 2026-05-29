@@ -872,7 +872,9 @@ html, body {
 
 /* Non-participant who sat out this round (late joiner), not ranked.
    Muted card + dashed border so it reads as "you'll be in the next one"
-   rather than a player who placed last. The is-me outline still applies. */
+   rather than a player who placed last. The is-me outline still applies.
+   Relies on results.css's `border: 1px solid var(--border)` for the stroke;
+   this only overrides its style. */
 .result-row--joining {
   opacity: 0.75;
   border-style: dashed;

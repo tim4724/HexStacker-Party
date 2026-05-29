@@ -694,12 +694,12 @@ function renderGameResults(results) {
   // stats read as intentional rather than a zero score or a render glitch.
   // Gating on results-membership (not waitingForNextGame) is deliberate: the
   // GAME_END handler clears that flag before onGameEnd renders, and a real
-  // participant is always present in `results`.
-  var meKnown = peerIndex != null || clientId != null;
+  // participant is always present in `results`. clientId is always set by the
+  // time we render, so absence from results is a sufficient signal.
   var meInResults = sorted.some(function(r) {
     return r.playerId === peerIndex || r.playerId === clientId;
   });
-  if (meKnown && !meInResults) {
+  if (!meInResults) {
     var meColor = playerColor || PLAYER_COLORS[0];
     var joinRow = document.createElement('div');
     joinRow.className = 'result-row result-row--joining is-me';

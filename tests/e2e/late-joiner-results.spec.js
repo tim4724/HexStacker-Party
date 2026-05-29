@@ -56,9 +56,9 @@ test.describe('Late-joiner results row', () => {
     await alice.click('#start-btn');
     await waitForDisplayGame(page);
 
-    // Bob joins mid-game — held out of the active round.
+    // Bob joins mid-game (held out of the active round). joinMidGame already
+    // waits for the "game in progress" waiting banner, confirming he's parked.
     const bob = await joinMidGame(context, roomCode, 'Bob');
-    await bob.waitForFunction(() => waitingForNextGame === true, null, { timeout: 15000 });
 
     // A player tops out → results broadcast reaches Bob's waiting controller.
     await bob.waitForSelector('#gameover-screen:not(.hidden)', { timeout: 60000 });
