@@ -86,6 +86,20 @@ checkAutoResume = function() {
   _origCheckAutoResume();
 };
 
+// Request an ad break on game-end. All paths into RESULTS funnel through
+// setRoomState, so this single hook covers natural finish, test harness, and
+// replay. Hooking the *exit* from RESULTS (Play Again, New Game) would race:
+// showAd is async, onAdShow would arrive after we've already transitioned into
+// COUNTDOWN, and would clearCountdownTimers() without a restart path on resume.
+// AirConsole rate-limits showAd internally, so no extra throttle is needed.
+var _origSetRoomState = setRoomState;
+setRoomState = function(newState) {
+  _origSetRoomState(newState);
+  if (newState === ROOM_STATE.RESULTS) {
+    try { airconsole.showAd(); } catch (e) {}
+  }
+};
+
 // Replace PartyConnection with a factory that returns AirConsoleAdapter.
 // `window.` qualifier is required: PartyConnection.js is stripped from the AC
 // build, so no prior binding exists and strict-mode would reject a bare
