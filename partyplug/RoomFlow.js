@@ -4,9 +4,10 @@
 // RoomFlow — headless room/lobby/host state machine for PartyPlug.
 //
 // Owns: room state (lobby -> countdown -> playing -> results), the player
-// roster (identity + join order + presence), sticky-host election, an
-// optional lobby countdown, and disconnection tracking. Emits events; the
-// view subscribes and renders.
+// roster (identity + join order + presence), sticky-host election, and
+// disconnection tracking. Emits events; the view subscribes and renders.
+// The countdown itself is game-owned (its visuals + controller messaging are
+// game-flavored); RoomFlow only models the COUNTDOWN state.
 //
 // Knows NOTHING about: the DOM, canvases, QR codes, the relay/transport,
 // or any specific game's concepts. In particular it has NO notion of player
@@ -55,27 +56,18 @@
 
   function RoomFlow(opts) {
     opts = opts || {};
-    this.countdownSeconds = opts.countdownSeconds != null ? opts.countdownSeconds : 3;
-    // How long the "GO" beat lingers after the count hits zero before the
-    // game actually starts (lets the view flash GO).
-    this.goMs = opts.goMs != null ? opts.goMs : 600;
     // Optional () => peerIndex. When the transport designates a master
     // controller (AirConsole), supply it here. Returns null/undefined when
     // there is no platform master.
     this.masterProvider = typeof opts.masterProvider === 'function' ? opts.masterProvider : null;
-    // Injectable timers so tests can drive the countdown deterministically.
-    var timers = opts.timers || {};
-    this._setTimeout = timers.setTimeout || (typeof setTimeout !== 'undefined' ? setTimeout : null);
-    this._clearTimeout = timers.clearTimeout || (typeof clearTimeout !== 'undefined' ? clearTimeout : null);
 
     this.state = STATES.LOBBY;
     this.players = new Map();        // peerIndex -> player record
     this.hostPeerIndex = null;       // sticky host slot (raw; see `host` getter for effective)
     this._joinSeq = 0;               // monotonic joinedAt source (Date.now collides in same ms)
     this._disconnected = new Set();  // peerIndices currently in the disconnect window
-    this._order = [];                // active participants (set at countdown, or via setActiveOrder)
+    this._order = [];                // active participants (snapshotted on COUNTDOWN, or via setActiveOrder)
     this._listeners = {};
-    this._cdTimer = null;
     this.lastResults = null;
   }
 
@@ -336,25 +328,9 @@
     return true;
   };
 
-  // High-level helpers (for games that want RoomFlow to run the countdown).
-
-  RoomFlow.prototype.requestStart = function () {
-    if (!this.transitionTo(STATES.COUNTDOWN)) return false;
-    var self = this;
-    this._runCountdown(function () {
-      if (self.state === STATES.COUNTDOWN) self.transitionTo(STATES.PLAYING);
-    });
-    return true;
-  };
-
-  RoomFlow.prototype.playAgain = function () {
-    if (!this.transitionTo(STATES.COUNTDOWN)) return false;
-    var self = this;
-    this._runCountdown(function () {
-      if (self.state === STATES.COUNTDOWN) self.transitionTo(STATES.PLAYING);
-    });
-    return true;
-  };
+  // Lifecycle helpers — thin, validated transitions. The countdown itself is
+  // game-owned (its visuals and controller messaging are game-flavored): a game
+  // drives transitionTo(COUNTDOWN) -> run its own countdown -> transitionTo(PLAYING).
 
   RoomFlow.prototype.endGame = function (results) {
     this.lastResults = results != null ? results : this.lastResults;
@@ -362,47 +338,7 @@
   };
 
   RoomFlow.prototype.returnToLobby = function () {
-    this._cancelCountdownTimers();
     return this.transitionTo(STATES.LOBBY);
-  };
-
-  RoomFlow.prototype.cancelCountdown = function () {
-    this._cancelCountdownTimers();
-    if (this.state === STATES.COUNTDOWN) this.transitionTo(STATES.LOBBY);
-  };
-
-  RoomFlow.prototype._cancelCountdownTimers = function () {
-    if (this._cdTimer != null && this._clearTimeout) this._clearTimeout(this._cdTimer);
-    this._cdTimer = null;
-  };
-
-  // Emits 'countdown' { remaining } for each tick (countdownSeconds..1),
-  // then 'go', then calls onDone after goMs.
-  RoomFlow.prototype._runCountdown = function (onDone) {
-    this._cancelCountdownTimers();
-    var self = this;
-    var remaining = this.countdownSeconds;
-
-    function go() {
-      self._emit('go', {});
-      self._cdTimer = self._setTimeout(function () {
-        self._cdTimer = null;
-        if (onDone) onDone();
-      }, self.goMs);
-    }
-
-    if (remaining <= 0) { go(); return; }
-    this._emit('countdown', { remaining: remaining });
-    function tick() {
-      remaining -= 1;
-      if (remaining > 0) {
-        self._emit('countdown', { remaining: remaining });
-        self._cdTimer = self._setTimeout(tick, 1000);
-      } else {
-        go();
-      }
-    }
-    this._cdTimer = this._setTimeout(tick, 1000);
   };
 
   // =====================================================================
@@ -436,9 +372,8 @@
   RoomFlow.prototype.isDisconnected = function (peerIndex) { return this._disconnected.has(peerIndex); };
 
   // Reset to a fresh room (new room / return to welcome). Mirrors the
-  // roster/host/countdown portion of DisplayState.resetRoomData.
+  // roster/host/state portion of DisplayState.resetRoomData.
   RoomFlow.prototype.reset = function () {
-    this._cancelCountdownTimers();
     // IMPORTANT: clear the Map in place — never reassign `this.players`.
     // Consumers may alias this exact Map object as their roster (HexStacker's
     // DisplayState does), so reassigning would leave them on a stale Map.

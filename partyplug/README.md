@@ -26,8 +26,10 @@ construction, so the kit never depends on the game.
 `RoomFlow.js` is the room/lobby/host **state machine**, extracted from
 `public/display/DisplayState.js`. It owns room state
 (`lobby -> countdown -> playing -> results`), the player roster (identity, join
-order, presence), sticky-host election, an optional lobby countdown, and
-disconnection tracking. It emits events; the view subscribes and renders.
+order, presence), sticky-host election, and disconnection tracking. It emits
+events; the view subscribes and renders. The countdown *timer* is game-owned
+(its visuals and controller messaging are game-flavored); RoomFlow only models
+the `COUNTDOWN` state.
 
 It touches **no** DOM, transport, or rendering, and **no** game concepts. It has
 no notion of color, name, score, or level: a player record is
@@ -40,8 +42,9 @@ the AirConsole master-controller rule is injected as a `masterProvider` callback
 (not a direct `party.getMasterPeerIndex()` call), and disconnection is tracked
 as a Set (not inferred from the `disconnectedQRs` DOM map).
 
-Two integration styles are supported. Event-driven (recommended for new games),
-where RoomFlow runs the countdown and the view reacts to events:
+Recommended integration for a new game: subscribe to events for rendering, feed
+the transport in, and drive transitions with `transitionTo()`. The game runs its
+own countdown between `COUNTDOWN` and `PLAYING`.
 
 ```js
 const flow = new RoomFlow({ masterProvider: () => party.getMasterPeerIndex?.() });
@@ -52,12 +55,15 @@ party.onProtocol = (type, msg) => {
   if (type === 'peer_joined') flow.addPlayer(msg.peerIndex, { name: msg.name });
   if (type === 'peer_left')   flow.removePlayer(msg.peerIndex);
 };
-flow.requestStart(); // -> countdown -> playing
+// Host pressed start:
+flow.transitionTo('countdown');
+runYourCountdown(3, () => flow.transitionTo('playing'));  // your timer + visuals
 ```
 
-Or imperative (how HexStacker uses it), where the game keeps its own countdown
-and drives the machine with `transitionTo()`, reads `flow.host` / `flow.state`,
-and feeds its participant order via `setActiveOrder()`.
+HexStacker uses the same model but via an imperative retrofit (`setRoomState`
+wraps `transitionTo`, `flow.host`/`flow.state` behind window getters), kept that
+way to minimize churn in the existing codebase. A fresh game should use the
+event-driven shape above.
 
 **Status:** wired into HexStacker's live display. `flow.players` is the roster
 backing store; `getHostPeerIndex`/`setRoomState`/`hostPeerIndex`/`roomState`
@@ -152,7 +158,7 @@ the display auto-accepts. 3s of silence fires `onPeerClosed`.
 ### `RoomFlow` — headless room/lobby/host state machine
 
 ```js
-new RoomFlow({ countdownSeconds = 3, goMs = 600, masterProvider?, timers? })
+new RoomFlow({ masterProvider? })
 RoomFlow.STATES // { LOBBY, COUNTDOWN, PLAYING, RESULTS }
 ```
 
@@ -168,9 +174,10 @@ Roster (the `fields` object is opaque game data: color, name, level, etc.):
 The game owns its per-player fields and mutates them on the record directly
 (e.g. `flow.get(id).startLevel = 9`); RoomFlow never reads them.
 
-Lifecycle: `transitionTo(state)` (imperative), `requestStart()`, `playAgain()`,
-`endGame(results)`, `returnToLobby()`, `cancelCountdown()`,
-`setActiveOrder(peerIndices)`, `reset()`.
+Lifecycle: `transitionTo(state)` (the primary API), `endGame(results)` (sugar for
+`-> RESULTS` + stash results), `returnToLobby()`, `setActiveOrder(peerIndices)`,
+`reset()`. The countdown timer is the game's; the kit just exposes the
+`COUNTDOWN` state. Entering `COUNTDOWN` snapshots the participant order.
 
 Reads: `state`, `host` (effective), `hostPeerIndex` (sticky), `isHost(peerIndex)`,
 `list()`, `get(peerIndex)`, `has(peerIndex)`, `size`, `connectedCount`,
@@ -185,7 +192,6 @@ Events (`flow.on(type, fn)` returns an unsubscribe function; `'*'` receives all)
 | `playerupdate` | `{ player }` |
 | `rosterchange` | `{ players }` |
 | `hostchange` | `{ hostPeerIndex }` |
-| `countdown` / `go` | `{ remaining }` / `{}` |
 
 Player record: `{ peerIndex, joinedAt, connected, ...gameFields }`.
 
@@ -195,13 +201,13 @@ Read these before building a second game on RoomFlow:
 
 - **The state machine is single-session, single-phase.** It models one
   `lobby -> countdown -> playing -> results` cycle. There is no rounds/phases
-  concept, no `PAUSED` state, and the countdown is only reachable via
-  `requestStart()`/`playAgain()` (no free-form timer). Games that need rounds,
-  phases, or an in-game timer model those above the kit for now; these are the
-  first things to extend when a second game needs them.
-- **`requestStart()` vs `playAgain()`** are the same call from different states
-  (LOBBY vs RESULTS); both just enter COUNTDOWN. Use `transitionTo()` directly
-  if you run your own countdown (HexStacker does).
+  concept and no `PAUSED` state. Games that need rounds, phases, or an in-game
+  timer model those above the kit for now; these are the first things to extend
+  when a second game needs them.
+- **The countdown is game-owned.** The kit exposes the `COUNTDOWN` state but runs
+  no timer: a game does `transitionTo('countdown')`, runs its own timer/visuals,
+  then `transitionTo('playing')`. (The kit deliberately carries no timer it
+  couldn't dogfood.)
 - **Prefer the event-driven integration for new games.** HexStacker's display
   uses an imperative retrofit (window getters for `roomState`/`hostPeerIndex`, a
   `players = flow.players` alias, and a parallel `disconnectedQRs` map kept in

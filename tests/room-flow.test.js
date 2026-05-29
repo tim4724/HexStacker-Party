@@ -6,29 +6,6 @@ const assert = require('node:assert/strict');
 const RoomFlow = require('../partyplug/RoomFlow');
 const S = RoomFlow.STATES;
 
-// Controllable clock so countdown timing is deterministic. flush() runs every
-// scheduled task (and any it reschedules) to completion.
-function makeClock() {
-  let id = 0;
-  const tasks = new Map();
-  return {
-    timers: {
-      setTimeout(fn) { const t = ++id; tasks.set(t, fn); return t; },
-      clearTimeout(t) { tasks.delete(t); },
-    },
-    pending() { return tasks.size; },
-    flush() {
-      let guard = 0;
-      while (tasks.size) {
-        if (++guard > 1000) throw new Error('clock flush runaway');
-        const [t, fn] = tasks.entries().next().value;
-        tasks.delete(t);
-        fn();
-      }
-    },
-  };
-}
-
 // Record every emitted event as [type, detail].
 function record(flow) {
   const log = [];
@@ -84,7 +61,7 @@ describe('RoomFlow — rekey (reconnect claim)', () => {
     const f = new RoomFlow();
     f.addPlayer(1, { name: 'A', colorIndex: 2 });
     f.addPlayer(2, { name: 'B' });
-    f.requestStart(); f.transitionTo(S.PLAYING);  // order [1,2]
+    f.transitionTo(S.COUNTDOWN); f.transitionTo(S.PLAYING);  // order [1,2]
     f.markDisconnected(1);                         // host blips mid-game
     f.addPlayer(5, { name: 'A-again' });           // returns under a new slot
     assert.equal(f.rekey(1, 5), true);
@@ -131,7 +108,7 @@ describe('RoomFlow — rekey (reconnect claim)', () => {
   it('does not emit hostchange when a non-host player is rekeyed', () => {
     const f = new RoomFlow();
     f.addPlayer(1); f.addPlayer(2);          // 1 is host
-    f.requestStart(); f.transitionTo(S.PLAYING);
+    f.transitionTo(S.COUNTDOWN); f.transitionTo(S.PLAYING);
     f.markDisconnected(2);
     f.addPlayer(8);
     const log = record(f);
@@ -196,7 +173,7 @@ describe('RoomFlow — host election', () => {
   it('keeps the sticky slot when host leaves mid-game; getter falls back', () => {
     const f = new RoomFlow();
     f.addPlayer(1); f.addPlayer(2);
-    f.requestStart(); f.transitionTo(S.PLAYING);
+    f.transitionTo(S.COUNTDOWN); f.transitionTo(S.PLAYING);
     f.removePlayer(1);
     assert.equal(f.hostPeerIndex, 1);  // slot untouched
     assert.equal(f.host, 2);           // effective host falls back
@@ -205,7 +182,7 @@ describe('RoomFlow — host election', () => {
   it('a late joiner cannot become host mid-game', () => {
     const f = new RoomFlow();
     f.addPlayer(1); f.addPlayer(2);
-    f.requestStart(); f.transitionTo(S.PLAYING);  // order [1,2]
+    f.transitionTo(S.COUNTDOWN); f.transitionTo(S.PLAYING);  // order [1,2]
     f.addPlayer(3);                               // late joiner
     f.markDisconnected(1); f.markDisconnected(2);
     assert.equal(f.host, null);                   // 3 is excluded
@@ -232,7 +209,7 @@ describe('RoomFlow — host election', () => {
   it('reconcile on entering results commits a handoff when host is gone', () => {
     const f = new RoomFlow();
     f.addPlayer(1); f.addPlayer(2);
-    f.requestStart(); f.transitionTo(S.PLAYING);
+    f.transitionTo(S.COUNTDOWN); f.transitionTo(S.PLAYING);
     f.removePlayer(1);
     assert.equal(f.hostPeerIndex, 1);
     f.endGame([]);
@@ -270,7 +247,7 @@ describe('RoomFlow — state machine', () => {
   it('endGame stores results and moves to results', () => {
     const f = new RoomFlow();
     f.addPlayer(1);
-    f.requestStart(); f.transitionTo(S.PLAYING);
+    f.transitionTo(S.COUNTDOWN); f.transitionTo(S.PLAYING);
     f.endGame([{ rank: 1, peerIndex: 1 }]);
     assert.equal(f.state, S.RESULTS);
     assert.deepEqual(f.lastResults, [{ rank: 1, peerIndex: 1 }]);
@@ -279,7 +256,7 @@ describe('RoomFlow — state machine', () => {
   it('reset clears roster, host, state', () => {
     const f = new RoomFlow();
     f.addPlayer(1); f.addPlayer(2);
-    f.requestStart();
+    f.transitionTo(S.COUNTDOWN);
     f.reset();
     assert.equal(f.size, 0);
     assert.equal(f.host, null);
@@ -288,62 +265,14 @@ describe('RoomFlow — state machine', () => {
   });
 });
 
-describe('RoomFlow — countdown', () => {
-  it('emits 3..1 then go, then transitions to playing', () => {
-    const clock = makeClock();
-    const f = new RoomFlow({ countdownSeconds: 3, timers: clock.timers });
-    f.addPlayer(1);
-    const log = record(f);
-    assert.equal(f.requestStart(), true);
-    assert.equal(f.state, S.COUNTDOWN);
-
-    const counts = log.filter(e => e[0] === 'countdown').map(e => e[1].remaining);
-    assert.deepEqual(counts, [3]);     // first tick is synchronous
-
-    clock.flush();
-    const allCounts = log.filter(e => e[0] === 'countdown').map(e => e[1].remaining);
-    assert.deepEqual(allCounts, [3, 2, 1]);
-    assert.equal(log.some(e => e[0] === 'go'), true);
-    assert.equal(f.state, S.PLAYING);
-  });
-
-  it('cancelCountdown returns to lobby and never starts the game', () => {
-    const clock = makeClock();
-    const f = new RoomFlow({ countdownSeconds: 3, timers: clock.timers });
-    f.addPlayer(1);
-    f.requestStart();
-    f.cancelCountdown();
-    assert.equal(f.state, S.LOBBY);
-    clock.flush();
-    assert.equal(f.state, S.LOBBY);
-  });
-
-  it('a stale countdown timer that fires after cancel does not start the game', () => {
-    // Clock whose clearTimeout is a no-op, so the queued tick survives the
-    // cancel and fires anyway — exercising the state guard in requestStart's
-    // onDone rather than relying on the timer being cleared.
-    const tasks = [];
-    const timers = {
-      setTimeout(fn) { tasks.push(fn); return tasks.length - 1; },
-      clearTimeout() { /* deliberately does not cancel */ },
-    };
-    const f = new RoomFlow({ countdownSeconds: 1, timers });
-    f.addPlayer(1);
-    f.requestStart();
-    f.returnToLobby();            // leaves COUNTDOWN; clearTimeout no-ops
-    while (tasks.length) { const fn = tasks.shift(); fn(); }  // force stale fire
-    assert.equal(f.state, S.LOBBY);
-  });
-
-  it('playAgain re-snapshots participants from results', () => {
-    const clock = makeClock();
-    const f = new RoomFlow({ countdownSeconds: 1, timers: clock.timers });
+describe('RoomFlow — order re-snapshot on COUNTDOWN', () => {
+  it('re-snapshots the participant order each time COUNTDOWN is entered', () => {
+    const f = new RoomFlow();
     f.addPlayer(1); f.addPlayer(2);
-    f.requestStart(); clock.flush();   // playing, order [1,2]
-    f.endGame([]);                     // results
-    f.addPlayer(3);                    // joins during results
-    f.playAgain(); clock.flush();      // re-snapshot should include 3
-    assert.equal(f.state, S.PLAYING);
+    f.transitionTo(S.COUNTDOWN); f.transitionTo(S.PLAYING);  // order [1,2]
+    f.endGame([]);                       // results
+    f.addPlayer(3);                      // joins during results
+    f.transitionTo(S.COUNTDOWN);         // re-snapshot should include 3
     assert.deepEqual(f._order, [1, 2, 3]);
   });
 });
