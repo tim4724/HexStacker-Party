@@ -6,6 +6,16 @@
 //             DisplayGame.js (pauseGame, checkAllPlayersDisconnected)
 // =====================================================================
 
+// Whether a peer has gone silent past the liveness window. Always false in
+// AirConsole mode: there the SDK's onConnect/onDisconnect is the authoritative
+// liveness signal and the relay PING that refreshes lastPingTime is dropped
+// (see ControllerConnection startPing), so a present-but-idle controller must
+// not be treated as gone — onPeerLeft handles real departures instead.
+function peerLivenessExpired(player, now) {
+  if (window.airconsole) return false;
+  return !!player.lastPingTime && (now - player.lastPingTime > GameConstants.LIVENESS_TIMEOUT_MS);
+}
+
 function startLivenessCheck() {
   stopLivenessCheck();
   lastHeartbeatEcho = Date.now();
@@ -48,12 +58,14 @@ function startLivenessCheck() {
       return;
     }
 
-    // Check individual controller liveness
+    // Check individual controller liveness. peerLivenessExpired is a no-op in
+    // AirConsole mode, so the SDK's onDisconnect (→ peer_left → onPeerLeft)
+    // becomes the only disconnect trigger there.
     var newDisconnect = false;
     for (const entry of players) {
       const id = entry[0];
       const player = entry[1];
-      if (player.lastPingTime && (now - player.lastPingTime > GameConstants.LIVENESS_TIMEOUT_MS)) {
+      if (peerLivenessExpired(player, now)) {
         if (roomState !== ROOM_STATE.LOBBY && !disconnectedQRs.has(id)) {
           showDisconnectQR(id);
           newDisconnect = true;

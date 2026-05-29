@@ -221,6 +221,13 @@ function connect() {
 
 function startPing() {
   stopPing();
+  // AirConsole owns connection liveness via the SDK (onConnect/onDisconnect is
+  // the authoritative disconnect signal), so the relay PING is redundant in AC
+  // mode — and dropping it keeps the controller under AirConsole's ~10 msg/sec
+  // cap (see sendToDisplay). No PING also means no PONG RTT and no fastlane, so
+  // there is no latency to show; the chip is hidden via CSS (body.airconsole
+  // #latency-display).
+  if (window.airconsole) return;
   lastPongTime = Date.now();
   pingTimer = setInterval(function () {
     // Relay-liveness ping. Stays on WS — input-path RTT comes from fastlane
@@ -275,7 +282,10 @@ var FASTLANE_TYPES = { [MSG.INPUT]: true, [MSG.SOFT_DROP]: true };
 // trips a platform-side rate-limit error. TouchInput emits SOFT_DROP at 20 Hz
 // (SOFT_DROP_INTERVAL_MS=50) while a drop is held, which alone blows the cap.
 // Web mode rides the WebRTC fastlane (its own pacing), but AC mode has no
-// fastlane, so coalesce SOFT_DROP to <=100 ms (10 Hz) here, right at the cap.
+// fastlane, so coalesce SOFT_DROP to <=100 ms (10 Hz) here. The 1 Hz relay
+// PING is dropped in AC mode (see startPing), so soft-drop is the only
+// sustained sender and 10 Hz sits at the cap, leaving the odd move tap as the
+// only extra traffic.
 // SOFT_DROP carries no state the display accumulates — it's "keep dropping at
 // speed X" and auto-ends after SOFT_DROP_TIMEOUT_MS (300 ms) — so dropping
 // intermediate ticks just updates the speed slightly less often, which is

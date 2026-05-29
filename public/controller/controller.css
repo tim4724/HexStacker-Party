@@ -1298,6 +1298,8 @@ html, body {
 body.airconsole #name-screen { display: none !important; }
 body.airconsole #lobby-join-url { display: none !important; }
 body.airconsole #lobby-back-btn { display: none !important; }
+/* No relay PING/PONG or fastlane in AC mode, so there is no RTT to show. */
+body.airconsole #latency-display { display: none !important; }
 
 #ac-status-overlay {
   position: fixed; inset: 0;

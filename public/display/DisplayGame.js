@@ -73,7 +73,7 @@ function startNewGame() {
 
     // Show disconnect QR for any players that disconnected during countdown
     for (const entry of players) {
-      if (entry[1].lastPingTime && Date.now() - entry[1].lastPingTime > GameConstants.LIVENESS_TIMEOUT_MS) {
+      if (peerLivenessExpired(entry[1], Date.now())) {
         showDisconnectQR(entry[0]);
       }
     }
@@ -230,7 +230,7 @@ function returnToLobby() {
   // Remove disconnected players
   var disconnectedIds = [];
   for (const entry of players) {
-    if (entry[1].lastPingTime && Date.now() - entry[1].lastPingTime > GameConstants.LIVENESS_TIMEOUT_MS) {
+    if (peerLivenessExpired(entry[1], Date.now())) {
       disconnectedIds.push(entry[0]);
     }
   }
