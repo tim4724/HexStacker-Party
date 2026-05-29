@@ -15,7 +15,6 @@ class MockWebSocket {
     this._sent = [];
     this._closed = false;
 
-    // Auto-open after microtask to simulate async connection
     MockWebSocket._instances.push(this);
   }
 
@@ -41,10 +40,6 @@ class MockWebSocket {
 
   _simulateMessage(data) {
     if (this.onmessage) this.onmessage({ data: JSON.stringify(data) });
-  }
-
-  _simulateError() {
-    if (this.onerror) this.onerror();
   }
 }
 MockWebSocket._instances = [];
@@ -261,27 +256,22 @@ describe('PartyConnection - reconnect with exponential backoff', () => {
     assert.strictEqual(openCount, 1);
   });
 
-  test('_scheduleReconnect uses exponential backoff', () => {
-    // Verify the backoff formula by inspecting the method behavior
+  test('_scheduleReconnect uses exponential backoff capped at 5s', () => {
+    // delay = min(1000 * 1.5^(attempt-1), 5000): 1000, 1500, 2250, 3375,
+    // then 5000 (capped) from attempt 5 on.
     const pc = new PartyConnection('wss://test.example.com');
-    // After 1st failure: delay = min(1000 * 1.5^0, 5000) = 1000
-    // After 2nd failure: delay = min(1000 * 1.5^1, 5000) = 1500
-    // After 3rd failure: delay = min(1000 * 1.5^2, 5000) = 2250
-    // After 4th failure: delay = min(1000 * 1.5^3, 5000) = 3375
-    // After 5th failure: delay = min(1000 * 1.5^4, 5000) = 5000 (capped)
-    pc.reconnectAttempt = 1;
-    // We can't easily test the timeout delay without mocking setTimeout,
-    // but we verify the method exists and doesn't throw
-    pc._scheduleReconnect();
-    clearTimeout(pc._reconnectTimer);
-
-    pc.reconnectAttempt = 5;
-    pc._scheduleReconnect();
-    clearTimeout(pc._reconnectTimer);
-
-    pc.reconnectAttempt = 10;
-    pc._scheduleReconnect();
-    clearTimeout(pc._reconnectTimer);
+    const delays = [];
+    const realSetTimeout = global.setTimeout;
+    global.setTimeout = (fn, delay) => { delays.push(delay); return 0; };
+    try {
+      for (const attempt of [1, 2, 3, 4, 5, 10]) {
+        pc.reconnectAttempt = attempt;
+        pc._scheduleReconnect();
+      }
+    } finally {
+      global.setTimeout = realSetTimeout;
+    }
+    assert.deepStrictEqual(delays, [1000, 1500, 2250, 3375, 5000, 5000]);
   });
 
   test('create sends correct relay message', () => {

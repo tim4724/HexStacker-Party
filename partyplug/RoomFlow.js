@@ -258,10 +258,14 @@
       (eligibleSet == null || eligibleSet.has(peerIndex));
   };
 
-  RoomFlow.prototype._oldestEligible = function (eligibleSet) {
+  // Oldest-joined present player within eligibleSet (null = everyone present),
+  // optionally skipping excludeId. Shared by the `host` getter (no exclusion)
+  // and _electNextHost (excludes the departing holder).
+  RoomFlow.prototype._oldestEligible = function (eligibleSet, excludeId) {
     var bestId = null, bestJoin = Infinity;
     for (var entry of this.players) {
       var id = entry[0];
+      if (id === excludeId) continue;
       if (this._disconnected.has(id)) continue;
       if (eligibleSet != null && !eligibleSet.has(id)) continue;
       var ja = entry[1].joinedAt == null ? Infinity : entry[1].joinedAt;
@@ -296,16 +300,7 @@
   // the actual game participants. Unrestricted in LOBBY, where everyone present
   // is a valid candidate. Returns null when nobody qualifies.
   RoomFlow.prototype._electNextHost = function (excludeId) {
-    var eligible = this._restricted() ? new Set(this._order) : null;
-    var nextId = null, nextJoin = Infinity;
-    for (var entry of this.players) {
-      if (entry[0] === excludeId) continue;
-      if (this._disconnected.has(entry[0])) continue;
-      if (eligible != null && !eligible.has(entry[0])) continue;
-      var ja = entry[1].joinedAt == null ? Infinity : entry[1].joinedAt;
-      if (ja < nextJoin) { nextJoin = ja; nextId = entry[0]; }
-    }
-    return nextId;
+    return this._oldestEligible(this._restricted() ? new Set(this._order) : null, excludeId);
   };
 
   // Commit any pending sticky-host handoff. Called when entering LOBBY or
