@@ -41,7 +41,7 @@ declare class RoomFlow {
   /** Add a player, or reconnect/refresh an existing one. `fields` is opaque game data merged onto the record. */
   addPlayer(peerIndex: number, fields?: Record<string, any>): RoomFlow.PlayerRecord;
   removePlayer(peerIndex: number): void;
-  /** Reconnect-claim: move a record from oldId to newId, preserving it + host slot. */
+  /** Cross-device claim only: move a record from oldId to newId (a different client took over a dropped slot, getting a new peerIndex). Same-client reconnects keep their index and don't need this. */
   rekey(oldId: number, newId: number): boolean;
   markDisconnected(peerIndex: number): void;
   markReconnected(peerIndex: number): void;

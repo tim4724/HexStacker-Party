@@ -208,6 +208,21 @@ To keep host eligibility in sync with a game-maintained participant list, call
 `setActiveOrder(peerIndices)` whenever that list changes; otherwise entering
 `COUNTDOWN` snapshots the currently-connected roster automatically.
 
+#### Reconnect
+
+Player identity is owned by the **transport**, not RoomFlow. The Party Sockets
+relay keys each slot by the client's `clientId` (a stable bearer token the client
+stores and re-presents): a slot is retained on disconnect, and a client rejoining
+with the same `clientId` is restored to the **same** `peerIndex`. So the common
+reconnect (a phone that dropped and came back) needs no roster surgery — the
+display sees `peer_joined` for the existing index, the record is still there, and
+liveness flips the slot back to present.
+
+`rekey(oldId, newId)` is **only** for cross-device takeover: a *different* client
+(fresh `clientId`) claims a dropped player's slot. The relay gives it a new
+`peerIndex`, so the game moves the old record onto the new index. A returning
+*same* client never goes through `rekey`.
+
 ## Design notes & intentional constraints
 
 Read these before building a game on RoomFlow:
@@ -235,12 +250,21 @@ this style, so they came first. The following are reusable in principle but are
 better extracted **against a second game** than guessed at from one. The first
 two are the next planned additions:
 
-- **Reconnect identity.** `rekey(oldId, newId)` is the mechanism, but matching a
-  returning client (bearer token / `clientId`) to its disconnected slot is still
-  game-side. A `flow.claim(token, newPeerIndex)` belongs here.
-- **Liveness.** A configurable heartbeat + timeout that calls
-  `markDisconnected`/`markReconnected` (today the game wires this; the kit only
-  exposes the manual flags).
+- **Cross-device claim (optional).** Same-device reconnect needs no kit help:
+  the Party Sockets relay keys slots by `clientId` and restores the **same**
+  `peerIndex` when a client rejoins with its stored `clientId` (see "Reconnect"
+  under RoomFlow, above), so the roster slot survives untouched. `rekey(oldId,
+  newId)` exists only
+  for the *cross-device* case (a different phone, with a fresh `clientId`, taking
+  over a dropped player). The game-side glue there is a claim token (e.g. a
+  `claim=<index>` reconnect QR); a `flow.claim(token, newPeerIndex)` helper could
+  fold the eligibility check + rekey into the kit if cross-device takeover is a
+  feature you want.
+- **Half-open liveness.** The relay broadcasts `peer_left` on a clean socket
+  close (surfaced via `onProtocol`), but a *half-open* dead connection (sleeping
+  phone, dropped Wi-Fi with a fastlane-idle WS) won't close on its own. Detecting
+  that needs a heartbeat + timeout that calls `markDisconnected`/`markReconnected`
+  (today the game wires this; the kit only exposes the manual flags).
 - **Lobby + join flow** (QR rendering, roster cards, name/identity picker, the
   screen shell). The DOM stays game-side; the *logic* (seat allocation via
   `lowestFreeSlot`, host gating) is shareable.

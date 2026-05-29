@@ -83,7 +83,7 @@ describe('RoomFlow — rekey (reconnect claim)', () => {
     f.addPlayer(2, { name: 'B' });
     f.transitionTo(S.COUNTDOWN); f.transitionTo(S.PLAYING);  // order [1,2]
     f.markDisconnected(1);                         // host blips mid-game
-    f.addPlayer(5, { name: 'A-again' });           // returns under a new slot
+    f.addPlayer(5, { name: 'A-again' });           // a DIFFERENT client claims the slot (new index)
     assert.equal(f.rekey(1, 5), true);
     assert.equal(f.has(1), false);
     assert.equal(f.get(5).name, 'A');              // original record kept

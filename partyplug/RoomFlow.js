@@ -160,9 +160,11 @@
     this._emit('rosterchange', { players: this.list() });
   };
 
-  // Re-key a player from one peerIndex to another (reconnect-claim: a phone
-  // returns under a new relay slot and claims its old, still-present record).
-  // Preserves the record (incl. joinedAt) and rekeys host slot + order.
+  // Re-key a player from one peerIndex to another. This is ONLY for cross-device
+  // takeover: a different client (fresh clientId) claims a dropped player's
+  // still-present slot and gets a new peerIndex from the relay. A same-client
+  // reconnect keeps its index (the relay keys slots by clientId) and never needs
+  // this. Preserves the record (incl. joinedAt) and rekeys host slot + order.
   RoomFlow.prototype.rekey = function (oldId, newId) {
     if (oldId === newId) return false;
     var rec = this.players.get(oldId);
