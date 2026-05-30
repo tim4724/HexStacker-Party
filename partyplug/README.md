@@ -131,6 +131,10 @@ The `onReady` hook is the kit's seam for anything a game must do before first
 paint (e.g. applying the AirConsole-profile locale). The kit carries no i18n
 knowledge itself.
 
+`broadcast(data)` maps directly to AirConsole's broadcast primitive. Displays
+use it to fan out game messages; controller code should generally use
+`sendTo(0, data)` to talk only to the display.
+
 AirConsole-only extras:
 - `getMasterPeerIndex()` — the master-controller rule; feed it to `RoomFlow.masterProvider`.
 - `captureEarlyReady(airconsole)` — replay an SDK `onReady` that fired before
@@ -275,6 +279,11 @@ Read these before building a game on RoomFlow:
   alias the roster Map, but new games should use the event-driven shape.
 - **`flow.players` is a stable Map; `reset()` clears it in place.** If you alias
   it, that alias stays valid across `reset()`. Never reassign `flow.players`.
+- **Runtime style is conservative.** Browser-facing modules stay plain
+  CommonJS/UMD without a build step. Older extracted modules use ES5 constructor
+  patterns; newer transport adapters use class syntax where browser targets
+  already support it. Prefer matching the file you are editing over normalizing
+  style across the whole kit.
 
 ## Not in the kit (yet)
 

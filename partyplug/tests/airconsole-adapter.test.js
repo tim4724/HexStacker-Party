@@ -14,6 +14,7 @@ function makeFakeAirConsole(overrides) {
     _master: undefined,
     getMasterControllerDeviceId() { return this._master; },
     getControllerDeviceIds() { return []; },
+    getDeviceId() { return 1; },
     message() {},
     broadcast() {},
   }, overrides || {});
@@ -33,6 +34,88 @@ describe('AirConsoleAdapter PartyConnection interface', () => {
       adapter.pinInstance('wss://x', 'ROOM', 'inst');
       adapter.reconnectNow();
     });
+  });
+
+  it('synthesizes created for display after connect and AirConsole ready', () => {
+    const ac = makeFakeAirConsole();
+    const adapter = new AirConsoleAdapter(ac, { role: 'display' });
+    const seen = [];
+    adapter.onProtocol = function(type, msg) { seen.push({ type, msg }); };
+
+    adapter.connect();
+    ac.onReady('ROOM42');
+
+    assert.deepEqual(seen, [
+      { type: 'created', msg: { room: 'ROOM42', index: 0 } },
+    ]);
+    assert.equal(adapter.connected, true);
+  });
+
+  it('synthesizes joined for controller after connect and AirConsole ready', () => {
+    const ac = makeFakeAirConsole({ getDeviceId() { return 7; } });
+    const adapter = new AirConsoleAdapter(ac, { role: 'controller' });
+    const seen = [];
+    adapter.onProtocol = function(type, msg) { seen.push({ type, msg }); };
+
+    adapter.connect();
+    ac.onReady('ROOM42');
+
+    assert.deepEqual(seen, [
+      { type: 'joined', msg: { room: 'ROOM42', index: 7, peers: [0] } },
+    ]);
+  });
+
+  it('re-synthesizes peer_joined for controllers already connected when display becomes ready', () => {
+    const ac = makeFakeAirConsole({ getControllerDeviceIds() { return [2, 5]; } });
+    const adapter = new AirConsoleAdapter(ac, { role: 'display' });
+    const seen = [];
+    adapter.onProtocol = function(type, msg) { seen.push({ type, msg }); };
+
+    adapter.connect();
+    ac.onReady('ROOM42');
+
+    assert.deepEqual(seen, [
+      { type: 'created', msg: { room: 'ROOM42', index: 0 } },
+      { type: 'peer_joined', msg: { index: 2 } },
+      { type: 'peer_joined', msg: { index: 5 } },
+    ]);
+  });
+
+  it('runs onReady hook before synthesized protocol events', () => {
+    const ac = makeFakeAirConsole();
+    const calls = [];
+    const adapter = new AirConsoleAdapter(ac, {
+      role: 'display',
+      onReady(code, readyAc) { calls.push(['hook', code, readyAc === ac]); },
+    });
+    adapter.onProtocol = function(type) { calls.push(['protocol', type]); };
+
+    adapter.connect();
+    ac.onReady('ROOM42');
+
+    assert.deepEqual(calls, [
+      ['hook', 'ROOM42', true],
+      ['protocol', 'created'],
+    ]);
+  });
+
+  it('neutralizes SDK callbacks on close', () => {
+    const ac = makeFakeAirConsole();
+    const adapter = new AirConsoleAdapter(ac, { role: 'display' });
+    const seen = [];
+    adapter.onProtocol = function(type) { seen.push(type); };
+
+    adapter.close();
+
+    assert.doesNotThrow(() => {
+      ac.onReady('ROOM42');
+      ac.onConnect(2);
+      ac.onDisconnect(2);
+      ac.onMessage(2, { type: 'PING' });
+      ac.onPremium();
+    });
+    assert.deepEqual(seen, []);
+    assert.equal(adapter.connected, false);
   });
 });
 

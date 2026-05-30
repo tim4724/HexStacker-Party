@@ -150,6 +150,9 @@ class AirConsoleAdapter {
   }
 
   broadcast(data) {
+    // Role-neutral SDK call by design. Displays use this to fan out game
+    // messages; controllers should prefer sendTo(0, data) unless they
+    // intentionally want AirConsole's all-devices broadcast behavior.
     this.airconsole.broadcast(data);
   }
 

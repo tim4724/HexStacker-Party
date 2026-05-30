@@ -39,8 +39,9 @@ function applyAcLocale() {
   if (acCode && LOCALES[acCode]) { setLocale(acLang); translatePage(); }
 }
 
-// AirConsole fires onReady at most once per page load. Cache the code so every
-// fresh adapter created by New Game / reconnect can be brought to ready.
+// AirConsole fires onReady at most once per page load. The display needs
+// multi-shot replay because New Game / reconnect creates fresh adapters; the
+// controller can use AirConsoleAdapter.captureEarlyReady's one-shot replay.
 var _cachedAcReadyCode;
 airconsole.onReady = function(code) { _cachedAcReadyCode = code; };
 
