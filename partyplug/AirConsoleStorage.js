@@ -68,6 +68,8 @@
         try { airconsole.storePersistentData(key, null); } catch (e) { /* ignore */ }
       },
       clear: function () {
+        // Clear means "remove this shim's whole allowlisted namespace", not
+        // just keys that were already hydrated into the local cache.
         for (var i = 0; i < allowKeys.length; i++) {
           try { airconsole.storePersistentData(allowKeys[i], null); } catch (e) { /* ignore */ }
         }

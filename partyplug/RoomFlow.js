@@ -276,9 +276,11 @@
   // RESULTS (the moments host duty is actually exercised: Start, Play Again).
   RoomFlow.prototype._reconcileStickyHost = function () {
     if (this.players.size === 0) return;
+    var eligible = this._restricted() ? new Set(this._order) : null;
     if (this.hostPeerIndex != null &&
         this.players.has(this.hostPeerIndex) &&
-        !this._disconnected.has(this.hostPeerIndex)) {
+        !this._disconnected.has(this.hostPeerIndex) &&
+        (eligible == null || eligible.has(this.hostPeerIndex))) {
       return;
     }
     var prev = this.hostPeerIndex;

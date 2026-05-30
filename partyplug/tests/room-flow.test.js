@@ -329,6 +329,17 @@ describe('RoomFlow — host election', () => {
     assert.notEqual(f.hostPeerIndex, 3);   // late joiner must NOT become sticky host
     assert.equal(f.hostPeerIndex, null);   // no eligible participant remains
   });
+
+  it('reconcile will not keep a sticky host outside the active order', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1); f.addPlayer(2);
+    f.transitionTo(S.COUNTDOWN); f.transitionTo(S.PLAYING);  // participants [1,2]
+    f.addPlayer(3);                                          // late joiner
+    f.hostPeerIndex = 3;                                     // defensive invariant
+    assert.equal(f.host, 1);                                 // getter excludes 3
+    f.endGame();
+    assert.equal(f.hostPeerIndex, 1);
+  });
 });
 
 describe('RoomFlow — active order', () => {

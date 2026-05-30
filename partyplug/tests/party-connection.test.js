@@ -33,9 +33,9 @@ class MockWebSocket {
     if (this.onopen) this.onopen();
   }
 
-  _simulateClose() {
+  _simulateClose(event) {
     this.readyState = 3;
-    if (this.onclose) this.onclose();
+    if (this.onclose) this.onclose(event || {});
   }
 
   _simulateMessage(data) {
@@ -199,6 +199,24 @@ describe('PartyConnection - reconnect with exponential backoff', () => {
     pc.connect();
     MockWebSocket._instances[0]._simulateClose();
     assert.deepStrictEqual(closeArgs, { attempt: 1, max: 3 });
+  });
+
+  test('relay eviction close stops reconnecting and reports replacement', () => {
+    const pc = new PartyConnection('wss://test.example.com', { maxReconnectAttempts: 3 });
+    let closeArgs = null;
+    pc.onClose = (attempt, max, meta) => { closeArgs = { attempt, max, meta }; };
+    pc.connect();
+
+    MockWebSocket._instances[0]._simulateClose({ code: 4000 });
+
+    assert.strictEqual(pc._shouldReconnect, false);
+    assert.strictEqual(pc.reconnectAttempt, 0);
+    assert.deepStrictEqual(closeArgs, {
+      attempt: 0,
+      max: 0,
+      meta: { replaced: true },
+    });
+    assert.strictEqual(MockWebSocket._instances.length, 1);
   });
 
   test('reconnect stops after maxReconnectAttempts', () => {
