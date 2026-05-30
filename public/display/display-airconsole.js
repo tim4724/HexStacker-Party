@@ -39,8 +39,10 @@ function applyAcLocale() {
   if (acCode && LOCALES[acCode]) { setLocale(acLang); translatePage(); }
 }
 
-// Capture early onReady — the SDK may fire it before our adapter is wired up.
-var replayEarlyReady = AirConsoleAdapter.captureEarlyReady(airconsole);
+// AirConsole fires onReady at most once per page load. Cache the code so every
+// fresh adapter created by New Game / reconnect can be brought to ready.
+var _cachedAcReadyCode;
+airconsole.onReady = function(code) { _cachedAcReadyCode = code; };
 
 // Wire AirConsole pause/resume — silently freeze the game engine.
 // No overlay, no broadcast to controllers. AirConsole auto-resumes
@@ -107,10 +109,10 @@ checkAutoResume = function() {
 // AirConsole rate-limits showAd internally, so no extra throttle is needed.
 var _origSetRoomState = setRoomState;
 setRoomState = function(newState) {
+  var before = roomState;
   var ok = _origSetRoomState(newState);
-  // Only request the ad break when the transition actually committed (a
-  // redundant RESULTS->RESULTS call returns false and should not fire an ad).
-  if (ok && newState === ROOM_STATE.RESULTS) {
+  // Only request the ad break on a real transition into RESULTS.
+  if (ok && before !== ROOM_STATE.RESULTS && newState === ROOM_STATE.RESULTS) {
     try { airconsole.showAd(); } catch (e) {}
   }
   return ok;
@@ -121,7 +123,13 @@ setRoomState = function(newState) {
 // build, so no prior binding exists and strict-mode would reject a bare
 // assignment with ReferenceError.
 window.PartyConnection = function() {
-  return new AirConsoleAdapter(airconsole, { role: 'display', onReady: applyAcLocale });
+  var adapter = new AirConsoleAdapter(airconsole, { role: 'display', onReady: applyAcLocale });
+  var adapterOnReady = airconsole.onReady;
+  airconsole.onReady = function(code) {
+    _cachedAcReadyCode = code;
+    adapterOnReady.call(airconsole, code);
+  };
+  return adapter;
 };
 
 // After connectAndCreateRoom() creates the adapter via new PartyConnection()
@@ -130,10 +138,7 @@ window.PartyConnection = function() {
 var _originalConnectAndCreateRoom = connectAndCreateRoom;
 connectAndCreateRoom = function() {
   _originalConnectAndCreateRoom();
-  // The adapter's onReady hook (applyAcLocale) runs before 'created'; we just
-  // need to replay any captured-early onReady so a fresh adapter on
-  // reconnect / Play Again reaches ready.
-  replayEarlyReady();
+  if (_cachedAcReadyCode !== undefined) airconsole.onReady(_cachedAcReadyCode);
 };
 
 // No /api/qr in AirConsole — short-circuit so callers see qrMatrix=null

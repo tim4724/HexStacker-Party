@@ -41,6 +41,10 @@ class MockWebSocket {
   _simulateMessage(data) {
     if (this.onmessage) this.onmessage({ data: JSON.stringify(data) });
   }
+
+  _simulateError() {
+    if (this.onerror) this.onerror(new Error('simulated'));
+  }
 }
 MockWebSocket._instances = [];
 
@@ -122,6 +126,15 @@ describe('PartyConnection', () => {
     MockWebSocket._instances[0]._simulateMessage({ type: 'created', room: 'ABCD' });
     assert.strictEqual(received.type, 'created');
     assert.strictEqual(received.msg.room, 'ABCD');
+  });
+
+  test('onError callback fires on WebSocket error', () => {
+    const pc = new PartyConnection('wss://test.example.com');
+    let errored = false;
+    pc.onError = () => { errored = true; };
+    pc.connect();
+    MockWebSocket._instances[0]._simulateError();
+    assert.strictEqual(errored, true);
   });
 
   test('sendTo sends correctly formatted message', () => {

@@ -86,6 +86,18 @@ describe('RoomFlow — roster', () => {
     assert.equal(f.isDisconnected(1), false);
     assert.equal(f.host, 1);
   });
+
+  it('reconnecting the effective host emits hostchange', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1);
+    f.addPlayer(2);
+    f.markDisconnected(1);
+    assert.equal(f.host, 2);
+    const log = record(f);
+    f.addPlayer(1);
+    assert.equal(f.host, 1);
+    assert.ok(log.some(e => e[0] === 'hostchange' && e[1].hostPeerIndex === 1));
+  });
 });
 
 describe('RoomFlow — rekey (reconnect claim)', () => {
@@ -159,6 +171,19 @@ describe('RoomFlow — rekey (reconnect claim)', () => {
     assert.equal(f.rekey(2, 8), true);
     assert.equal(f.hostPeerIndex, null);      // a non-host claim must not promote
     assert.equal(log.some(e => e[0] === 'hostchange'), false);
+  });
+
+  it('emits hostchange when rekey restores the oldest eligible fallback host', () => {
+    const f = new RoomFlow();
+    f.addPlayer(1);
+    f.hostPeerIndex = null;                   // contrived: effective host comes from fallback
+    f.markDisconnected(1);
+    assert.equal(f.host, null);
+    const log = record(f);
+    assert.equal(f.rekey(1, 5), true);
+    assert.equal(f.hostPeerIndex, null);
+    assert.equal(f.host, 5);
+    assert.ok(log.some(e => e[0] === 'hostchange' && e[1].hostPeerIndex === 5));
   });
 });
 

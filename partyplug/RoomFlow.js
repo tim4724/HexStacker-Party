@@ -83,6 +83,7 @@
     fields = fields || {};
     var existing = this.players.get(peerIndex);
     if (existing) {
+      var prevHost = this.host;
       // Reconnect: keep slot / joinedAt / host, refresh presence + fields.
       // Protect kit-owned fields against a caller passing them in `fields`
       // (e.g. a serialized record round-tripped through JSON): joinedAt is the
@@ -94,6 +95,7 @@
       existing.peerIndex = peerIndex;
       existing.connected = true;
       this._disconnected.delete(peerIndex);
+      if (this.host !== prevHost) this._emit('hostchange', { hostPeerIndex: this.host });
       this._emit('playerupdate', { player: existing });
       this._emit('rosterchange', { players: this.list() });
       return existing;
@@ -146,6 +148,7 @@
     if (oldId === newId) return false;
     var rec = this.players.get(oldId);
     if (!rec) return false;
+    var prevHost = this.host;
     this.players.delete(oldId);
     this.players.delete(newId); // drop the placeholder slot the returning peer got
     rec.peerIndex = newId;
@@ -161,11 +164,10 @@
     // Only the host's own slot is rekeyed; a non-host claim never promotes
     // (when there's no sticky host, the `host` getter's oldest-eligible
     // fallback already picks the right player).
-    var prevHost = this.hostPeerIndex;
     if (this.hostPeerIndex === oldId) {
       this.hostPeerIndex = newId;
     }
-    if (this.hostPeerIndex !== prevHost) this._emit('hostchange', { hostPeerIndex: this.host });
+    if (this.host !== prevHost) this._emit('hostchange', { hostPeerIndex: this.host });
     this._emit('rosterchange', { players: this.list() });
     return true;
   };
