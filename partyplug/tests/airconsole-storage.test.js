@@ -116,7 +116,21 @@ describe('AirConsoleStorage.install', () => {
     assert.equal(shim.getItem('stacker_touch_sensitivity'), null);
     assert.deepEqual(writes.slice(2), [
       { key: 'stacker_haptic_strength', value: null },
+      { key: 'stacker_haptic_strength', value: null },
       { key: 'stacker_touch_sensitivity', value: null },
+      { key: 'stacker_touch_sounds', value: null },
+      { key: 'stacker_color_index', value: null },
+    ]);
+  });
+
+  it('clear nulls every allowlisted key even before hydration', () => {
+    const { shim, writes } = installShim({ uid_1: { stacker_color_index: '5' } });
+    shim.clear();
+    assert.deepEqual(writes, [
+      { key: 'stacker_haptic_strength', value: null },
+      { key: 'stacker_touch_sensitivity', value: null },
+      { key: 'stacker_touch_sounds', value: null },
+      { key: 'stacker_color_index', value: null },
     ]);
   });
 

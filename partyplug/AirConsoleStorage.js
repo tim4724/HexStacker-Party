@@ -68,9 +68,8 @@
         try { airconsole.storePersistentData(key, null); } catch (e) { /* ignore */ }
       },
       clear: function () {
-        var keys = Object.keys(cache);
-        for (var i = 0; i < keys.length; i++) {
-          try { airconsole.storePersistentData(keys[i], null); } catch (e) { /* ignore */ }
+        for (var i = 0; i < allowKeys.length; i++) {
+          try { airconsole.storePersistentData(allowKeys[i], null); } catch (e) { /* ignore */ }
         }
         cache = {};
       },

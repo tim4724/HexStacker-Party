@@ -36,14 +36,13 @@ var flow = new RoomFlow({
 });
 // ROOM_STATE (protocol.js, shared with controllers) and RoomFlow.STATES are
 // separate copies of the same string set — protocol.js can't depend on the kit.
-// Assert they stay in lockstep so a future rename in one can't silently diverge.
-console.assert(
-  ROOM_STATE.LOBBY === RoomFlow.STATES.LOBBY &&
-  ROOM_STATE.COUNTDOWN === RoomFlow.STATES.COUNTDOWN &&
-  ROOM_STATE.PLAYING === RoomFlow.STATES.PLAYING &&
-  ROOM_STATE.RESULTS === RoomFlow.STATES.RESULTS,
-  'ROOM_STATE and RoomFlow.STATES have drifted — keep the string values in sync'
-);
+// Fail loudly if a future rename in one silently diverges from the other.
+if (ROOM_STATE.LOBBY !== RoomFlow.STATES.LOBBY ||
+    ROOM_STATE.COUNTDOWN !== RoomFlow.STATES.COUNTDOWN ||
+    ROOM_STATE.PLAYING !== RoomFlow.STATES.PLAYING ||
+    ROOM_STATE.RESULTS !== RoomFlow.STATES.RESULTS) {
+  throw new Error('ROOM_STATE and RoomFlow.STATES have drifted — keep the string values in sync');
+}
 // Roster backing store, aliased onto flow's map so existing reads
 // (players.get/has/size/for..of) keep working; writes go through flow
 // (addPlayer/removePlayer/rekey). flow.reset() clears this same Map.
