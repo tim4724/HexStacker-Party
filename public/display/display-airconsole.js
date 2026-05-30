@@ -27,7 +27,7 @@ var airconsole = new AirConsole({
 // The display reads/writes no allowlisted keys (muted is reset above), so the
 // shim installs with an empty allowlist purely to no-op incidental
 // localStorage calls inside the AC iframe storage partition.
-AirConsoleAdapter.installAirConsoleStorage(airconsole, { allowlist: [] });
+AirConsoleStorage.install(airconsole, { allowlist: [] });
 
 // Apply the AC-profile locale before the lobby's first paint. Passed to the
 // adapter as its onReady hook so the kit stays i18n-agnostic.
@@ -155,7 +155,17 @@ startGame = function() {
 // so setting it to LOBBY ensures the room is applied immediately.
 currentScreen = SCREEN.LOBBY;
 
-AirConsoleAdapter.injectVersionLabel('lobby-version-label');
+injectVersionLabel('lobby-version-label');
+
+function appVersion() {
+  var meta = document.querySelector('meta[name="app-version"]');
+  return meta ? meta.getAttribute('content') : '';
+}
+
+function injectVersionLabel(elementId) {
+  var el = document.getElementById(elementId);
+  if (el) el.textContent = appVersion();
+}
 
 // Intercept showScreen(WELCOME) — in AirConsole there's no welcome screen.
 // display.js defines resetToWelcome() which shows WELCOME; we redirect to LOBBY.

@@ -35,6 +35,7 @@ intentionally resolves nothing.
 | --- | --- |
 | `PartyConnection.js` | WebSocket client for the Party Sockets relay. Stable `clientId` bearer token for reconnect. |
 | `AirConsoleAdapter.js` | Drop-in `PartyConnection` replacement that speaks the AirConsole SDK. |
+| `AirConsoleStorage.js` | AirConsole persistent-data backed `localStorage` shim. |
 | `PartyFastlane.js` | Optional P2P WebRTC DataChannel layer (low-latency input). Piggybacks on the connection for signaling, falls back to it. |
 | `RoomFlow.js` | Headless room/lobby/host state machine: room state, roster, sticky-host election, presence. |
 
@@ -132,11 +133,21 @@ knowledge itself.
 
 AirConsole-only extras:
 - `getMasterPeerIndex()` — the master-controller rule; feed it to `RoomFlow.masterProvider`.
-- `AirConsoleAdapter.installAirConsoleStorage(airconsole, { allowlist })` — a
-  `localStorage` shim backed by AC persistent data. The allowlist of keys is
-  **injected by the game** (the kit bakes in none), e.g.
-  `{ allowlist: ['volume', 'difficulty'] }`.
-- `captureEarlyReady`, `injectVersionLabel` — AC bootstrap timing helpers.
+- `captureEarlyReady(airconsole)` — replay an SDK `onReady` that fired before
+  the adapter was constructed.
+
+### `AirConsoleStorage` — AC persistent-data storage shim
+
+```js
+const storage = AirConsoleStorage.install(airconsole, {
+  allowlist: ['volume', 'difficulty']
+});
+```
+
+Installs a `localStorage`-compatible shim backed by AirConsole persistent data.
+Only allowlisted keys round-trip; keys not listed silently no-op. Use
+`storage.requestLoad()` after AirConsole `onReady`, and `storage.onLoad(fn)` to
+react once persisted values hydrate.
 
 ### `PartyFastlane` — optional P2P DataChannel (low-latency input)
 

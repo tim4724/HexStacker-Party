@@ -7,7 +7,8 @@
     "./RoomFlow": { "types": "./RoomFlow.d.ts", "default": "./RoomFlow.js" },
     "./PartyConnection": { "types": "./PartyConnection.d.ts", "default": "./PartyConnection.js" },
     "./PartyFastlane": { "types": "./PartyFastlane.d.ts", "default": "./PartyFastlane.js" },
-    "./AirConsoleAdapter": { "types": "./AirConsoleAdapter.d.ts", "default": "./AirConsoleAdapter.js" }
+    "./AirConsoleAdapter": { "types": "./AirConsoleAdapter.d.ts", "default": "./AirConsoleAdapter.js" },
+    "./AirConsoleStorage": { "types": "./AirConsoleStorage.d.ts", "default": "./AirConsoleStorage.js" }
   },
   "files": [
     "*.js",
@@ -21,6 +22,7 @@
     "PartyConnection.js",
     "PartyFastlane.js",
     "AirConsoleAdapter.js",
+    "AirConsoleStorage.js",
     "RoomFlow.js"
   ]
 }

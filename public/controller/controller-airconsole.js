@@ -21,7 +21,7 @@ var airconsole = new AirConsole({
 // hosts), Settings.js falls back to real localStorage but our onLoad /
 // requestLoad calls still need to work — `window.localStorage` would lack
 // those methods.
-var _acStorage = AirConsoleAdapter.installAirConsoleStorage(airconsole, {
+var _acStorage = AirConsoleStorage.install(airconsole, {
   // Settings + color preference round-trip via the SDK. Excludes stacker_muted
   // (the display's music key), player-name keys, and clientId_* (AC owns
   // identity).
@@ -113,7 +113,17 @@ connect = function() {
   });
 };
 
-AirConsoleAdapter.injectVersionLabel('settings-version');
+injectVersionLabel('settings-version');
+
+function appVersion() {
+  var meta = document.querySelector('meta[name="app-version"]');
+  return meta ? meta.getAttribute('content') : '';
+}
+
+function injectVersionLabel(elementId) {
+  var el = document.getElementById(elementId);
+  if (el) el.textContent = appVersion();
+}
 
 // Drive the sensitivity slider via pointer events.
 //
@@ -198,7 +208,7 @@ showScreen = function(name) {
 // overlay would otherwise sit on top of the AC status overlay.
 // `keepClientId` is deliberately ignored — the AC storage shim doesn't
 // allowlist clientId_* keys, so there's nothing to keep or clear; identity
-// is owned by the SDK (see AirConsoleAdapter.installAirConsoleStorage).
+// is owned by the SDK (see AirConsoleStorage.install).
 bailToWelcome = function(toastKey /*, keepClientId */) {
   if (gameCancelled) return;
   gameCancelled = true;

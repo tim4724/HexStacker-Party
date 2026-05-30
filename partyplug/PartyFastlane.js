@@ -4,16 +4,9 @@
  * PartyFastlane — peer-to-peer DataChannel layer that piggybacks on an
  * existing relay/signal channel (e.g. PartyConnection).
  *
- * The lib doesn't own a WebSocket — signaling rides on the integrator's
- * `sendSignal` callback. The data path is inspired by classic game input
- * netcode (Quake/Source-style) and Glenn Fiedler's "Reliable Ordered
- * Messages" — specifically the rolling-window-of-recent-events-per-packet
- * idea. We diverge from those references in a few places: cumulative
- * single-field ack instead of a 32-bit bitmask, no order preservation
- * (forward-only dedup), and a time-based TTL instead of a buffer-sized
- * window. RTT is measured via the RTCP RR trick (RFC 3550 §6.4): the ack
- * echoes the data packet's send timestamp so the sender computes RTT
- * directly.
+ * The lib doesn't own a WebSocket; signaling rides on the integrator's
+ * `sendSignal` callback. Input events are resent from a short rolling window
+ * until the peer cumulatively acks the highest applied event seq.
  *
  * Wire format (over the DataChannel):
  *
@@ -34,22 +27,8 @@
  * are off — app-layer redundancy + per-event seq dedup replaces them, with
  * tighter latency and no contention with SCTP's own retry timer.
  *
- * Watchdog: each side tracks the time of the most recent inbound packet
- * (data, heartbeat, or ack). If WATCHDOG_MS elapses with no inbound,
- * `_teardownPeer` fires — onPeerClosed surfaces it to the integrator so
- * it can react (e.g. fall back to its reliable transport, update UI).
- *
- * Usage:
- *   var fastlane = new PartyFastlane({
- *     sendSignal: function (toIdx, data) { party.sendTo(toIdx, data); },
- *     onInput:    function (fromIdx, ev) { handleControllerMessage(fromIdx, ev); },
- *     onRtt:      function (peerIdx, rttHalf) { updateLatencyDisplay(rttHalf); },
- *     emitIdleHeartbeat: true,
- *   });
- *   fastlane.setSelfIndex(myIdx);
- *   if (fastlane.handleSignal(from, data)) return;
- *   fastlane.open(0);
- *   fastlane.enqueue(0, { type: 'input', action: 'left' });
+ * WATCHDOG_MS of inbound silence tears down the peer and surfaces
+ * onPeerClosed so callers can fall back or update UI.
  *
  * Perfect negotiation: higher-indexed peer is polite (rolls back on
  * collision); lower-indexed peer is impolite. setSelfIndex must be called

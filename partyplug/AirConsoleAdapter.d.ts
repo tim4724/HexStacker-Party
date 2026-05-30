@@ -31,19 +31,8 @@ declare class AirConsoleAdapter {
   onMessage: ((from: number, data: any) => void) | null;
   onProtocol: ((type: string, msg: any) => void) | null;
 
-  /**
-   * Install a localStorage shim backed by AirConsole persistent data. The
-   * allowlist of persisted keys is injected by the game (the kit bakes in none).
-   */
-  static installAirConsoleStorage(
-    airconsole: any,
-    opts?: { allowlist?: string[] }
-  ): AirConsoleAdapter.StorageShim;
-
   /** Capture an onReady that fires before wiring; returns a replay function. */
   static captureEarlyReady(airconsole: any): () => void;
-  /** Bake the build version into an element by id. */
-  static injectVersionLabel(elementId: string): void;
 }
 
 declare namespace AirConsoleAdapter {
@@ -53,12 +42,4 @@ declare namespace AirConsoleAdapter {
     onReady?: (code: number, ac: any) => void;
   }
 
-  interface StorageShim {
-    getItem(key: string): string | null;
-    setItem(key: string, value: string): void;
-    removeItem(key: string): void;
-    clear(): void;
-    requestLoad(): void;
-    onLoad(cb: () => void): void;
-  }
 }

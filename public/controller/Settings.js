@@ -6,7 +6,7 @@
 // the global vibrate() helper (haptic strength). Load order: after
 // TouchInput + Audio, before ControllerState so `vibrate()` can consult it.
 // AirConsole mode: window.localStorage is replaced by an AC-backed shim
-// (see AirConsoleAdapter.installAirConsoleStorage) so the same code path
+// (see AirConsoleStorage.install) so the same code path
 // transparently persists per-UID via the AirConsole SDK. The shim's cache
 // hydrates async; controller-airconsole.js calls reload() once data lands.
 // =====================================================================

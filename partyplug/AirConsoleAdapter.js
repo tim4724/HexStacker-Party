@@ -1,17 +1,8 @@
 'use strict';
 
 /**
- * AirConsoleAdapter — wraps the AirConsole API behind the PartyConnection interface.
- *
- * This allows existing game code (DisplayConnection, ControllerConnection, etc.)
- * to work without modification when running inside AirConsole.
- *
- * Usage:
- *   var airconsole = new AirConsole({ orientation: ... });
- *   party = new AirConsoleAdapter(airconsole, { role: 'display' });
- *   party.onProtocol = function(...) { ... };
- *   party.onMessage = function(...) { ... };
- *   party.connect();  // triggers onReady synthesis
+ * AirConsoleAdapter — wraps the AirConsole API behind the PartyConnection
+ * interface so existing display/controller code can run in AirConsole.
  */
 class AirConsoleAdapter {
   constructor(airconsole, options) {
@@ -23,10 +14,7 @@ class AirConsoleAdapter {
     this._connectCalled = false;
     this.reconnectAttempt = 0;
     this.maxReconnectAttempts = 5;
-    // Optional hook fired at the top of the SDK onReady, before the relay
-    // protocol ('created'/'joined') is synthesized. Games use it to apply
-    // locale or anything that must run before first paint; keeps the kit free
-    // of any game/i18n knowledge.
+    // Runs before 'created'/'joined' is synthesized.
     this.onReadyHook = (options && options.onReady) || null;
 
     // Callbacks (same signature as PartyConnection)
@@ -44,15 +32,9 @@ class AirConsoleAdapter {
     var ac = this.airconsole;
 
     ac.onReady = function(code) {
-      // Run the game's pre-ready hook (e.g. apply the AC-profile locale) before
-      // firing 'created'/'joined' so the lobby renders correctly on first
-      // paint. Per the AC checklist, screen and controllers may differ; each
-      // device picks its own.
       if (self.onReadyHook) self.onReadyHook(code, ac);
       self._acReady = true;
       self._acReadyCode = code;
-      // If connect() was already called, fire the protocol synthesis now.
-      // Otherwise, connect() will fire it when called.
       if (self._connectCalled) {
         self._fireReady();
       }
@@ -171,12 +153,7 @@ class AirConsoleAdapter {
     this.airconsole.broadcast(data);
   }
 
-  // No-ops — AirConsole handles connection lifecycle.
-  // reconnectAttempt stays 0 and is never incremented because the heartbeat
-  // self-echo always succeeds in AirConsole mode (displayDead is always false).
-  // create/join/reconnectNow are no-ops on purpose: the AirConsole SDK owns the
-  // connection lifecycle. reconnectNow is therefore never reached in practice
-  // (DisplayLiveness only calls it on displayDead, which can't happen in AC mode).
+  // No-ops — AirConsole owns room creation and connection lifecycle.
   create() {}
   join() {}
   pinInstance() {}
@@ -201,136 +178,6 @@ class AirConsoleAdapter {
 
   get connected() {
     return this._ready;
-  }
-
-  // Replace window.localStorage with a shim backed by AirConsole's per-UID
-  // persistent-data API. Only an allowlist of keys actually round-trips —
-  // display-music mute, player names, and clientId are deliberately excluded
-  // so that music defaults on every session and AC owns identity. The shim
-  // is synchronous from the caller's perspective: reads return cached values
-  // populated by onPersistentDataLoaded, writes go through immediately
-  // (no debounce). Subscribers can wait for first hydration via onLoad().
-  static installAirConsoleStorage(airconsole, opts) {
-    // Allowlist of localStorage keys that round-trip through AirConsole's
-    // persistent data. Game-specific by nature, so it is injected by the
-    // caller rather than baked into the kit. Keys not listed silently no-op.
-    var ALLOWLIST = {};
-    var allowKeys = (opts && opts.allowlist) || [];
-    for (var ai = 0; ai < allowKeys.length; ai++) ALLOWLIST[allowKeys[ai]] = 1;
-    var cache = {};
-    var loaded = false;
-    var loadCallbacks = [];
-
-    function getUid() {
-      try {
-        var id = airconsole.getDeviceId();
-        return airconsole.getUID(id) || null;
-      } catch (e) { return null; }
-    }
-
-    var prevOnLoaded = airconsole.onPersistentDataLoaded;
-    airconsole.onPersistentDataLoaded = function(data) {
-      var uid = getUid();
-      var entry = (uid && data && data[uid]) || {};
-      // Merge — don't replace. A user-side setItem between requestLoad and
-      // the server response shouldn't be silently clobbered: the request
-      // reflects state at request time, so its response can be stale
-      // relative to what the user just wrote. Any key already in cache is
-      // therefore the local source of truth; only fill empties from server.
-      var entryKeys = Object.keys(entry);
-      for (var ei = 0; ei < entryKeys.length; ei++) {
-        var k = entryKeys[ei];
-        if (ALLOWLIST[k] && entry[k] !== null && entry[k] !== undefined && !(k in cache)) {
-          cache[k] = String(entry[k]);
-        }
-      }
-      loaded = true;
-      var cbs = loadCallbacks.slice();
-      loadCallbacks.length = 0;
-      for (var i = 0; i < cbs.length; i++) {
-        try { cbs[i](); } catch (e) { console.error('[storage] onLoad', e); }
-      }
-      if (prevOnLoaded) prevOnLoaded.call(airconsole, data);
-    };
-
-    var shim = {
-      getItem: function(key) {
-        return Object.prototype.hasOwnProperty.call(cache, key) ? cache[key] : null;
-      },
-      setItem: function(key, value) {
-        if (!ALLOWLIST[key]) return;
-        var v = String(value);
-        // Skip the SDK round-trip when the value hasn't changed. Settings.js
-        // already short-circuits at its setters, but this keeps a tight
-        // boundary at the storage layer in case a future caller bypasses it.
-        if (cache[key] === v) return;
-        cache[key] = v;
-        try { airconsole.storePersistentData(key, v); } catch (e) { /* ignore */ }
-      },
-      removeItem: function(key) {
-        if (!ALLOWLIST[key]) return;
-        delete cache[key];
-        try { airconsole.storePersistentData(key, null); } catch (e) { /* ignore */ }
-      },
-      clear: function() {
-        // cache only ever holds allowlisted keys — setItem and the
-        // onPersistentDataLoaded merge both filter on ALLOWLIST — so
-        // every key here is safe to forward to storePersistentData.
-        var keys = Object.keys(cache);
-        for (var i = 0; i < keys.length; i++) {
-          try { airconsole.storePersistentData(keys[i], null); } catch (e) { /* ignore */ }
-        }
-        cache = {};
-      },
-      key: function(i) {
-        var keys = Object.keys(cache);
-        // Length-bounded check rather than `keys[i] || null` — a future
-        // empty-string key would otherwise be coerced to null.
-        return i < keys.length ? keys[i] : null;
-      },
-      get length() { return Object.keys(cache).length; },
-      // Register a callback to fire once persistent data has hydrated.
-      // Fires immediately if already loaded. Used by Settings to re-apply
-      // user values after the async AC fetch lands (Settings.init() runs
-      // synchronously at page load with an empty cache).
-      // One-shot semantics: a second requestLoad on reconnect (rare —
-      // the controller bootstrap's `if (party) return` guards it) still
-      // merges into cache but does NOT re-notify subscribers. The cache
-      // is updated in place and reads see the new values; explicit
-      // rerun of Settings.reload would need to be triggered by the
-      // caller in that scenario.
-      onLoad: function(cb) {
-        if (typeof cb !== 'function') return;
-        if (loaded) { cb(); return; }
-        loadCallbacks.push(cb);
-      },
-      // Trigger the AC fetch. Caller is responsible for ensuring getDeviceId()
-      // is valid (i.e. onReady has fired). Safe to call repeatedly.
-      requestLoad: function() {
-        var uid = getUid();
-        if (!uid) return;
-        try { airconsole.requestPersistentData([uid]); } catch (e) { /* ignore */ }
-      }
-    };
-
-    try {
-      Object.defineProperty(window, 'localStorage', { value: shim, configurable: true });
-    } catch (e) { /* read-only */ }
-    return shim;
-  }
-
-  // Populate the given element with the current build version, read from the
-  // <meta name="app-version"> tag baked into the HTML (by server/index.js for
-  // the web flow and by build-airconsole.sh for the AC zip).
-  static injectVersionLabel(elementId) {
-    var el = document.getElementById(elementId);
-    if (!el) return;
-    el.textContent = AirConsoleAdapter.appVersion();
-  }
-
-  static appVersion() {
-    var meta = document.querySelector('meta[name="app-version"]');
-    return meta ? meta.getAttribute('content') : '';
   }
 
   // Capture an early onReady callback from the SDK so we can replay it once

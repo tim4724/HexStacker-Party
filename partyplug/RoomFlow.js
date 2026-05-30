@@ -1,35 +1,8 @@
 'use strict';
 
-// =====================================================================
-// RoomFlow — headless room/lobby/host state machine for PartyPlug.
-//
-// Owns: room state (lobby -> countdown -> playing -> results), the player
-// roster (identity + join order + presence), sticky-host election, and
-// disconnection tracking. Emits events; the view subscribes and renders.
-// The countdown itself is game-owned (its visuals + controller messaging are
-// game-flavored); RoomFlow only models the COUNTDOWN state.
-//
-// Knows NOTHING about: the DOM, canvases, QR codes, the relay/transport,
-// or any specific game's concepts. In particular it has NO notion of player
-// color, name, score, or level — those are game data. A player record is
-// `{ peerIndex, joinedAt, connected, ...gameFields }`: RoomFlow owns the
-// first three and treats everything the game passes to addPlayer() as
-// opaque fields it stores but never reads. The game mutates those fields on
-// the record object directly (get() returns the live object).
-//
-// The only things RoomFlow reads off a player are `joinedAt` (host-election
-// tiebreak) and presence (the `_disconnected` set). That is what keeps it
-// reusable across games that look nothing like each other.
-//
-// Extracted from public/display/DisplayState.js (the roomState machine, the
-// players map, and the getHostPeerIndex / electNextHost / reconcileStickyHost
-// trio) with three changes that make it transport-, DOM-, and game-agnostic:
-//   1. The AirConsole master-controller rule is injected as `masterProvider`.
-//   2. Disconnection is a Set, not the disconnectedQRs DOM map.
-//   3. Color/name/level slot logic is removed — pure game data now.
-//
-// UMD: works under Node (tests) and the browser (<script src>).
-// =====================================================================
+// RoomFlow owns room state, roster identity/join order, presence, and host
+// election. It does not own DOM, transport, countdown timers, or game fields
+// like color/name/score; those are opaque data on the live player record.
 
 (function (root, factory) {
   var RoomFlow = factory();
@@ -47,8 +20,6 @@
     RESULTS: 'results',
   });
 
-  // Extracted from the former inline transition table in DisplayState.js
-  // (that game no longer defines its own — setRoomState delegates here).
   var VALID_TRANSITIONS = {};
   VALID_TRANSITIONS[STATES.LOBBY] = [STATES.COUNTDOWN];
   VALID_TRANSITIONS[STATES.COUNTDOWN] = [STATES.PLAYING, STATES.LOBBY];
@@ -73,12 +44,8 @@
 
   RoomFlow.STATES = STATES;
 
-  // Lowest free dense slot in [0, max) given the slots already in use. Pure
-  // and sparse-safe: callers pass the *slot values* in use (not peerIndices),
-  // so a non-contiguous transport id (e.g. an AirConsole device_id) is never
-  // mistaken for a dense seat/color index. Returns -1 when full. Both the
-  // display and any controller-seat allocator should route through this rather
-  // than reinventing it (and rather than indexing a palette by peerIndex).
+  // Lowest free dense slot in [0, max). Pass slot values, not peerIndices, so
+  // sparse transport ids (e.g. AirConsole device_id) don't become color/seat ids.
   RoomFlow.lowestFreeSlot = function (used, max) {
     var taken = used instanceof Set ? used : new Set(used);
     for (var i = 0; i < max; i++) { if (!taken.has(i)) return i; }

@@ -52,7 +52,7 @@ cp "$BUILD_DIR/display/screen.html" "$BUILD_DIR/screen.html"
 cp "$BUILD_DIR/controller/controller.html" "$BUILD_DIR/controller.html"
 
 # Bake the build version into the HTML <meta name="app-version"> tag.
-# Clients read it via AirConsoleAdapter.appVersion(). Mirrors server/index.js,
+# Clients read it from the app-version meta tag. Mirrors server/index.js,
 # which does the same substitution at HTTP-serve time for the web flow.
 # Using @ as the sed delimiter so a slash in APP_VERSION wouldn't break the
 # pattern; semver disallows slashes/backslashes/ampersands so no escaping
