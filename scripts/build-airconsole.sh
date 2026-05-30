@@ -28,6 +28,14 @@ cp -r "$PROJECT_DIR/public/shared" "$BUILD_DIR/shared"
 cp -r "$PROJECT_DIR/public/display" "$BUILD_DIR/display"
 cp -r "$PROJECT_DIR/public/controller" "$BUILD_DIR/controller"
 
+# PartyPlug framework (transport layer) — lives at the repo root, served under
+# /partyplug/. generate-airconsole-html.js rewrites its absolute paths to
+# relative ("partyplug/..."), so it ships at the zip root like the other dirs.
+cp -r "$PROJECT_DIR/partyplug" "$BUILD_DIR/partyplug"
+# Drop dev/package artifacts — only the runtime .js modules belong in the zip.
+rm -rf "$BUILD_DIR/partyplug/tests"
+rm -f "$BUILD_DIR/partyplug/package.json" "$BUILD_DIR/partyplug"/*.d.ts "$BUILD_DIR/partyplug/README.md"
+
 # Copy engine modules (from server/ to engine/ for browser access).
 # Every server/*.js except index.js is assumed to be a browser-compatible
 # UMD engine module and gets bundled into the AC ZIP — if a Node-only
@@ -44,7 +52,7 @@ cp "$BUILD_DIR/display/screen.html" "$BUILD_DIR/screen.html"
 cp "$BUILD_DIR/controller/controller.html" "$BUILD_DIR/controller.html"
 
 # Bake the build version into the HTML <meta name="app-version"> tag.
-# Clients read it via AirConsoleAdapter.appVersion(). Mirrors server/index.js,
+# Clients read it from the app-version meta tag. Mirrors server/index.js,
 # which does the same substitution at HTTP-serve time for the web flow.
 # Using @ as the sed delimiter so a slash in APP_VERSION wouldn't break the
 # pattern; semver disallows slashes/backslashes/ampersands so no escaping
@@ -72,8 +80,8 @@ rm -f "$BUILD_DIR/shared/legal.css"
 
 # Drop relay-transport modules — generate-airconsole-html.js already strips
 # their <script> tags, so the files would just sit in the zip unloaded.
-rm -f "$BUILD_DIR/shared/PartyConnection.js"
-rm -f "$BUILD_DIR/shared/PartyFastlane.js"
+rm -f "$BUILD_DIR/partyplug/PartyConnection.js"
+rm -f "$BUILD_DIR/partyplug/PartyFastlane.js"
 
 # Create ZIP
 cd "$BUILD_DIR"

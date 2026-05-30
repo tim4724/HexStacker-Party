@@ -134,10 +134,10 @@ function connectAndCreateRoom() {
 function onRoomCreated(partyRoomCode, instance) {
   lastInstance = instance || null;
   // Pin the WS URL so PartyConnection's auto-reconnect lands on the same
-  // instance — the relay's bare endpoint would otherwise route to whichever
-  // shard is currently least-loaded.
+  // instance (the relay's bare endpoint would otherwise route to whichever
+  // shard is currently least-loaded). The kit owns the sharded-URL shape.
   if (party && lastInstance) {
-    party.relayUrl = RELAY_URL + '/' + encodeURIComponent(partyRoomCode) + '?instance=' + encodeURIComponent(lastInstance);
+    party.pinInstance(RELAY_URL, partyRoomCode, lastInstance);
   }
 
   // Stash the instance in the URL fragment so it never hits the server in
@@ -346,23 +346,15 @@ function onPeerJoined(peerIndex) {
   var index = nextAvailableSlot();
   if (index < 0) return;
 
-  players.set(peerIndex, {
+  // flow.addPlayer assigns joinedAt + connected and makes the first joiner the
+  // sticky host. The game fields (name, color slot, level, ping) ride along on
+  // the same record; the kit never reads them.
+  flow.addPlayer(peerIndex, {
     playerName: generateAutoPlayerName(peerIndex),
     playerIndex: index,
     startLevel: 1,
-    lastPingTime: Date.now(),
-    // Monotonic tiebreaker for sticky host election (oldest-joined present
-    // player becomes host when the current host leaves) and for lobby/game
-    // board sort order. Never mutated after this — survives color changes
-    // and reconnects. Using a sequence counter instead of Date.now() so
-    // two peers arriving in the same millisecond still get distinct values.
-    joinedAt: ++_joinSequence
+    lastPingTime: Date.now()
   });
-
-  // First joiner in a pristine room owns the host slot. Subsequent joiners
-  // do not — sticky host means the slot only moves when the current host
-  // leaves (see onPeerLeft / electNextHost).
-  if (hostPeerIndex == null) hostPeerIndex = peerIndex;
 
   // Only add to playerOrder in lobby — late joiners wait for next game.
   // playerOrder is snapshotted at game start by runGameLocally().
@@ -385,20 +377,12 @@ function onPeerLeft(peerIndex) {
 
   cleanupPlayerInput(peerIndex);
 
-  // Sticky host: hand off the slot only when the player is actually being
-  // removed from the room (i.e. LOBBY and RESULTS, where onPeerLeft deletes
-  // them outright). Mid-game (PLAYING/COUNTDOWN) we keep the slot pinned to
-  // the original host through a disconnect; the disconnectedQRs flag added
-  // below makes getHostPeerIndex's read-only fallback elect a present player
-  // for any host action needed during the blip, and a reconnect via
-  // claimReconnectPeer rekeys the slot to the new peerIndex. If they never
-  // return, the handoff is committed by reconcileStickyHost when we
-  // transition into RESULTS or LOBBY.
-  var midGame = roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN;
-  if (!midGame && hostPeerIndex === peerIndex) {
-    hostPeerIndex = electNextHost(peerIndex);
-  }
-
+  // Sticky-host handoff is owned by RoomFlow: flow.removePlayer re-elects only
+  // when the player leaves in LOBBY/RESULTS. Mid-game (PLAYING/COUNTDOWN) the
+  // participant stays in the roster (flagged disconnected via showDisconnectQR
+  // -> flow.markDisconnected) so the slot stays pinned and a reconnect via
+  // claimReconnectPeer (flow.rekey) reclaims it; flow's host fallback elects a
+  // present player for any host action needed during the blip.
   if (roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN) {
     if (playerOrder.indexOf(peerIndex) >= 0) {
       // Active game participant — keep in Map for seamless reconnect
@@ -412,16 +396,17 @@ function onPeerLeft(peerIndex) {
       if (!allPlayersDisconnected()) maybeBroadcastHostChange();
     } else {
       // Late joiner (never in the game) — remove silently
-      players.delete(peerIndex);
+      flow.removePlayer(peerIndex);
       garbageIndicatorEffects.delete(peerIndex);
       garbageDefenceEffects.delete(peerIndex);
     }
   } else if (roomState === ROOM_STATE.LOBBY) {
     removeLobbyPlayer(peerIndex);
   } else if (roomState === ROOM_STATE.RESULTS) {
-    players.delete(peerIndex);
+    flow.removePlayer(peerIndex);
     var idx = playerOrder.indexOf(peerIndex);
     if (idx !== -1) playerOrder.splice(idx, 1);
+    flow.setActiveOrder(playerOrder);
     garbageIndicatorEffects.delete(peerIndex);
     garbageDefenceEffects.delete(peerIndex);
     // Return to lobby when no game participants remain (late joiners don't count)
@@ -444,7 +429,7 @@ function onPeerLeft(peerIndex) {
 }
 
 function removeLobbyPlayer(peerIndex) {
-  players.delete(peerIndex);
+  flow.removePlayer(peerIndex);
   playerOrder = playerOrder.filter(function(id) { return id !== peerIndex; });
   garbageIndicatorEffects.delete(peerIndex);
   garbageDefenceEffects.delete(peerIndex);
@@ -522,20 +507,17 @@ function claimReconnectPeer(fromId, msg) {
   cleanupPlayerInput(oldId);
   cleanupPlayerInput(fromId);
 
-  players.delete(oldId);
-  players.delete(fromId);
   existing.lastPingTime = Date.now();
-  players.set(fromId, existing);
+  // flow.rekey moves the kept record from oldId to fromId (dropping the
+  // placeholder slot fromId got when it joined), and reclaims the sticky host
+  // slot and participant order for the returning peer. The game-side arrays
+  // below (playerOrder, alive state, garbage effects, game boards) are rekeyed
+  // alongside it.
+  flow.rekey(oldId, fromId);
 
   for (var i = 0; i < playerOrder.length; i++) {
     if (playerOrder[i] === oldId) playerOrder[i] = fromId;
   }
-  // Sticky host reclaim: the slot wasn't moved when this player disconnected
-  // mid-game, so hostPeerIndex still points at their old peerIndex; rekey
-  // it to the new one and the reconnecting host resumes their role. The
-  // null arm covers an unlikely race where everyone blipped and the room
-  // was rebuilt around the first returning controller.
-  if (hostPeerIndex === oldId || hostPeerIndex == null) hostPeerIndex = fromId;
 
   if (lastAliveState[oldId] !== undefined) {
     lastAliveState[fromId] = lastAliveState[oldId];
@@ -629,6 +611,12 @@ function fetchQR(text, callback) {
 function showDisconnectQR(peerIndex) {
   // Set immediately so allPlayersDisconnected() can check synchronously
   disconnectedQRs.set(peerIndex, null);
+  // INVARIANT: disconnectedQRs (presence flag + QR canvas, for rendering) and
+  // flow's presence set must move together. Every site that adds/clears a
+  // disconnect must touch BOTH — markDisconnected/markReconnected/clearDisconnected
+  // here, and rekey() clears flow's flag on a cross-device claim. If they drift,
+  // host election (which reads flow) skips a present player.
+  flow.markDisconnected(peerIndex);
   if (!joinUrl) return;
   // Splice the claim in before the fragment so the instance hash stays intact.
   var hashIdx = joinUrl.indexOf('#');

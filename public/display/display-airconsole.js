@@ -24,10 +24,26 @@ var airconsole = new AirConsole({
 // any incidental localStorage call from shared code (e.g. CSP-enabled
 // libraries) silently no-ops instead of bleeding state into the AC
 // iframe storage partition.
-AirConsoleAdapter.installAirConsoleStorage(airconsole);
+// The display reads/writes no allowlisted keys (muted is reset above), so the
+// shim installs with an empty allowlist purely to no-op incidental
+// localStorage calls inside the AC iframe storage partition.
+AirConsoleStorage.install(airconsole, { allowlist: [] });
 
-// Capture early onReady — the SDK may fire it before our adapter is wired up.
-var replayEarlyReady = AirConsoleAdapter.captureEarlyReady(airconsole);
+// Apply the AC-profile locale before the lobby's first paint. Passed to the
+// adapter as its onReady hook so the kit stays i18n-agnostic.
+function applyAcLocale() {
+  if (typeof airconsole.getLanguage !== 'function') return;
+  if (typeof LOCALES === 'undefined' || typeof setLocale !== 'function' || typeof translatePage !== 'function') return;
+  var acLang = airconsole.getLanguage();
+  var acCode = acLang && acLang.toLowerCase().split('-')[0];
+  if (acCode && LOCALES[acCode]) { setLocale(acLang); translatePage(); }
+}
+
+// AirConsole fires onReady at most once per page load. The display needs
+// multi-shot replay because New Game / reconnect creates fresh adapters; the
+// controller can use AirConsoleAdapter.captureEarlyReady's one-shot replay.
+var _cachedAcReadyCode;
+airconsole.onReady = function(code) { _cachedAcReadyCode = code; };
 
 // Wire AirConsole pause/resume — silently freeze the game engine.
 // No overlay, no broadcast to controllers. AirConsole auto-resumes
@@ -94,10 +110,13 @@ checkAutoResume = function() {
 // AirConsole rate-limits showAd internally, so no extra throttle is needed.
 var _origSetRoomState = setRoomState;
 setRoomState = function(newState) {
-  _origSetRoomState(newState);
-  if (newState === ROOM_STATE.RESULTS) {
+  var before = roomState;
+  var ok = _origSetRoomState(newState);
+  // Only request the ad break on a real transition into RESULTS.
+  if (ok && before !== ROOM_STATE.RESULTS && newState === ROOM_STATE.RESULTS) {
     try { airconsole.showAd(); } catch (e) {}
   }
+  return ok;
 };
 
 // Replace PartyConnection with a factory that returns AirConsoleAdapter.
@@ -105,7 +124,13 @@ setRoomState = function(newState) {
 // build, so no prior binding exists and strict-mode would reject a bare
 // assignment with ReferenceError.
 window.PartyConnection = function() {
-  return new AirConsoleAdapter(airconsole, { role: 'display' });
+  var adapter = new AirConsoleAdapter(airconsole, { role: 'display', onReady: applyAcLocale });
+  var adapterOnReady = airconsole.onReady;
+  airconsole.onReady = function(code) {
+    _cachedAcReadyCode = code;
+    adapterOnReady.call(airconsole, code);
+  };
+  return adapter;
 };
 
 // After connectAndCreateRoom() creates the adapter via new PartyConnection()
@@ -114,10 +139,7 @@ window.PartyConnection = function() {
 var _originalConnectAndCreateRoom = connectAndCreateRoom;
 connectAndCreateRoom = function() {
   _originalConnectAndCreateRoom();
-  // The adapter's own onReady applies AC-profile locale before firing
-  // 'created'; we just need to replay any captured-early onReady so a
-  // fresh adapter on reconnect / Play Again reaches ready.
-  replayEarlyReady();
+  if (_cachedAcReadyCode !== undefined) airconsole.onReady(_cachedAcReadyCode);
 };
 
 // No /api/qr in AirConsole — short-circuit so callers see qrMatrix=null
@@ -139,7 +161,17 @@ startGame = function() {
 // so setting it to LOBBY ensures the room is applied immediately.
 currentScreen = SCREEN.LOBBY;
 
-AirConsoleAdapter.injectVersionLabel('lobby-version-label');
+injectVersionLabel('lobby-version-label');
+
+function appVersion() {
+  var meta = document.querySelector('meta[name="app-version"]');
+  return meta ? meta.getAttribute('content') : '';
+}
+
+function injectVersionLabel(elementId) {
+  var el = document.getElementById(elementId);
+  if (el) el.textContent = appVersion();
+}
 
 // Intercept showScreen(WELCOME) — in AirConsole there's no welcome screen.
 // display.js defines resetToWelcome() which shows WELCOME; we redirect to LOBBY.

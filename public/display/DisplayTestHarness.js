@@ -36,13 +36,12 @@ if (urlParams.get('test') === '1' || debugCount > 0 || _adclipMode) {
         // Players=4). Falls back to sequential fill for the usual case.
         var index = (typeof p.slot === 'number') ? p.slot : nextAvailableSlot();
         // joinedAt = array position → stable, incrementing within the seed so
-        // calculateLayout()/electNextHost() get meaningful ordering. Using a
+        // calculateLayout()/getHostPeerIndex() get meaningful ordering. Using a
         // derived counter instead of Date.now() keeps scenarios deterministic.
-        players.set(p.id, {
+        flow.addPlayer(p.id, {
           playerName: sanitizePlayerName(p.name, p.id),
           playerIndex: index,
-          startLevel: p.level || 1,
-          joinedAt: i
+          startLevel: p.level || 1
         });
         playerOrder.push(p.id);
       }
@@ -102,7 +101,7 @@ if (urlParams.get('test') === '1' || debugCount > 0 || _adclipMode) {
       // Engine event handlers call party.broadcast / party.sendTo at multiple
       // sites — install a no-op stub so they don't throw in the no-network harness.
       window.party = window.party || { broadcast: function() {}, sendTo: function() {}, getMasterClientId: function() { return null; } };
-      players.clear();
+      flow.reset();
       playerOrder = [];
       for (var i = 0; i < info.length; i++) {
         var p = info[i];
@@ -114,11 +113,10 @@ if (urlParams.get('test') === '1' || debugCount > 0 || _adclipMode) {
         var displayedLevel = p.level || 1;
         var startLines = p.startLines || 0;
         var internalStartLevel = Math.max(1, displayedLevel - Math.floor(startLines / 10));
-        players.set(p.id, {
+        flow.addPlayer(p.id, {
           playerName: sanitizePlayerName(p.name, p.id),
           playerIndex: slot,
-          startLevel: internalStartLevel,
-          joinedAt: i
+          startLevel: internalStartLevel
         });
         playerOrder.push(p.id);
       }

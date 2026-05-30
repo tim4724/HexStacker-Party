@@ -24,47 +24,57 @@ var joinUrl = null;
 var lastRoomCode = null;
 var lastInstance = null;       // relay instance id from `created` — pins reconnect / controller WS to the same shard
 var gameState = null;
-var players = new Map();       // peerIndex (number) -> { playerName, playerIndex, startLevel, lastPingTime, joinedAt }
-                               // peerIndex is the relay slot id (1..N for controllers; the display
-                               // itself owns index 0 and is not in this map). playerIndex is the
-                               // chosen color slot, derived via PLAYER_COLORS[playerIndex] — never stored.
+// PartyPlug RoomFlow owns room state, roster identity/join-order, and host
+// election. The game keeps its per-player fields (playerName, color slot
+// playerIndex, startLevel, lastPingTime) on the same record objects; the kit
+// only owns peerIndex/joinedAt/connected and never reads the rest.
+var flow = new RoomFlow({
+  masterProvider: function () {
+    return (party && typeof party.getMasterPeerIndex === 'function')
+      ? party.getMasterPeerIndex() : null;
+  }
+});
+// ROOM_STATE (protocol.js, shared with controllers) and RoomFlow.STATES are
+// separate copies of the same string set — protocol.js can't depend on the kit.
+// Fail loudly if a future rename in one silently diverges from the other.
+if (ROOM_STATE.LOBBY !== RoomFlow.STATES.LOBBY ||
+    ROOM_STATE.COUNTDOWN !== RoomFlow.STATES.COUNTDOWN ||
+    ROOM_STATE.PLAYING !== RoomFlow.STATES.PLAYING ||
+    ROOM_STATE.RESULTS !== RoomFlow.STATES.RESULTS) {
+  throw new Error('ROOM_STATE and RoomFlow.STATES have drifted — keep the string values in sync');
+}
+// Roster backing store, aliased onto flow's map so existing reads
+// (players.get/has/size/for..of) keep working; writes go through flow
+// (addPlayer/removePlayer/rekey). flow.reset() clears this same Map.
+// peerIndex (1..N for controllers; the display owns slot 0, not in this map)
+// -> { playerName, playerIndex (color slot), startLevel, lastPingTime, joinedAt, connected }
+var players = flow.players;
 var playerOrder = [];          // compact list of active controller peerIndices for game layout. Lobby
                                // cards and in-game boards both sort by joinedAt; playerIndex is the
                                // chosen color slot only.
-var hostPeerIndex = null;      // sticky host (first joiner owns this slot). The slot only moves
-                               // when the holder leaves in LOBBY/RESULTS, or when we transition into
-                               // LOBBY/RESULTS and the holder is gone (see reconcileStickyHost). A
-                               // mid-game blip leaves the slot untouched so a reconnecting host
-                               // reclaims; getHostPeerIndex's read-only fallback covers any host-only
-                               // action needed during the disconnect window. Color changes never
-                               // affect it. See getHostPeerIndex() / electNextHost() below.
-var _joinSequence = 0;         // monotonic counter for player.joinedAt — Date.now() collides
-                               // when two peers arrive in the same ms, which matters for the
-                               // electNextHost tiebreak and calculateLayout's stable sort.
-var roomState = ROOM_STATE.LOBBY;
+// hostPeerIndex (the sticky host slot) and joinedAt sequencing now live in
+// RoomFlow. Read the sticky slot via the getter below; it moves only through
+// flow.addPlayer / removePlayer / rekey. flow assigns joinedAt in addPlayer.
+// NOTE: this getter is the RAW sticky slot. Use getHostPeerIndex() for the
+// effective (fallback-resolved) host — the two differ during a mid-game blip
+// when the sticky holder is disconnected but their slot stays pinned.
+Object.defineProperty(window, 'hostPeerIndex', {
+  configurable: true,
+  get: function () { return flow.hostPeerIndex; },
+  set: function () { throw new Error('hostPeerIndex is read-only; the host moves via flow (addPlayer/removePlayer/rekey)'); }
+});
 
-// Valid room state transitions
-var VALID_TRANSITIONS = {};
-VALID_TRANSITIONS[ROOM_STATE.LOBBY] = [ROOM_STATE.COUNTDOWN];
-VALID_TRANSITIONS[ROOM_STATE.COUNTDOWN] = [ROOM_STATE.PLAYING, ROOM_STATE.LOBBY];
-VALID_TRANSITIONS[ROOM_STATE.PLAYING] = [ROOM_STATE.RESULTS, ROOM_STATE.LOBBY];
-VALID_TRANSITIONS[ROOM_STATE.RESULTS] = [ROOM_STATE.COUNTDOWN, ROOM_STATE.LOBBY];
+// roomState reads delegate to flow.state; the transition table and sticky-host
+// reconcile live in RoomFlow. setRoomState() drives the machine. The setter
+// throws so a stray `roomState = X` is caught loudly instead of silently lost.
+Object.defineProperty(window, 'roomState', {
+  configurable: true,
+  get: function () { return flow.state; },
+  set: function () { throw new Error('roomState is read-only; use setRoomState()'); }
+});
 
 function setRoomState(newState) {
-  if (newState === roomState) return true;
-  var allowed = VALID_TRANSITIONS[roomState];
-  if (!allowed || allowed.indexOf(newState) < 0) {
-    console.warn('Invalid room state transition: ' + roomState + ' → ' + newState);
-    return false;
-  }
-  roomState = newState;
-  // Host changes are deferred during gameplay so brief blips don't demote
-  // the original host. Commit any pending handoff at the moment a host is
-  // actually needed (Lobby's Start / Results' Play Again).
-  if (newState === ROOM_STATE.LOBBY || newState === ROOM_STATE.RESULTS) {
-    reconcileStickyHost();
-  }
-  return true;
+  return flow.transitionTo(newState);
 }
 
 var paused = false;
@@ -121,10 +131,10 @@ function resetRoomData() {
   clearCountdownTimers();
   countdown.callback = null;
   countdown.remaining = 0;
-  players.clear();
+  // Resets flow's roster (the same Map `players` aliases), host slot, joinedAt
+  // sequence, participant order, presence set, and state -> lobby.
+  flow.reset();
   playerOrder = [];
-  hostPeerIndex = null;
-  _joinSequence = 0;
   paused = false;
   setAutoPaused(false);
   clearLateJoinerGraceTimer();
@@ -165,14 +175,14 @@ var prevFrameTime = 0;
 // --- Slot Helpers ---
 // Find the first available player slot (0–3) not used by any current player
 function nextAvailableSlot() {
+  // Color slots are dense (0..MAX-1) and game-owned; peerIndex is NOT a slot
+  // (it can be a sparse AirConsole device_id), so we allocate from the color
+  // slots in use via the kit's sparse-safe helper.
   var used = [];
   for (const entry of players) {
     used.push(entry[1].playerIndex);
   }
-  for (var i = 0; i < GameConstants.MAX_PLAYERS; i++) {
-    if (used.indexOf(i) < 0) return i;
-  }
-  return -1;
+  return RoomFlow.lowestFreeSlot(used, GameConstants.MAX_PLAYERS);
 }
 
 var AUTO_PLAYER_NAME_RE = /^HX-([1-9][0-9]?)$/i;
@@ -238,110 +248,16 @@ function sanitizePlayerName(name, peerIndex, requestedAutoName) {
   return name;
 }
 
-// Host = the connected player designated as master controller (AirConsole rule:
-// "menus can only be controlled by the Master Controller"). In AirConsole mode
-// we defer to the platform (premium devices get priority); otherwise we fall
-// back to the sticky host — the first player to join. The stored slot survives
-// color changes and disconnects: a host that blips mid-game keeps their slot
-// and reclaims on reconnect.
-//
-// During COUNTDOWN/PLAYING/RESULTS the candidate set is restricted to active
-// game participants (playerOrder). A late joiner — promoted to AC master, or
-// the sticky host whose slot was handed off to a participant — must not
-// control menu actions they can't reach (their screen is a "Game in progress"
-// banner with no pause overlay). Host opens back up to everyone in LOBBY where
-// late joiners have already been folded into playerOrder.
-//
-// Disconnected players (flagged via disconnectedQRs) are skipped so the host
-// role temporarily defers to a present player during a mid-game reconnect.
-// If the stored hostPeerIndex is unavailable (disconnected / ineligible), the
-// fallback returns the oldest-joined present player WITHOUT mutating
-// hostPeerIndex; the sticky slot is committed by reconcileStickyHost() when
-// the room enters LOBBY/RESULTS, or by onPeerLeft when a player departs from
-// LOBBY/RESULTS directly.
-// NOTE: tests/display-state.test.js mirrors this algorithm — keep in sync.
+// Effective host (the master controller). The full election logic — sticky
+// slot, AirConsole master priority, restricted-to-participants eligibility
+// mid-game, disconnected fallback, and the LOBBY/RESULTS reconcile — now lives
+// in RoomFlow (partyplug/RoomFlow.js). The AC master rule is injected via
+// masterProvider; disconnection comes from flow's presence set (kept in sync
+// with disconnectedQRs through markDisconnected/markReconnected/clearDisconnected);
+// the participant set is fed from playerOrder via flow.setActiveOrder().
+// NOTE: tests/room-flow.test.js covers this algorithm.
 function getHostPeerIndex() {
-  var restricted = (roomState === ROOM_STATE.PLAYING
-                 || roomState === ROOM_STATE.COUNTDOWN
-                 || roomState === ROOM_STATE.RESULTS)
-                && playerOrder.length > 0;
-  var eligible = restricted ? new Set(playerOrder) : null;
-
-  if (party && typeof party.getMasterPeerIndex === 'function') {
-    var acHost = party.getMasterPeerIndex();
-    // Only trust it if the device has completed HELLO, is currently
-    // connected, and (when restricted) is an active participant; otherwise
-    // fall through until they qualify.
-    if (acHost != null && players.has(acHost) && !disconnectedQRs.has(acHost)
-        && (!restricted || eligible.has(acHost))) {
-      return acHost;
-    }
-  }
-
-  // Sticky host — preferred when currently available.
-  if (hostPeerIndex != null && players.has(hostPeerIndex)
-      && !disconnectedQRs.has(hostPeerIndex)
-      && (!restricted || eligible.has(hostPeerIndex))) {
-    return hostPeerIndex;
-  }
-
-  // Fallback: oldest-joined eligible present player. Read-only — the
-  // sticky slot is reassigned explicitly by electNextHost() in onPeerLeft,
-  // not here, so that a temporarily-disconnected host keeps their slot.
-  var fallbackId = null;
-  var fallbackJoin = Infinity;
-  for (const entry of players) {
-    if (disconnectedQRs.has(entry[0])) continue;
-    if (restricted && !eligible.has(entry[0])) continue;
-    var ja = entry[1].joinedAt == null ? Infinity : entry[1].joinedAt;
-    if (ja < fallbackJoin) {
-      fallbackJoin = ja;
-      fallbackId = entry[0];
-    }
-  }
-  return fallbackId;
-}
-
-// Pick the oldest-joined present player other than `excludeId` to become
-// the new sticky host. Used by onPeerLeft (in LOBBY/RESULTS) and
-// reconcileStickyHost (on state transition into LOBBY/RESULTS) when the
-// current holder is gone. Returns null if nobody else qualifies (room will
-// promote the next joiner via onPeerJoined's null-check).
-// NOTE: tests/display-state.test.js mirrors this algorithm, keep in sync.
-function electNextHost(excludeId) {
-  var nextId = null;
-  var nextJoin = Infinity;
-  for (const entry of players) {
-    if (entry[0] === excludeId) continue;
-    if (disconnectedQRs.has(entry[0])) continue;
-    var ja = entry[1].joinedAt == null ? Infinity : entry[1].joinedAt;
-    if (ja < nextJoin) {
-      nextJoin = ja;
-      nextId = entry[0];
-    }
-  }
-  return nextId;
-}
-
-// Commit any pending sticky-host handoff. Called by setRoomState when the
-// room enters LOBBY or RESULTS (i.e. the moments where host duty is
-// actually exercised: Start, Play Again). If the stored host is still
-// present and connected we keep them; otherwise the slot moves to the
-// oldest-joined present player. A null result is fine; onPeerJoined will
-// promote the next arrival.
-// NOTE: tests/display-state.test.js mirrors this algorithm, keep in sync.
-function reconcileStickyHost() {
-  // Guard against pre-reset call sites: applyRoomCreated and resetToWelcome
-  // call setRoomState(LOBBY) before resetRoomData(), so reconcile can briefly
-  // see the previous session's players map. resetRoomData clears it moments
-  // later, but skip on empty rooms so we never commit a stale handoff.
-  if (players.size === 0) return;
-  if (hostPeerIndex != null
-      && players.has(hostPeerIndex)
-      && !disconnectedQRs.has(hostPeerIndex)) {
-    return;
-  }
-  hostPeerIndex = electNextHost(hostPeerIndex);
+  return flow.host;
 }
 
 // --- DOM References ---

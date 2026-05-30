@@ -12,6 +12,10 @@ const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 // driving Playwright against the running dev server. The artwork/ tree is not
 // copied into the Docker image, so /artwork/ad-clip/* naturally 404s in prod.
 const AD_CLIP_COMPOSITE_DIR = path.join(__dirname, '..', 'artwork', 'ad-clip', 'composite');
+// PartyPlug — reusable party-game framework (transport layer), shared across
+// games and intentionally outside public/ so it isn't tied to this one app's
+// assets. Served under /partyplug/ via the baseDir remap below.
+const PARTYPLUG_DIR = path.join(__dirname, '..', 'partyplug');
 const APP_VERSION = require('../package.json').version;
 const APP_ENV = String(process.env.APP_ENV || (process.env.NODE_ENV === 'production' ? 'production' : 'development')).toLowerCase();
 const GIT_SHA = String(process.env.GIT_SHA || '').trim();
@@ -158,6 +162,17 @@ const server = http.createServer((req, res) => {
   if (urlPath.startsWith('/artwork/ad-clip/')) {
     baseDir = AD_CLIP_COMPOSITE_DIR;
     lookupPath = urlPath.slice('/artwork/ad-clip'.length);
+  } else if (urlPath.startsWith('/partyplug/')) {
+    // Only the runtime modules are browser-facing: a single flat `.js` file.
+    // This keeps the kit's dev/package artifacts (tests/, *.d.ts, package.json,
+    // README.md) unreachable, mirroring the /engine/ route's restriction.
+    if (!/^\/[\w.-]+\.js$/.test(urlPath.slice('/partyplug'.length))) {
+      res.writeHead(404);
+      res.end('Not Found');
+      return;
+    }
+    baseDir = PARTYPLUG_DIR;
+    lookupPath = urlPath.slice('/partyplug'.length);
   }
 
   const filePath = path.join(baseDir, lookupPath);

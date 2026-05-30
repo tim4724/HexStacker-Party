@@ -21,7 +21,17 @@ var airconsole = new AirConsole({
 // hosts), Settings.js falls back to real localStorage but our onLoad /
 // requestLoad calls still need to work — `window.localStorage` would lack
 // those methods.
-var _acStorage = AirConsoleAdapter.installAirConsoleStorage(airconsole);
+var _acStorage = AirConsoleStorage.install(airconsole, {
+  // Settings + color preference round-trip via the SDK. Excludes stacker_muted
+  // (the display's music key), player-name keys, and clientId_* (AC owns
+  // identity).
+  allowlist: [
+    'stacker_haptic_strength',
+    'stacker_touch_sensitivity',
+    'stacker_touch_sounds',
+    'stacker_color_index'
+  ]
+});
 
 // Capture early onReady — the SDK may fire it before our adapter is wired up.
 var replayEarlyReady = AirConsoleAdapter.captureEarlyReady(airconsole);
@@ -40,8 +50,18 @@ skipNameScreen = true;
 // `window.` qualifier is required: PartyConnection.js is stripped from the AC
 // build, so no prior binding exists and strict-mode would reject a bare
 // assignment with ReferenceError.
+// Apply the AC-profile locale before the controller's first paint / HELLO.
+// Passed to the adapter as its onReady hook so the kit stays i18n-agnostic.
+function applyAcLocale() {
+  if (typeof airconsole.getLanguage !== 'function') return;
+  if (typeof LOCALES === 'undefined' || typeof setLocale !== 'function' || typeof translatePage !== 'function') return;
+  var acLang = airconsole.getLanguage();
+  var acCode = acLang && acLang.toLowerCase().split('-')[0];
+  if (acCode && LOCALES[acCode]) { setLocale(acLang); translatePage(); }
+}
+
 window.PartyConnection = function() {
-  return new AirConsoleAdapter(airconsole, { role: 'controller' });
+  return new AirConsoleAdapter(airconsole, { role: 'controller', onReady: applyAcLocale });
 };
 
 // Wrap connect() to inject AirConsole nickname + persistent-data load on
@@ -93,7 +113,17 @@ connect = function() {
   });
 };
 
-AirConsoleAdapter.injectVersionLabel('settings-version');
+injectVersionLabel('settings-version');
+
+function appVersion() {
+  var meta = document.querySelector('meta[name="app-version"]');
+  return meta ? meta.getAttribute('content') : '';
+}
+
+function injectVersionLabel(elementId) {
+  var el = document.getElementById(elementId);
+  if (el) el.textContent = appVersion();
+}
 
 // Drive the sensitivity slider via pointer events.
 //
@@ -178,7 +208,7 @@ showScreen = function(name) {
 // overlay would otherwise sit on top of the AC status overlay.
 // `keepClientId` is deliberately ignored — the AC storage shim doesn't
 // allowlist clientId_* keys, so there's nothing to keep or clear; identity
-// is owned by the SDK (see AirConsoleAdapter.installAirConsoleStorage).
+// is owned by the SDK (see AirConsoleStorage.install).
 bailToWelcome = function(toastKey /*, keepClientId */) {
   if (gameCancelled) return;
   gameCancelled = true;

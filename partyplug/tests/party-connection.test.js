@@ -15,7 +15,6 @@ class MockWebSocket {
     this._sent = [];
     this._closed = false;
 
-    // Auto-open after microtask to simulate async connection
     MockWebSocket._instances.push(this);
   }
 
@@ -34,9 +33,9 @@ class MockWebSocket {
     if (this.onopen) this.onopen();
   }
 
-  _simulateClose() {
+  _simulateClose(event) {
     this.readyState = 3;
-    if (this.onclose) this.onclose();
+    if (this.onclose) this.onclose(event || {});
   }
 
   _simulateMessage(data) {
@@ -44,7 +43,7 @@ class MockWebSocket {
   }
 
   _simulateError() {
-    if (this.onerror) this.onerror();
+    if (this.onerror) this.onerror(new Error('simulated'));
   }
 }
 MockWebSocket._instances = [];
@@ -52,7 +51,7 @@ MockWebSocket._instances = [];
 // Inject mock before importing
 global.WebSocket = MockWebSocket;
 
-const PartyConnection = require('../public/shared/PartyConnection');
+const PartyConnection = require('../PartyConnection');
 
 describe('PartyConnection', () => {
   beforeEach(() => {
@@ -64,6 +63,39 @@ describe('PartyConnection', () => {
     pc.connect();
     assert.strictEqual(MockWebSocket._instances.length, 1);
     assert.strictEqual(MockWebSocket._instances[0].url, 'wss://test.example.com');
+  });
+
+  test('auto-generates a clientId when none is provided', () => {
+    const a = new PartyConnection('wss://test.example.com');
+    const b = new PartyConnection('wss://test.example.com');
+    assert.equal(typeof a.clientId, 'string');
+    assert.ok(a.clientId.length > 0);
+    assert.notEqual(a.clientId, b.clientId);   // unique per instance
+  });
+
+  test('uses a provided clientId verbatim and sends it on create/join', () => {
+    const pc = new PartyConnection('wss://test.example.com', { clientId: 'abc' });
+    assert.equal(pc.clientId, 'abc');
+    pc.connect();
+    MockWebSocket._instances[0]._simulateOpen();
+    pc.create(4);
+    const inst = MockWebSocket._instances[0];
+    const sent = inst._sent[inst._sent.length - 1];
+    assert.equal(sent.type, 'create');
+    assert.equal(sent.clientId, 'abc');
+  });
+
+  test('pinInstance assembles the sharded relay URL with encoding', () => {
+    const pc = new PartyConnection('wss://relay.example.com', { clientId: 'display' });
+    pc.pinInstance('wss://relay.example.com', 'MY-ROOM', 'inst-1');
+    assert.equal(pc.relayUrl, 'wss://relay.example.com/MY-ROOM?instance=inst-1');
+    // URI-special characters in room/instance are percent-encoded
+    pc.pinInstance('wss://relay.example.com', 'a b/c', 'i?d=1');
+    assert.equal(pc.relayUrl, 'wss://relay.example.com/a%20b%2Fc?instance=i%3Fd%3D1');
+    // a null/empty instance is a no-op (keeps the current URL)
+    const before = pc.relayUrl;
+    pc.pinInstance('wss://relay.example.com', 'X', null);
+    assert.equal(pc.relayUrl, before);
   });
 
   test('onOpen callback fires on connection', () => {
@@ -94,6 +126,15 @@ describe('PartyConnection', () => {
     MockWebSocket._instances[0]._simulateMessage({ type: 'created', room: 'ABCD' });
     assert.strictEqual(received.type, 'created');
     assert.strictEqual(received.msg.room, 'ABCD');
+  });
+
+  test('onError callback fires on WebSocket error', () => {
+    const pc = new PartyConnection('wss://test.example.com');
+    let errored = false;
+    pc.onError = () => { errored = true; };
+    pc.connect();
+    MockWebSocket._instances[0]._simulateError();
+    assert.strictEqual(errored, true);
   });
 
   test('sendTo sends correctly formatted message', () => {
@@ -158,6 +199,24 @@ describe('PartyConnection - reconnect with exponential backoff', () => {
     pc.connect();
     MockWebSocket._instances[0]._simulateClose();
     assert.deepStrictEqual(closeArgs, { attempt: 1, max: 3 });
+  });
+
+  test('relay eviction close stops reconnecting and reports replacement', () => {
+    const pc = new PartyConnection('wss://test.example.com', { maxReconnectAttempts: 3 });
+    let closeArgs = null;
+    pc.onClose = (attempt, max, meta) => { closeArgs = { attempt, max, meta }; };
+    pc.connect();
+
+    MockWebSocket._instances[0]._simulateClose({ code: 4000 });
+
+    assert.strictEqual(pc._shouldReconnect, false);
+    assert.strictEqual(pc.reconnectAttempt, 0);
+    assert.deepStrictEqual(closeArgs, {
+      attempt: 0,
+      max: 0,
+      meta: { replaced: true },
+    });
+    assert.strictEqual(MockWebSocket._instances.length, 1);
   });
 
   test('reconnect stops after maxReconnectAttempts', () => {
@@ -228,27 +287,22 @@ describe('PartyConnection - reconnect with exponential backoff', () => {
     assert.strictEqual(openCount, 1);
   });
 
-  test('_scheduleReconnect uses exponential backoff', () => {
-    // Verify the backoff formula by inspecting the method behavior
+  test('_scheduleReconnect uses exponential backoff capped at 5s', () => {
+    // delay = min(1000 * 1.5^(attempt-1), 5000): 1000, 1500, 2250, 3375,
+    // then 5000 (capped) from attempt 5 on.
     const pc = new PartyConnection('wss://test.example.com');
-    // After 1st failure: delay = min(1000 * 1.5^0, 5000) = 1000
-    // After 2nd failure: delay = min(1000 * 1.5^1, 5000) = 1500
-    // After 3rd failure: delay = min(1000 * 1.5^2, 5000) = 2250
-    // After 4th failure: delay = min(1000 * 1.5^3, 5000) = 3375
-    // After 5th failure: delay = min(1000 * 1.5^4, 5000) = 5000 (capped)
-    pc.reconnectAttempt = 1;
-    // We can't easily test the timeout delay without mocking setTimeout,
-    // but we verify the method exists and doesn't throw
-    pc._scheduleReconnect();
-    clearTimeout(pc._reconnectTimer);
-
-    pc.reconnectAttempt = 5;
-    pc._scheduleReconnect();
-    clearTimeout(pc._reconnectTimer);
-
-    pc.reconnectAttempt = 10;
-    pc._scheduleReconnect();
-    clearTimeout(pc._reconnectTimer);
+    const delays = [];
+    const realSetTimeout = global.setTimeout;
+    global.setTimeout = (fn, delay) => { delays.push(delay); return 0; };
+    try {
+      for (const attempt of [1, 2, 3, 4, 5, 10]) {
+        pc.reconnectAttempt = attempt;
+        pc._scheduleReconnect();
+      }
+    } finally {
+      global.setTimeout = realSetTimeout;
+    }
+    assert.deepStrictEqual(delays, [1000, 1500, 2250, 3375, 5000, 5000]);
   });
 
   test('create sends correct relay message', () => {
