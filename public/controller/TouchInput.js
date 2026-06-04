@@ -9,15 +9,24 @@ class TouchInput {
     // Time-, rate-, and trackpad-wheel thresholds: fixed, independent of
     // the sensitivity slider.
     this.TAP_MAX_DURATION = 300;
+    // Swipe-vs-hold timing. Release velocity is measured over the last
+    // RECENT_VELOCITY_MS of movement (from the move history, NOT the pointerup
+    // point — on real touch hardware pointerup repeats the last move's
+    // coordinates, so up-vs-last-move is always ~0). If the finger's last
+    // movement was more than RELEASE_IDLE_MS before lift, it had settled into
+    // a hold and reads as not moving. The two are independently tunable; they
+    // just happen to share a value.
+    this.RECENT_VELOCITY_MS = 60;
+    this.RELEASE_IDLE_MS = 60;
     this.SOFT_DROP_MIN_SPEED = 3;
     this.SOFT_DROP_MAX_SPEED = 10;
     this.WHEEL_H_THRESHOLD = 60;
     this.WHEEL_V_THRESHOLD = 120;
     this.WHEEL_RESET_MS = 150;
 
-    // Distance + flick-velocity thresholds: derived from the sensitivity
-    // slider so raising sensitivity tightens the whole gesture space
-    // proportionally. See _applySensitivity() for the ratios.
+    // Distance + velocity thresholds: derived from the sensitivity slider so
+    // raising sensitivity tightens the whole gesture space proportionally.
+    // See _applySensitivity() for the ratios.
     var initial = (typeof ControllerSettings !== 'undefined' && ControllerSettings.getSensitivity)
       ? ControllerSettings.getSensitivity()
       : 48;
@@ -34,14 +43,14 @@ class TouchInput {
     this.startTime = 0;
     this.isDragging = false;
     this.isSoftDropping = false;
-    this.hasSoftDropped = false;
     this.hasMovedHorizontally = false;
     this._softDropIntervalId = null;
     this._lastDyFromStart = 0;
-
-    // Ring buffer for velocity calculation (last 4 positions)
-    this.posBuffer = [];
-    this.POS_BUFFER_SIZE = 4;
+    // Recent movement samples {x, y, t} (pointerdown + pointermoves, not the
+    // up). The release velocity — and thus the swipe-vs-hold decision — is
+    // computed from the tail of this list. Capped to keep it bounded.
+    this._samples = [];
+    this.MAX_SAMPLES = 16;
 
     // Wheel accumulator state
     this._wheelAccumX = 0;
@@ -76,20 +85,17 @@ class TouchInput {
   // Re-derive every slider-tied threshold from the current sensitivity
   // value. Called once from the constructor and live from Settings.js on
   // slider change so changes take effect without rebuilding TouchInput.
-  // Ratios calibrated so the default 48px keeps each constant close to
-  // its pre-slider value (TAP=15, DEAD_ZONE=96, MAX_DIST=200, FLICK=0.8/ms,
-  // SWIPE_HARD_DROP=48 ~= old 50, SWIPE_HOLD=29 ~= old 30).
+  // Ratios calibrated so the default 48px keeps each constant close to its
+  // pre-slider value (TAP=15, DEAD_ZONE=96, MAX_DIST=200, MOTION=0.3/ms).
   _applySensitivity(ratchet) {
     this.RATCHET_THRESHOLD = ratchet;
     this.TAP_MAX_DISTANCE = Math.max(5, Math.round(ratchet * 0.3));
     this.SOFT_DROP_DEAD_ZONE = ratchet * 2;
     this.SOFT_DROP_MAX_DIST = ratchet * 4;
-    this.FLICK_VELOCITY_THRESHOLD = ratchet / 60;
-    // Fallback swipe distances (pointerup classifier when velocity didn't
-    // trigger a fresh fling). Asymmetric: hard drop demands more downward
-    // travel than hold demands upward, matching the thumb ergonomics.
-    this.SWIPE_HARD_DROP_DY = ratchet;
-    this.SWIPE_HOLD_DY = Math.max(10, Math.round(ratchet * 0.6));
+    // Swipe-vs-hold boundary: minimum vertical speed (CSS px/ms) at release
+    // for the gesture to count as "still moving" (→ hard drop / hold) rather
+    // than a settled hold (→ soft drop). A held finger reads ~0.
+    this.MOTION_VELOCITY = ratchet / 160;
   }
 
   _resetState() {
@@ -100,31 +106,11 @@ class TouchInput {
     this.startTime = 0;
     this.isDragging = false;
     this.isSoftDropping = false;
-    this.hasSoftDropped = false;
     this.hasMovedHorizontally = false;
     this._lastDyFromStart = 0;
+    this._samples = [];
     this._stopSoftDropInterval();
-    this.posBuffer = [];
     if (this.onProgress) this.onProgress(null, 0);
-  }
-
-  _pushPos(x, y, t) {
-    this.posBuffer.push({ x, y, t });
-    if (this.posBuffer.length > this.POS_BUFFER_SIZE) {
-      this.posBuffer.shift();
-    }
-  }
-
-  _getVelocity() {
-    if (this.posBuffer.length < 2) return { vx: 0, vy: 0 };
-    const last = this.posBuffer[this.posBuffer.length - 1];
-    const prev = this.posBuffer[this.posBuffer.length - 2];
-    const dt = last.t - prev.t;
-    if (dt <= 0) return { vx: 0, vy: 0 };
-    return {
-      vx: (last.x - prev.x) / dt,
-      vy: (last.y - prev.y) / dt
-    };
   }
 
   _haptic(pattern) {
@@ -161,36 +147,42 @@ class TouchInput {
     }
   }
 
-  _isFreshFlingCandidate(totalDx, totalDy, duration, vx, vy) {
-    const absVx = Math.abs(vx);
-    const absVy = Math.abs(vy);
-    return (
-      duration < 250 &&
-      absVy > absVx &&
-      Math.abs(totalDy) > this.TAP_MAX_DISTANCE &&
-      absVy > this.FLICK_VELOCITY_THRESHOLD
-    );
+  // Velocity (CSS px/ms) of the finger just before lift — the swipe-vs-hold
+  // signal. Measured over the last RECENT_VELOCITY_MS of *movement* (from the
+  // sample history, never the pointerup coordinates, which on real hardware
+  // just repeat the final move). If the last movement was longer than
+  // RELEASE_IDLE_MS before lift, the finger had settled → reads as ~0 (hold).
+  _releaseVelocity(upT) {
+    const s = this._samples;
+    if (s.length < 2) return { vx: 0, vy: 0 };
+    const last = s[s.length - 1];
+    if (upT - last.t > this.RELEASE_IDLE_MS) return { vx: 0, vy: 0 };
+    // Reference = the oldest sample still within the recent window, but never
+    // newer than the previous sample, so we always span at least one segment.
+    let ref = s[s.length - 2];
+    for (let i = s.length - 3; i >= 0; i--) {
+      if (last.t - s[i].t > this.RECENT_VELOCITY_MS) break;
+      ref = s[i];
+    }
+    const dt = last.t - ref.t;
+    if (dt <= 0) return { vx: 0, vy: 0 };
+    return { vx: (last.x - ref.x) / dt, vy: (last.y - ref.y) / dt };
   }
 
-  _tryFreshFling(totalDx, totalDy, duration, vx, vy) {
-    if (this.hasSoftDropped) return false;
-    if (!this._isFreshFlingCandidate(totalDx, totalDy, duration, vx, vy)) return false;
-
-    if (vy > 0 && totalDy > this.TAP_MAX_DISTANCE) {
-      this.onInput(INPUT.HARD_DROP);
-      this._haptic([8, 8, 8]);
-      this._resetState();
-      return true;
-    }
-
-    if (vy < 0 && totalDy < -this.TAP_MAX_DISTANCE) {
-      this.onInput(INPUT.HOLD);
-      this._haptic(23);
-      this._resetState();
-      return true;
-    }
-
-    return false;
+  // Classify a release by its final-segment velocity: a vertical gesture still
+  // moving (>= MOTION_VELOCITY) hard-drops (down) or holds (up). A settled
+  // finger reads below the threshold and returns null (→ soft drop / nothing).
+  // The net travel (totalDy) must agree with the velocity direction, so a tiny
+  // reversal as the finger leaves the screen can't flip a downward soft drop
+  // into a HOLD (or a hold gesture into a hard drop). Fires regardless of a
+  // brief prior soft drop.
+  _classifyRelease(vx, vy, totalDy) {
+    const absVx = Math.abs(vx);
+    const absVy = Math.abs(vy);
+    if (absVy <= absVx || absVy < this.MOTION_VELOCITY) return null;
+    if (vy > 0 && totalDy > 0) return INPUT.HARD_DROP;
+    if (vy < 0 && totalDy < 0) return INPUT.HOLD;
+    return null;
   }
 
   _onContextMenu(e) {
@@ -220,8 +212,7 @@ class TouchInput {
     this.startTime = now;
     this.isDragging = false;
     this.isSoftDropping = false;
-    this.posBuffer = [];
-    this._pushPos(x, y, now);
+    this._samples = [{ x: x, y: y, t: now }];
   }
 
   _onPointerMove(e) {
@@ -231,11 +222,8 @@ class TouchInput {
     const y = e.clientY;
     const now = e.timeStamp;
 
-    this._pushPos(x, y, now);
-
     const dxFromStart = x - this.startX;
     const dyFromStart = y - this.startY;
-    const duration = now - this.startTime;
 
     // Detect dragging (exit tap dead zone)
     if (!this.isDragging) {
@@ -246,13 +234,24 @@ class TouchInput {
       }
     }
 
-    // Move phase only handles continuous controls.
-    // Discrete fling gestures are resolved on pointerup if the session never committed.
+    // Move phase handles continuous controls (ratchet + soft drop). The
+    // discrete hard drop / hold is resolved on pointerup from release velocity.
     const dxFromAnchor = x - this.anchorX;
     const absDxFromAnchor = Math.abs(dxFromAnchor);
     const absDyFromStart = Math.abs(dyFromStart);
     const steps = Math.trunc(dxFromAnchor / this.RATCHET_THRESHOLD);
-    if (steps !== 0 && (this.isSoftDropping || absDxFromAnchor >= absDyFromStart)) {
+    // Fire a left/right step only when the gesture is horizontally dominant —
+    // either overall (since the start) or in the latest movement segment. The
+    // segment test lets you steer while soft-dropping (finger moving sideways)
+    // without a vertical-dominant fling — which now also engages soft drop —
+    // registering an accidental left/right on its way down to a hard drop.
+    // _samples is seeded at pointerdown, so there is always a previous sample.
+    const prev = this._samples[this._samples.length - 1];
+    const segDx = x - prev.x;
+    const segDy = y - prev.y;
+    const horizontallyDominant = absDxFromAnchor >= absDyFromStart
+      || Math.abs(segDx) >= Math.abs(segDy);
+    if (steps !== 0 && horizontallyDominant) {
       const action = steps > 0 ? INPUT.RIGHT : INPUT.LEFT;
       for (let i = 0, n = Math.abs(steps); i < n; i++) {
         this.onInput(action);
@@ -262,16 +261,16 @@ class TouchInput {
       this.hasMovedHorizontally = true;
     }
 
-    const { vx, vy } = this._getVelocity();
-    const freshFlingCandidate = !this.hasSoftDropped
-      && this._isFreshFlingCandidate(dxFromStart, dyFromStart, duration, vx, vy);
-
     this._lastDyFromStart = dyFromStart;
+    this._samples.push({ x: x, y: y, t: now });
+    if (this._samples.length > this.MAX_SAMPLES) this._samples.shift();
 
-    if (dyFromStart > this.SOFT_DROP_DEAD_ZONE && !freshFlingCandidate) {
+    // Soft drop engages once the finger passes the dead zone. Whether the
+    // gesture ends as a soft drop or a hard drop is decided at release by
+    // the finger's velocity (still moving → hard drop; settled → soft drop).
+    if (dyFromStart > this.SOFT_DROP_DEAD_ZONE) {
       if (!this.isSoftDropping && !this.hasMovedHorizontally) {
         this.isSoftDropping = true;
-        this.hasSoftDropped = true;
         this._haptic(23);
         this._startSoftDropInterval();
       }
@@ -307,7 +306,6 @@ class TouchInput {
     const x = e.clientX;
     const y = e.clientY;
     const now = e.timeStamp;
-    this._pushPos(x, y, now);
 
     // End soft drop if active
     if (this.isSoftDropping) {
@@ -317,43 +315,35 @@ class TouchInput {
 
     const duration = now - this.startTime;
     const totalDx = x - this.startX;
+    // Only totalDy's *sign* is used (by _classifyRelease's direction guard),
+    // not its magnitude. It reads pointerup.clientY, which on real hardware
+    // repeats the last move's position and so agrees with the sample-derived
+    // direction from _releaseVelocity.
     const totalDy = y - this.startY;
     const totalDist = Math.sqrt(totalDx * totalDx + totalDy * totalDy);
 
-    // 1. Tap: minimal movement + short duration → rotate
-    if (totalDist < this.TAP_MAX_DISTANCE && duration < this.TAP_MAX_DURATION) {
+    // Tap: minimal movement + short duration → rotate.
+    const isTap = totalDist < this.TAP_MAX_DISTANCE && duration < this.TAP_MAX_DURATION;
+
+    // Swipe-vs-hold: a release still moving vertically is a hard drop (down)
+    // or hold (up); a settled finger is left as the soft drop it already was.
+    // Fires even if a soft drop was briefly active during the swipe.
+    const rel = this._releaseVelocity(now);
+    let action = isTap ? null : this._classifyRelease(rel.vx, rel.vy, totalDy);
+    // A gesture that registered a left/right step is a move, not a drop, so it
+    // can't also hard drop on release — mirrors how horizontal movement already
+    // blocks soft drop mid-gesture. (Hold is left available.)
+    if (action === INPUT.HARD_DROP && this.hasMovedHorizontally) action = null;
+
+    if (isTap) {
       this.onInput(INPUT.ROTATE_CW);
       this._haptic(15);
-      this._resetState();
-      return;
-    }
-
-    // Once continuous drag control was recognized, this touch session cannot
-    // also become a discrete fling gesture on release.
-    if (this.hasSoftDropped) {
-      this._resetState();
-      return;
-    }
-
-    const { vx, vy } = this._getVelocity();
-    if (this._tryFreshFling(totalDx, totalDy, duration, vx, vy)) {
-      return;
-    }
-
-    // 2. Short downward swipe fallback → hard drop
-    if (totalDy > this.SWIPE_HARD_DROP_DY && duration < 300 && Math.abs(totalDy) > Math.abs(totalDx) * 1.5) {
+    } else if (action === INPUT.HARD_DROP) {
       this.onInput(INPUT.HARD_DROP);
       this._haptic([8, 8, 8]);
-      this._resetState();
-      return;
-    }
-
-    // 3. Short upward swipe fallback → hold
-    if (totalDy < -this.SWIPE_HOLD_DY && duration < 400 && Math.abs(totalDy) > Math.abs(totalDx) * 1.5) {
+    } else if (action === INPUT.HOLD) {
       this.onInput(INPUT.HOLD);
       this._haptic(23);
-      this._resetState();
-      return;
     }
 
     this._resetState();

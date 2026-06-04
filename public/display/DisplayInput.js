@@ -36,6 +36,9 @@ function handleControllerMessage(fromId, msg) {
       case MSG.SOFT_DROP:
         onSoftDrop(fromId, msg.speed);
         break;
+      case MSG.SOFT_DROP_END:
+        endSoftDrop(fromId);
+        break;
       case MSG.START_GAME:
         startGame();
         break;
@@ -243,6 +246,9 @@ function onInput(fromId, msg) {
     var last = lastHardDropTime.get(fromId) || 0;
     if (now - last < HARD_DROP_MIN_INTERVAL_MS) return;
     lastHardDropTime.set(fromId, now);
+    // A hard drop supersedes any in-progress soft drop, so the piece spawned
+    // after the lock doesn't inherit soft-drop speed.
+    endSoftDrop(fromId);
   }
 
   displayGame.processInput(fromId, msg.action);
@@ -254,14 +260,24 @@ function onSoftDrop(fromId, speed) {
 
   displayGame.handleSoftDropStart(fromId, speed);
 
-  // Reset auto-end timeout
+  // (Re)arm the auto-end fallback in case the explicit SOFT_DROP_END is lost.
   if (softDropTimers.has(fromId)) {
     clearTimeout(softDropTimers.get(fromId));
   }
   softDropTimers.set(fromId, setTimeout(function() {
-    softDropTimers.delete(fromId);
-    if (displayGame) displayGame.handleSoftDropEnd(fromId);
+    endSoftDrop(fromId);
   }, GameConstants.SOFT_DROP_TIMEOUT_MS));
+}
+
+// End a player's soft drop now: cancel the auto-end fallback and stop the
+// accelerated fall. Driven by the explicit SOFT_DROP_END message (immediate
+// on touch-up), the hard-drop supersede, or the fallback timeout.
+function endSoftDrop(fromId) {
+  if (softDropTimers.has(fromId)) {
+    clearTimeout(softDropTimers.get(fromId));
+    softDropTimers.delete(fromId);
+  }
+  if (displayGame) displayGame.handleSoftDropEnd(fromId);
 }
 
 function onSetDisplayMute(fromId, msg) {
@@ -335,11 +351,7 @@ function onSetName(fromId, msg) {
 }
 
 function cleanupPlayerInput(clientId) {
-  if (softDropTimers.has(clientId)) {
-    clearTimeout(softDropTimers.get(clientId));
-    softDropTimers.delete(clientId);
-    if (displayGame) displayGame.handleSoftDropEnd(clientId);
-  }
+  endSoftDrop(clientId);
   lastHardDropTime.delete(clientId);
 }
 

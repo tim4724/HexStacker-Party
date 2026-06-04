@@ -816,7 +816,12 @@ function initTouchInput() {
       }
       sendToDisplay(MSG.SOFT_DROP, { speed: data && data.speed });
     } else if (action === 'soft_drop_end') {
-      softDropActive = false;
+      if (softDropActive) {
+        softDropActive = false;
+        // Tell the display to stop immediately on touch-up rather than wait
+        // for its soft-drop auto-end timeout.
+        sendToDisplay(MSG.SOFT_DROP_END);
+      }
     } else {
       sendToDisplay(MSG.INPUT, { action: action });
     }
