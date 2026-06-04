@@ -66,6 +66,16 @@ function updateHostVisibility() {
   }
 }
 
+// Refresh every surface that shows the local player's own name. Called after a
+// mid-session rename (AC profile change) so the new name is visible immediately
+// without waiting for a display round-trip, on whichever screen is current.
+function applyLocalPlayerName() {
+  var shown = playerName || t('player');
+  playerNameEl.textContent = shown;
+  playerIdentityName.textContent = shown;
+  touchArea.setAttribute('data-player-name', shown);
+}
+
 function showLobbyUI() {
   playerIdentity.style.setProperty('--player-color', playerColor);
   playerIdentityName.textContent = playerName || t('player');

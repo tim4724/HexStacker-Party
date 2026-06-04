@@ -57,6 +57,9 @@ function handleControllerMessage(fromId, msg) {
       case MSG.SET_COLOR:
         onSetColor(fromId, msg);
         break;
+      case MSG.SET_NAME:
+        onSetName(fromId, msg);
+        break;
       case MSG.LEAVE:
         onPeerLeft(fromId);
         break;
@@ -82,16 +85,20 @@ function handleControllerMessage(fromId, msg) {
   }
 }
 
-function onHello(fromId, msg) {
-  // Strip control characters (incl. \x00) — defensive against names that would
-  // render weirdly in textContent or confuse downstream serialization.
-  // ControllerGame.js#renderHostBanner uses \x00 as a template-split sentinel;
-  // a \x00 in a player name would survive to the controller and reach that
-  // split. Stripping here is the single chokepoint — all inbound names pass
-  // through onHello.
-  var name = typeof msg.name === 'string'
-    ? msg.name.replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0, 16)
+// Strip control characters (incl. \x00) — defensive against names that would
+// render weirdly in textContent or confuse downstream serialization.
+// ControllerGame.js#renderHostBanner uses \x00 as a template-split sentinel;
+// a \x00 in a player name would survive to the controller and reach that
+// split. Every inbound name (HELLO + SET_NAME) passes through here — keep it
+// the single sanitizing chokepoint.
+function cleanInboundName(raw) {
+  return typeof raw === 'string'
+    ? raw.replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0, 16)
     : '';
+}
+
+function onHello(fromId, msg) {
+  var name = cleanInboundName(msg.name);
   var claimedReconnect = claimReconnectPeer(fromId, msg);
 
   // Player already registered (from peer_joined or reconnect)
@@ -100,6 +107,7 @@ function onHello(fromId, msg) {
 
     // Update name. Empty submissions and legacy P1-P8 fallbacks resolve to
     // room-unique HX names; custom names stay as entered.
+    var prevName = existing.playerName;
     if (name || (msg.autoName === true && !claimedReconnect)) {
       // For the peer_joined-before-HELLO path, preserve the HX name already
       // assigned on the player's Map entry while excluding that entry from
@@ -107,6 +115,14 @@ function onHello(fromId, msg) {
       var requestedName = name || existing.playerName;
       existing.playerName = sanitizePlayerName(requestedName, fromId, msg.autoName === true);
     }
+    // The host's name reaches other controllers only via LOBBY_UPDATE's
+    // hostName, and onPeerJoined already broadcast the auto HX- fallback. When
+    // the host's HELLO upgrades that to a real name (AC nickname applied after
+    // the peer_joined-before-HELLO registration), their "Waiting for <host>"
+    // banner is stale until we re-broadcast — maybeBroadcastHostChange only
+    // fires on a host *index* change, not a host *name* change.
+    var hostNameChanged = existing.playerName !== prevName
+      && fromId === getHostPeerIndex();
     updatePlayerList();
 
     // Late joiner: registered via onPeerJoined during active game but never
@@ -157,6 +173,8 @@ function onHello(fromId, msg) {
     if (claimedReconnect) {
       broadcastLobbyUpdate();
       if (autoPaused) checkAutoResume();
+    } else if (hostNameChanged) {
+      broadcastLobbyUpdate();
     }
     return;
   }
@@ -270,18 +288,14 @@ function onSetLevel(fromId, msg) {
   }
 }
 
-// Re-claim a palette slot. Active game participants (in playerOrder during
-// COUNTDOWN/PLAYING/RESULTS) are locked — color is baked into the running
-// game. Late joiners sitting in waitingForNextGame can still pre-pick.
-// Silently rejects collisions so concurrent picks don't spam the sender with
-// errors; the next LOBBY_UPDATE carries the truth.
+// Re-claim a palette slot. Silently rejects collisions so concurrent picks
+// don't spam the sender with errors; the next LOBBY_UPDATE carries the truth.
+// Not state-gated: the controller's color picker is reachable only in the
+// lobby, so a mid-game pick can't occur in practice — no guard needed.
 function onSetColor(fromId, msg) {
   if (!players.has(fromId)) return;
   var idx = parseInt(msg.colorIndex, 10);
   if (isNaN(idx) || idx < 0 || idx >= PLAYER_COLORS.length) return;
-
-  var isActiveParticipant = playerOrder.indexOf(fromId) >= 0 && roomState !== ROOM_STATE.LOBBY;
-  if (isActiveParticipant) return;
 
   var player = players.get(fromId);
   if (player.playerIndex === idx) return;
@@ -293,6 +307,31 @@ function onSetColor(fromId, msg) {
   player.playerIndex = idx;
   updatePlayerList();
   broadcastLobbyUpdate();
+}
+
+// Live rename from an already-registered controller (e.g. an AirConsole profile
+// edit). Unlike SET_COLOR this is allowed in every state — including mid-game —
+// because it only relabels the player and never touches game state. It's the
+// lightweight counterpart to a HELLO: no WELCOME reply, so it can't trigger the
+// controller's reconnect-restore path (initTouchInput teardown, screen reset)
+// that a mid-game HELLO would.
+function onSetName(fromId, msg) {
+  if (!players.has(fromId)) return;
+  var player = players.get(fromId);
+  var prevName = player.playerName;
+  // requestedAutoName is hardcoded false: SET_NAME always means "I have a real
+  // name now". Honoring an autoName:true here would make sanitizePlayerName
+  // discard the name and hand back an HX fallback — the opposite of a rename.
+  // Empty/legacy names still resolve to an HX name via the !name branch.
+  player.playerName = sanitizePlayerName(cleanInboundName(msg.name), fromId, false);
+  if (player.playerName === prevName) return;
+  updatePlayerList();
+  // The host's name reaches other controllers only via LOBBY_UPDATE's hostName,
+  // so refresh their "Waiting for <host>" banner when the host renames. A
+  // non-host rename only affects the TV roster (updatePlayerList above), which
+  // controllers don't mirror — skip the broadcast to stay under the controller
+  // message-rate limit.
+  if (fromId === getHostPeerIndex()) broadcastLobbyUpdate();
 }
 
 function cleanupPlayerInput(clientId) {

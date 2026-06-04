@@ -570,4 +570,79 @@ test.describe.serial('AirConsole Integration', () => {
 
     expect(await s.screenFrame.evaluate(() => roomState)).toBe('playing');
   });
+
+  // Regression: a host who changed their AirConsole nickname after joining (the
+  // auto HX- name or an earlier nickname is already on other screens) must
+  // propagate the new name to the other controllers' "Waiting for <host>"
+  // banner. Before the fix, onHello updated the host record but never
+  // re-broadcast, so the banner stayed stale.
+  test('host nickname change propagates to other controllers\' waiting banner', async ({ page, context }) => {
+    if (!USE_MOCK) {
+      test.skip(true, 'Multi-controller rename test only in mock mode');
+      return;
+    }
+    const s = await createSession(context, page); // host = device 101, nickname 'TestPlayer'
+    await s.screenFrame.waitForFunction(() => players.size >= 1, null, { timeout: 15000 });
+
+    // Second controller (non-host) — its lobby shows "Waiting for <host>".
+    const c2 = await context.newPage();
+    await setupMockPage(c2, { nickname: 'Bob', deviceId: 102 });
+    await c2.setViewportSize({ width: 390, height: 844 });
+    await c2.goto('/controller.html');
+    await c2.waitForSelector('#lobby-screen:not(.hidden)', { timeout: 10000 });
+    await s.screenFrame.waitForFunction(() => players.size === 2, null, { timeout: 15000 });
+
+    const c2Frame = c2.mainFrame();
+    // Banner starts on the host's initial nickname.
+    await c2Frame.waitForFunction(
+      () => document.getElementById('waiting-action-text').textContent.indexOf('TestPlayer') !== -1,
+      null, { timeout: 15000 });
+
+    // Host edits their AirConsole nickname mid-lobby.
+    await s.ctrlPage.evaluate(() => window.airconsole.triggerProfileChange('Captain'));
+
+    // Display roster reflects the new host name (peerIndex === deviceId in AC)...
+    await s.screenFrame.waitForFunction(
+      () => players.get(101) && players.get(101).playerName === 'Captain', null, { timeout: 15000 });
+    // ...and the non-host's waiting banner updates to match (the bug).
+    await c2Frame.waitForFunction(
+      () => document.getElementById('waiting-action-text').textContent.indexOf('Captain') !== -1,
+      null, { timeout: 15000 });
+
+    await c2.close();
+  });
+
+  // A nickname change DURING a running game must relabel the player without
+  // disrupting play. SET_NAME is answered with no WELCOME, so the controller's
+  // live touch handler is never torn down and rebuilt (initTouchInput) the way
+  // a re-sent HELLO's restore reply would force.
+  test('nickname change mid-game relabels without disrupting play', async ({ page, context }) => {
+    if (!USE_MOCK) {
+      test.skip(true, 'Mid-game rename test only in mock mode');
+      return;
+    }
+    const s = await createSession(context, page); // host = device 101
+    await s.screenFrame.waitForFunction(() => players.size >= 1, null, { timeout: 15000 });
+    await s.ctrlFrame.waitForFunction(() => currentScreen === 'lobby' && playerColor !== null, null, { timeout: 15000 });
+
+    // Default (slow) level so the game stays in play while we rename.
+    await s.ctrlFrame.locator('#start-btn').click();
+    await s.screenFrame.waitForFunction(() => roomState === 'playing', null, { timeout: 15000 });
+    await s.ctrlFrame.waitForSelector('#game-screen:not(.hidden):not(.countdown)', { timeout: 15000 });
+
+    // Snapshot the live touch handler — a restore WELCOME would replace it.
+    await s.ctrlFrame.waitForFunction(() => typeof touchInput !== 'undefined' && touchInput !== null, null, { timeout: 15000 });
+    await s.ctrlFrame.evaluate(() => { window.__tiBefore = touchInput; });
+
+    await s.ctrlPage.evaluate(() => window.airconsole.triggerProfileChange('MidGame'));
+
+    // Name propagates to the display roster...
+    await s.screenFrame.waitForFunction(
+      () => players.get(101) && players.get(101).playerName === 'MidGame', null, { timeout: 15000 });
+
+    // ...the game keeps running and the touch handler was never rebuilt.
+    expect(await s.screenFrame.evaluate(() => roomState)).toBe('playing');
+    expect(await s.ctrlFrame.evaluate(() => currentScreen)).toBe('game');
+    expect(await s.ctrlFrame.evaluate(() => touchInput === window.__tiBefore)).toBe(true);
+  });
 });
