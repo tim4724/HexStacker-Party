@@ -41,6 +41,7 @@
     this.onPause = null;
     this.onResume = null;
     this.onPersistentDataLoaded = null;
+    this.onDeviceProfileChange = null;
 
     var self = this;
 
@@ -178,6 +179,12 @@
   AirConsole.prototype.triggerAdComplete = function() { if (this.onAdComplete) this.onAdComplete(); };
   AirConsole.prototype.triggerDisconnect = function() {
     this._channel.postMessage({ _ac_type: 'disconnect', deviceId: this._deviceId });
+  };
+  // Simulate the player editing their AirConsole nickname: update this device's
+  // own nickname and fire onDeviceProfileChange for it, matching the real SDK.
+  AirConsole.prototype.triggerProfileChange = function(nickname) {
+    if (nickname != null) window.__AC_NICKNAME = nickname;
+    if (this.onDeviceProfileChange) this.onDeviceProfileChange(this._deviceId);
   };
 
   window.AirConsole = AirConsole;

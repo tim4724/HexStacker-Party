@@ -113,6 +113,25 @@ connect = function() {
   });
 };
 
+// The player can change their AirConsole nickname mid-session (the platform
+// profile editor, or a late-loading profile). The SDK fires
+// onDeviceProfileChange for any device whose nickname/picture changed; we act
+// only on our own. SET_NAME is a lightweight rename the display accepts in any
+// state — including mid-game — and answers with no WELCOME, so it can't trigger
+// the reconnect-restore path (initTouchInput teardown, screen reset) that a
+// re-sent HELLO would. The display relabels the roster and, if we're the host,
+// re-broadcasts so the other controllers' "Waiting for <host>" banner updates.
+// The adapter never wires onDeviceProfileChange, so this assignment is durable.
+airconsole.onDeviceProfileChange = function(device_id) {
+  if (device_id !== airconsole.getDeviceId()) return;
+  var nickname = airconsole.getNickname(device_id);
+  if (!nickname || nickname === playerName) return;
+  playerName = nickname;
+  playerNameIsAuto = false;
+  applyLocalPlayerName();
+  sendToDisplay(MSG.SET_NAME, { name: playerName });
+};
+
 injectVersionLabel('settings-version');
 
 function appVersion() {

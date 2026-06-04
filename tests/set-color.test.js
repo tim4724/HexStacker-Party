@@ -12,9 +12,10 @@ const { generateAutoPlayerName } = require('./auto-name-helper');
 // onSetColor mirrors the production handler in public/display/DisplayInput.js:
 //   - Reject invalid indices (non-integer, out-of-range).
 //   - Reject if another player already claims the target index.
-//   - Allow during LOBBY unconditionally.
-//   - Allow for a late joiner (not in playerOrder) at any roomState.
-//   - Reject for an active participant (in playerOrder) unless roomState is LOBBY.
+//   - No-op if the sender already holds the target index.
+//   - Not state-gated: accepted in every roomState. The controller's color
+//     picker is reachable only in the lobby, so a mid-game pick can't occur in
+//     practice — the handler itself imposes no lock.
 //
 // broadcastLobbyUpdate mirrors the production broadcaster: its outgoing
 // takenColorIndices payload should reflect the post-swap state.
@@ -73,9 +74,6 @@ function onSetColor(players, playerOrder, roomState, party, fromId, msg) {
   if (!players.has(fromId)) return;
   var idx = parseInt(msg.colorIndex, 10);
   if (isNaN(idx) || idx < 0 || idx >= PALETTE_SIZE) return;
-
-  var isActiveParticipant = playerOrder.indexOf(fromId) >= 0 && roomState !== ROOM_STATE.LOBBY;
-  if (isActiveParticipant) return;
 
   var player = players.get(fromId);
   if (player.playerIndex === idx) return;
@@ -148,54 +146,47 @@ describe('Display: onSetColor', () => {
     assert.strictEqual(sent.length, 0);
   });
 
-  test('rejects an active participant during PLAYING', () => {
+  // Not state-gated: an active participant can recolor in any roomState. The
+  // production picker is lobby-only so this can't happen in practice, but the
+  // handler imposes no lock — covered across PLAYING/COUNTDOWN/RESULTS so a
+  // re-added guard fails here.
+  test('accepts a color change during PLAYING', () => {
     seedPlayer(players, 'a', 0);
     playerOrder.push('a');
     roomState = ROOM_STATE.PLAYING;
 
     onSetColor(players, playerOrder, roomState, party, 'a', { colorIndex: 5 });
-    assert.strictEqual(players.get('a').playerIndex, 0, 'active participant is locked');
-    assert.strictEqual(sent.length, 0);
+    assert.strictEqual(players.get('a').playerIndex, 5);
+    assert.ok(sent.some(s => s.msg.type === MSG.LOBBY_UPDATE), 'broadcasts the swap');
   });
 
-  test('rejects an active participant during COUNTDOWN', () => {
-    // Same lockout as PLAYING — covered separately so a refactor that
-    // narrowed the guard from "!== LOBBY" to "=== PLAYING" would fail
-    // here instead of silently unlocking the countdown window.
+  test('accepts a color change during COUNTDOWN', () => {
     seedPlayer(players, 'a', 0);
     playerOrder.push('a');
     roomState = ROOM_STATE.COUNTDOWN;
 
     onSetColor(players, playerOrder, roomState, party, 'a', { colorIndex: 5 });
-    assert.strictEqual(players.get('a').playerIndex, 0);
-    assert.strictEqual(sent.length, 0);
+    assert.strictEqual(players.get('a').playerIndex, 5);
   });
 
-  test('rejects an active participant during RESULTS', () => {
-    // Same reasoning as COUNTDOWN — the results screen renders each
-    // player's color in their rank row, so a mid-RESULTS color change
-    // would desync the visible ranking from the player's identity.
+  test('accepts a color change during RESULTS', () => {
     seedPlayer(players, 'a', 0);
     playerOrder.push('a');
     roomState = ROOM_STATE.RESULTS;
 
     onSetColor(players, playerOrder, roomState, party, 'a', { colorIndex: 5 });
-    assert.strictEqual(players.get('a').playerIndex, 0);
-    assert.strictEqual(sent.length, 0);
+    assert.strictEqual(players.get('a').playerIndex, 5);
   });
 
-  test('accepts a late joiner (not in playerOrder) during PLAYING', () => {
+  test('collision rejection still applies mid-game', () => {
     seedPlayer(players, 'a', 0);
-    playerOrder.push('a');
-    seedPlayer(players, 'late', 1);
-    // 'late' joined mid-game, so onPeerJoined did not append to playerOrder.
+    seedPlayer(players, 'b', 6);
+    playerOrder.push('a', 'b');
     roomState = ROOM_STATE.PLAYING;
 
-    onSetColor(players, playerOrder, roomState, party, 'late', { colorIndex: 6 });
-    assert.strictEqual(players.get('late').playerIndex, 6);
-    const lobbyMsgs = sent.filter(s => s.msg.type === MSG.LOBBY_UPDATE);
-    assert.ok(lobbyMsgs.length >= 1);
-    assert.deepStrictEqual(lobbyMsgs[0].msg.takenColorIndices, [0, 6]);
+    onSetColor(players, playerOrder, roomState, party, 'a', { colorIndex: 6 });
+    assert.strictEqual(players.get('a').playerIndex, 0, 'taken slot is still refused');
+    assert.strictEqual(sent.length, 0);
   });
 
   test('ignores unknown sender', () => {

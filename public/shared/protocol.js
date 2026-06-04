@@ -22,6 +22,7 @@ var MSG = {
   LEAVE: 'leave',
   SET_LEVEL: 'set_level',
   SET_COLOR: 'set_color',
+  SET_NAME: 'set_name',
   SET_DISPLAY_MUTE: 'set_display_mute',
   PING: 'ping',
 
