@@ -122,6 +122,7 @@ setRoomState = function(newState) {
   if (ok && before === ROOM_STATE.RESULTS && newState !== ROOM_STATE.RESULTS) {
     _hsStopToggle();
     if (_hsRefetchTimer) { clearTimeout(_hsRefetchTimer); _hsRefetchTimer = null; }
+    if (_hsPumpWatchdog) { clearTimeout(_hsPumpWatchdog); _hsPumpWatchdog = null; }
     hideGlobalLeaderboard();
     annotateResultWorldRanks(null);
   }
@@ -167,9 +168,12 @@ var _hsRequestQueue = [];
 var _hsRequestInFlight = false;
 var _hsPendingBoard = null;
 var _hsRefetchTimer = null;
+var _hsPumpWatchdog = null;
 
 function acStoreHighScores(msg) {
-  if (!window.airconsole || typeof airconsole.storeHighScore !== 'function') return;
+  // `airconsole` is this file's own var, always set; the typeof guard covers
+  // the AC_MOCK / older-SDK path where the High Score API is absent.
+  if (typeof airconsole.storeHighScore !== 'function') return;
   if (!msg || !msg.results || msg._hsStored) return;
   msg._hsStored = true;
 
@@ -190,6 +194,7 @@ function acStoreHighScores(msg) {
   _hsRequestInFlight = false;
   _hsPendingBoard = null;
   if (_hsRefetchTimer) { clearTimeout(_hsRefetchTimer); _hsRefetchTimer = null; }
+  if (_hsPumpWatchdog) { clearTimeout(_hsPumpWatchdog); _hsPumpWatchdog = null; }
 
   var boards = ['all', 'month'];
   for (var i = 0; i < played.length; i++) {
@@ -197,6 +202,9 @@ function acStoreHighScores(msg) {
     var uid = airconsole.getUID(r.playerId);
     if (!uid) continue; // controller dropped at game end — no UID to attribute
     _hsPlayerUids[r.playerId] = uid;
+    // A 0-line result (instant topout) isn't worth a new board entry — skip the
+    // store but keep the uid so any prior best still surfaces a world-rank badge.
+    if (!(r.lines > 0)) continue;
     for (var b = 0; b < boards.length; b++) {
       try {
         // score_string is English (AC's own share image); our render localizes
@@ -235,6 +243,16 @@ function _hsPumpRequests() {
   var key = _hsRequestQueue.shift();
   _hsRequestInFlight = true;
   _hsPendingBoard = key;
+  // Watchdog: if the SDK accepts the request but never fires onHighScores
+  // (network blip / SDK quirk), clear in-flight after 10s so the queue can't
+  // stall the panel permanently.
+  if (_hsPumpWatchdog) clearTimeout(_hsPumpWatchdog);
+  _hsPumpWatchdog = setTimeout(function() {
+    _hsPumpWatchdog = null;
+    _hsRequestInFlight = false;
+    _hsPendingBoard = null;
+    _hsPumpRequests();
+  }, 10000);
   try {
     // undefined uids = all connected controllers, so our players' own entries
     // (with their ranks.world) come back alongside the global top 10.
@@ -263,6 +281,7 @@ airconsole.onHighScoreStored = function(/* high_score */) {
 };
 
 airconsole.onHighScores = function(list) {
+  if (_hsPumpWatchdog) { clearTimeout(_hsPumpWatchdog); _hsPumpWatchdog = null; }
   list = list || [];
   // Route by the version on the returned entries; fall back to the pending
   // board when the list is empty (an empty board carries no version) or when
@@ -276,8 +295,17 @@ airconsole.onHighScores = function(list) {
   _hsRefreshDisplay();
 };
 
-function _hsFirstOf(piped) {
-  return (typeof piped === 'string' ? piped : '').split('|')[0];
+// AirConsole's High Score typedef documents uids/nicknames as pipe-joined
+// strings, but the live SDK (1.11.x) returns plain arrays. Normalize both so a
+// future SDK change in either direction keeps matching/naming working.
+function _hsToList(v) {
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'string') return v.split('|');
+  return [];
+}
+function _hsFirstOf(v) {
+  var list = _hsToList(v);
+  return list.length ? list[0] : '';
 }
 
 function _hsIngestBoard(key, list) {
@@ -295,7 +323,7 @@ function _hsIngestBoard(key, list) {
     if (world == null) continue;
     var firstUid = _hsFirstOf(e.uids);
     // Map every session player's rank (used for per-row badges + the gate).
-    var uids = (typeof e.uids === 'string' ? e.uids : '').split('|');
+    var uids = _hsToList(e.uids);
     for (var u = 0; u < uids.length; u++) {
       var p = uidToPlayer[uids[u]];
       if (p != null) {

@@ -477,6 +477,8 @@ function renderGlobalLeaderboard(entries, activeBoardKey) {
       tabs[j].classList.toggle('is-active', tabActive);
       tabs[j].setAttribute('aria-selected', tabActive ? 'true' : 'false');
     }
+    // Point the tabpanel at the active tab for the ARIA tab pattern.
+    if (globalLeaderboardList) globalLeaderboardList.setAttribute('aria-labelledby', 'gl-tab-' + activeBoardKey);
   }
 
   globalLeaderboard.classList.remove('hidden');
