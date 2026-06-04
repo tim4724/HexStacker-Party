@@ -891,39 +891,39 @@ body.airconsole #qr-container,
    specificity beats the base .global-leaderboard rule below. */
 .global-leaderboard.hidden { display: none; }
 
+/* Flat: no panel box, just a column separated from the session list by a
+   single hairline rule (a vertical divider in two-column mode). */
 .global-leaderboard {
   display: flex;
   flex-direction: column;
-  gap: clamp(0.4rem, 1vh, 0.9rem);
-  flex: 0 1 380px;
+  gap: clamp(0.3rem, 0.8vh, 0.7rem);
+  flex: 0 1 360px;
   align-self: stretch;
-  padding: clamp(0.8rem, 1.5vh, 1.4rem);
-  border-radius: var(--radius-md);
-  background: var(--overlay-bg);
-  border: 1px solid var(--border);
+  padding-left: clamp(1rem, 2.5vw, 2.5rem);
+  border-left: 1px solid var(--border);
 }
 
 .global-leaderboard__tabs {
   display: flex;
   justify-content: center;
-  gap: 0.4rem;
+  gap: 1rem;
 }
 
+/* Flat text tabs — active is an accent underline, not a filled pill. */
 .gl-tab {
   font-family: 'Orbitron', sans-serif;
-  font-size: clamp(0.7rem, 1.4vh, 1rem);
+  font-size: clamp(0.7rem, 1.3vh, 0.95rem);
   letter-spacing: 0.05em;
-  padding: 0.3em 0.8em;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
+  padding: 0.2em 0.1em;
+  border: none;
+  border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
 }
 .gl-tab.is-active {
-  background: var(--bg-card);
   color: var(--text-primary);
-  border-color: var(--border-strong);
+  border-bottom-color: var(--accent-primary);
 }
 .gl-tab:focus-visible {
   outline: 2px solid var(--accent-primary);
@@ -945,19 +945,18 @@ body.airconsole #qr-container,
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: clamp(0.25rem, 0.5vh, 0.5rem);
 }
 
+/* Flat rows separated by hairlines, no per-row card. */
 .gl-row {
   display: flex;
   align-items: baseline;
   gap: 0.8rem;
-  padding: clamp(0.3rem, 0.7vh, 0.6rem) clamp(0.5rem, 1vw, 1rem);
-  border-radius: var(--radius-sm);
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  padding: clamp(0.35rem, 0.9vh, 0.7rem) 0.1rem;
+  border-bottom: 1px solid var(--border);
   font-size: clamp(0.85rem, 1.7vh, 1.3rem);
 }
+.gl-row:last-child { border-bottom: none; }
 .gl-rank {
   font-family: 'Orbitron', sans-serif;
   font-weight: 900;
@@ -989,7 +988,8 @@ body.airconsole #qr-container,
   white-space: nowrap;
 }
 
-/* Stack instead of side-by-side on cramped / portrait displays. */
+/* Stack instead of side-by-side on cramped / portrait displays. The column
+   divider flips from a left rule to a top rule. */
 @media (max-width: 900px) {
   #results-screen.results-screen--has-global .results-layout {
     flex-direction: column;
@@ -997,6 +997,14 @@ body.airconsole #qr-container,
   }
   #results-screen.results-screen--has-global #results-list {
     flex: none;
+    width: 90%;
+    max-width: 700px;
+  }
+  .global-leaderboard {
+    border-left: none;
+    border-top: 1px solid var(--border);
+    padding-left: 0;
+    padding-top: clamp(0.8rem, 2vh, 1.4rem);
     width: 90%;
     max-width: 700px;
   }

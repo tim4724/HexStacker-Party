@@ -434,7 +434,7 @@ function initScenario(opts) {
   // welcome (chip hidden on welcome by design) and airconsole-lobby (real
   // AirConsole sessions don't use our relay, so the chip is hidden there
   // — gallery should match).
-  if (scenario !== 'welcome' && scenario !== 'airconsole-lobby') {
+  if (scenario !== 'welcome' && scenario !== 'airconsole-lobby' && scenario !== 'airconsole-results') {
     relayRegion = 'fra';
     lastRelayRtt = 12;
     consecutiveBadRtt = 0;
@@ -717,6 +717,44 @@ function initScenario(opts) {
       });
     }
     window.__TEST__.injectResults(results);
+    return;
+  }
+  if (scenario === 'airconsole-results') {
+    document.body.classList.add('airconsole');
+    var acResults = { elapsed: 123456, results: [] };
+    for (var ar = 0; ar < debugPlayers.length; ar++) {
+      var acInfo = players.get(debugPlayers[ar].id);
+      acResults.results.push({
+        playerId: debugPlayers[ar].id,
+        playerName: debugPlayers[ar].name,
+        colorIndex: acInfo && acInfo.playerIndex,
+        rank: ar + 1,
+        lines: 30 - ar * 3,
+        level: level + (playerCount - 1 - ar)
+      });
+    }
+    window.__TEST__.injectResults(acResults);
+
+    // Sample global board mirroring an AirConsole High Score response. Session
+    // players sit at odd world ranks so their per-row "World #N" badges show;
+    // filler names fill the rest of the top 10.
+    var acFiller = ['Nova', 'Pixel', 'Echo', 'Volt', 'Zen', 'Kira', 'Rune', 'Ash', 'Juno', 'Wren'];
+    var acSample = [];
+    var acRankMap = {};
+    var acFillerIdx = 0;
+    for (var rk = 1; rk <= 10; rk++) {
+      var acSessionIdx = (rk - 1) / 2;
+      var acName;
+      if (rk % 2 === 1 && acSessionIdx < debugPlayers.length) {
+        acName = debugPlayers[acSessionIdx].name;
+        acRankMap[debugPlayers[acSessionIdx].id] = rk;
+      } else {
+        acName = acFiller[acFillerIdx++ % acFiller.length];
+      }
+      acSample.push({ rank: rk, name: acName, scoreString: t('n_lines', { count: Math.max(1, 60 - rk * 4) }) });
+    }
+    renderGlobalLeaderboard(acSample, 'all');
+    annotateResultWorldRanks(acRankMap);
     return;
   }
   // 'playing' is the default — already handled by injectGameState above.
