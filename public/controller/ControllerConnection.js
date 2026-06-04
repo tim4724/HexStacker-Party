@@ -276,7 +276,7 @@ function updateLatencyDisplay(ms) {
 // over the WebSocket. PING/PONG stays on WS now (relay-liveness check);
 // input-path RTT comes from fastlane acks via onRtt. Keyed by MSG
 // constants so a rename in protocol.js is caught automatically.
-var FASTLANE_TYPES = { [MSG.INPUT]: true, [MSG.SOFT_DROP]: true };
+var FASTLANE_TYPES = { [MSG.INPUT]: true, [MSG.SOFT_DROP]: true, [MSG.SOFT_DROP_END]: true };
 
 // AirConsole caps a device's outbound messages at ~10/sec; sustained overage
 // trips a platform-side rate-limit error. TouchInput emits SOFT_DROP at 20 Hz
