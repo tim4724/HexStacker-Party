@@ -240,7 +240,17 @@ class TouchInput {
     const absDxFromAnchor = Math.abs(dxFromAnchor);
     const absDyFromStart = Math.abs(dyFromStart);
     const steps = Math.trunc(dxFromAnchor / this.RATCHET_THRESHOLD);
-    if (steps !== 0 && (this.isSoftDropping || absDxFromAnchor >= absDyFromStart)) {
+    // Fire a left/right step only when the gesture is horizontally dominant —
+    // either overall (since the start) or in the latest movement segment. The
+    // segment test lets you steer while soft-dropping (finger moving sideways)
+    // without a vertical-dominant fling — which now also engages soft drop —
+    // registering an accidental left/right on its way down to a hard drop.
+    const prev = this._samples[this._samples.length - 1];
+    const segDx = prev ? x - prev.x : dxFromStart;
+    const segDy = prev ? y - prev.y : dyFromStart;
+    const horizontallyDominant = absDxFromAnchor >= absDyFromStart
+      || Math.abs(segDx) >= Math.abs(segDy);
+    if (steps !== 0 && horizontallyDominant) {
       const action = steps > 0 ? INPUT.RIGHT : INPUT.LEFT;
       for (let i = 0, n = Math.abs(steps); i < n; i++) {
         this.onInput(action);
@@ -318,7 +328,11 @@ class TouchInput {
     // or hold (up); a settled finger is left as the soft drop it already was.
     // Fires even if a soft drop was briefly active during the swipe.
     const rel = this._releaseVelocity(now);
-    const action = isTap ? null : this._classifyRelease(rel.vx, rel.vy, totalDy);
+    let action = isTap ? null : this._classifyRelease(rel.vx, rel.vy, totalDy);
+    // A gesture that registered a left/right step is a move, not a drop, so it
+    // can't also hard drop on release — mirrors how horizontal movement already
+    // blocks soft drop mid-gesture. (Hold is left available.)
+    if (action === INPUT.HARD_DROP && this.hasMovedHorizontally) action = null;
 
     if (isTap) {
       this.onInput(INPUT.ROTATE_CW);

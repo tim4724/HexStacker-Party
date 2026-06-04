@@ -79,6 +79,31 @@ describe('TouchInput gesture sessions', () => {
     assert.deepEqual(actions.map(entry => entry.action), [INPUT.HARD_DROP]);
   });
 
+  test('diagonal downward fling hard-drops without an accidental sideways move', () => {
+    touchInput._onPointerDown(pointerEvent({ clientX: 0, clientY: 0, timeStamp: 0 }));
+    // Mostly downward with a smaller rightward component (>RATCHET_THRESHOLD of
+    // 48px), crossing the soft-drop dead zone. Each segment stays vertical, so
+    // the soft drop must not let the horizontal drift register a move.
+    touchInput._onPointerMove(pointerEvent({ clientX: 12, clientY: 40, timeStamp: 20 }));
+    touchInput._onPointerMove(pointerEvent({ clientX: 30, clientY: 100, timeStamp: 40 }));
+    touchInput._onPointerMove(pointerEvent({ clientX: 55, clientY: 160, timeStamp: 60 }));
+    touchInput._onPointerUp(pointerEvent({ clientX: 55, clientY: 160, timeStamp: 75 }));
+
+    assert.equal(actions.some(e => e.action === INPUT.LEFT || e.action === INPUT.RIGHT), false);
+    assert.equal(actions[actions.length - 1].action, INPUT.HARD_DROP);
+  });
+
+  test('a gesture that moved horizontally cannot also hard drop on release', () => {
+    touchInput._onPointerDown(pointerEvent({ clientX: 0, clientY: 0, timeStamp: 0 }));
+    touchInput._onPointerMove(pointerEvent({ clientX: 60, clientY: 10, timeStamp: 40 }));   // RIGHT
+    // Same gesture then flings downward — must not hard drop (it's a move).
+    touchInput._onPointerMove(pointerEvent({ clientX: 60, clientY: 120, timeStamp: 80 }));
+    touchInput._onPointerUp(pointerEvent({ clientX: 60, clientY: 120, timeStamp: 100 }));
+
+    assert.equal(actions.some(e => e.action === INPUT.HARD_DROP), false);
+    assert.equal(actions.some(e => e.action === INPUT.RIGHT), true);
+  });
+
   test('horizontal drag still emits ratcheted movement', () => {
     touchInput._onPointerDown(pointerEvent({ clientX: 0, clientY: 0, timeStamp: 0 }));
     touchInput._onPointerMove(pointerEvent({ clientX: 60, clientY: 20, timeStamp: 80 }));
