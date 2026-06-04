@@ -97,8 +97,7 @@ describe('TouchInput gesture sessions', () => {
 
   test('soft drop started before horizontal movement continues during it', () => {
     touchInput._onPointerDown(pointerEvent({ clientX: 0, clientY: 0, timeStamp: 0 }));
-    // Vertical dominates first → soft drop activates (dy must exceed SOFT_DROP_DEAD_ZONE=96,
-    // duration > 250ms so it's not a fresh fling candidate)
+    // Vertical dominates first → soft drop activates (dy must exceed SOFT_DROP_DEAD_ZONE=96)
     touchInput._onPointerMove(pointerEvent({ clientX: 10, clientY: 100, timeStamp: 260 }));
     // Then horizontal catches up → ratchet fires, soft drop continues
     touchInput._onPointerMove(pointerEvent({ clientX: 120, clientY: 130, timeStamp: 360 }));
@@ -153,24 +152,46 @@ describe('TouchInput gesture sessions', () => {
   test('release flick still fires after horizontal input', () => {
     touchInput._onPointerDown(pointerEvent({ clientX: 0, clientY: 0, timeStamp: 0 }));
     touchInput._onPointerMove(pointerEvent({ clientX: 60, clientY: 10, timeStamp: 40 }));
-    touchInput._onPointerUp(pointerEvent({ clientX: 60, clientY: -120, timeStamp: 80 }));
+    // Upward flick recorded as movement before lift (pointerup coords aren't used).
+    touchInput._onPointerMove(pointerEvent({ clientX: 60, clientY: -120, timeStamp: 80 }));
+    touchInput._onPointerUp(pointerEvent({ clientX: 60, clientY: -120, timeStamp: 110 }));
 
     assert.deepEqual(actions.map(entry => entry.action), [INPUT.RIGHT, INPUT.HOLD]);
   });
 
-  test('release hard drop is blocked after soft drop was recognized', () => {
+  test('swipe still moving at release hard-drops even after a soft drop engaged', () => {
     touchInput._onPointerDown(pointerEvent({ clientX: 0, clientY: 0, timeStamp: 0 }));
     touchInput._onPointerMove(pointerEvent({ clientX: 0, clientY: 100, timeStamp: 140 }));
+    // Finger keeps moving downward through release (80px in 40ms → moving).
     touchInput._onPointerUp(pointerEvent({ clientX: 0, clientY: 180, timeStamp: 180 }));
 
-    assert.deepEqual(actions.map(entry => entry.action), ['soft_drop', 'soft_drop_end']);
+    assert.deepEqual(actions.map(entry => entry.action), ['soft_drop', 'soft_drop_end', INPUT.HARD_DROP]);
   });
 
-  test('slower downward drag still becomes soft drop instead of hard drop', () => {
+  test('a slow moderate swipe that keeps moving hard-drops (the regression case)', () => {
     touchInput._onPointerDown(pointerEvent({ clientX: 0, clientY: 0, timeStamp: 0 }));
-    touchInput._onPointerMove(pointerEvent({ clientX: 0, clientY: 50, timeStamp: 80 }));
-    touchInput._onPointerMove(pointerEvent({ clientX: 0, clientY: 100, timeStamp: 180 }));
-    touchInput._onPointerUp(pointerEvent({ clientX: 0, clientY: 150, timeStamp: 260 }));
+    touchInput._onPointerMove(pointerEvent({ clientX: 0, clientY: 60, timeStamp: 120 }));
+    touchInput._onPointerMove(pointerEvent({ clientX: 0, clientY: 120, timeStamp: 240 }));
+    // ~0.67 px/ms over the final segment → still moving → hard drop, not soft.
+    touchInput._onPointerUp(pointerEvent({ clientX: 0, clientY: 160, timeStamp: 300 }));
+
+    assert.equal(actions[actions.length - 1].action, INPUT.HARD_DROP);
+  });
+
+  test('down then up with no intervening move events fires nothing (no misfire)', () => {
+    touchInput._onPointerDown(pointerEvent({ clientX: 0, clientY: 0, timeStamp: 0 }));
+    // Jump straight to release past the tap distance with no pointermove —
+    // the only sample is the pointerdown, so release velocity is unknown.
+    touchInput._onPointerUp(pointerEvent({ clientX: 0, clientY: 140, timeStamp: 60 }));
+
+    assert.deepEqual(actions.map(entry => entry.action), []);
+  });
+
+  test('downward hold (finger settled at release) stays a soft drop', () => {
+    touchInput._onPointerDown(pointerEvent({ clientX: 0, clientY: 0, timeStamp: 0 }));
+    touchInput._onPointerMove(pointerEvent({ clientX: 0, clientY: 150, timeStamp: 200 }));
+    // Finger held still (same position) then lifted → release velocity ~0.
+    touchInput._onPointerUp(pointerEvent({ clientX: 0, clientY: 150, timeStamp: 320 }));
 
     assert.deepEqual(actions.map(entry => entry.action), ['soft_drop', 'soft_drop_end']);
   });
