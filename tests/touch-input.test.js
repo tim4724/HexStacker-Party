@@ -174,7 +174,9 @@ describe('TouchInput gesture sessions', () => {
     touchInput._onPointerDown(pointerEvent({ clientX: 0, clientY: 0, timeStamp: 0 }));
     touchInput._onPointerMove(pointerEvent({ clientX: 0, clientY: 60, timeStamp: 120 }));
     touchInput._onPointerMove(pointerEvent({ clientX: 0, clientY: 120, timeStamp: 240 }));
-    // ~0.67 px/ms over the final segment → still moving → hard drop, not soft.
+    // Finger still moving right up to the lift (last move 10ms before up, well
+    // within the idle gate). Recent-window velocity ~0.8 px/ms → hard drop.
+    touchInput._onPointerMove(pointerEvent({ clientX: 0, clientY: 160, timeStamp: 290 }));
     touchInput._onPointerUp(pointerEvent({ clientX: 0, clientY: 160, timeStamp: 300 }));
 
     assert.equal(actions[actions.length - 1].action, INPUT.HARD_DROP);

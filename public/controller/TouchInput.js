@@ -224,7 +224,6 @@ class TouchInput {
 
     const dxFromStart = x - this.startX;
     const dyFromStart = y - this.startY;
-    const duration = now - this.startTime;
 
     // Detect dragging (exit tap dead zone)
     if (!this.isDragging) {
