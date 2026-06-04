@@ -157,8 +157,8 @@ class TouchInput {
     const last = s[s.length - 1];
     if (upT - last.t > this.RELEASE_IDLE_MS) return { vx: 0, vy: 0 };
     // Walk back to the oldest sample within the recent window (but always
-    // span at least one segment).
-    let ref = s[s.length - 2];
+    // span at least one segment — the loop runs once since s.length >= 2).
+    let ref;
     for (let i = s.length - 2; i >= 0; i--) {
       ref = s[i];
       if (last.t - s[i].t >= this.RECENT_VELOCITY_MS) break;
@@ -168,15 +168,20 @@ class TouchInput {
     return { vx: (last.x - ref.x) / dt, vy: (last.y - ref.y) / dt };
   }
 
-  // Classify a release by its final-segment velocity: a vertical gesture that
-  // is still moving (>= MOTION_VELOCITY) hard-drops (down) or holds (up). A
-  // settled hold reads below the threshold and returns null (→ soft drop /
-  // nothing). Fires regardless of whether a soft drop was briefly active.
-  _classifyRelease(vx, vy) {
+  // Classify a release by its final-segment velocity: a vertical gesture still
+  // moving (>= MOTION_VELOCITY) hard-drops (down) or holds (up). A settled
+  // finger reads below the threshold and returns null (→ soft drop / nothing).
+  // The net travel (totalDy) must agree with the velocity direction, so a tiny
+  // reversal as the finger leaves the screen can't flip a downward soft drop
+  // into a HOLD (or a hold gesture into a hard drop). Fires regardless of a
+  // brief prior soft drop.
+  _classifyRelease(vx, vy, totalDy) {
     const absVx = Math.abs(vx);
     const absVy = Math.abs(vy);
     if (absVy <= absVx || absVy < this.MOTION_VELOCITY) return null;
-    return vy > 0 ? INPUT.HARD_DROP : INPUT.HOLD;
+    if (vy > 0 && totalDy > 0) return INPUT.HARD_DROP;
+    if (vy < 0 && totalDy < 0) return INPUT.HOLD;
+    return null;
   }
 
   _onContextMenu(e) {
@@ -309,7 +314,7 @@ class TouchInput {
     // or hold (up); a settled finger is left as the soft drop it already was.
     // Fires even if a soft drop was briefly active during the swipe.
     const rel = this._releaseVelocity(now);
-    const action = isTap ? null : this._classifyRelease(rel.vx, rel.vy);
+    const action = isTap ? null : this._classifyRelease(rel.vx, rel.vy, totalDy);
 
     if (isTap) {
       this.onInput(INPUT.ROTATE_CW);

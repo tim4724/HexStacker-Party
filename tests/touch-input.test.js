@@ -162,8 +162,10 @@ describe('TouchInput gesture sessions', () => {
   test('swipe still moving at release hard-drops even after a soft drop engaged', () => {
     touchInput._onPointerDown(pointerEvent({ clientX: 0, clientY: 0, timeStamp: 0 }));
     touchInput._onPointerMove(pointerEvent({ clientX: 0, clientY: 100, timeStamp: 140 }));
-    // Finger keeps moving downward through release (80px in 40ms → moving).
-    touchInput._onPointerUp(pointerEvent({ clientX: 0, clientY: 180, timeStamp: 180 }));
+    // Sample history shows ~0.71 px/ms (100px over 140ms). The pointerup coords
+    // are intentionally the same as the last move — _releaseVelocity ignores
+    // them and reads movement from _samples only.
+    touchInput._onPointerUp(pointerEvent({ clientX: 0, clientY: 100, timeStamp: 180 }));
 
     assert.deepEqual(actions.map(entry => entry.action), ['soft_drop', 'soft_drop_end', INPUT.HARD_DROP]);
   });
@@ -194,5 +196,18 @@ describe('TouchInput gesture sessions', () => {
     touchInput._onPointerUp(pointerEvent({ clientX: 0, clientY: 150, timeStamp: 320 }));
 
     assert.deepEqual(actions.map(entry => entry.action), ['soft_drop', 'soft_drop_end']);
+  });
+
+  test('net-downward gesture that twitches up on lift does not misfire a hold', () => {
+    touchInput._onPointerDown(pointerEvent({ clientX: 0, clientY: 0, timeStamp: 0 }));
+    touchInput._onPointerMove(pointerEvent({ clientX: 0, clientY: 150, timeStamp: 100 }));
+    // Finger eases back upward as it leaves the screen — recent velocity is
+    // upward but net travel is downward, so this must NOT register as a hold.
+    touchInput._onPointerMove(pointerEvent({ clientX: 0, clientY: 135, timeStamp: 130 }));
+    touchInput._onPointerMove(pointerEvent({ clientX: 0, clientY: 120, timeStamp: 160 }));
+    touchInput._onPointerUp(pointerEvent({ clientX: 0, clientY: 120, timeStamp: 180 }));
+
+    assert.deepEqual(actions.map(entry => entry.action), ['soft_drop', 'soft_drop_end']);
+    assert.equal(actions.some(entry => entry.action === INPUT.HOLD), false);
   });
 });
