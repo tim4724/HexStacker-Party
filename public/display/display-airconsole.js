@@ -124,7 +124,6 @@ setRoomState = function(newState) {
     if (_hsRefetchTimer) { clearTimeout(_hsRefetchTimer); _hsRefetchTimer = null; }
     if (_hsPumpWatchdog) { clearTimeout(_hsPumpWatchdog); _hsPumpWatchdog = null; }
     hideGlobalLeaderboard();
-    annotateResultWorldRanks(null);
   }
   return ok;
 };
@@ -312,7 +311,6 @@ function _hsIngestBoard(key, list) {
   var uidToPlayer = {};
   for (var pid in _hsPlayerUids) uidToPlayer[_hsPlayerUids[pid]] = pid;
 
-  var rankByPlayerId = {};
   var bestRank = Infinity;
   var top = [];
   var seenUid = {};
@@ -321,28 +319,38 @@ function _hsIngestBoard(key, list) {
     var e = list[i];
     var world = e.ranks && e.ranks.world;
     if (world == null) continue;
-    var firstUid = _hsFirstOf(e.uids);
-    // Map every session player's rank (used for per-row badges + the gate).
-    var uids = _hsToList(e.uids);
-    for (var u = 0; u < uids.length; u++) {
-      var p = uidToPlayer[uids[u]];
-      if (p != null) {
-        rankByPlayerId[p] = world;
+    var euids = _hsToList(e.uids);
+    // If this entry is one of our session players, note it so the row can be
+    // tinted in their color, and track the best session rank for the gate.
+    var matchedPlayerId = null;
+    for (var u = 0; u < euids.length; u++) {
+      if (uidToPlayer[euids[u]] != null) {
+        matchedPlayerId = uidToPlayer[euids[u]];
         if (world < bestRank) bestRank = world;
+        break;
       }
     }
     // Collect entries for the top-10 panel (dedupe by user).
+    var firstUid = euids[0] || '';
     if (!seenUid[firstUid]) {
       seenUid[firstUid] = true;
-      top.push({ rank: world, name: _hsFirstOf(e.nicknames) || t('player'),
-                 scoreString: t('n_lines', { count: e.score }) });
+      var colorIndex = null;
+      if (matchedPlayerId != null) {
+        var pinfo = players.get(matchedPlayerId);
+        colorIndex = pinfo ? pinfo.playerIndex : null;
+      }
+      top.push({
+        rank: world,
+        name: _hsFirstOf(e.nicknames) || t('player'),
+        scoreString: t('n_lines', { count: e.score }),
+        colorIndex: colorIndex
+      });
     }
   }
   top.sort(function(a, b) { return a.rank - b.rank; });
 
   _hsCache[key] = {
     entries: top.slice(0, 10),
-    rankByPlayerId: rankByPlayerId,
     qualifies: bestRank <= HS_RANK_CUTOFF
   };
 }
@@ -360,7 +368,6 @@ function _hsShowBoard(key) {
   if (!board) return;
   _hsActiveBoard = key;
   renderGlobalLeaderboard(board.entries, key);
-  annotateResultWorldRanks(board.rankByPlayerId);
 }
 
 function _hsRefreshDisplay() {
@@ -369,7 +376,6 @@ function _hsRefreshDisplay() {
   if (!qualifying.length) {
     _hsStopToggle();
     hideGlobalLeaderboard();
-    annotateResultWorldRanks(null);
     return;
   }
   if (qualifying.indexOf(_hsActiveBoard) === -1) _hsActiveBoard = qualifying[0];

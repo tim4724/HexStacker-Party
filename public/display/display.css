@@ -891,16 +891,14 @@ body.airconsole #qr-container,
    specificity beats the base .global-leaderboard rule below. */
 .global-leaderboard.hidden { display: none; }
 
-/* Flat: no panel box, just a column separated from the session list by a
-   single hairline rule (a vertical divider in two-column mode). */
+/* No panel box — just a labelled column of cards beside the session list,
+   separated by the layout gap. Rows reuse the session card treatment so both
+   columns read as one component. */
 .global-leaderboard {
   display: flex;
   flex-direction: column;
   gap: clamp(0.3rem, 0.8vh, 0.7rem);
   flex: 0 1 360px;
-  align-self: stretch;
-  padding-left: clamp(1rem, 2.5vw, 2.5rem);
-  border-left: 1px solid var(--border);
 }
 
 .global-leaderboard__tabs {
@@ -945,18 +943,21 @@ body.airconsole #qr-container,
   padding: 0;
   display: flex;
   flex-direction: column;
+  gap: clamp(0.3rem, 0.7vh, 0.6rem);
 }
 
-/* Flat rows separated by hairlines, no per-row card. */
+/* Same card treatment as .result-row (bg-card + border + radius), just more
+   compact since there are up to 10 rows. */
 .gl-row {
   display: flex;
-  align-items: baseline;
-  gap: 0.8rem;
-  padding: clamp(0.35rem, 0.9vh, 0.7rem) 0.1rem;
-  border-bottom: 1px solid var(--border);
+  align-items: center;
+  gap: clamp(0.5rem, 1.5vw, 1rem);
+  padding: clamp(0.4rem, 0.9vh, 0.8rem) clamp(0.7rem, 1.5vw, 1.2rem);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   font-size: clamp(0.85rem, 1.7vh, 1.3rem);
 }
-.gl-row:last-child { border-bottom: none; }
 .gl-rank {
   font-family: 'Orbitron', sans-serif;
   font-weight: 900;
@@ -970,6 +971,7 @@ body.airconsole #qr-container,
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: 'Orbitron', sans-serif;
   font-weight: 700;
 }
 .gl-score {
@@ -978,33 +980,16 @@ body.airconsole #qr-container,
   white-space: nowrap;
 }
 
-/* Per-player world rank badge, appended to a session result row. */
-.result-world-rank {
-  flex-shrink: 0;
-  margin-left: 0.5rem;
-  font-size: clamp(0.7rem, 1.4vh, 1rem);
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
 
-/* Stack instead of side-by-side on cramped / portrait displays. The column
-   divider flips from a left rule to a top rule. */
+/* Stack instead of side-by-side on cramped / portrait displays. */
 @media (max-width: 900px) {
   #results-screen.results-screen--has-global .results-layout {
     flex-direction: column;
     align-items: center;
   }
-  #results-screen.results-screen--has-global #results-list {
-    flex: none;
-    width: 90%;
-    max-width: 700px;
-  }
+  #results-screen.results-screen--has-global #results-list,
   .global-leaderboard {
-    border-left: none;
-    border-top: 1px solid var(--border);
-    padding-left: 0;
-    padding-top: clamp(0.8rem, 2vh, 1.4rem);
+    flex: none;
     width: 90%;
     max-width: 700px;
   }

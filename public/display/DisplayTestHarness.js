@@ -736,25 +736,24 @@ function initScenario(opts) {
     window.__TEST__.injectResults(acResults);
 
     // Sample global board mirroring an AirConsole High Score response. Session
-    // players sit at odd world ranks so their per-row "World #N" badges show;
-    // filler names fill the rest of the top 10.
+    // players sit at odd world ranks and carry their colorIndex so their rows
+    // render tinted in the player color; filler names fill the rest of the top 10.
     var acFiller = ['Nova', 'Pixel', 'Echo', 'Volt', 'Zen', 'Kira', 'Rune', 'Ash', 'Juno', 'Wren'];
     var acSample = [];
-    var acRankMap = {};
     var acFillerIdx = 0;
     for (var rk = 1; rk <= 10; rk++) {
       var acSessionIdx = (rk - 1) / 2;
-      var acName;
+      var acName, acColorIndex = null;
       if (rk % 2 === 1 && acSessionIdx < debugPlayers.length) {
         acName = debugPlayers[acSessionIdx].name;
-        acRankMap[debugPlayers[acSessionIdx].id] = rk;
+        var acP = players.get(debugPlayers[acSessionIdx].id);
+        acColorIndex = acP ? acP.playerIndex : null;
       } else {
         acName = acFiller[acFillerIdx++ % acFiller.length];
       }
-      acSample.push({ rank: rk, name: acName, scoreString: t('n_lines', { count: Math.max(1, 60 - rk * 4) }) });
+      acSample.push({ rank: rk, name: acName, scoreString: t('n_lines', { count: Math.max(1, 60 - rk * 4) }), colorIndex: acColorIndex });
     }
     renderGlobalLeaderboard(acSample, 'all');
-    annotateResultWorldRanks(acRankMap);
     return;
   }
   // 'playing' is the default — already handled by injectGameState above.

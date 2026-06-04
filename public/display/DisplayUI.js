@@ -390,9 +390,6 @@ function renderResults(results) {
     if (!solo && !isNew) row.className += ' rank-' + res.rank;
     if (isNew) row.className += ' result-row--joining';
     row.style.setProperty('--row-delay', (0.2 + i * 0.08) + 's');
-    // Stable id so the AirConsole highscore flow can annotate this row with the
-    // player's global world rank after async onHighScores arrives.
-    if (res.playerId != null) row.dataset.playerId = res.playerId;
 
     var pInfo = players.get(res.playerId);
     var pColor = pInfo ? PLAYER_COLORS[pInfo.playerIndex] : null;
@@ -443,7 +440,10 @@ function renderResults(results) {
 // (which never calls these) keeps the single-column results screen.
 
 // Render the top-N rows for a board and reveal the panel + two-column layout.
-// `entries`: [{ rank, name, scoreString }]. `activeBoardKey`: 'all' | 'month'.
+// `entries`: [{ rank, name, scoreString, colorIndex? }]. A non-null colorIndex
+// marks one of this session's players — that row's rank + name are tinted in
+// their player color (mirroring the session cards) so they spot themselves on
+// the global board. `activeBoardKey`: 'all' | 'month'.
 function renderGlobalLeaderboard(entries, activeBoardKey) {
   if (!globalLeaderboard || !globalLeaderboardList) return;
   globalLeaderboardList.innerHTML = '';
@@ -451,14 +451,17 @@ function renderGlobalLeaderboard(entries, activeBoardKey) {
     var e = entries[i];
     var li = document.createElement('li');
     li.className = 'gl-row';
+    var color = (e.colorIndex != null && typeof PLAYER_COLORS !== 'undefined') ? PLAYER_COLORS[e.colorIndex] : null;
 
     var rank = document.createElement('span');
     rank.className = 'gl-rank';
     rank.textContent = '#' + (e.rank != null ? e.rank : i + 1);
+    if (color) rank.style.color = color;
 
     var name = document.createElement('span');
     name.className = 'gl-name';
     name.textContent = e.name || t('player');
+    if (color) name.style.color = color;
 
     var score = document.createElement('span');
     score.className = 'gl-score';
@@ -489,29 +492,6 @@ function renderGlobalLeaderboard(entries, activeBoardKey) {
 function hideGlobalLeaderboard() {
   if (globalLeaderboard) globalLeaderboard.classList.add('hidden');
   if (resultsScreen) resultsScreen.classList.remove('results-screen--has-global');
-}
-
-// Annotate session rows with each player's world rank for the shown board.
-// `rankByPlayerId`: { playerId: worldRank }. Missing players have their badge
-// removed, so switching boards (or clearing) leaves no stale rank behind.
-function annotateResultWorldRanks(rankByPlayerId) {
-  if (!resultsList) return;
-  var rows = resultsList.querySelectorAll('.result-row');
-  for (var i = 0; i < rows.length; i++) {
-    var pid = rows[i].dataset.playerId;
-    var badge = rows[i].querySelector('.result-world-rank');
-    var rank = (rankByPlayerId && pid != null) ? rankByPlayerId[pid] : undefined;
-    if (rank == null) {
-      if (badge) badge.remove();
-      continue;
-    }
-    if (!badge) {
-      badge = document.createElement('span');
-      badge.className = 'result-world-rank';
-      rows[i].appendChild(badge);
-    }
-    badge.textContent = t('leaderboard_world_rank', { rank: rank });
-  }
 }
 
 // --- Timer Rendering ---
