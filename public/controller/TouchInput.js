@@ -161,7 +161,7 @@ class TouchInput {
     // newer than the previous sample, so we always span at least one segment.
     let ref = s[s.length - 2];
     for (let i = s.length - 3; i >= 0; i--) {
-      if (last.t - s[i].t >= this.RECENT_VELOCITY_MS) break;
+      if (last.t - s[i].t > this.RECENT_VELOCITY_MS) break;
       ref = s[i];
     }
     const dt = last.t - ref.t;
@@ -245,9 +245,10 @@ class TouchInput {
     // segment test lets you steer while soft-dropping (finger moving sideways)
     // without a vertical-dominant fling — which now also engages soft drop —
     // registering an accidental left/right on its way down to a hard drop.
+    // _samples is seeded at pointerdown, so there is always a previous sample.
     const prev = this._samples[this._samples.length - 1];
-    const segDx = prev ? x - prev.x : dxFromStart;
-    const segDy = prev ? y - prev.y : dyFromStart;
+    const segDx = x - prev.x;
+    const segDy = y - prev.y;
     const horizontallyDominant = absDxFromAnchor >= absDyFromStart
       || Math.abs(segDx) >= Math.abs(segDy);
     if (steps !== 0 && horizontallyDominant) {

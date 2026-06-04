@@ -351,11 +351,7 @@ function onSetName(fromId, msg) {
 }
 
 function cleanupPlayerInput(clientId) {
-  if (softDropTimers.has(clientId)) {
-    clearTimeout(softDropTimers.get(clientId));
-    softDropTimers.delete(clientId);
-    if (displayGame) displayGame.handleSoftDropEnd(clientId);
-  }
+  endSoftDrop(clientId);
   lastHardDropTime.delete(clientId);
 }
 
