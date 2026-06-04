@@ -198,6 +198,19 @@ describe('TouchInput gesture sessions', () => {
     assert.deepEqual(actions.map(entry => entry.action), ['soft_drop', 'soft_drop_end']);
   });
 
+  test('finger that moved fast then idled past RELEASE_IDLE_MS does not hard drop', () => {
+    touchInput._onPointerDown(pointerEvent({ clientX: 0, clientY: 0, timeStamp: 0 }));
+    // Fast approach downward...
+    touchInput._onPointerMove(pointerEvent({ clientX: 0, clientY: 50, timeStamp: 20 }));
+    touchInput._onPointerMove(pointerEvent({ clientX: 0, clientY: 100, timeStamp: 40 }));
+    touchInput._onPointerMove(pointerEvent({ clientX: 0, clientY: 150, timeStamp: 60 }));
+    // ...then the finger sits still for 90ms (> RELEASE_IDLE_MS=60) before lift.
+    // The idle gate overrides the fast approach velocity → no hard drop.
+    touchInput._onPointerUp(pointerEvent({ clientX: 0, clientY: 150, timeStamp: 150 }));
+
+    assert.deepEqual(actions.map(entry => entry.action), ['soft_drop', 'soft_drop_end']);
+  });
+
   test('net-downward gesture that twitches up on lift does not misfire a hold', () => {
     touchInput._onPointerDown(pointerEvent({ clientX: 0, clientY: 0, timeStamp: 0 }));
     touchInput._onPointerMove(pointerEvent({ clientX: 0, clientY: 150, timeStamp: 100 }));

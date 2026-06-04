@@ -14,7 +14,8 @@ class TouchInput {
     // point — on real touch hardware pointerup repeats the last move's
     // coordinates, so up-vs-last-move is always ~0). If the finger's last
     // movement was more than RELEASE_IDLE_MS before lift, it had settled into
-    // a hold and reads as not moving.
+    // a hold and reads as not moving. The two are independently tunable; they
+    // just happen to share a value.
     this.RECENT_VELOCITY_MS = 60;
     this.RELEASE_IDLE_MS = 60;
     this.SOFT_DROP_MIN_SPEED = 3;
@@ -156,12 +157,12 @@ class TouchInput {
     if (s.length < 2) return { vx: 0, vy: 0 };
     const last = s[s.length - 1];
     if (upT - last.t > this.RELEASE_IDLE_MS) return { vx: 0, vy: 0 };
-    // Walk back to the oldest sample within the recent window (but always
-    // span at least one segment — the loop runs once since s.length >= 2).
-    let ref;
-    for (let i = s.length - 2; i >= 0; i--) {
-      ref = s[i];
+    // Reference = the oldest sample still within the recent window, but never
+    // newer than the previous sample, so we always span at least one segment.
+    let ref = s[s.length - 2];
+    for (let i = s.length - 3; i >= 0; i--) {
       if (last.t - s[i].t >= this.RECENT_VELOCITY_MS) break;
+      ref = s[i];
     }
     const dt = last.t - ref.t;
     if (dt <= 0) return { vx: 0, vy: 0 };
@@ -304,6 +305,10 @@ class TouchInput {
 
     const duration = now - this.startTime;
     const totalDx = x - this.startX;
+    // Only totalDy's *sign* is used (by _classifyRelease's direction guard),
+    // not its magnitude. It reads pointerup.clientY, which on real hardware
+    // repeats the last move's position and so agrees with the sample-derived
+    // direction from _releaseVelocity.
     const totalDy = y - this.startY;
     const totalDist = Math.sqrt(totalDx * totalDx + totalDy * totalDy);
 
