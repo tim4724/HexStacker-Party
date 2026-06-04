@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 10
     container:
       # Keep this tag in sync with @playwright/test in package.json
-      image: mcr.microsoft.com/playwright:v1.58.2-noble
+      image: mcr.microsoft.com/playwright:v1.60.0-noble
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
