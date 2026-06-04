@@ -390,6 +390,9 @@ function renderResults(results) {
     if (!solo && !isNew) row.className += ' rank-' + res.rank;
     if (isNew) row.className += ' result-row--joining';
     row.style.setProperty('--row-delay', (0.2 + i * 0.08) + 's');
+    // Stable id so the AirConsole highscore flow can annotate this row with the
+    // player's global world rank after async onHighScores arrives.
+    if (res.playerId != null) row.dataset.playerId = res.playerId;
 
     var pInfo = players.get(res.playerId);
     var pColor = pInfo ? PLAYER_COLORS[pInfo.playerIndex] : null;
@@ -429,6 +432,83 @@ function renderResults(results) {
     info.appendChild(stats);
     row.appendChild(info);
     resultsList.appendChild(row);
+  }
+}
+
+// --- Global Leaderboard Rendering ---
+// Mode-neutral DOM renderers for the #global-leaderboard panel on the results
+// screen. Driven by the AirConsole highscore flow (display-airconsole.js) in
+// phase 1; reusable by the normal-mode server board in phase 2. The panel and
+// its markup are inert until renderGlobalLeaderboard reveals it, so normal mode
+// (which never calls these) keeps the single-column results screen.
+
+// Render the top-N rows for a board and reveal the panel + two-column layout.
+// `entries`: [{ rank, name, scoreString }]. `activeBoardKey`: 'all' | 'month'.
+function renderGlobalLeaderboard(entries, activeBoardKey) {
+  if (!globalLeaderboard || !globalLeaderboardList) return;
+  globalLeaderboardList.innerHTML = '';
+  for (var i = 0; i < (entries ? entries.length : 0); i++) {
+    var e = entries[i];
+    var li = document.createElement('li');
+    li.className = 'gl-row';
+
+    var rank = document.createElement('span');
+    rank.className = 'gl-rank';
+    rank.textContent = '#' + (e.rank != null ? e.rank : i + 1);
+
+    var name = document.createElement('span');
+    name.className = 'gl-name';
+    name.textContent = e.name || t('player');
+
+    var score = document.createElement('span');
+    score.className = 'gl-score';
+    score.textContent = e.scoreString || '';
+
+    li.appendChild(rank);
+    li.appendChild(name);
+    li.appendChild(score);
+    globalLeaderboardList.appendChild(li);
+  }
+
+  if (activeBoardKey) {
+    var tabs = globalLeaderboard.querySelectorAll('.gl-tab');
+    for (var j = 0; j < tabs.length; j++) {
+      var tabActive = tabs[j].getAttribute('data-board') === activeBoardKey;
+      tabs[j].classList.toggle('is-active', tabActive);
+      tabs[j].setAttribute('aria-selected', tabActive ? 'true' : 'false');
+    }
+  }
+
+  globalLeaderboard.classList.remove('hidden');
+  if (resultsScreen) resultsScreen.classList.add('results-screen--has-global');
+}
+
+// Collapse the panel back to a single-column results screen.
+function hideGlobalLeaderboard() {
+  if (globalLeaderboard) globalLeaderboard.classList.add('hidden');
+  if (resultsScreen) resultsScreen.classList.remove('results-screen--has-global');
+}
+
+// Annotate session rows with each player's world rank for the shown board.
+// `rankByPlayerId`: { playerId: worldRank }. Missing players have their badge
+// removed, so switching boards (or clearing) leaves no stale rank behind.
+function annotateResultWorldRanks(rankByPlayerId) {
+  if (!resultsList) return;
+  var rows = resultsList.querySelectorAll('.result-row');
+  for (var i = 0; i < rows.length; i++) {
+    var pid = rows[i].dataset.playerId;
+    var badge = rows[i].querySelector('.result-world-rank');
+    var rank = (rankByPlayerId && pid != null) ? rankByPlayerId[pid] : undefined;
+    if (rank == null) {
+      if (badge) badge.remove();
+      continue;
+    }
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'result-world-rank';
+      rows[i].appendChild(badge);
+    }
+    badge.textContent = t('leaderboard_world_rank', { rank: rank });
   }
 }
 
