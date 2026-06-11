@@ -330,10 +330,10 @@ class TouchInput {
     // Fires even if a soft drop was briefly active during the swipe.
     const rel = this._releaseVelocity(now);
     let action = isTap ? null : this._classifyRelease(rel.vx, rel.vy, totalDy);
-    // A gesture that registered a left/right step is a move, not a drop, so it
-    // can't also hard drop on release — mirrors how horizontal movement already
-    // blocks soft drop mid-gesture. (Hold is left available.)
-    if (action === INPUT.HARD_DROP && this.hasMovedHorizontally) action = null;
+    // A gesture that registered a left/right step is a move, not a drop or a
+    // hold, so it can't also fire one on release — mirrors how horizontal
+    // movement already blocks soft drop mid-gesture.
+    if (action !== null && this.hasMovedHorizontally) action = null;
 
     if (isTap) {
       this.onInput(INPUT.ROTATE_CW);

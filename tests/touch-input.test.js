@@ -174,14 +174,16 @@ describe('TouchInput gesture sessions', () => {
     assert.deepEqual(actions.map(entry => entry.action), [INPUT.HOLD]);
   });
 
-  test('release flick still fires after horizontal input', () => {
+  test('upward release flick after horizontal input does not fire hold', () => {
     touchInput._onPointerDown(pointerEvent({ clientX: 0, clientY: 0, timeStamp: 0 }));
     touchInput._onPointerMove(pointerEvent({ clientX: 60, clientY: 10, timeStamp: 40 }));
     // Upward flick recorded as movement before lift (pointerup coords aren't used).
+    // The gesture already registered a RIGHT step, so it is a move — the upward
+    // lift must not also fire a hold (same rule as hard drop).
     touchInput._onPointerMove(pointerEvent({ clientX: 60, clientY: -120, timeStamp: 80 }));
     touchInput._onPointerUp(pointerEvent({ clientX: 60, clientY: -120, timeStamp: 110 }));
 
-    assert.deepEqual(actions.map(entry => entry.action), [INPUT.RIGHT, INPUT.HOLD]);
+    assert.deepEqual(actions.map(entry => entry.action), [INPUT.RIGHT]);
   });
 
   test('swipe still moving at release hard-drops even after a soft drop engaged', () => {
