@@ -549,27 +549,58 @@ function maybeBroadcastHostChange() {
   broadcastLobbyUpdate();
 }
 
+// Each fanout costs one AirConsole message per player, against AirConsole's
+// 25 msgs/sec screen limit. Bursts (the adapter-recreation join storm fires
+// peer_joined per controller in a tight loop; reconnect paths can broadcast
+// twice in one tick) must coalesce into the trailing send. 400ms caps the
+// worst case at 2.5 fanouts/sec x 8 players = 20 msgs/sec.
+var LOBBY_BROADCAST_MIN_INTERVAL_MS = 400;
+var _lobbyBroadcastTimer = null;
+var _lastLobbyBroadcastAt = 0;
+
+// Throttled, leading + trailing: a call after a quiet period sends
+// immediately; calls inside the interval collapse into one trailing fanout
+// that reads live state at fire time, so the last state always wins.
 function broadcastLobbyUpdate() {
-  var hostId = getHostPeerIndex();
-  var hostPlayer = hostId != null ? players.get(hostId) : null;
-  var hostName = hostPlayer ? hostPlayer.playerName : null;
-  var hostColorIndex = hostPlayer ? hostPlayer.playerIndex : null;
-  var takenColorIndices = collectTakenColorIndices();
-  _lastBroadcastedHostId = hostId;
+  if (_lobbyBroadcastTimer) return;
+  var elapsed = Date.now() - _lastLobbyBroadcastAt;
+  if (elapsed >= LOBBY_BROADCAST_MIN_INTERVAL_MS) {
+    doBroadcastLobbyUpdate();
+    return;
+  }
+  _lobbyBroadcastTimer = setTimeout(function() {
+    _lobbyBroadcastTimer = null;
+    doBroadcastLobbyUpdate();
+  }, LOBBY_BROADCAST_MIN_INTERVAL_MS - elapsed);
+}
+
+function doBroadcastLobbyUpdate() {
+  _lastLobbyBroadcastAt = Date.now();
+  _lastBroadcastedHostId = getHostPeerIndex();
   applyHostTint();
   for (const entry of players) {
-    const id = entry[0];
-    party.sendTo(id, {
-      type: MSG.LOBBY_UPDATE,
-      playerCount: players.size,
-      startLevel: entry[1].startLevel || 1,
-      isHost: id === hostId,
-      hostName: hostName,
-      hostColorIndex: hostColorIndex,
-      colorIndex: entry[1].playerIndex,
-      takenColorIndices: takenColorIndices
-    });
+    sendLobbyUpdateTo(entry[0]);
   }
+}
+
+// Single-recipient LOBBY_UPDATE — same payload the fanout sends. Used directly
+// for changes that only affect the sender's own per-recipient fields (e.g.
+// SET_LEVEL), where a full fanout would re-send unchanged data to everyone.
+function sendLobbyUpdateTo(id) {
+  var player = players.get(id);
+  if (!player) return;
+  var hostId = getHostPeerIndex();
+  var hostPlayer = hostId != null ? players.get(hostId) : null;
+  party.sendTo(id, {
+    type: MSG.LOBBY_UPDATE,
+    playerCount: players.size,
+    startLevel: player.startLevel || 1,
+    isHost: id === hostId,
+    hostName: hostPlayer ? hostPlayer.playerName : null,
+    hostColorIndex: hostPlayer ? hostPlayer.playerIndex : null,
+    colorIndex: player.playerIndex,
+    takenColorIndices: collectTakenColorIndices()
+  });
 }
 
 // Sorted list of playerIndex values currently claimed by any player in the

@@ -300,7 +300,12 @@ function onSetLevel(fromId, msg) {
   player.startLevel = level;
   if (roomState === ROOM_STATE.LOBBY) {
     updatePlayerList();
-    broadcastLobbyUpdate();
+    // startLevel is a per-recipient field and the only thing that changed, so
+    // a full fanout would re-send unchanged payloads to every other player —
+    // rapid +/- taps were a main driver of the AirConsole 25 msgs/sec limit.
+    // Echo only to the sender (confirms the level if their optimistic local
+    // update raced a clamp or a reconnect).
+    sendLobbyUpdateTo(fromId);
   }
 }
 
