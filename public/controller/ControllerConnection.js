@@ -187,6 +187,12 @@ function connect() {
     }
   };
 
+  // Retained room snapshot (roster + host). Replayed right after `joined` on
+  // (re)join and pushed live on each host update, replacing the LOBBY_UPDATE
+  // fanout for globally-shared lobby state. Same callback name on the
+  // AirConsole adapter, so this wiring covers both transports.
+  party.onState = onState;
+
   party.onClose = function (attempt, maxAttempts, meta) {
     stopPing();
     if (gameCancelled) return;

@@ -12,11 +12,14 @@ const AirConsoleAdapter = require('../AirConsoleAdapter');
 function makeFakeAirConsole(overrides) {
   return Object.assign({
     _master: undefined,
+    _screenState: undefined,
     getMasterControllerDeviceId() { return this._master; },
     getControllerDeviceIds() { return []; },
     getDeviceId() { return 1; },
     message() {},
     broadcast() {},
+    setCustomDeviceState(data) { this._screenState = data; },
+    getCustomDeviceState(id) { return id === global.AirConsole.SCREEN ? this._screenState : undefined; },
   }, overrides || {});
 }
 
@@ -113,9 +116,85 @@ describe('AirConsoleAdapter PartyConnection interface', () => {
       ac.onDisconnect(2);
       ac.onMessage(2, { type: 'PING' });
       ac.onPremium();
+      ac.onCustomDeviceStateChange(0);
     });
     assert.deepEqual(seen, []);
     assert.equal(adapter.connected, false);
+  });
+});
+
+describe('AirConsoleAdapter retained state (setState/onState)', () => {
+  it('display setState maps to the SDK custom device state on the screen', () => {
+    const ac = makeFakeAirConsole();
+    const adapter = new AirConsoleAdapter(ac, { role: 'display' });
+    adapter.setState({ hostPeerIndex: 2, players: { 2: { name: 'A', color: 1 } } });
+    assert.deepEqual(ac.getCustomDeviceState(global.AirConsole.SCREEN), {
+      hostPeerIndex: 2, players: { 2: { name: 'A', color: 1 } },
+    });
+  });
+
+  it('controller setState is a no-op (controllers do not author screen state)', () => {
+    const ac = makeFakeAirConsole();
+    const adapter = new AirConsoleAdapter(ac, { role: 'controller' });
+    adapter.setState({ x: 1 });
+    assert.equal(ac.getCustomDeviceState(global.AirConsole.SCREEN), undefined);
+  });
+
+  it('controller onState fires when the screen state changes', () => {
+    const ac = makeFakeAirConsole();
+    const adapter = new AirConsoleAdapter(ac, { role: 'controller' });
+    const seen = [];
+    adapter.onState = function(data) { seen.push(data); };
+    ac._screenState = { hostPeerIndex: 0, players: {} };
+    ac.onCustomDeviceStateChange(global.AirConsole.SCREEN);
+    assert.deepEqual(seen, [{ hostPeerIndex: 0, players: {} }]);
+  });
+
+  it('controller onState ignores non-screen device state changes', () => {
+    const ac = makeFakeAirConsole();
+    const adapter = new AirConsoleAdapter(ac, { role: 'controller' });
+    const seen = [];
+    adapter.onState = function(data) { seen.push(data); };
+    ac.onCustomDeviceStateChange(3); // another controller's device state
+    assert.deepEqual(seen, []);
+  });
+
+  it('display does not consume its own custom device state', () => {
+    const ac = makeFakeAirConsole();
+    const adapter = new AirConsoleAdapter(ac, { role: 'display' });
+    const seen = [];
+    adapter.onState = function(data) { seen.push(data); };
+    ac._screenState = { hostPeerIndex: 0, players: {} };
+    ac.onCustomDeviceStateChange(global.AirConsole.SCREEN);
+    assert.deepEqual(seen, []);
+  });
+
+  it('replays existing screen state to a controller right after joined', () => {
+    const ac = makeFakeAirConsole({ getDeviceId() { return 7; } });
+    ac._screenState = { hostPeerIndex: 1, players: { 1: { name: 'A', color: 0 } } };
+    const adapter = new AirConsoleAdapter(ac, { role: 'controller' });
+    const order = [];
+    adapter.onProtocol = function(type) { order.push(['protocol', type]); };
+    adapter.onState = function(data) { order.push(['state', data]); };
+
+    adapter.connect();
+    ac.onReady('ROOM42');
+
+    // joined first, then the retained state replay, mirroring the relay ordering
+    assert.deepEqual(order, [
+      ['protocol', 'joined'],
+      ['state', { hostPeerIndex: 1, players: { 1: { name: 'A', color: 0 } } }],
+    ]);
+  });
+
+  it('does not replay when the screen has no state yet', () => {
+    const ac = makeFakeAirConsole({ getDeviceId() { return 7; } });
+    const adapter = new AirConsoleAdapter(ac, { role: 'controller' });
+    const seen = [];
+    adapter.onState = function(data) { seen.push(data); };
+    adapter.connect();
+    ac.onReady('ROOM42');
+    assert.deepEqual(seen, []);
   });
 });
 

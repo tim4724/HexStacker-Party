@@ -437,6 +437,12 @@ function removeLobbyPlayer(peerIndex) {
   updateStartButton();
   if (players.size > 0) {
     broadcastLobbyUpdate();
+  } else if (party && typeof party.setState === 'function') {
+    // Last lobby player left. The fanout had nobody to send to here, but the
+    // retained snapshot must not keep naming a departed player (and a stale
+    // host) to the next (re)joiner. Publish the now-empty roster so the relay
+    // replays an accurate { hostPeerIndex: null, players: {} }.
+    party.setState(buildRoomSnapshot());
   }
 }
 
@@ -578,9 +584,32 @@ function doBroadcastLobbyUpdate() {
   _lastLobbyBroadcastAt = Date.now();
   _lastBroadcastedHostId = getHostPeerIndex();
   applyHostTint();
-  for (const entry of players) {
-    sendLobbyUpdateTo(entry[0]);
+  // Publish the retained room snapshot once instead of fanning out a
+  // per-recipient LOBBY_UPDATE to every player. The relay pushes it live to
+  // connected controllers (sender excluded) and replays it to any (re)joining
+  // peer right after `joined`, so N messages collapse to one set_state and a
+  // briefly-dropped controller catches up for free. Controllers derive
+  // playerCount, takenColorIndices, host name/color and their own color from
+  // the roster (see the controller's onState). Per-recipient startLevel still
+  // goes out targeted via sendLobbyUpdateTo on SET_LEVEL.
+  if (party && typeof party.setState === 'function') {
+    party.setState(buildRoomSnapshot());
   }
+}
+
+// The retained snapshot the relay replays to (re)joining controllers and pushes
+// live on each update. Carries only globally-shared, broadcast-class state: the
+// roster keyed by peerIndex (display-facing name + color slot) and the
+// effective host. Tiny (<1 KiB for a full room), well under the relay's 16 KiB
+// cap. Per-recipient fields (startLevel, alive, results, paused) are NOT here;
+// they stay on the targeted WELCOME / LOBBY_UPDATE paths.
+function buildRoomSnapshot() {
+  var roster = {};
+  for (const entry of players) {
+    var p = entry[1];
+    roster[entry[0]] = { name: p.playerName, color: p.playerIndex };
+  }
+  return { hostPeerIndex: getHostPeerIndex(), players: roster };
 }
 
 // Single-recipient LOBBY_UPDATE — same payload the fanout sends. Used directly
