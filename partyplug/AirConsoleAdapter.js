@@ -23,6 +23,7 @@ class AirConsoleAdapter {
     this.onError = null;     // no-op — AirConsole SDK has no error callback equivalent
     this.onMessage = null;
     this.onProtocol = null;
+    this.onState = null;     // (data: any) => void, retained screen snapshot
 
     this._wireAirConsole();
   }
@@ -79,6 +80,20 @@ class AirConsoleAdapter {
         self.onProtocol('master_changed', {});
       }
     };
+
+    // Retained snapshot: the display (SCREEN) authors it via setState ->
+    // setCustomDeviceState; controllers read the screen's state and re-read on
+    // each change. The platform analogue of the relay's set_state/state, so the
+    // kit's setState/onState interface is uniform across both transports.
+    ac.onCustomDeviceStateChange = function(device_id) {
+      if (self.role !== 'controller') return;       // the display authors, never consumes
+      if (device_id !== AirConsole.SCREEN) return;  // only the screen's state is the snapshot
+      if (!self.onState) return;
+      try {
+        var st = ac.getCustomDeviceState(AirConsole.SCREEN);
+        if (st !== undefined) self.onState(st);
+      } catch (e) { /* SDK not ready / no state yet */ }
+    };
   }
 
   /**
@@ -114,6 +129,16 @@ class AirConsoleAdapter {
       // each other, so peers stays empty.
       var myIndex = this.airconsole.getDeviceId();
       if (this.onProtocol) this.onProtocol('joined', { room: code, index: myIndex, peers: [0] });
+      // Replay the screen's retained state right after `joined`, mirroring the
+      // relay replaying `state` after `joined`. Covers state the display set
+      // before this controller connected (the SDK may not fire
+      // onCustomDeviceStateChange for pre-existing state on a fresh join).
+      if (this.onState) {
+        try {
+          var screenState = this.airconsole.getCustomDeviceState(AirConsole.SCREEN);
+          if (screenState !== undefined) this.onState(screenState);
+        } catch (e) { /* no state yet */ }
+      }
     }
   }
 
@@ -156,6 +181,21 @@ class AirConsoleAdapter {
     this.airconsole.broadcast(data);
   }
 
+  // Publish a retained snapshot. Display-only: maps to the SDK's custom device
+  // state on the screen device, which AirConsole retains and replays to
+  // (re)joining controllers: the platform analogue of the relay's set_state.
+  // A controller calling this is a silent no-op (it owns no screen state).
+  setState(data) {
+    if (this.role !== 'display') return;
+    try {
+      this.airconsole.setCustomDeviceState(data);
+    } catch (e) {
+      if (typeof console !== 'undefined' && console.error) {
+        console.error('[AirConsoleAdapter] setCustomDeviceState failed', e);
+      }
+    }
+  }
+
   // No-ops — AirConsole owns room creation and connection lifecycle.
   create() {}
   join() {}
@@ -166,7 +206,7 @@ class AirConsoleAdapter {
   close() {
     this._ready = false;
     // Clear adapter callbacks (prevents stale setTimeout self-echo from firing)
-    this.onOpen = this.onClose = this.onError = this.onMessage = this.onProtocol = null;
+    this.onOpen = this.onClose = this.onError = this.onMessage = this.onProtocol = this.onState = null;
     // Neutralize SDK callbacks without nulling them — the AirConsole SDK
     // invokes these on its own schedule (e.g. queued postMessage events that
     // arrive between our close() and the next adapter's _wireAirConsole), and
@@ -176,7 +216,7 @@ class AirConsoleAdapter {
     // receiving events; the next adapter will overwrite them in turn.
     var ac = this.airconsole;
     var noop = function() {};
-    ac.onReady = ac.onConnect = ac.onDisconnect = ac.onMessage = ac.onPremium = noop;
+    ac.onReady = ac.onConnect = ac.onDisconnect = ac.onMessage = ac.onPremium = ac.onCustomDeviceStateChange = noop;
   }
 
   get connected() {

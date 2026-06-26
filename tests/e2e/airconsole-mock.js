@@ -33,6 +33,13 @@
     // for the existing e2e suite which doesn't exercise reload persistence).
     this._persistentData = {};
 
+    // Per-device custom device state (the SDK's retained per-device blob).
+    // Keyed by deviceId and replicated across pages over the channel so a
+    // controller can read the screen's state. Faithfully mirrors
+    // setCustomDeviceState / getCustomDeviceState / onCustomDeviceStateChange,
+    // including replay of the screen's state to a newly-joined device.
+    this._customDeviceStates = {};
+
     // Callbacks
     this.onReady = null;
     this.onConnect = null;
@@ -42,6 +49,7 @@
     this.onResume = null;
     this.onPersistentDataLoaded = null;
     this.onDeviceProfileChange = null;
+    this.onCustomDeviceStateChange = null;
 
     var self = this;
 
@@ -61,6 +69,17 @@
             if (msg.nickname) self._nicknames[msg.deviceId] = msg.nickname;
             if (msg.deviceId !== 0) self._connectedDevices.add(msg.deviceId);
             if (self.onConnect) self.onConnect(msg.deviceId);
+            // Replay our retained custom device state to the newcomer, the way
+            // the platform syncs existing device states to a joining device.
+            // (onConnect above may also have set fresh state synchronously; a
+            // duplicate replay is harmless, the consumer re-derives the same.)
+            if (self._customDeviceStates[self._deviceId] !== undefined) {
+              self._channel.postMessage({
+                _ac_type: 'custom_device_state',
+                deviceId: self._deviceId,
+                state: self._customDeviceStates[self._deviceId]
+              });
+            }
           }
           break;
         case 'disconnect':
@@ -74,6 +93,14 @@
             if (msg.from !== self._deviceId) {
               if (self.onMessage) self.onMessage(msg.from, msg.data);
             }
+          }
+          break;
+        case 'custom_device_state':
+          // Another device updated its retained state: store it and notify,
+          // matching onCustomDeviceStateChange(device_id) on the real SDK.
+          if (msg.deviceId !== self._deviceId) {
+            self._customDeviceStates[msg.deviceId] = msg.state;
+            if (self.onCustomDeviceStateChange) self.onCustomDeviceStateChange(msg.deviceId);
           }
           break;
       }
@@ -143,8 +170,17 @@
     });
   };
 
-  AirConsole.prototype.setCustomDeviceState = function() {};
-  AirConsole.prototype.getCustomDeviceState = function() { return undefined; };
+  AirConsole.prototype.setCustomDeviceState = function(data) {
+    this._customDeviceStates[this._deviceId] = data;
+    this._channel.postMessage({
+      _ac_type: 'custom_device_state',
+      deviceId: this._deviceId,
+      state: data
+    });
+  };
+  AirConsole.prototype.getCustomDeviceState = function(deviceId) {
+    return this._customDeviceStates[deviceId];
+  };
   AirConsole.prototype.setOrientation = function() {};
   AirConsole.prototype.vibrate = function() {};
 

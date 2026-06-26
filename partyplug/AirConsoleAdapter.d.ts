@@ -17,6 +17,8 @@ declare class AirConsoleAdapter {
   pinInstance(): void;
   sendTo(to: number, data: any): void;
   broadcast(data: any): void;
+  /** Publish a retained snapshot (display only) via the SDK's custom device state; controllers replay it on (re)join. No-op for controllers. */
+  setState(data: any): void;
   reconnectNow(): void;
   resetReconnectCount(): void;
   close(): void;
@@ -30,6 +32,8 @@ declare class AirConsoleAdapter {
   onError: (() => void) | null;
   onMessage: ((from: number, data: any) => void) | null;
   onProtocol: ((type: string, msg: any) => void) | null;
+  /** Fires (controllers only) with the screen's retained snapshot: replayed after `joined` and on each change. */
+  onState: ((data: any) => void) | null;
 
   /** Capture an onReady that fires before wiring; returns a replay function. */
   static captureEarlyReady(airconsole: any): () => void;

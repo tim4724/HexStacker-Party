@@ -547,6 +547,41 @@ function onLobbyUpdate(data) {
   }
 }
 
+// Apply the display's retained room snapshot. The relay replays it right after
+// `joined` on (re)join and pushes it live on each host update, in place of the
+// old per-recipient LOBBY_UPDATE fanout. We derive the same global fields the
+// fanout used to carry and route them through onLobbyUpdate's tested apply
+// path. Per-recipient identity (own name, alive, results, screen routing) is
+// owned by WELCOME, which stays authoritative; onState never routes screens.
+function onState(snap) {
+  if (!snap || typeof snap !== 'object' || !snap.players) return;
+  var roster = snap.players;
+  var ids = Object.keys(roster);
+  var colors = [];
+  for (var i = 0; i < ids.length; i++) {
+    var c = roster[ids[i]].color;
+    if (typeof c === 'number') colors.push(c);
+  }
+  colors.sort(function(a, b) { return a - b; });
+  var hostIdx = snap.hostPeerIndex;
+  var hostEntry = (hostIdx != null) ? roster[hostIdx] : null;
+  // Our own roster entry is absent until our HELLO lands on the display; until
+  // then colorIndex is undefined and onLobbyUpdate's `!= null` guard skips it,
+  // so WELCOME settles our identity. After that, the snapshot carries our
+  // display-accepted color (e.g. confirming a SET_COLOR pick).
+  var mine = (peerIndex != null) ? roster[peerIndex] : null;
+  onLobbyUpdate({
+    playerCount: ids.length,
+    colorIndex: mine ? mine.color : undefined,
+    takenColorIndices: colors,
+    // isHost is derived locally from the host pointer; WELCOME overrides with
+    // the authoritative value on (re)join. undefined (pre-join) leaves it.
+    isHost: (peerIndex != null && hostIdx != null) ? (peerIndex === hostIdx) : undefined,
+    hostName: hostEntry ? hostEntry.name : null,
+    hostColorIndex: hostEntry ? hostEntry.color : null
+  });
+}
+
 function onGameStart() {
   ControllerAudio.tick();
   lastLines = 0;
