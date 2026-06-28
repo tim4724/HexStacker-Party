@@ -35,6 +35,7 @@ const ENGINE_FILES = new Set([
   'Randomizer.js',
   'Piece.js',
   'PlayerBoard.js',
+  'PartyCore.js',
 ]);
 
 // --- MIME types ---

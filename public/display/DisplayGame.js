@@ -2,14 +2,9 @@
 
 // =====================================================================
 // Display Game — game lifecycle, event handlers, audio
-// Depends on: DisplayState.js (globals), DisplayConnection.js (broadcastLobbyUpdate, showDisconnectQR),
-//             DisplayLiveness.js (peerLivenessExpired)
+// Depends on: DisplayState.js (globals), DisplayConnection.js (broadcastLobbyUpdate, showDisconnectQR)
 // Called by: display.js (message handlers and UI buttons)
 // =====================================================================
-
-// Grace period before ending a game when all active players have disconnected
-// but late joiners are waiting — lets the host reconnect before we bail out.
-var LATE_JOINER_GRACE_MS = 5000;
 
 // Wake Lock — prevent screen sleep during active games
 function acquireWakeLock() {
@@ -52,18 +47,17 @@ function startNewGame() {
   stopDisplayGame();
   paused = false;
   setAutoPaused(false);
-  clearLateJoinerGraceTimer();
   lastResults = null;
   lastAliveState = {};
   // Drop players still flagged as disconnected from the previous game so they
-  // don't carry into the new one. disconnectedQRs is the unified disconnect
-  // signal across relay and AirConsole modes; peerLivenessExpired additionally
+  // don't carry into the new one. flow.isDisconnected is the unified disconnect
+  // signal across relay and AirConsole modes; flow.isExpired additionally
   // catches a relay peer that dropped right as RESULTS appeared, before
   // peer_left or the liveness tick flagged it (mirrors returnToLobby).
   // Reconnects clear the flag, so present players survive.
   var goneIds = [];
   for (const entry of players) {
-    if (disconnectedQRs.has(entry[0]) || peerLivenessExpired(entry[1], Date.now())) {
+    if (flow.isDisconnected(entry[0]) || flow.isExpired(entry[0], Date.now())) {
       goneIds.push(entry[0]);
     }
   }
@@ -105,7 +99,7 @@ function startNewGame() {
 
     // Show disconnect QR for any players that disconnected during countdown
     for (const entry of players) {
-      if (peerLivenessExpired(entry[1], Date.now())) {
+      if (flow.isExpired(entry[0], Date.now())) {
         showDisconnectQR(entry[0]);
       }
     }
@@ -162,47 +156,35 @@ function pauseGame() {
   onGamePaused();
 }
 
-// Check if all game participants are disconnected — auto-pause if so
+// Check if all game participants are disconnected — auto-pause if so. The
+// participant/presence decision lives in RoomFlow (reads flow._order +
+// flow._disconnected, kept in lockstep with disconnectedQRs); this thin
+// wrapper is kept so the call sites (canResumeGame, checkAllPlayersDisconnected,
+// DisplayLiveness, display-airconsole) don't all have to change.
 function allPlayersDisconnected() {
-  for (var i = 0; i < playerOrder.length; i++) {
-    if (!disconnectedQRs.has(playerOrder[i])) return false;
-  }
-  return playerOrder.length > 0;
+  return flow.allParticipantsDisconnected();
 }
 
 function canResumeGame() {
   return !allPlayersDisconnected();
 }
 
-function hasLateJoiners() {
-  for (const id of players.keys()) {
-    if (playerOrder.indexOf(id) < 0) return true;
-  }
-  return false;
-}
-
-function clearLateJoinerGraceTimer() {
-  if (lateJoinerGraceTimer) {
-    clearTimeout(lateJoinerGraceTimer);
-    lateJoinerGraceTimer = null;
-  }
-}
-
 function checkAllPlayersDisconnected() {
   // Don't auto-pause during COUNTDOWN — let it finish so disconnect QRs become visible.
   if (roomState !== ROOM_STATE.PLAYING) return;
-  if (!allPlayersDisconnected()) return;
+  if (!flow.allParticipantsDisconnected()) return;
 
-  // Start the grace timer regardless of pause state — a manually-paused host
-  // who then disconnects strands late joiners the same way an unpaused one
-  // does. Cancelled in DisplayInput when any active player reconnects.
-  if (hasLateJoiners() && !lateJoinerGraceTimer) {
-    lateJoinerGraceTimer = setTimeout(function() {
-      lateJoinerGraceTimer = null;
-      if (roomState === ROOM_STATE.PLAYING && allPlayersDisconnected() && hasLateJoiners()) {
-        returnToLobby();
-      }
-    }, LATE_JOINER_GRACE_MS);
+  // Arm the late-joiner grace deadline immediately on the event path — a
+  // manually-paused host who then disconnects strands late joiners the same way
+  // an unpaused one does. graceTick both arms and (once the 5s window elapses)
+  // fires; the 1Hz liveness loop normally observes the fire, but if an event
+  // lands on/after the deadline between polls, honor the fire here instead of
+  // discarding it — otherwise return-to-lobby slips a full window. Any active
+  // player reconnecting drops allParticipantsDisconnected so graceTick clears
+  // the deadline (implicit cancel).
+  if (flow.graceTick(Date.now())) {
+    returnToLobby();
+    return;
   }
 
   if (paused) return;
@@ -253,18 +235,17 @@ function returnToLobby() {
   countdown.remaining = 0;
   paused = false;
   setAutoPaused(false);
-  clearLateJoinerGraceTimer();
   releaseWakeLock();
 
   if (music) music.stop();
   stopDisplayGame(); // also calls clearCountdownTimers()
 
-  // Remove disconnected players. disconnectedQRs catches AirConsole mode,
-  // where peerLivenessExpired is always false; peerLivenessExpired catches
-  // relay-mode peers that went silent before a QR flag was set.
+  // Remove disconnected players. flow.isDisconnected catches AirConsole mode,
+  // where flow.isExpired is always false; flow.isExpired catches relay-mode
+  // peers that went silent before a QR flag was set.
   var disconnectedIds = [];
   for (const entry of players) {
-    if (disconnectedQRs.has(entry[0]) || peerLivenessExpired(entry[1], Date.now())) {
+    if (flow.isDisconnected(entry[0]) || flow.isExpired(entry[0], Date.now())) {
       disconnectedIds.push(entry[0]);
     }
   }
@@ -314,7 +295,6 @@ function stopDisplayGame() {
   if (displayGame) {
     displayGame = null;
   }
-  resetAllPlayerInput();
   garbageDefenceEffects.clear();
   clearCountdownTimers();
 }

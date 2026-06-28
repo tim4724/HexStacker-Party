@@ -8,13 +8,6 @@
 // Input validation: only accept known game actions (derived from protocol.js INPUT)
 var VALID_ACTIONS = new Set(Object.values(INPUT));
 
-// Per-player hard_drop rate limit — prevents queued messages from firing multiple drops
-var HARD_DROP_MIN_INTERVAL_MS = 150;
-var lastHardDropTime = new Map();
-
-// Soft drop auto-timeout (owned here, used only by input handling)
-var softDropTimers = new Map();
-
 function handleControllerMessage(fromId, msg) {
   try {
     if (!msg || !msg.type) return;
@@ -23,8 +16,7 @@ function handleControllerMessage(fromId, msg) {
     var wasDisconnected = disconnectedQRs.has(fromId);
     disconnectedQRs.delete(fromId);
     if (wasDisconnected) flow.markReconnected(fromId);
-    var senderPlayer = players.get(fromId);
-    if (senderPlayer) senderPlayer.lastPingTime = Date.now();
+    flow.onSeen(fromId, Date.now());
 
     switch (msg.type) {
       case MSG.HELLO:
@@ -80,7 +72,9 @@ function handleControllerMessage(fromId, msg) {
     // WELCOME with paused state) so the controller gets proper state sync
     // before the GAME_RESUMED broadcast.
     if (wasDisconnected && playerOrder.indexOf(fromId) >= 0) {
-      clearLateJoinerGraceTimer();
+      // The reconnect already dropped flow's disconnect flag (markReconnected
+      // above), so allParticipantsDisconnected is now false and the next
+      // graceTick clears the late-joiner deadline — no explicit cancel needed.
       if (autoPaused) checkAutoResume();
     }
   } catch (err) {
@@ -197,9 +191,9 @@ function onHello(fromId, msg) {
   flow.addPlayer(fromId, {
     playerName: playerName,
     playerIndex: index,
-    startLevel: 1,
-    lastPingTime: Date.now()
+    startLevel: 1
   });
+  flow.onSeen(fromId, Date.now());
   if (roomState === ROOM_STATE.LOBBY) {
     playerOrder.push(fromId);
   }
@@ -240,17 +234,7 @@ function onInput(fromId, msg) {
   if (!displayGame) return;
   if (!VALID_ACTIONS.has(msg.action)) return;
 
-  // Rate-limit hard drops to prevent queued messages from rapid-firing after reconnect
-  if (msg.action === INPUT.HARD_DROP) {
-    var now = Date.now();
-    var last = lastHardDropTime.get(fromId) || 0;
-    if (now - last < HARD_DROP_MIN_INTERVAL_MS) return;
-    lastHardDropTime.set(fromId, now);
-    // A hard drop supersedes any in-progress soft drop, so the piece spawned
-    // after the lock doesn't inherit soft-drop speed.
-    endSoftDrop(fromId);
-  }
-
+  // The engine owns hard-drop rate-limiting and soft-drop supersede.
   displayGame.processInput(fromId, msg.action);
 }
 
@@ -258,25 +242,15 @@ function onSoftDrop(fromId, speed) {
   if (roomState !== ROOM_STATE.PLAYING || paused) return;
   if (!displayGame) return;
 
+  // The engine arms its own auto-end fallback in case the explicit
+  // SOFT_DROP_END is lost (PlayerBoard.softDropDeadlineMs).
   displayGame.handleSoftDropStart(fromId, speed);
-
-  // (Re)arm the auto-end fallback in case the explicit SOFT_DROP_END is lost.
-  if (softDropTimers.has(fromId)) {
-    clearTimeout(softDropTimers.get(fromId));
-  }
-  softDropTimers.set(fromId, setTimeout(function() {
-    endSoftDrop(fromId);
-  }, GameConstants.SOFT_DROP_TIMEOUT_MS));
 }
 
-// End a player's soft drop now: cancel the auto-end fallback and stop the
-// accelerated fall. Driven by the explicit SOFT_DROP_END message (immediate
-// on touch-up), the hard-drop supersede, or the fallback timeout.
+// End a player's soft drop now: stop the accelerated fall. Driven by the
+// explicit SOFT_DROP_END message (immediate on touch-up) or disconnect
+// cleanup. The engine's own deadline still covers a lost SOFT_DROP_END.
 function endSoftDrop(fromId) {
-  if (softDropTimers.has(fromId)) {
-    clearTimeout(softDropTimers.get(fromId));
-    softDropTimers.delete(fromId);
-  }
   if (displayGame) displayGame.handleSoftDropEnd(fromId);
 }
 
@@ -357,13 +331,4 @@ function onSetName(fromId, msg) {
 
 function cleanupPlayerInput(clientId) {
   endSoftDrop(clientId);
-  lastHardDropTime.delete(clientId);
-}
-
-function resetAllPlayerInput() {
-  for (const entry of softDropTimers) {
-    clearTimeout(entry[1]);
-  }
-  softDropTimers.clear();
-  lastHardDropTime.clear();
 }

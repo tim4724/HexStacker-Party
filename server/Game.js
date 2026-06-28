@@ -6,6 +6,8 @@
 var PlayerBoard = ((typeof require !== 'undefined') ? require('./PlayerBoard.js') : window.PlayerBoardModule).PlayerBoard;
 var GarbageManager = ((typeof require !== 'undefined') ? require('./GarbageManager.js') : window.GameGarbageManager).GarbageManager;
 var mulberry32 = ((typeof require !== 'undefined') ? require('./Randomizer.js') : window.GameRandomizer).mulberry32;
+var GameConstants = (typeof require !== 'undefined') ? require('./constants.js') : window.GameConstants;
+var HARD_DROP_MIN_INTERVAL_MS = GameConstants.HARD_DROP_MIN_INTERVAL_MS;
 
 class Game {
   constructor(players, callbacks, seed) {
@@ -14,6 +16,7 @@ class Game {
     this.playerIds = [];
     this.ended = false;
     this.paused = false;
+    this._hardDropCooldownMs = new Map();   // per-player floor between hard drops (silent throttle)
 
     // Shared seed so all players get the same piece sequence
     if (seed == null) seed = (Math.random() * 0xFFFFFFFF) >>> 0;
@@ -66,6 +69,10 @@ class Game {
         board.rotateCW();
         break;
       case 'hard_drop': {
+        // Silently throttle rapid repeats (e.g. queued messages after a
+        // reconnect) so one intent can't rapid-fire multiple drops.
+        if ((this._hardDropCooldownMs.get(playerId) || 0) > 0) return;
+        this._hardDropCooldownMs.set(playerId, HARD_DROP_MIN_INTERVAL_MS);
         const result = board.hardDrop();
         if (result) {
           this.callbacks.onEvent({
@@ -101,6 +108,12 @@ class Game {
   update(deltaMs) {
     if (this.ended || this.paused) return;
     this.elapsed += deltaMs;
+
+    // Decrement per-player hard-drop cooldowns. Frozen while paused (early
+    // return above), same as the soft-drop deadline.
+    for (const [id, ms] of this._hardDropCooldownMs) {
+      this._hardDropCooldownMs.set(id, Math.max(0, ms - deltaMs));
+    }
 
     for (const [id, board] of this.boards) {
       if (!board.alive) {
