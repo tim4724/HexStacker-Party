@@ -14,6 +14,7 @@ const LINE_CLEAR_DELAY_MS = constants.LINE_CLEAR_DELAY_MS;
 const MAX_DROPS_PER_TICK = constants.MAX_DROPS_PER_TICK;
 const MAX_SPEED_LEVEL = constants.MAX_SPEED_LEVEL;
 const SOFT_DROP_MULTIPLIER = constants.SOFT_DROP_MULTIPLIER;
+const SOFT_DROP_TIMEOUT_MS = constants.SOFT_DROP_TIMEOUT_MS;
 
 const findClearableZigzags = constants.findClearableZigzags;
 const COLS = constants.COLS;
@@ -46,6 +47,7 @@ class PlayerBoard {
     this.rotatedSinceLastDrop = false;
     this.softDropping = false;
     this.softDropSpeed = SOFT_DROP_MULTIPLIER;
+    this.softDropDeadlineMs = 0;   // counts down while soft-dropping; auto-ends on expiry (lost SOFT_DROP_END recovery)
     this.pendingGarbage = [];
     this.clearingCells = null;
     this.clearingTimer = null;
@@ -60,11 +62,12 @@ class PlayerBoard {
     this._stateBlocksCurrent = [[0,0],[0,0],[0,0],[0,0]];
     this._stateBlocksGhost = [[0,0],[0,0],[0,0],[0,0]];
 
-    // Ghost cache (invalidated when piece moves or grid changes)
+    // Ghost cache (invalidated when piece moves, type changes, or grid changes)
     this._cachedGhost = null;
     this._ghostKeyCol = -1;
     this._ghostKeyRow = -1;
     this._ghostKeyRot = -1;
+    this._ghostKeyType = -1;
     this._ghostKeyGV = -1;
 
     // Visible grid cache (re-sliced only when gridVersion changes)
@@ -157,6 +160,9 @@ class PlayerBoard {
       this.gravityCounter = 0;
     }
     this.softDropping = true;
+    // Re-arm on every soft_drop message: the auto-end fires only after a full
+    // SOFT_DROP_TIMEOUT_MS gap with no further message (a dropped SOFT_DROP_END).
+    this.softDropDeadlineMs = SOFT_DROP_TIMEOUT_MS;
     if (speed != null) {
       this.softDropSpeed = speed;
     }
@@ -165,6 +171,7 @@ class PlayerBoard {
   softDropEnd() {
     this.softDropping = false;
     this.softDropSpeed = SOFT_DROP_MULTIPLIER;
+    this.softDropDeadlineMs = 0;   // clear so a dormant deadline never lingers negative
   }
 
   getLevel() {
@@ -222,6 +229,14 @@ class PlayerBoard {
 
   tick(deltaMs) {
     if (!this.alive) return null;
+
+    // Auto-end soft drop if no soft_drop message re-armed the deadline. Ticks
+    // regardless of clearing/piece state, matching the wall-clock timer it
+    // replaces, so a dropped SOFT_DROP_END can't leave the board stuck fast.
+    if (this.softDropping) {
+      this.softDropDeadlineMs -= deltaMs;
+      if (this.softDropDeadlineMs <= 0) this.softDropEnd();
+    }
 
     // Handle line clear animation delay
     if (this.clearingCells !== null) {
@@ -302,15 +317,21 @@ class PlayerBoard {
   }
 
   _ghostOf(piece) {
+    // typeId is part of the key: hold() swaps the piece type WITHOUT bumping
+    // gridVersion, so a same-anchor/rot cache hit would otherwise hand back the
+    // previous type's ghost — wrong visually and, via hardDrop()'s _ghostOf call,
+    // a wrong-typed lock.
     if (piece.anchorCol === this._ghostKeyCol && piece.anchorRow === this._ghostKeyRow &&
-        piece._rotId === this._ghostKeyRot && this.gridVersion === this._ghostKeyGV) {
+        piece._rotId === this._ghostKeyRot && piece.typeId === this._ghostKeyType &&
+        this.gridVersion === this._ghostKeyGV) {
       return this._cachedGhost;
     }
     let g = piece.clone();
     dropToFloor(g, this.grid, TOTAL_ROWS, COLS);
     this._cachedGhost = g;
     this._ghostKeyCol = piece.anchorCol; this._ghostKeyRow = piece.anchorRow;
-    this._ghostKeyRot = piece._rotId; this._ghostKeyGV = this.gridVersion;
+    this._ghostKeyRot = piece._rotId; this._ghostKeyType = piece.typeId;
+    this._ghostKeyGV = this.gridVersion;
     return g;
   }
 
@@ -396,6 +417,10 @@ class PlayerBoard {
 
   // ===================== HARD DROP =====================
   hardDrop() {
+    // A hard drop supersedes any in-progress soft drop so the piece spawned
+    // after the lock doesn't inherit soft-drop speed. Harmless when not
+    // soft-dropping; also covers direct callers (gallery, tvOS).
+    this.softDropEnd();
     if (!this.currentPiece || !this.alive) return null;
     this.currentPiece = this._ghostOf(this.currentPiece);
     return this._lockAndProcess();

@@ -24,14 +24,26 @@ var joinUrl = null;
 var lastRoomCode = null;
 var lastInstance = null;       // relay instance id from `created` — pins reconnect / controller WS to the same shard
 var gameState = null;
-// PartyPlug RoomFlow owns room state, roster identity/join-order, and host
-// election. The game keeps its per-player fields (playerName, color slot
-// playerIndex, startLevel, lastPingTime) on the same record objects; the kit
-// only owns peerIndex/joinedAt/connected and never reads the rest.
+// PartyPlug RoomFlow owns room state, roster identity/join-order, host
+// election, and liveness (presence-timeout) decisions. The game keeps its
+// per-player fields (playerName, color slot playerIndex, startLevel) on the
+// same record objects; the kit owns peerIndex/joinedAt/connected, tracks
+// last-seen times internally (flow.onSeen), and never reads the game fields.
 var flow = new RoomFlow({
   masterProvider: function () {
     return (party && typeof party.getMasterPeerIndex === 'function')
       ? party.getMasterPeerIndex() : null;
+  },
+  // Liveness decisions (presence timeout, all-disconnected pause, late-joiner
+  // grace) live in RoomFlow as pure nowMs-injected predicates; the glue keeps
+  // the effects (QR fetch, pause/resume, returnToLobby). enabledProvider MUST be
+  // a late-bound closure: display-airconsole.js sets window.airconsole AFTER
+  // this file loads, so a construction-time `!window.airconsole` would always be
+  // true and the AirConsole liveness no-op would be lost.
+  liveness: {
+    timeoutMs: GameConstants.LIVENESS_TIMEOUT_MS,
+    graceMs: GameConstants.LATE_JOINER_GRACE_MS,
+    enabledProvider: function () { return !window.airconsole; }
   }
 });
 // ROOM_STATE (protocol.js, shared with controllers) and RoomFlow.STATES are
@@ -47,7 +59,7 @@ if (ROOM_STATE.LOBBY !== RoomFlow.STATES.LOBBY ||
 // (players.get/has/size/for..of) keep working; writes go through flow
 // (addPlayer/removePlayer/rekey). flow.reset() clears this same Map.
 // peerIndex (1..N for controllers; the display owns slot 0, not in this map)
-// -> { playerName, playerIndex (color slot), startLevel, lastPingTime, joinedAt, connected }
+// -> { playerName, playerIndex (color slot), startLevel, joinedAt, connected }
 var players = flow.players;
 var playerOrder = [];          // compact list of active controller peerIndices for game layout. Lobby
                                // cards and in-game boards both sort by joinedAt; playerIndex is the
@@ -79,7 +91,6 @@ function setRoomState(newState) {
 
 var paused = false;
 var autoPaused = false;
-var lateJoinerGraceTimer = null;
 var boardRenderers = [];
 var uiRenderers = [];
 var animations = null;
@@ -124,8 +135,9 @@ var lastResults = null;
 
 // Clear all room-local state — used when entering a fresh room or returning to welcome.
 // Note: does not touch _lastBroadcastedHostId (module-private to DisplayConnection) or roomCode.
-// Calls clearCountdownTimers() and clearLateJoinerGraceTimer() (defined in
-// DisplayGame.js) — only safe after all scripts load.
+// Calls clearCountdownTimers() (defined in DisplayGame.js) — only safe after all
+// scripts load. flow.reset() clears the roster, presence set, and the
+// late-joiner grace deadline.
 function resetRoomData() {
   if (music) music.stop();
   clearCountdownTimers();
@@ -137,7 +149,6 @@ function resetRoomData() {
   playerOrder = [];
   paused = false;
   setAutoPaused(false);
-  clearLateJoinerGraceTimer();
   gameState = null;
   boardRenderers = [];
   uiRenderers = [];

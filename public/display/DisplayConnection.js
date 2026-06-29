@@ -274,7 +274,7 @@ function onDisplayRejoined(partyRoomCode, peers) {
   var disconnectedIds = [];
   for (const pEntry of players) {
     if (connectedSet.has(pEntry[0])) {
-      pEntry[1].lastPingTime = now;
+      flow.onSeen(pEntry[0], now);
     } else {
       disconnectedIds.push(pEntry[0]);
     }
@@ -352,9 +352,9 @@ function onPeerJoined(peerIndex) {
   flow.addPlayer(peerIndex, {
     playerName: generateAutoPlayerName(peerIndex),
     playerIndex: index,
-    startLevel: 1,
-    lastPingTime: Date.now()
+    startLevel: 1
   });
+  flow.onSeen(peerIndex, Date.now());
 
   // Only add to playerOrder in lobby — late joiners wait for next game.
   // playerOrder is snapshotted at game start by runGameLocally().
@@ -508,18 +508,16 @@ function claimReconnectPeer(fromId, msg) {
   if (!players.has(oldId) || !disconnectedQRs.has(oldId)) return false;
   if (playerOrder.indexOf(oldId) < 0) return false;
 
-  var existing = players.get(oldId);
-
   cleanupPlayerInput(oldId);
   cleanupPlayerInput(fromId);
 
-  existing.lastPingTime = Date.now();
   // flow.rekey moves the kept record from oldId to fromId (dropping the
   // placeholder slot fromId got when it joined), and reclaims the sticky host
-  // slot and participant order for the returning peer. The game-side arrays
-  // below (playerOrder, alive state, garbage effects, game boards) are rekeyed
-  // alongside it.
+  // slot, participant order, and last-seen stamp for the returning peer. The
+  // game-side arrays below (playerOrder, alive state, garbage effects, game
+  // boards) are rekeyed alongside it.
   flow.rekey(oldId, fromId);
+  flow.onSeen(fromId, Date.now());
 
   for (var i = 0; i < playerOrder.length; i++) {
     if (playerOrder[i] === oldId) playerOrder[i] = fromId;
@@ -535,7 +533,6 @@ function claimReconnectPeer(fromId, msg) {
   disconnectedQRs.delete(fromId);
   rekeyDisplayGamePlayer(oldId, fromId);
   calculateLayout();
-  clearLateJoinerGraceTimer();
   return true;
 }
 
@@ -669,7 +666,6 @@ function fetchQR(text, callback) {
 }
 
 function showDisconnectQR(peerIndex) {
-  // Set immediately so allPlayersDisconnected() can check synchronously
   disconnectedQRs.set(peerIndex, null);
   // INVARIANT: disconnectedQRs (presence flag + QR canvas, for rendering) and
   // flow's presence set must move together. Every site that adds/clears a

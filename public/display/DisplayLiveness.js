@@ -6,16 +6,6 @@
 //             DisplayGame.js (pauseGame, checkAllPlayersDisconnected)
 // =====================================================================
 
-// Whether a peer has gone silent past the liveness window. Always false in
-// AirConsole mode: there the SDK's onConnect/onDisconnect is the authoritative
-// liveness signal and the relay PING that refreshes lastPingTime is dropped
-// (see ControllerConnection startPing), so a present-but-idle controller must
-// not be treated as gone — onPeerLeft handles real departures instead.
-function peerLivenessExpired(player, now) {
-  if (window.airconsole) return false;
-  return !!player.lastPingTime && (now - player.lastPingTime > GameConstants.LIVENESS_TIMEOUT_MS);
-}
-
 function startLivenessCheck() {
   stopLivenessCheck();
   lastHeartbeatEcho = Date.now();
@@ -58,19 +48,15 @@ function startLivenessCheck() {
       return;
     }
 
-    // Check individual controller liveness. peerLivenessExpired is a no-op in
-    // AirConsole mode, so the SDK's onDisconnect (→ peer_left → onPeerLeft)
-    // becomes the only disconnect trigger there.
+    // Check individual controller liveness. flow.expiredPeers already applies
+    // the state!==LOBBY + not-already-disconnected gates and the AirConsole
+    // no-op (its enabledProvider closure), so the SDK's onDisconnect
+    // (→ peer_left → onPeerLeft) becomes the only disconnect trigger there.
     var newDisconnect = false;
-    for (const entry of players) {
-      const id = entry[0];
-      const player = entry[1];
-      if (peerLivenessExpired(player, now)) {
-        if (roomState !== ROOM_STATE.LOBBY && !disconnectedQRs.has(id)) {
-          showDisconnectQR(id);
-          newDisconnect = true;
-        }
-      }
+    var expired = flow.expiredPeers(now);
+    for (const id of expired) {
+      showDisconnectQR(id);
+      newDisconnect = true;
     }
     if (newDisconnect) {
       checkAllPlayersDisconnected();
@@ -81,6 +67,12 @@ function startLivenessCheck() {
       // the host.
       if (!allPlayersDisconnected()) maybeBroadcastHostChange();
     }
+    // Poll the flow-owned late-joiner grace deadline (armed by
+    // checkAllPlayersDisconnected on the event path). Replaces the old
+    // setTimeout: fires within one tick of the 5s window elapsing, and
+    // graceTick re-checks all-disconnected so a reconnect can't strand us. A
+    // no-op if the event path already fired between ticks (deadline cleared).
+    if (flow.graceTick(now)) returnToLobby();
   }, 1000);
 }
 

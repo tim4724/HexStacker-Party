@@ -6,7 +6,8 @@
 // =====================================================================
 
 // Cap frame delta to ~3 frames at 60Hz — prevents huge catch-up jumps after tab unfreeze.
-var MAX_FRAME_DELTA_MS = 50;
+// Sourced from the shared constants module (PartyCore's native frame() cap reads the same), so they can't drift.
+var MAX_FRAME_DELTA_MS = GameConstants.MAX_FRAME_DELTA_MS;
 // ~4fps — used when paused/results and no active animations, to save battery.
 var IDLE_FRAME_INTERVAL_MS = 250;
 

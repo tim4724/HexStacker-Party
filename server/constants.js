@@ -31,9 +31,18 @@ const MAX_PLAYERS = 8;
 // Countdown
 const COUNTDOWN_SECONDS = 3;
 
+// Input timing
+const SOFT_DROP_TIMEOUT_MS = 300;        // Auto-end soft drop if no further soft_drop message arrives within this window
+const HARD_DROP_MIN_INTERVAL_MS = 150;   // Per-player floor between hard drops; rapid repeats (queued messages) are dropped
+
+// Frame loop
+const MAX_FRAME_DELTA_MS = 50;           // Cap per-frame delta (~3 frames at 60Hz) — prevents catch-up jumps after a tab/app unfreeze; shared by the web rAF loop and PartyCore.frame()
+
 // Display-side timing
-const SOFT_DROP_TIMEOUT_MS = 300;   // Auto-end soft drop if no message received within this window
 const LIVENESS_TIMEOUT_MS = 3000;   // Controller considered disconnected after this silence
+// Grace before returning to lobby when every active participant has dropped but
+// late joiners are waiting — lets the host reconnect before we bail out.
+const LATE_JOINER_GRACE_MS = 5000;
 // Display self-heartbeat dead-detection threshold. The display loops a 1 Hz
 // `_heartbeat` back through the relay to itself; if echoes stop arriving for
 // this long it tears down the WS and reconnects. Set to 6x the heartbeat
@@ -298,7 +307,10 @@ exports.GARBAGE_DELAY_MS = GARBAGE_DELAY_MS;
 exports.MAX_PLAYERS = MAX_PLAYERS;
 exports.COUNTDOWN_SECONDS = COUNTDOWN_SECONDS;
 exports.SOFT_DROP_TIMEOUT_MS = SOFT_DROP_TIMEOUT_MS;
+exports.HARD_DROP_MIN_INTERVAL_MS = HARD_DROP_MIN_INTERVAL_MS;
+exports.MAX_FRAME_DELTA_MS = MAX_FRAME_DELTA_MS;
 exports.LIVENESS_TIMEOUT_MS = LIVENESS_TIMEOUT_MS;
+exports.LATE_JOINER_GRACE_MS = LATE_JOINER_GRACE_MS;
 exports.SELF_HEARTBEAT_DEAD_MS = SELF_HEARTBEAT_DEAD_MS;
 exports.COLS = COLS;
 exports.TOTAL_ROWS = TOTAL_ROWS;
