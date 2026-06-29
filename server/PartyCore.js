@@ -191,9 +191,11 @@ PartyCore._toCommands = function(events, snapshot, core) {
         }
         break;
       case 'player_ko':
+        // playerEliminated == "this player is out" (host sends MSG.GAME_OVER to
+        // their controller); distinct from the match-end 'gameEnd' command below.
         commands.push({ type: 'playerKO', playerId: e.playerId });
         commands.push({ type: 'playerState', playerId: e.playerId, alive: false });
-        commands.push({ type: 'gameOver', playerId: e.playerId });
+        commands.push({ type: 'playerEliminated', playerId: e.playerId });
         break;
       case 'garbage_cancelled':
         commands.push({ type: 'garbageCancelled', playerId: e.playerId, lines: e.lines });

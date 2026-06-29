@@ -5833,7 +5833,7 @@
           "alive": false
         },
         {
-          "type": "gameOver",
+          "type": "playerEliminated",
           "playerId": "p2"
         },
         {

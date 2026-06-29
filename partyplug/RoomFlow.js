@@ -388,7 +388,9 @@
   // Has this peer gone silent past the liveness window? Suppressed entirely
   // when enabledProvider() returns false (e.g. AirConsole, where the SDK's
   // connect/disconnect is authoritative and the relay PING is dropped). The
-  // boundary is strict `>`: exactly-at-timeout is still considered alive.
+  // boundary is strict `>`: exactly-at-timeout is still considered alive. A peer
+  // with no stamp (registered via peer_joined but never sent a message) is
+  // treated as always-alive here; its only cleanup path is peer_left.
   RoomFlow.prototype.isExpired = function (peerIndex, nowMs) {
     if (this._livenessEnabledProvider && !this._livenessEnabledProvider()) return false;
     return this._lastSeen.has(peerIndex) &&

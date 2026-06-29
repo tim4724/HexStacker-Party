@@ -122,13 +122,15 @@ test('_toCommands maps each engine event type to the host-effect vocabulary', ()
     PartyCore._toCommands([{ type: 'piece_lock', playerId: 'p1', blocks: [[0, 0]], typeId: 5 }], snapshot, core),
     [{ type: 'pieceLock', playerId: 'p1', blocks: [[0, 0]], typeId: 5 }]);
 
-  // player_ko -> KO anim, then alive:false state, then gameOver (web order)
+  // player_ko -> KO anim, then alive:false state, then playerEliminated (web order).
+  // playerEliminated (this player is out) is deliberately distinct from gameEnd
+  // (the whole match is done) so a native consumer can't conflate them.
   assert.deepStrictEqual(
     PartyCore._toCommands([{ type: 'player_ko', playerId: 'p2' }], snapshot, core),
     [
       { type: 'playerKO', playerId: 'p2' },
       { type: 'playerState', playerId: 'p2', alive: false },
-      { type: 'gameOver', playerId: 'p2' },
+      { type: 'playerEliminated', playerId: 'p2' },
     ]);
 
   // line_clear -> lineClear anim, then playerState with snapshot-resolved garbageIncoming
