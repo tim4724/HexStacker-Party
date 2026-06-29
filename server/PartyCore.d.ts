@@ -124,7 +124,10 @@ declare class PartyCore {
    * MUST call this whenever it leaves the active loop (pause, results) — without
    * it, the first `frame()` after a gap (app resume, results screen) would feed a
    * huge elapsed delta (still capped at MAX_FRAME_DELTA_MS, but a full ~50ms jump)
-   * into the engine. Mirrors the web DisplayRender prevFrameTime=0 reset.
+   * into the engine. Mirrors the web DisplayRender prevFrameTime=0 reset. Does NOT
+   * reset the music level: the first `frame()` after construction emits a
+   * `musicSpeed` at the current level (the initial music), and after
+   * `resetFrameClock()` the next `frame()` re-emits `musicSpeed` only on a change.
    */
   resetFrameClock(): void;
 
@@ -246,7 +249,11 @@ declare namespace PartyCore {
     lines: number;
     /** Full row indices that cleared. */
     rows: number[];
-    clearCells: Array<[number, number]> | null;
+    /**
+     * Visible [col, row] cells of the cleared lines. Non-null: a line_clear event
+     * only fires when lines > 0, where the engine always supplies the array.
+     */
+    clearCells: Array<[number, number]>;
   }
   interface PlayerKOEvent {
     type: 'player_ko';
