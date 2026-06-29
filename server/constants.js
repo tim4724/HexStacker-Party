@@ -199,7 +199,8 @@ function computeHexGeometry(boardCols, visRows, cellSize) {
 
 // Compute the outline vertices for a hex board as a flat array of [x, y] pairs.
 // bx, by: board origin. hs: hexSize. hexH: hex height. colW: column spacing.
-// Used by both traceHexOutline (canvas path) and BoardRenderer (pre-computed cache).
+// Used by web canvas renderers (traceHexOutline in CanvasUtils, BoardRenderer's
+// pre-computed cache); the pure math stays here for the portable surface.
 function computeHexOutlineVerts(bx, by, hs, hexH, colW, cols, visRows, outset) {
   var verts = [];
   var lastRow = visRows - 1;
@@ -283,18 +284,6 @@ function computeHexOutlineVerts(bx, by, hs, hexH, colW, cols, visRows, outset) {
   return verts;
 }
 
-// Trace the hex board outline as a closed canvas path (for stroking/clipping).
-// cols: column count. visRows: visible row count.
-function traceHexOutline(ctx, bx, by, hs, hexH, colW, cols, visRows) {
-  var verts = computeHexOutlineVerts(bx, by, hs, hexH, colW, cols, visRows);
-  ctx.beginPath();
-  ctx.moveTo(verts[0][0], verts[0][1]);
-  for (var i = 1; i < verts.length; i++) {
-    ctx.lineTo(verts[i][0], verts[i][1]);
-  }
-  ctx.closePath();
-}
-
 exports.MAX_SPEED_LEVEL = MAX_SPEED_LEVEL;
 exports.SOFT_DROP_MULTIPLIER = SOFT_DROP_MULTIPLIER;
 exports.LOCK_DELAY_MS = LOCK_DELAY_MS;
@@ -323,6 +312,5 @@ exports.findClearableZigzags = findClearableZigzags;
 exports.findNearClearZigzags = findNearClearZigzags;
 exports.computeHexGeometry = computeHexGeometry;
 exports.computeHexOutlineVerts = computeHexOutlineVerts;
-exports.traceHexOutline = traceHexOutline;
 
 })(typeof module !== 'undefined' ? module.exports : (window.GameConstants = {}));

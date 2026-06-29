@@ -162,16 +162,31 @@ PartyCore.prototype.frame = function(nowMs) {
   if (deltaMs > 0) this.game.update(deltaMs);
   var events = this.drainEvents();
   var snapshot = this.snapshot();
-  var commands = PartyCore._toCommands(events, snapshot, this);
+  var commands = PartyCore._toCommands(events, snapshot);
+  // Snapshot-derived music speed: emit only when the max player level changes.
+  // Appended AFTER the event commands (mirroring the web order) and kept here,
+  // not in the now-pure _toCommands, because it's the one bit of cross-frame
+  // state (_lastMusicLevel) a stateless mapping can't track.
+  var maxLevel = 1;
+  for (var k = 0; k < snapshot.players.length; k++) {
+    var lvl = snapshot.players[k].level || 1;
+    if (lvl > maxLevel) maxLevel = lvl;
+  }
+  if (snapshot.players.length > 0 && maxLevel !== this._lastMusicLevel) {
+    this._lastMusicLevel = maxLevel;
+    commands.push({ type: 'musicSpeed', level: maxLevel });
+  }
   return { events: events, snapshot: snapshot, commands: commands };
 };
 
 // Normalize this frame's events + value-copy snapshot into a serializable
-// host-effect list. Ordering within an event mirrors the web DisplayGame
-// handler so a host replaying commands in array order reproduces today's
-// effects. garbageIncoming is pre-resolved from the snapshot (board-pending +
-// delayed GarbageManager queue), removing the host's mid-event getSnapshot.
-PartyCore._toCommands = function(events, snapshot, core) {
+// host-effect list. PURE: depends only on its args (no instance, no cross-frame
+// state); the snapshot-derived musicSpeed lives in frame(). Ordering within an
+// event mirrors the web DisplayGame handler so a host replaying commands in array
+// order reproduces today's effects. garbageIncoming is pre-resolved from the
+// snapshot (board-pending + delayed GarbageManager queue), removing the host's
+// mid-event getSnapshot.
+PartyCore._toCommands = function(events, snapshot) {
   var commands = [];
   for (var i = 0; i < events.length; i++) {
     var e = events[i];
@@ -226,17 +241,6 @@ PartyCore._toCommands = function(events, snapshot, core) {
         commands.push({ type: 'gameEnd', elapsed: e.elapsed, results: clone(e.results) });
         break;
     }
-  }
-
-  // Snapshot-derived music speed: emit only when the max player level changes.
-  var maxLevel = 1;
-  for (var k = 0; k < snapshot.players.length; k++) {
-    var lvl = snapshot.players[k].level || 1;
-    if (lvl > maxLevel) maxLevel = lvl;
-  }
-  if (snapshot.players.length > 0 && maxLevel !== core._lastMusicLevel) {
-    core._lastMusicLevel = maxLevel;
-    commands.push({ type: 'musicSpeed', level: maxLevel });
   }
 
   return commands;

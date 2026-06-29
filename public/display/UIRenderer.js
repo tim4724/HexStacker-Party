@@ -518,7 +518,7 @@ class UIRenderer {
 
   // Trace the hex board outline as a closed path (matching the zigzag walls)
   _boardOutlinePath() {
-    GameConstants.traceHexOutline(
+    traceHexOutline(
       this.ctx, this.boardX, this.boardY,
       this._hexSize, this._hexH, this._colW,
       GameConstants.COLS, GameConstants.VISIBLE_ROWS
