@@ -15,18 +15,14 @@
 // also takes one snapshot (getState) right after init — see the reference below,
 // which mirrors that exactly.
 //
-// Why NOT cross-validate against the committed engine-golden corpus: the engine
-// golden deliberately NEVER calls getState()/getSnapshot(); it reads board.grid
-// directly. But frame() MUST snapshot every frame (the value-copy is its whole
-// point), exactly like the web renderLoop's per-frame getSnapshot(). getState()
-// populates PlayerBoard's _ghostOf cache, which is keyed on col/row/rot/
-// gridVersion but NOT piece type, so after a hold() (no gridVersion bump) a
-// same-position cache hit can hand a wrong-typed ghost to a later hardDrop. That
-// pre-existing engine subtlety makes the snapshot-every-frame execution (web,
-// native, frame()) diverge from the no-snapshot engine golden from ~frame 25 on.
-// So the faithful reference is a plain Game driven with the SAME deltas AND the
-// SAME per-frame getSnapshot() cadence — isolating exactly what the facade adds
-// (event buffering + value-copy + delta-capping) as behavior-preserving.
+// Cross-validation reference: a plain Game driven with the SAME timeline AND the
+// SAME per-frame getSnapshot() cadence frame() uses internally, isolating exactly
+// what the facade adds (event buffering + value-copy + delta-capping) as
+// behavior-preserving. Note: getState() populates PlayerBoard's _ghostOf cache;
+// since this engine keys that cache on piece type, snapshotting every frame no
+// longer perturbs gameplay, so the wrapped engine now matches the no-snapshot
+// engine-golden.json byte-for-byte (verified). This same-cadence reference is
+// therefore belt-and-suspenders, kept to localize a regression to the facade.
 
 const { Game } = require('../../server/Game');
 const { PartyCore } = require('../../server/PartyCore');

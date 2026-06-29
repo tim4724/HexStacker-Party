@@ -214,6 +214,23 @@ test('drainEvents returns buffered events once, then empties', () => {
   assert.deepStrictEqual(pc.drainEvents(), [], 'buffer is empty after draining');
 });
 
+test("input between two frame() calls surfaces in the SECOND frame's events (between-frame buffering)", () => {
+  // The native contract: a host calls processInput between vsync frames; those
+  // engine events accumulate and are drained by the NEXT frame(), not lost.
+  const pc = newPartyCore(1);
+  pc.init();
+  pc.frame(0);                          // prime
+  const a = pc.frame(16);               // frame N: nothing yet (16ms can't gravity-lock from spawn)
+  assert.ok(!a.events.some((e) => e.type === 'piece_lock'), 'no lock before the input arrives');
+
+  pc.processInput('p1', 'hard_drop');   // input arrives between frames
+  const b = pc.frame(32);               // frame N+1: the hard_drop's events surface here
+  assert.ok(b.events.some((e) => e.type === 'piece_lock'),
+    'the between-frame hard_drop piece_lock surfaces in the next frame, not dropped');
+  assert.ok(b.commands.some((c) => c.type === 'pieceLock'),
+    'and is normalized into that frame\'s commands');
+});
+
 test('frame() on a paused engine advances the frame clock but the engine no-ops', () => {
   const pc = newPartyCore(1);
   pc.init();

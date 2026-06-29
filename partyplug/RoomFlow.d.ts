@@ -43,8 +43,8 @@ declare class RoomFlow {
   rekey(oldId: number, newId: number): boolean;
   markDisconnected(peerIndex: number): void;
   markReconnected(peerIndex: number): void;
-  /** Mark everyone present (e.g. at game start). */
-  clearDisconnected(): void;
+  /** Mark everyone present (e.g. at game start). Pass nowMs to also re-stamp every player's last-seen so a pre-start-quiet peer isn't instantly expired during countdown. */
+  clearDisconnected(nowMs?: number): void;
 
   // --- lifecycle ---
   /** Validated state transition; the primary API. Returns false on an invalid transition. */
