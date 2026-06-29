@@ -645,6 +645,27 @@ describe('RoomFlow — host re-broadcast dedup (pure half)', () => {
   });
 });
 
+describe('RoomFlow — liveness: clearDisconnected re-stamps last-seen', () => {
+  it('clearDisconnected(nowMs) refreshes stamps so a pre-start-quiet peer is not expired during COUNTDOWN', () => {
+    const f = new RoomFlow({ liveness: { timeoutMs: 3000 } });
+    f.addPlayer(1); f.addPlayer(2);
+    f.onSeen(1, 1000); f.onSeen(2, 1000);          // both last seen at t=1000
+    f.transitionTo(S.COUNTDOWN);                    // COUNTDOWN: the LOBBY gate no longer applies
+    assert.deepEqual(f.expiredPeers(5000), [1, 2], '>3s stale -> would expire mid-countdown');
+
+    f.clearDisconnected(5000);                      // game start marks all present AND re-stamps
+    assert.deepEqual(f.expiredPeers(5000), [], 'fresh stamps -> nobody expired right after start');
+  });
+
+  it('clearDisconnected() without nowMs leaves stamps untouched (legacy behavior)', () => {
+    const f = new RoomFlow({ liveness: { timeoutMs: 3000 } });
+    f.addPlayer(1);
+    f.onSeen(1, 1000);
+    f.clearDisconnected();                          // no nowMs -> no re-stamp
+    assert.equal(f.isExpired(1, 5000), true, 'stamp unchanged when nowMs omitted');
+  });
+});
+
 // RoomFlow's clock-free purity is enforced by the central portable-purity gate
 // (tests/portable-purity.test.js), which scans RoomFlow.js alongside the engine
 // modules native loads into JSC/QuickJS.

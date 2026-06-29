@@ -155,9 +155,11 @@ PartyCore.prototype.resetFrameClock = function() {
 // while playing && !paused, matching the web rAF loop) and calls
 // resetFrameClock() when leaving the active loop.
 PartyCore.prototype.frame = function(nowMs) {
+  // Clamp to [0, cap]: Math.max guards a backward nowMs (a native clock reset or
+  // app-resume hiccup) so a glitch can't produce a negative or oversized step.
   var deltaMs = this._prevNowMs == null
     ? 0
-    : Math.min(nowMs - this._prevNowMs, MAX_FRAME_DELTA_MS);
+    : Math.min(Math.max(0, nowMs - this._prevNowMs), MAX_FRAME_DELTA_MS);
   this._prevNowMs = nowMs;
   if (deltaMs > 0) this.game.update(deltaMs);
   var events = this.drainEvents();
@@ -175,6 +177,8 @@ PartyCore._toCommands = function(events, snapshot, core) {
   var commands = [];
   for (var i = 0; i < events.length; i++) {
     var e = events[i];
+    // Unmapped event types intentionally produce no command. They still appear in
+    // the returned events array (the complete record), which native can also read.
     switch (e.type) {
       case 'piece_lock':
         commands.push({ type: 'pieceLock', playerId: e.playerId, blocks: e.blocks, typeId: e.typeId });

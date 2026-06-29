@@ -70,7 +70,7 @@ function startNewGame() {
   // keep the disconnected state through RESULTS so the host role hands off
   // correctly; see getHostPeerIndex().)
   disconnectedQRs.clear();
-  flow.clearDisconnected();
+  flow.clearDisconnected(Date.now());
   // Everyone who remained was disconnected — don't launch an empty game.
   // Both callers (startGame, playAgain) check players.size before this prune,
   // so neither catches the all-disconnected case. From RESULTS, returnToLobby()
@@ -275,7 +275,7 @@ function returnToLobbyUI() {
   gameState = null;
   prevFrameTime = 0;
   disconnectedQRs.clear();
-  flow.clearDisconnected();
+  flow.clearDisconnected(Date.now());
   garbageIndicatorEffects.clear();
   garbageDefenceEffects.clear();
   showScreen(SCREEN.LOBBY);

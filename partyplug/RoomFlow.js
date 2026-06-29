@@ -224,7 +224,14 @@
   // Clear every disconnect flag, marking all current players present. Used at
   // game start / lobby return where stale blip flags must not suppress host
   // eligibility for the new round.
-  RoomFlow.prototype.clearDisconnected = function () {
+  RoomFlow.prototype.clearDisconnected = function (nowMs) {
+    // Re-stamp liveness on this "everyone present" transition (game start / lobby
+    // return) so a controller that went quiet just before isn't instantly flagged
+    // by expiredPeers() during COUNTDOWN (where the LOBBY gate no longer applies).
+    // Callers pass nowMs; omitting it preserves the legacy clear-only behavior.
+    if (nowMs != null) {
+      for (var p of this.players) this._lastSeen.set(p[0], nowMs);
+    }
     if (this._disconnected.size === 0) return;
     var prevHost = this.host;
     this._disconnected.clear();
@@ -443,6 +450,8 @@
     if (this.state === STATES.PLAYING &&
         this.allParticipantsDisconnected() &&
         this.hasLateJoiners()) {
+      // graceMs=0 still arms here and fires on the NEXT qualifying tick (deadline
+      // == nowMs), i.e. one tick of delay rather than firing immediately.
       if (this._graceDeadline == null) { this._graceDeadline = nowMs + this._graceMs; return false; }
       if (nowMs >= this._graceDeadline) { this._graceDeadline = null; return true; }
       return false;
