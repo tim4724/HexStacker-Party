@@ -179,10 +179,15 @@ PartyCore._toCommands = function(events, snapshot, core) {
     // the returned events array (the complete record), which native can also read.
     switch (e.type) {
       case 'piece_lock':
-        commands.push({ type: 'pieceLock', playerId: e.playerId, blocks: e.blocks, typeId: e.typeId });
+        // Clone blocks (and clearCells below): frame() returns events and commands
+        // from the same buffer, so a host transforming commands[].blocks must not
+        // alias-corrupt the parallel events entry. Same contract as the snapshot.
+        commands.push({ type: 'pieceLock', playerId: e.playerId,
+          blocks: e.blocks.map(function(b) { return [b[0], b[1]]; }), typeId: e.typeId });
         break;
       case 'line_clear':
-        commands.push({ type: 'lineClear', playerId: e.playerId, clearCells: e.clearCells, lines: e.lines });
+        commands.push({ type: 'lineClear', playerId: e.playerId,
+          clearCells: e.clearCells.map(function(c) { return [c[0], c[1]]; }), lines: e.lines });
         // p is always present: the engine emits line_clear only for a board that
         // is in this frame's snapshot. The guard is belt-and-suspenders.
         var p = null;

@@ -70,7 +70,8 @@ function startLivenessCheck() {
     // Poll the flow-owned late-joiner grace deadline (armed by
     // checkAllPlayersDisconnected on the event path). Replaces the old
     // setTimeout: fires within one tick of the 5s window elapsing, and
-    // graceTick re-checks all-disconnected so a reconnect can't strand us.
+    // graceTick re-checks all-disconnected so a reconnect can't strand us. A
+    // no-op if the event path already fired between ticks (deadline cleared).
     if (flow.graceTick(now)) returnToLobby();
   }, 1000);
 }

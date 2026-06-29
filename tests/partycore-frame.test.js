@@ -222,6 +222,24 @@ test('value-copy snapshot cells are deep-copied (host cannot corrupt the live en
     'mutating snapshot cells must not reach the engine piece');
 });
 
+test('frame() command arrays do not alias the parallel events arrays', () => {
+  // frame() returns events and commands from the same buffer; a host transforming
+  // a command's coordinate arrays must not corrupt the events entry it also holds.
+  const pc = newPartyCore(1);
+  pc.init();
+  pc.frame(0);
+  pc.processInput('p1', 'hard_drop');   // emits a piece_lock
+  const f = pc.frame(16);
+  const ev = f.events.find((e) => e.type === 'piece_lock');
+  const cmd = f.commands.find((c) => c.type === 'pieceLock');
+  assert.ok(ev && cmd, 'hard_drop produced a piece_lock event and a pieceLock command');
+  assert.notStrictEqual(cmd.blocks, ev.blocks, 'command blocks must be a distinct array from the event');
+
+  const orig = ev.blocks[0][0];
+  cmd.blocks[0][0] = 999;   // host transforms the command coords
+  assert.equal(ev.blocks[0][0], orig, 'mutating the command must not corrupt the parallel event');
+});
+
 test('drainEvents returns buffered events once, then empties', () => {
   const pc = newPartyCore(1);
   pc.init();
