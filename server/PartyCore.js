@@ -215,8 +215,10 @@ PartyCore._toCommands = function(events, snapshot, core) {
         break;
       case 'game_end':
         // RAW — the host keeps roster enrichment (playerName/colorIndex/
-        // newPlayer) and the actual broadcast; frame() has no roster.
-        commands.push({ type: 'gameEnd', elapsed: e.elapsed, results: e.results });
+        // newPlayer) and the actual broadcast; frame() has no roster. clone() so a
+        // host enriching commands[].results can't alias-corrupt the events entry
+        // (frame() returns both events and commands from the same buffer).
+        commands.push({ type: 'gameEnd', elapsed: e.elapsed, results: clone(e.results) });
         break;
     }
   }

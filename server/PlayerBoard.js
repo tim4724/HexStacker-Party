@@ -171,6 +171,7 @@ class PlayerBoard {
   softDropEnd() {
     this.softDropping = false;
     this.softDropSpeed = SOFT_DROP_MULTIPLIER;
+    this.softDropDeadlineMs = 0;   // clear so a dormant deadline never lingers negative
   }
 
   getLevel() {
