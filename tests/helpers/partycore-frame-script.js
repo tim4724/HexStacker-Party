@@ -30,20 +30,7 @@
 
 const { Game } = require('../../server/Game');
 const { PartyCore } = require('../../server/PartyCore');
-const { buildTimeline, SEED, PLAYER_IDS } = require('./engine-golden-script');
-
-// FNV-1a 32-bit grid hash — identical to engine-golden-script's hashGrid.
-function hashGrid(grid) {
-  let h = 0x811c9dc5;
-  for (let r = 0; r < grid.length; r++) {
-    const row = grid[r];
-    for (let c = 0; c < row.length; c++) {
-      h ^= (row[c] & 0xff);
-      h = Math.imul(h, 0x01000193);
-    }
-  }
-  return (h >>> 0).toString(16).padStart(8, '0');
-}
+const { buildTimeline, hashGrid, SEED, PLAYER_IDS } = require('./engine-golden-script');
 
 // FNV-1a 32-bit over the JSON serialization of an entire value-copy player —
 // pins EVERY snapshot field, not just the grid. Snapshot data is pure ASCII
@@ -171,5 +158,4 @@ module.exports = {
   runPartyCoreFrameScript,
   runPartyCoreEngineHashes,
   runReferenceGameSteps,
-  hashGrid,
 };

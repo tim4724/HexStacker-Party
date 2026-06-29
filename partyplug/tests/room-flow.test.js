@@ -2,8 +2,6 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('fs');
-const path = require('path');
 
 const RoomFlow = require('../RoomFlow');
 const S = RoomFlow.STATES;
@@ -647,27 +645,6 @@ describe('RoomFlow — host re-broadcast dedup (pure half)', () => {
   });
 });
 
-describe('RoomFlow — purity (clock-free liveness)', () => {
-  // The liveness fold-in must never regress to a wall clock or timer: time is
-  // injected as nowMs. Scoped to RoomFlow.js (the pure reducer); the rest of
-  // partyplug is the transport layer and legitimately uses WebSocket/timers.
-  it('RoomFlow.js references no Date.now / setTimeout / setInterval / fetch / WebSocket / document', () => {
-    const src = fs.readFileSync(path.join(__dirname, '..', 'RoomFlow.js'), 'utf8');
-    const FORBIDDEN = [
-      { name: 'Date.now', re: /\bDate\.now\b/ },
-      { name: 'setTimeout', re: /\bsetTimeout\b/ },
-      { name: 'setInterval', re: /\bsetInterval\b/ },
-      { name: 'fetch(', re: /\bfetch\s*\(/ },
-      { name: 'WebSocket', re: /\bWebSocket\b/ },
-      { name: 'document.', re: /\bdocument\s*\./ },
-    ];
-    const lines = src.split('\n');
-    const violations = [];
-    for (let i = 0; i < lines.length; i++) {
-      for (const { name, re } of FORBIDDEN) {
-        if (re.test(lines[i])) violations.push(name + ' @ ' + (i + 1) + ': ' + lines[i].trim());
-      }
-    }
-    assert.deepEqual(violations, [], 'RoomFlow must stay clock-free:\n' + violations.join('\n'));
-  });
-});
+// RoomFlow's clock-free purity is enforced by the central portable-purity gate
+// (tests/portable-purity.test.js), which scans RoomFlow.js alongside the engine
+// modules native loads into JSC/QuickJS.

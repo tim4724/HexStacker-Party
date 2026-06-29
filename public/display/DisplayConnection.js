@@ -666,7 +666,6 @@ function fetchQR(text, callback) {
 }
 
 function showDisconnectQR(peerIndex) {
-  // Set immediately so allPlayersDisconnected() can check synchronously
   disconnectedQRs.set(peerIndex, null);
   // INVARIANT: disconnectedQRs (presence flag + QR canvas, for rendering) and
   // flow's presence set must move together. Every site that adds/clears a

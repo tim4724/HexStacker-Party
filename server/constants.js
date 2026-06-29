@@ -35,6 +35,9 @@ const COUNTDOWN_SECONDS = 3;
 const SOFT_DROP_TIMEOUT_MS = 300;        // Auto-end soft drop if no further soft_drop message arrives within this window
 const HARD_DROP_MIN_INTERVAL_MS = 150;   // Per-player floor between hard drops; rapid repeats (queued messages) are dropped
 
+// Frame loop
+const MAX_FRAME_DELTA_MS = 50;           // Cap per-frame delta (~3 frames at 60Hz) — prevents catch-up jumps after a tab/app unfreeze; shared by the web rAF loop and PartyCore.frame()
+
 // Display-side timing
 const LIVENESS_TIMEOUT_MS = 3000;   // Controller considered disconnected after this silence
 // Grace before returning to lobby when every active participant has dropped but
@@ -305,6 +308,7 @@ exports.MAX_PLAYERS = MAX_PLAYERS;
 exports.COUNTDOWN_SECONDS = COUNTDOWN_SECONDS;
 exports.SOFT_DROP_TIMEOUT_MS = SOFT_DROP_TIMEOUT_MS;
 exports.HARD_DROP_MIN_INTERVAL_MS = HARD_DROP_MIN_INTERVAL_MS;
+exports.MAX_FRAME_DELTA_MS = MAX_FRAME_DELTA_MS;
 exports.LIVENESS_TIMEOUT_MS = LIVENESS_TIMEOUT_MS;
 exports.LATE_JOINER_GRACE_MS = LATE_JOINER_GRACE_MS;
 exports.SELF_HEARTBEAT_DEAD_MS = SELF_HEARTBEAT_DEAD_MS;

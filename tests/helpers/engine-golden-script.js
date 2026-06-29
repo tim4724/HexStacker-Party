@@ -138,7 +138,6 @@ function snapshotBoard(game, id) {
     holdPiece: b.holdPiece,
     lines: b.lines,
     alive: b.alive,
-    lockTimerActive: b.lockTimer !== null,   // boolean per spec (lockTimer != null)
     gravityCounter: b.gravityCounter,         // exact float; pinned same-process
     clearing: b.clearingCells !== null,
     pendingGarbageLines: b.pendingGarbage.reduce((s, g) => s + g.lines, 0),
@@ -185,4 +184,4 @@ function runGoldenScript(seedOverride) {
   return { seed, players: PLAYER_IDS.slice(), steps };
 }
 
-module.exports = { runGoldenScript, buildTimeline, SEED, PLAYER_IDS };
+module.exports = { runGoldenScript, buildTimeline, hashGrid, SEED, PLAYER_IDS };

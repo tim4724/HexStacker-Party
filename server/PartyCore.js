@@ -20,11 +20,13 @@
 (function(exports) {
 
 var Game = ((typeof require !== 'undefined') ? require('./Game.js') : window.GameEngine).Game;
+var GameConstants = ((typeof require !== 'undefined') ? require('./constants.js') : window.GameConstants);
 
 // Cap frame delta to ~3 frames at 60Hz — prevents huge catch-up jumps after a
-// tab unfreeze / native app resume. Single source of truth for the cap; the web
-// rAF loop (DisplayRender.js) sources it from here.
-var MAX_FRAME_DELTA_MS = 50;
+// tab unfreeze / native app resume. Sourced from the shared constants module so
+// the web rAF loop and this native frame() cap can't drift; re-exported below as
+// PartyCore.MAX_FRAME_DELTA_MS for the native contract.
+var MAX_FRAME_DELTA_MS = GameConstants.MAX_FRAME_DELTA_MS;
 
 // JSON round-trip clone. Engine events are plain serializable data, so this both
 // de-aliases the live refs Game hands to onEvent and guarantees a host-portable
@@ -54,6 +56,10 @@ function copyPlayer(s) {
       blocks: s.currentPiece.blocks.map(function(b) { return [b[0], b[1]]; })
     } : null,
     ghost: s.ghost ? {
+      // The ghost's type always equals the current piece's; surfaced on the
+      // snapshot so a native renderer can color the ghost without reaching into
+      // currentPiece (the frame() snapshot is the native contract).
+      typeId: s.currentPiece ? s.currentPiece.typeId : null,
       anchorCol: s.ghost.anchorCol,
       anchorRow: s.ghost.anchorRow,
       blocks: s.ghost.blocks.map(function(b) { return [b[0], b[1]]; })
@@ -175,6 +181,8 @@ PartyCore._toCommands = function(events, snapshot, core) {
         break;
       case 'line_clear':
         commands.push({ type: 'lineClear', playerId: e.playerId, clearCells: e.clearCells, lines: e.lines });
+        // p is always present: the engine emits line_clear only for a board that
+        // is in this frame's snapshot. The guard is belt-and-suspenders.
         var p = null;
         for (var j = 0; j < snapshot.players.length; j++) {
           if (snapshot.players[j].id === e.playerId) { p = snapshot.players[j]; break; }
