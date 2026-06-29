@@ -39,10 +39,8 @@ function clone(x) {
 // LIVE MUTABLE references — grid rows aliased to the board, currentPiece.blocks /
 // ghost.blocks reuse per-call scratch arrays, clearingCells a board cache — so a
 // host that retains a snapshot across frames MUST copy every such ref. Scalars
-// are copied by value. cells is mutated in place only on freshly-cloned pieces
-// during rotation (Piece._setCells); PlayerBoard swaps currentPiece by reference
-// rather than mutating the live piece, so a retained snapshot's cells objects are
-// never touched again — a shallow slice is sufficient.
+// are copied by value. cells {q,r} objects are deep-copied (like blocks) so a host
+// writing into a retained snapshot can never reach the engine's live Piece.
 function copyPlayer(s) {
   return {
     id: s.id,
@@ -52,7 +50,7 @@ function copyPlayer(s) {
       typeId: s.currentPiece.typeId,
       anchorCol: s.currentPiece.anchorCol,
       anchorRow: s.currentPiece.anchorRow,
-      cells: s.currentPiece.cells.slice(),
+      cells: s.currentPiece.cells.map(function(c) { return { q: c.q, r: c.r }; }),
       blocks: s.currentPiece.blocks.map(function(b) { return [b[0], b[1]]; })
     } : null,
     ghost: s.ghost ? {

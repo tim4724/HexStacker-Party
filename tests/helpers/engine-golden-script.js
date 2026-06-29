@@ -12,8 +12,8 @@
 //
 // The script deliberately exercises gravity, locking, line clears, hold,
 // hard_drop and garbage delivery, but NEVER exercises soft-drop auto-end or
-// rapid (<150ms) hard-drop throttling — those are the edges Phase 2 changes,
-// so the golden must stay green across the engine move.
+// rapid (<150ms) hard-drop throttling — those are the edges the engine
+// input-timing move changes, so the golden must stay green across that move.
 
 const { Game } = require('../../server/Game');
 const { COLS } = require('../../server/constants');
@@ -22,11 +22,12 @@ const SEED = 534;                  // pinned for coverage (locks/clears/hold/KO/
 const PLAYER_IDS = ['p1', 'p2'];
 
 // Keep at least this many ms of update() time between a single player's hard
-// drops. Phase 2 adds a 150ms hard-drop cooldown at the Game input layer; a
-// scripted drop inside that window would be silently swallowed and diverge the
-// golden. 200 clears 150 with margin. (With strict player alternation and the
-// per-turn update block below, the real gap is ~260ms, so this guard never
-// actually trips — it is belt-and-suspenders for determinism across Phase 2.)
+// drops. The input-timing refactor added a 150ms hard-drop cooldown at the Game
+// input layer (Game._hardDropCooldownMs); a scripted drop inside that window
+// would be silently swallowed and diverge the golden. 200 clears 150 with margin.
+// (With strict player alternation and the per-turn update block below, the real
+// gap is ~260ms, so this guard never actually trips — it is belt-and-suspenders
+// for determinism across the cooldown change.)
 const HARD_DROP_GUARD_MS = 200;
 
 // Fixed deltaMs cadence (mix of 60fps frames, a 33ms hitch, and a 50ms cap-

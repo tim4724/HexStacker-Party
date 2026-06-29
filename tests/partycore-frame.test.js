@@ -204,6 +204,24 @@ test('value-copy snapshot is non-aliasing across retained frames', () => {
     'mutating the value-copy must not corrupt the engine grid');
 });
 
+test('value-copy snapshot cells are deep-copied (host cannot corrupt the live engine Piece)', () => {
+  // cells[i] are {q,r} objects; a shallow slice would share them with the engine
+  // Piece, so a native host writing into the retained snapshot would corrupt the
+  // engine — the same class of bug copyPlayer deep-copies blocks to prevent.
+  const pc = newPartyCore(1);
+  pc.init();
+  const sp = pc.snapshot().players[0];
+  const engPiece = pc.game.boards.get('p1').currentPiece;
+  assert.ok(sp.currentPiece && engPiece, 'a current piece exists after init');
+  assert.notStrictEqual(sp.currentPiece.cells[0], engPiece.cells[0],
+    'snapshot cells objects must be distinct instances from the engine piece');
+
+  const origQ = engPiece.cells[0].q;
+  sp.currentPiece.cells[0].q = 999;   // host writes into the retained snapshot
+  assert.equal(engPiece.cells[0].q, origQ,
+    'mutating snapshot cells must not reach the engine piece');
+});
+
 test('drainEvents returns buffered events once, then empties', () => {
   const pc = newPartyCore(1);
   pc.init();
