@@ -139,6 +139,3 @@ Unit tests use Node.js's built-in `node:test` runner with `node:assert/strict` â
 - **Bundling**: esbuild (build-time devDep) for production web bundles and the native `dist/partycore.js` core
 - **Testing**: Node.js built-in test runner + Playwright
 - **Production deps**: 1 npm package (`qrcode`)
-
-No framework, no runtime dependencies to speak of: vanilla JS and Canvas. Dev serves the
-source files directly (no build); production bundles them with esbuild.
