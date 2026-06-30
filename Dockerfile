@@ -33,6 +33,12 @@ COPY --from=builder /app/partyplug/ ./partyplug/
 COPY --from=builder /app/scripts/ ./scripts/
 USER nodejs
 EXPOSE 4000
+# This image always builds the web bundles (builder stage), so it always serves
+# them, independent of APP_ENV. Bundling is a property of the artifact, not the
+# environment — so production and preview both get the bundle without each deploy
+# having to opt in. (Local source dev, which never sets this, still serves the
+# individual files for instant edits.)
+ENV SERVE_BUNDLES=1
 ENV NODE_ENV=production PORT=4000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s CMD wget --no-verbose --tries=1 --spider http://localhost:4000/health || exit 1
 CMD ["node", "server/index.js"]
