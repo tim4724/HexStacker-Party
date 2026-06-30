@@ -158,6 +158,10 @@ jobs:
                     env:
                       - name: PUBLIC_URL
                         value: https://${HOST}
+                      # APP_ENV=preview keeps the (#sha) version label and the
+                      # dev CSP the AirConsole http.airconsole.com framing needs.
+                      # Bundle serving comes from the image (ENV SERVE_BUNDLES=1),
+                      # so previews exercise the same bundle production ships.
                       - name: APP_ENV
                         value: preview
                       - name: GIT_SHA

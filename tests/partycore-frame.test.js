@@ -312,6 +312,10 @@ test('frame() caps a large nowMs jump to MAX_FRAME_DELTA_MS', () => {
 test('PartyCore.js is wired into the served engine artifacts', () => {
   const indexJs = fs.readFileSync(path.join(__dirname, '..', 'server', 'index.js'), 'utf8');
   assert.match(indexJs, /'PartyCore\.js'/, 'server/index.js ENGINE_FILES must allow /engine/PartyCore.js');
-  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'display', 'index.html'), 'utf8');
-  assert.match(html, /<script src="\/engine\/PartyCore\.js">/, 'display must load /engine/PartyCore.js');
+  // Display load order now lives in scripts/asset-manifest.js (the index.html
+  // files carry a <!--DISPLAY_SCRIPTS--> placeholder that the server and the
+  // bundle build expand), so assert against that canonical source.
+  const { DISPLAY_SCRIPTS } = require('../scripts/asset-manifest.js');
+  assert.ok(DISPLAY_SCRIPTS.includes('/engine/PartyCore.js'),
+    'display load order (asset-manifest.js) must include /engine/PartyCore.js');
 });
