@@ -48,6 +48,12 @@ const WEB_MANIFEST = (function () {
     return null;
   }
 })();
+// Loud about the dangerous case: bundles asked for but not built. Without this a
+// prod deploy that skipped `npm run build` boots "healthy" and silently serves
+// the ~20 no-store tags this whole change exists to eliminate.
+if (SERVE_BUNDLES && !WEB_MANIFEST) {
+  console.warn('[warn] SERVE_BUNDLES/production is set but dist/web-manifest.json is missing — run `npm run build`. Serving individual no-store script tags as a fallback.');
+}
 
 // Build the <script> markup that replaces an app's <!--APP_SCRIPTS--> placeholder.
 // Bundle mode with a built manifest -> a single hashed tag; otherwise the files.
@@ -84,7 +90,8 @@ const MIME_TYPES = {
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
   '.mp3': 'audio/mpeg',
-  '.mp4': 'video/mp4'
+  '.mp4': 'video/mp4',
+  '.map': 'application/json'
 };
 
 function sendJson(res, statusCode, payload) {
@@ -322,10 +329,11 @@ const server = http.createServer((req, res) => {
     // above, so its dev/prod behavior matches what we set here.
     //
     // Exception: content-hashed bundles (foo.<10-hex>.js from scripts/build.js)
-    // are immutable — the hash changes when the bytes change, so a new build
-    // gets a new URL and a stale copy is never served. This is what lets the
-    // bundled JS finally escape no-store and be cached for a year.
-    var isHashedBundle = /\.[0-9a-f]{10}\.js$/.test(filePath);
+    // and their sidecar .js.map are immutable — the hash changes when the bytes
+    // change, so a new build gets a new URL and a stale copy is never served.
+    // This is what lets the bundled JS finally escape no-store and be cached for
+    // a year.
+    var isHashedBundle = /\.[0-9a-f]{10}\.js(\.map)?$/.test(filePath);
     var isNonProd = APP_ENV !== 'production';
     var noCache = isNonProd || ext === '.html' || (ext === '.js' && !isHashedBundle);
     headers['Cache-Control'] = isHashedBundle

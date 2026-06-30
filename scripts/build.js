@@ -56,16 +56,26 @@ async function buildApp(name, scripts) {
     minifyIdentifiers: false,
     target: 'es2017',
     legalComments: 'none',
+    sourcemap: 'external',
+    sourcefile: name + '.bundle.src.js',
   });
+  // Hash the code only (NOT the trailing sourceMappingURL, which references the
+  // hash — that would be circular). The .map sits beside the bundle so a prod
+  // stack trace resolves into source instead of minified output; the server
+  // serves both immutably (content-hashed names).
   const hash = crypto.createHash('sha256').update(result.code).digest('hex').slice(0, 10);
   const file = name + '.' + hash + '.js';
   // Bundles live beside their source dir so the existing /controller/, /display/
   // static routes serve them with no new route.
-  fs.writeFileSync(path.join(ROOT, 'public', name, file), result.code);
+  const dir = path.join(ROOT, 'public', name);
+  fs.writeFileSync(path.join(dir, file), result.code + '\n//# sourceMappingURL=' + file + '.map\n');
+  fs.writeFileSync(path.join(dir, file + '.map'), result.map);
   return file;
 }
 
 async function main() {
+  fs.mkdirSync(path.join(ROOT, 'dist'), { recursive: true });
+
   await buildCore();
   console.log('build: dist/partycore.js');
 
@@ -73,7 +83,6 @@ async function main() {
     controller: await buildApp('controller', CONTROLLER_SCRIPTS),
     display: await buildApp('display', DISPLAY_SCRIPTS),
   };
-  fs.mkdirSync(path.join(ROOT, 'dist'), { recursive: true });
   fs.writeFileSync(path.join(ROOT, 'dist', 'web-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   console.log('build: public/controller/' + manifest.controller);
   console.log('build: public/display/' + manifest.display);

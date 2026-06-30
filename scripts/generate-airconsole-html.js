@@ -109,7 +109,9 @@ function transform(html, { bootstrapScript }) {
 // Generate
 // ---------------------------------------------------------------------------
 
-// Display: index.html → screen.html
+// Display: index.html → screen.html. expandScripts() is load-bearing: transform()
+// below strips/rewrites individual <script> tags, so the placeholder must be
+// expanded to real tags first or those transforms silently no-op.
 const displaySrc = expandScripts(fs.readFileSync(path.join(PUBLIC, 'display', 'index.html'), 'utf8'));
 const screenHtml = transform(displaySrc, {
   bootstrapScript: 'display/display-airconsole.js',
