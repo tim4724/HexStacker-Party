@@ -90,13 +90,17 @@ function renderLoop(timestamp) {
     prevFrameTime = timestamp;
   } else {
     prevFrameTime = 0;
-    // If the game paused before the loop ever captured a snapshot — e.g. in
-    // single player the sole controller dropped during countdown, so PLAYING
-    // begins already auto-paused — prime one static snapshot. Without it
-    // gameState stays null and renderFrame draws empty pre-game boards with
-    // no disconnect overlay.
-    if (displayGame && roomState === ROOM_STATE.PLAYING && gameState == null) {
-      gameState = displayGame.getSnapshot();
+    // Prime one static snapshot if the game paused before the loop ever
+    // captured one (e.g. sole controller dropped during countdown, so PLAYING
+    // begins already auto-paused) — otherwise gameState stays null and the
+    // disconnect overlay never renders over the empty pre-game boards.
+    if (displayGame && roomState === ROOM_STATE.PLAYING && gameState === null) {
+      try {
+        gameState = displayGame.getSnapshot();
+      } catch (err) {
+        console.error('Game engine error:', err);
+        displayGame = null;
+      }
     }
   }
 
