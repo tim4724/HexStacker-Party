@@ -89,8 +89,8 @@ test.describe('Reconnection', () => {
     await waitForDisplayPlayers(page, 1);
     await controller.click('#start-btn');
 
-    // Wait until the display is mid-countdown, then drop the sole controller —
-    // this lands the game in PLAYING already auto-paused (no live controllers).
+    // Wait until the display is mid-countdown, then drop the sole controller.
+    // This lands the game in PLAYING already auto-paused (no live controllers).
     await page.waitForFunction(() => typeof roomState !== 'undefined' && roomState === ROOM_STATE.COUNTDOWN);
     await controller.close();
 
@@ -99,8 +99,8 @@ test.describe('Reconnection', () => {
       return typeof autoPaused !== 'undefined' && autoPaused === true;
     }, null, { timeout: 10000 });
 
-    // Regression: the render loop must still capture a snapshot so the boards —
-    // and the disconnect QR overlay — render, instead of staying on the empty
+    // Regression: the render loop must still capture a snapshot so the boards
+    // (and the disconnect QR overlay) render, instead of staying on the empty
     // pre-game boards because gameState was never populated.
     await page.waitForFunction(() => typeof gameState !== 'undefined' && gameState !== null, null, { timeout: 5000 });
     expect(await page.evaluate(() => paused)).toBe(true);
@@ -116,7 +116,7 @@ test.describe('Reconnection', () => {
     await c1.click('#start-btn');
 
     // Drop BOTH controllers mid-countdown. Once every participant is gone (and
-    // there are no late joiners), PLAYING begins already auto-paused — the same
+    // there are no late joiners), PLAYING begins already auto-paused: the same
     // all-disconnected path as single player, just needing two drops.
     await page.waitForFunction(() => typeof roomState !== 'undefined' && roomState === ROOM_STATE.COUNTDOWN);
     await Promise.all([c1.close(), c2.close()]);
