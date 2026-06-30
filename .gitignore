@@ -1,5 +1,10 @@
 .DS_Store
 node_modules/
+dist/
+# Content-hashed web bundles emitted by scripts/build.js (the dotted hash segment
+# keeps these from matching the un-hashed source files controller.js / display.js)
+public/controller/controller.*.js
+public/display/display.*.js
 # Local-only Claude Code state — keeps the .claude/ root committable for
 # shared project settings/hooks while excluding per-user runtime files.
 .claude/worktrees/

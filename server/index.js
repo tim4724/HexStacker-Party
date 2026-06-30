@@ -27,6 +27,37 @@ function getShortSha(sha) {
 // Computed once at boot — same for every HTML response.
 const VERSION_LABEL = APP_VERSION + (APP_ENV !== 'production' && getShortSha(GIT_SHA) ? ' (#' + getShortSha(GIT_SHA) + ')' : '');
 
+// Web bundles: in production we serve one content-hashed, immutably-cached
+// bundle per app instead of ~20 no-store script tags (see scripts/build.js). The
+// canonical load order is single-sourced in scripts/asset-manifest.js so dev
+// (which serves the individual files for instant edits) can't drift from the
+// build. WEB_MANIFEST maps app -> hashed filename; it's absent until `npm run
+// build` has run, so dev and an unbuilt prod both fall back to individual tags.
+//
+// SERVE_BUNDLES=1 forces bundle serving independent of APP_ENV: it lets the e2e
+// suite exercise the real concatenated artifact (where strict-mode flattening /
+// cross-file hoisting live) without flipping the rest of production mode — most
+// importantly keeping the dev CSP that the AirConsole mock's http.airconsole.com
+// framing relies on.
+const { CONTROLLER_SCRIPTS, DISPLAY_SCRIPTS } = require('../scripts/asset-manifest.js');
+const SERVE_BUNDLES = APP_ENV === 'production' || process.env.SERVE_BUNDLES === '1';
+const WEB_MANIFEST = (function () {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'dist', 'web-manifest.json'), 'utf8'));
+  } catch (_) {
+    return null;
+  }
+})();
+
+// Build the <script> markup that replaces an app's <!--APP_SCRIPTS--> placeholder.
+// Bundle mode with a built manifest -> a single hashed tag; otherwise the files.
+function scriptTagsFor(app, scripts) {
+  if (SERVE_BUNDLES && WEB_MANIFEST && WEB_MANIFEST[app]) {
+    return '<script src="/' + app + '/' + WEB_MANIFEST[app] + '"></script>';
+  }
+  return scripts.map(function (s) { return '<script src="' + s + '"></script>'; }).join('\n  ');
+}
+
 // Explicit allowlist of engine modules serveable via /engine/ route
 const ENGINE_FILES = new Set([
   'constants.js',
@@ -268,6 +299,18 @@ const server = http.createServer((req, res) => {
         text = text.replace(/__APP_V__/g, APP_VERSION);
         mutated = true;
       }
+      // Expand the app's script placeholder: one hashed bundle in prod, the
+      // individual files in dev. The AirConsole HTML generator expands this same
+      // marker at build time (to relative-path tags), so the AC entry points
+      // never reach here with it intact.
+      if (text.includes('<!--CONTROLLER_SCRIPTS-->')) {
+        text = text.replace('<!--CONTROLLER_SCRIPTS-->', scriptTagsFor('controller', CONTROLLER_SCRIPTS));
+        mutated = true;
+      }
+      if (text.includes('<!--DISPLAY_SCRIPTS-->')) {
+        text = text.replace('<!--DISPLAY_SCRIPTS-->', scriptTagsFor('display', DISPLAY_SCRIPTS));
+        mutated = true;
+      }
       if (mutated) data = Buffer.from(text);
     }
 
@@ -277,9 +320,17 @@ const server = http.createServer((req, res) => {
     // b08563d); other static files (CSS, images, fonts) keep a 24h cache
     // for bandwidth. The /engine/ route sends its own no-store header
     // above, so its dev/prod behavior matches what we set here.
+    //
+    // Exception: content-hashed bundles (foo.<10-hex>.js from scripts/build.js)
+    // are immutable — the hash changes when the bytes change, so a new build
+    // gets a new URL and a stale copy is never served. This is what lets the
+    // bundled JS finally escape no-store and be cached for a year.
+    var isHashedBundle = /\.[0-9a-f]{10}\.js$/.test(filePath);
     var isNonProd = APP_ENV !== 'production';
-    var noCache = isNonProd || ext === '.html' || ext === '.js';
-    headers['Cache-Control'] = noCache ? 'no-store' : 'public, max-age=86400';
+    var noCache = isNonProd || ext === '.html' || (ext === '.js' && !isHashedBundle);
+    headers['Cache-Control'] = isHashedBundle
+      ? 'public, max-age=31536000, immutable'
+      : (noCache ? 'no-store' : 'public, max-age=86400');
 
     if (ext === '.html') {
       const isAirConsole = urlPath === '/display/screen.html' || urlPath === '/controller/controller.html';

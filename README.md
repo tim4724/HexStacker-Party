@@ -51,7 +51,14 @@ graph LR
 
 ```bash
 npm install
-node server/index.js
+node server/index.js          # dev: serves individual scripts, no build needed
+```
+
+For a production-style run, build the bundles first and start in production mode:
+
+```bash
+npm run build                 # esbuild: one hashed bundle per app + dist/partycore.js
+APP_ENV=production node server/index.js
 ```
 
 1. Open `http://localhost:4000` on a big screen.
@@ -75,14 +82,22 @@ All gestures provide haptic feedback on supported devices. The controller uses a
 
 ```
 server/      # Game engine modules (isomorphic UMD, used by display + tests)
+             #   + core-entry.js (native HexCore bundle entry)
 public/
   display/   # Display client: game authority, Canvas renderer
   controller/# Phone touch controller
   shared/    # Protocol, relay connection, colors, theme, shared UI
-scripts/     # Build and code-generation scripts (AirConsole HTML generator)
+scripts/     # build.js (esbuild bundles), asset-manifest.js (canonical script
+             #   load order), AirConsole HTML generator
 tests/       # Unit tests (node:test) and Playwright E2E
+dist/        # Build output (gitignored): partycore.js + web-manifest.json
 artwork/     # Banner, favicon, and cover art generators (Playwright)
 ```
+
+Browser script load order lives in `scripts/asset-manifest.js`; the app `index.html`
+files use `<!--CONTROLLER_SCRIPTS-->` / `<!--DISPLAY_SCRIPTS-->` placeholders that the
+server expands to either one hashed bundle (production / `SERVE_BUNDLES=1`) or the
+individual files (dev).
 
 ## Configuration
 
@@ -92,7 +107,8 @@ The display and controllers connect to a [Party-Sockets](https://github.com/tim4
 |---|---|---|
 | `PORT` | `4000` | HTTP server port |
 | `BASE_URL` | Auto-detected LAN IP | Base URL for join links and QR codes |
-| `APP_ENV` | `development` | Set to `production` for production mode |
+| `APP_ENV` | `development` | `production` serves the hashed web bundles (immutable cache) instead of individual files |
+| `SERVE_BUNDLES` | – | `1` forces bundle serving without full production mode (used by e2e; keeps the dev CSP the AirConsole mock needs) |
 | `GIT_SHA` | – | Git commit SHA shown in version endpoint |
 
 ## Testing
@@ -120,7 +136,9 @@ Unit tests use Node.js's built-in `node:test` runner with `node:assert/strict` �
 - **P2P**: WebRTC DataChannels for low-latency controller input
 - **QR codes**: [qrcode](https://github.com/soldair/node-qrcode)
 - **Frontend**: Vanilla JavaScript, Canvas API
+- **Bundling**: esbuild (build-time devDep) for production web bundles and the native `dist/partycore.js` core
 - **Testing**: Node.js built-in test runner + Playwright
 - **Production deps**: 1 npm package (`qrcode`)
 
-No build step. No bundler. No framework. Serve and play.
+No framework, no runtime dependencies to speak of: vanilla JS and Canvas. Dev serves the
+source files directly (no build); production bundles them with esbuild.

@@ -29,8 +29,23 @@
 
 const fs = require('fs');
 const path = require('path');
+const { CONTROLLER_SCRIPTS, DISPLAY_SCRIPTS } = require('./asset-manifest.js');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
+
+// The AC zip is a self-contained bundle of individual files (no server, no
+// content-hashing), so expand the app's <!--*_SCRIPTS--> marker back to
+// individual tags before transform() runs — its SDK/bootstrap injection,
+// path-absolutization, and test-harness stripping all key off the individual
+// engine/entry/harness tags.
+function tagsFor(scripts) {
+  return scripts.map(function (s) { return '<script src="' + s + '"></script>'; }).join('\n  ');
+}
+function expandScripts(html) {
+  return html
+    .replace('<!--CONTROLLER_SCRIPTS-->', tagsFor(CONTROLLER_SCRIPTS))
+    .replace('<!--DISPLAY_SCRIPTS-->', tagsFor(DISPLAY_SCRIPTS));
+}
 const SDK_VERSION = getArg('--sdk-version') || '1.11.0';
 const SDK_TAG = `  <script src="https://www.airconsole.com/api/airconsole-${SDK_VERSION}.js"></script>\n`;
 
@@ -95,14 +110,14 @@ function transform(html, { bootstrapScript }) {
 // ---------------------------------------------------------------------------
 
 // Display: index.html → screen.html
-const displaySrc = fs.readFileSync(path.join(PUBLIC, 'display', 'index.html'), 'utf8');
+const displaySrc = expandScripts(fs.readFileSync(path.join(PUBLIC, 'display', 'index.html'), 'utf8'));
 const screenHtml = transform(displaySrc, {
   bootstrapScript: 'display/display-airconsole.js',
 });
 fs.writeFileSync(path.join(PUBLIC, 'display', 'screen.html'), screenHtml);
 
 // Controller: index.html → controller.html
-const ctrlSrc = fs.readFileSync(path.join(PUBLIC, 'controller', 'index.html'), 'utf8');
+const ctrlSrc = expandScripts(fs.readFileSync(path.join(PUBLIC, 'controller', 'index.html'), 'utf8'));
 const ctrlHtml = transform(ctrlSrc, {
   bootstrapScript: 'controller/controller-airconsole.js',
 });

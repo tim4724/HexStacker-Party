@@ -316,7 +316,10 @@ two are the next planned additions:
   touching the protocol.
 - **A native-ESM build.** Today the modules are CommonJS/UMD; an ESM build (or a
   monorepo workspace package) would remove vendor-and-drift for bundler-based
-  games.
+  games. (Partially there: the reference game's `scripts/build.js` already
+  esbuild-bundles `RoomFlow` together with its engine into an iife `HexCore`
+  artifact, `dist/partycore.js`, that JavaScriptCore/QuickJS load on native. That
+  consumes the UMD form; a true ESM build is still the cleaner end state.)
 
 ---
 
