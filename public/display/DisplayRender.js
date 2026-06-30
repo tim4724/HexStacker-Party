@@ -90,6 +90,18 @@ function renderLoop(timestamp) {
     prevFrameTime = timestamp;
   } else {
     prevFrameTime = 0;
+    // Prime one static snapshot if the game paused before the loop ever
+    // captured one (e.g. sole controller dropped during countdown, so PLAYING
+    // begins already auto-paused). Without it gameState stays null and the
+    // disconnect overlay never renders over the empty pre-game boards.
+    if (displayGame && roomState === ROOM_STATE.PLAYING && gameState === null) {
+      try {
+        gameState = displayGame.getSnapshot();
+      } catch (err) {
+        console.error('Game engine error:', err);
+        displayGame = null;
+      }
+    }
   }
 
   // Throttle to ~4fps when paused/results with no active animations

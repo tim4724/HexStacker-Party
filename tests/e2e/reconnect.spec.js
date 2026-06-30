@@ -82,6 +82,56 @@ test.describe('Reconnection', () => {
     expect(await page.evaluate(() => disconnectedQRs.size)).toBe(1);
   });
 
+  test('single player: controller disconnecting during countdown shows disconnect overlay', async ({ page, context }) => {
+    const { roomCode } = await createRoom(page);
+    const controller = await joinController(context, roomCode, 'Alice');
+
+    await waitForDisplayPlayers(page, 1);
+    await controller.click('#start-btn');
+
+    // Wait until the display is mid-countdown, then drop the sole controller.
+    // This lands the game in PLAYING already auto-paused (no live controllers).
+    await page.waitForFunction(() => typeof roomState !== 'undefined' && roomState === ROOM_STATE.COUNTDOWN);
+    await controller.close();
+
+    // The game silently auto-pauses the instant PLAYING begins.
+    await page.waitForFunction(() => {
+      return typeof autoPaused !== 'undefined' && autoPaused === true;
+    }, null, { timeout: 10000 });
+
+    // Regression: the render loop must still capture a snapshot so the boards
+    // (and the disconnect QR overlay) render, instead of staying on the empty
+    // pre-game boards because gameState was never populated.
+    await page.waitForFunction(() => typeof gameState !== 'undefined' && gameState !== null, null, { timeout: 5000 });
+    expect(await page.evaluate(() => paused)).toBe(true);
+    expect(await page.evaluate(() => disconnectedQRs.size)).toBe(1);
+  });
+
+  test('two players: both disconnecting during countdown shows disconnect overlays', async ({ page, context }) => {
+    const { roomCode } = await createRoom(page);
+    const c1 = await joinController(context, roomCode, 'Alice');
+    const c2 = await joinController(context, roomCode, 'Bob');
+
+    await waitForDisplayPlayers(page, 2);
+    await c1.click('#start-btn');
+
+    // Drop BOTH controllers mid-countdown. Once every participant is gone (and
+    // there are no late joiners), PLAYING begins already auto-paused: the same
+    // all-disconnected path as single player, just needing two drops.
+    await page.waitForFunction(() => typeof roomState !== 'undefined' && roomState === ROOM_STATE.COUNTDOWN);
+    await Promise.all([c1.close(), c2.close()]);
+
+    await page.waitForFunction(() => {
+      return typeof autoPaused !== 'undefined' && autoPaused === true;
+    }, null, { timeout: 10000 });
+
+    // Regression: gameState must be primed so both boards render their
+    // disconnect QR overlays instead of empty pre-game boards.
+    await page.waitForFunction(() => typeof gameState !== 'undefined' && gameState !== null, null, { timeout: 5000 });
+    expect(await page.evaluate(() => paused)).toBe(true);
+    expect(await page.evaluate(() => disconnectedQRs.size)).toBe(2);
+  });
+
   test('display reconnect overlay shows when relay connection drops', async ({ page, context }) => {
     // Intercept the relay WebSocket so we can force-close it
     let serverWs;
