@@ -92,4 +92,7 @@ if (require.main === module) {
   main().catch(function (err) { console.error(err); process.exit(1); });
 }
 
-module.exports = { ROOT: ROOT, coreOptions: coreOptions, buildCore: buildCore };
+// Only coreOptions is part of the surface (tests/core-bundle-runtime.test.js
+// bundles the core with the exact shipped config). The build steps run via the
+// CLI entry above.
+module.exports = { coreOptions: coreOptions };
