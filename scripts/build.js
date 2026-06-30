@@ -68,6 +68,14 @@ async function buildApp(name, scripts) {
   // Bundles live beside their source dir so the existing /controller/, /display/
   // static routes serve them with no new route.
   const dir = path.join(ROOT, 'public', name);
+  // Sweep stale content-hashed bundles (+ .map) so repeated local builds don't
+  // leave orphans behind. The un-prefixed regex matches both `<name>.<hash>.js`
+  // and its `.map`; the source files `<name>.js` lack the hash segment and are
+  // untouched. (CI/Docker start from a clean tree, so this only matters locally.)
+  const stale = new RegExp('^' + name + '\\.[0-9a-f]{10}\\.js');
+  for (const f of fs.readdirSync(dir)) {
+    if (stale.test(f)) fs.rmSync(path.join(dir, f));
+  }
   fs.writeFileSync(path.join(dir, file), result.code + '\n//# sourceMappingURL=' + file + '.map\n');
   fs.writeFileSync(path.join(dir, file + '.map'), result.map);
   return file;

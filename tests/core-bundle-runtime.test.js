@@ -18,6 +18,9 @@ const esbuild = require('esbuild');
 const { coreOptions } = require('../scripts/build.js');
 
 async function bundleCore() {
+  // write:false bundles in memory with the SAME options build.js ships, minus
+  // the sourcemap the on-disk artifact carries (this gate proves the bundle
+  // RUNS in a bare engine, not that it has a map). outputFiles[0] is the JS.
   const result = await esbuild.build(coreOptions({ write: false }));
   return result.outputFiles[0].text;
 }
