@@ -43,8 +43,8 @@ function tagsFor(scripts) {
 }
 function expandScripts(html) {
   return html
-    .replace('<!--CONTROLLER_SCRIPTS-->', tagsFor(CONTROLLER_SCRIPTS))
-    .replace('<!--DISPLAY_SCRIPTS-->', tagsFor(DISPLAY_SCRIPTS));
+    .replaceAll('<!--CONTROLLER_SCRIPTS-->', tagsFor(CONTROLLER_SCRIPTS))
+    .replaceAll('<!--DISPLAY_SCRIPTS-->', tagsFor(DISPLAY_SCRIPTS));
 }
 const SDK_VERSION = getArg('--sdk-version') || '1.11.0';
 const SDK_TAG = `  <script src="https://www.airconsole.com/api/airconsole-${SDK_VERSION}.js"></script>\n`;

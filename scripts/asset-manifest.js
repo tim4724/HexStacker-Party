@@ -2,10 +2,14 @@
 
 // Canonical browser script load order for each web app entry, single-sourced so
 // the build (concatenation) and the server (dev-mode injection of individual
-// tags) can never disagree. Mirrors the <script> order in the app index.html
-// files; the per-app test harness is deliberately NOT here — it stays a separate
-// tag so a harness load failure can't break production and so ?test=/gallery
-// gating keeps working.
+// tags) can never disagree. These lists ARE the order; the app index.html files
+// just carry a <!--CONTROLLER_SCRIPTS--> / <!--DISPLAY_SCRIPTS--> placeholder.
+//
+// The per-app test harness is included here in its load-order position (the
+// display's must precede display.js, which reads window.__TEST__ at init). It is
+// URL-param-gated, so it's inert for real players, and the e2e suite drives the
+// display through that harness against the bundle, so it has to ship in it. The
+// AirConsole generator strips it from the AC entry via its TestHarness.js regex.
 //
 // Paths are browser URL paths. resolveAsset() maps them to disk:
 //   /engine/*    -> server/*      (UMD engine, also used by node --test)

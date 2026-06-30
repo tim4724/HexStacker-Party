@@ -87,10 +87,13 @@ async function main() {
   await buildCore();
   console.log('build: dist/partycore.js');
 
-  const manifest = {
-    controller: await buildApp('controller', CONTROLLER_SCRIPTS),
-    display: await buildApp('display', DISPLAY_SCRIPTS),
-  };
+  // Independent (different output dirs, no shared state), so build them
+  // concurrently — `npm start` now runs this on every boot.
+  const [controller, display] = await Promise.all([
+    buildApp('controller', CONTROLLER_SCRIPTS),
+    buildApp('display', DISPLAY_SCRIPTS),
+  ]);
+  const manifest = { controller: controller, display: display };
   fs.writeFileSync(path.join(ROOT, 'dist', 'web-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   console.log('build: public/controller/' + manifest.controller);
   console.log('build: public/display/' + manifest.display);

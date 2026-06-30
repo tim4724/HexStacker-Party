@@ -311,11 +311,11 @@ const server = http.createServer((req, res) => {
       // marker at build time (to relative-path tags), so the AC entry points
       // never reach here with it intact.
       if (text.includes('<!--CONTROLLER_SCRIPTS-->')) {
-        text = text.replace('<!--CONTROLLER_SCRIPTS-->', scriptTagsFor('controller', CONTROLLER_SCRIPTS));
+        text = text.replaceAll('<!--CONTROLLER_SCRIPTS-->', scriptTagsFor('controller', CONTROLLER_SCRIPTS));
         mutated = true;
       }
       if (text.includes('<!--DISPLAY_SCRIPTS-->')) {
-        text = text.replace('<!--DISPLAY_SCRIPTS-->', scriptTagsFor('display', DISPLAY_SCRIPTS));
+        text = text.replaceAll('<!--DISPLAY_SCRIPTS-->', scriptTagsFor('display', DISPLAY_SCRIPTS));
         mutated = true;
       }
       if (mutated) data = Buffer.from(text);
