@@ -354,9 +354,7 @@
     if (to === from) return true;
     var allowed = VALID_TRANSITIONS[from];
     if (!allowed || allowed.indexOf(to) < 0) {
-      if (typeof console !== 'undefined' && console.warn) {
-        console.warn('RoomFlow: invalid transition ' + from + ' -> ' + to);
-      }
+      if (typeof console !== 'undefined' && console.warn) console.warn('RoomFlow: invalid transition ' + from + ' -> ' + to);
       return false;
     }
     this.state = to;

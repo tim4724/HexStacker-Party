@@ -47,7 +47,27 @@ const FORBIDDEN = [
   { name: 'fetch(', re: /\bfetch\s*\(/ },
   { name: 'WebSocket', re: /\bWebSocket\b/ },          // covers `new WebSocket` and `WebSocket(`
   { name: 'document.', re: /\bdocument\s*\./ },
+  { name: 'ctx.', re: /\bctx\s*\./ },                  // no canvas context in a portable module
 ];
+
+// Returns the forbidden-API names a single source line trips. Pulled out as a
+// pure predicate so the gate's own logic can be unit-tested against string
+// fixtures (the teeth tests below) without touching real files.
+//
+// console.* is a special case: it's allowed ONLY when guarded inline on the same
+// line (a `typeof console` token), so a console-less JSC/QuickJS host can't throw
+// a ReferenceError. A bare `console.x(...)` trips; a single-line
+// `if (typeof console !== 'undefined' && console.x) console.x(...)` passes.
+function lineViolations(line) {
+  const hits = [];
+  for (const { name, re } of FORBIDDEN) {
+    if (re.test(line)) hits.push(name);
+  }
+  if (/\bconsole\./.test(line) && !/typeof console/.test(line)) {
+    hits.push('unguarded console');
+  }
+  return hits;
+}
 
 test("every portable module exists (coverage lock — a rename can't silently drop one)", () => {
   for (const mod of PORTABLE_MODULES) {
@@ -56,21 +76,29 @@ test("every portable module exists (coverage lock — a rename can't silently dr
   }
 });
 
-test('portable modules contain no clock/timer/IO/DOM host APIs', () => {
+test('portable modules contain no clock/timer/IO/DOM/canvas host APIs or unguarded console', () => {
   const violations = [];
   for (const mod of PORTABLE_MODULES) {
     const lines = fs.readFileSync(path.join(ROOT, mod), 'utf8').split('\n');
     for (let i = 0; i < lines.length; i++) {
-      for (const { name, re } of FORBIDDEN) {
-        if (re.test(lines[i])) {
-          violations.push(mod + ':' + (i + 1) + ' references ' + name + ' -> ' + lines[i].trim());
-        }
+      for (const name of lineViolations(lines[i])) {
+        violations.push(mod + ':' + (i + 1) + ' references ' + name + ' -> ' + lines[i].trim());
       }
     }
   }
   assert.deepStrictEqual(violations, [],
     'impurity detected — portable shared modules must stay clock-free and deterministic:\n' +
     violations.join('\n'));
+});
+
+test('gate teeth: flags canvas ctx and bare console, but not a guarded console', () => {
+  assert.deepStrictEqual(lineViolations('ctx.fillRect(0, 0, 10, 10);'), ['ctx.'],
+    'a canvas ctx.* line must trip the gate');
+  assert.deepStrictEqual(lineViolations('console.log("hi");'), ['unguarded console'],
+    'a bare console.* line must trip the gate');
+  assert.deepStrictEqual(
+    lineViolations("if (typeof console !== 'undefined' && console.log) console.log('hi');"), [],
+    'a single-line guarded console call must pass the gate');
 });
 
 test('Math.random remains allowed (only as a default-seed source)', () => {

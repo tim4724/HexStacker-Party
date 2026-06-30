@@ -141,7 +141,7 @@ class Game {
           }
         }
       } catch (err) {
-        console.error('[game] Board tick error for', id, ':', err);
+        if (typeof console !== 'undefined' && console.error) console.error('[game] Board tick error for', id, ':', err);
         board.alive = false;
       }
 

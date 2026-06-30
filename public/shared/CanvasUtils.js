@@ -120,6 +120,19 @@ function hexPathRounded(ctx, cx, cy, size, radius) {
   ctx.closePath();
 }
 
+// Trace the hex board outline as a closed canvas path (for stroking/clipping).
+// Wraps the pure GameConstants.computeHexOutlineVerts math with canvas calls so
+// the engine constants module stays portable (ctx-free). cols/visRows: counts.
+function traceHexOutline(ctx, bx, by, hs, hexH, colW, cols, visRows) {
+  var verts = GameConstants.computeHexOutlineVerts(bx, by, hs, hexH, colW, cols, visRows);
+  ctx.beginPath();
+  ctx.moveTo(verts[0][0], verts[0][1]);
+  for (var i = 1; i < verts.length; i++) {
+    ctx.lineTo(verts[i][0], verts[i][1]);
+  }
+  ctx.closePath();
+}
+
 // Compute ghost-piece colors from any hex piece color.
 // Lightens dark channels for visibility on dark backgrounds, with alpha
 // scaled by luminance (darker pieces get higher alpha).

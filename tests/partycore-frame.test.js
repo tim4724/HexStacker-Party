@@ -111,22 +111,22 @@ test('_toCommands maps each engine event type to the host-effect vocabulary', ()
     ],
     elapsed: 1000,
   };
-  const core = { _lastMusicLevel: 2 }; // pre-set so no musicSpeed noise
+  // _toCommands is pure: no instance/core arg, no musicSpeed (that lives in frame()).
 
   // garbage_sent carries senderId/toId, NOT playerId
   assert.deepStrictEqual(
-    PartyCore._toCommands([{ type: 'garbage_sent', senderId: 'p1', toId: 'p2', lines: 3 }], snapshot, core),
+    PartyCore._toCommands([{ type: 'garbage_sent', senderId: 'p1', toId: 'p2', lines: 3 }], snapshot),
     [{ type: 'garbageSent', senderId: 'p1', toId: 'p2', lines: 3 }]);
 
   assert.deepStrictEqual(
-    PartyCore._toCommands([{ type: 'piece_lock', playerId: 'p1', blocks: [[0, 0]], typeId: 5 }], snapshot, core),
+    PartyCore._toCommands([{ type: 'piece_lock', playerId: 'p1', blocks: [[0, 0]], typeId: 5 }], snapshot),
     [{ type: 'pieceLock', playerId: 'p1', blocks: [[0, 0]], typeId: 5 }]);
 
   // player_ko -> KO anim, then alive:false state, then playerEliminated (web order).
   // playerEliminated (this player is out) is deliberately distinct from gameEnd
   // (the whole match is done) so a native consumer can't conflate them.
   assert.deepStrictEqual(
-    PartyCore._toCommands([{ type: 'player_ko', playerId: 'p2' }], snapshot, core),
+    PartyCore._toCommands([{ type: 'player_ko', playerId: 'p2' }], snapshot),
     [
       { type: 'playerKO', playerId: 'p2' },
       { type: 'playerState', playerId: 'p2', alive: false },
@@ -135,30 +135,51 @@ test('_toCommands maps each engine event type to the host-effect vocabulary', ()
 
   // line_clear -> lineClear anim, then playerState with snapshot-resolved garbageIncoming
   assert.deepStrictEqual(
-    PartyCore._toCommands([{ type: 'line_clear', playerId: 'p1', lines: 1, rows: [3], clearCells: [[0, 3]] }], snapshot, core),
+    PartyCore._toCommands([{ type: 'line_clear', playerId: 'p1', lines: 1, rows: [3], clearCells: [[0, 3]] }], snapshot),
     [
       { type: 'lineClear', playerId: 'p1', clearCells: [[0, 3]], lines: 1 },
       { type: 'playerState', playerId: 'p1', level: 2, lines: 11, alive: true, garbageIncoming: 4 },
     ]);
 
   assert.deepStrictEqual(
-    PartyCore._toCommands([{ type: 'garbage_cancelled', playerId: 'p1', lines: 2 }], snapshot, core),
+    PartyCore._toCommands([{ type: 'garbage_cancelled', playerId: 'p1', lines: 2 }], snapshot),
     [{ type: 'garbageCancelled', playerId: 'p1', lines: 2 }]);
 
   // game_end is RAW (elapsed + results), no roster enrichment
   assert.deepStrictEqual(
-    PartyCore._toCommands([{ type: 'game_end', elapsed: 1234, results: [{ playerId: 'p1', rank: 1 }] }], snapshot, core),
+    PartyCore._toCommands([{ type: 'game_end', elapsed: 1234, results: [{ playerId: 'p1', rank: 1 }] }], snapshot),
     [{ type: 'gameEnd', elapsed: 1234, results: [{ playerId: 'p1', rank: 1 }] }]);
 });
 
-test('_toCommands emits musicSpeed only when the snapshot max level changes', () => {
-  const core = { _lastMusicLevel: 0 };
-  const lvl1 = { players: [{ id: 'p1', level: 1, lines: 0, alive: true, pendingGarbage: 0 }], elapsed: 0 };
-  assert.deepStrictEqual(PartyCore._toCommands([], lvl1, core), [{ type: 'musicSpeed', level: 1 }]);
-  assert.equal(core._lastMusicLevel, 1);
-  assert.deepStrictEqual(PartyCore._toCommands([], lvl1, core), []); // unchanged -> nothing
-  const lvl3 = { players: [{ id: 'p1', level: 3, lines: 20, alive: true, pendingGarbage: 0 }], elapsed: 0 };
-  assert.deepStrictEqual(PartyCore._toCommands([], lvl3, core), [{ type: 'musicSpeed', level: 3 }]);
+test('frame() emits musicSpeed only when the snapshot max level changes, after the event commands', () => {
+  // musicSpeed is the one bit of cross-frame state frame() owns (_toCommands is
+  // pure and never emits it). Drive frame() over a stubbed snapshot so the max
+  // level steps deterministically; deltaMs stays 0 (prevNowMs primed) so the
+  // engine never ticks and the only commands are the snapshot-derived music.
+  let level = 1;
+  let pending = [];
+  const fake = {
+    _prevNowMs: 0,
+    _lastMusicLevel: 0,
+    game: { update() { throw new Error('engine must not tick on a zero delta'); } },
+    drainEvents() { const e = pending; pending = []; return e; },
+    snapshot() {
+      return { players: [{ id: 'p1', level, lines: 0, alive: true, pendingGarbage: 0 }], elapsed: 0 };
+    },
+  };
+  const frame = (t) => PartyCore.prototype.frame.call(fake, t).commands;
+
+  // First frame: level 1 (changed from the 0 seed) emits musicSpeed; with an
+  // event also present, the music command must come AFTER the event command.
+  pending = [{ type: 'piece_lock', playerId: 'p1', blocks: [[0, 0]], typeId: 5 }];
+  assert.deepStrictEqual(frame(0), [
+    { type: 'pieceLock', playerId: 'p1', blocks: [[0, 0]], typeId: 5 },
+    { type: 'musicSpeed', level: 1 },
+  ]);
+  assert.equal(fake._lastMusicLevel, 1);
+  assert.deepStrictEqual(frame(0), []); // unchanged level, no events -> nothing
+  level = 3;
+  assert.deepStrictEqual(frame(0), [{ type: 'musicSpeed', level: 3 }]);
 });
 
 test('snapshot pendingGarbage and line_clear garbageIncoming include the delayed GarbageManager queue', () => {
@@ -176,7 +197,7 @@ test('snapshot pendingGarbage and line_clear garbageIncoming include the delayed
   assert.ok(p2.pendingGarbage > boardOnly, 'snapshot pendingGarbage strictly exceeds board-only');
 
   const cmds = PartyCore._toCommands(
-    [{ type: 'line_clear', playerId: 'p2', lines: 1, rows: [], clearCells: [] }], snap, pc);
+    [{ type: 'line_clear', playerId: 'p2', lines: 1, rows: [], clearCells: [] }], snap);
   const playerState = cmds.find((c) => c.type === 'playerState');
   assert.equal(playerState.garbageIncoming, 3, 'garbageIncoming uses the snapshot (board + delayed) value');
 });
