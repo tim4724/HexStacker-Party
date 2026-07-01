@@ -30,7 +30,9 @@ public enum Theme {
     ]
 
     public static func playerColor(slot: Int) -> RGB {
-        guard slot >= 0, slot < playerColors.count else { return RGB(255, 255, 255) }
+        // Out-of-range falls back to slot 0 (red), matching the web's
+        // `PLAYER_COLORS[idx] || PLAYER_COLORS[0]` (e.g. UIRenderer.js).
+        guard slot >= 0, slot < playerColors.count else { return playerColors[0] }
         return playerColors[slot]
     }
 

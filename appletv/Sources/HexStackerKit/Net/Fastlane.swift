@@ -52,6 +52,12 @@ public enum FastlaneConfig {
     /// cadence, so a few dropped heartbeats don't trigger a teardown.
     public static let watchdogMs: Double = 3000
 
+    /// Upper bound on events applied from a single data packet. The web sender's
+    /// resend ring is time-bounded (TTL), so a real `h` window is a handful of
+    /// events and never approaches this; the cap stops a crafted/buggy DataChannel
+    /// packet from fanning out into an unbounded burst of engine input calls.
+    public static let maxEventsPerPacket = 256
+
     /// The relay envelope key that marks a WebRTC signaling message.
     public static let signalKey = "__rtc"
 
@@ -203,7 +209,12 @@ public final class FastlaneNetcode {
         // Drop malformed packets (no numeric / out-of-range ps) without acking —
         // mirrors the web, which also won't echo an ack for a packet it can't decode.
         guard let psD = Self.number(packet["ps"]), let ps = Self.seqInt(psD) else { return }
-        let h = packet["h"] as? [[String: Any]] ?? []
+        let hAll = packet["h"] as? [[String: Any]] ?? []
+        // Cap fan-out: `h` is newest-first, so keep the newest `maxEventsPerPacket`
+        // (the ones most likely past lastAppliedEs). A real window never exceeds
+        // this; still ack below so a legitimate sender never stalls.
+        let h = hAll.count > FastlaneConfig.maxEventsPerPacket
+            ? Array(hAll.prefix(FastlaneConfig.maxEventsPerPacket)) : hAll
         // Events arrive newest-first; apply oldest-first so onInput sees source
         // order. Per-entry seq is implicit: es[i] = ps - i. Dedup on lastAppliedEs
         // makes resends and out-of-order duplicates no-ops.

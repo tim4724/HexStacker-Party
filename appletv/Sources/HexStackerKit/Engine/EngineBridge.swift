@@ -137,8 +137,11 @@ public final class EngineBridge {
     /// and cooldown from `oldId` to `newId` inside the engine, so the returning
     /// peer's input and snapshot land on the kept board. Mirrors the web's
     /// rekeyDisplayGamePlayer (game.boards / playerIds / garbageManager remap).
-    public func rekeyPlayer(oldId: Int, newId: Int) {
-        invoke("rekeyPlayer", [oldId, newId])
+    /// Returns the engine's own result (false if `oldId` had no board, or the JS
+    /// call failed) so the caller can keep roster and engine state in lockstep.
+    @discardableResult
+    public func rekeyPlayer(oldId: Int, newId: Int) -> Bool {
+        invoke("rekeyPlayer", [oldId, newId])?.toBool() ?? false
     }
 
     /// Forget the previous `frame()` timestamp so the next `frame()` re-primes
@@ -228,7 +231,7 @@ public final class EngineBridge {
         update: function (dt) { if (core) core.update(dt); },
         pause: function () { if (core) core.pause(); },
         resume: function () { if (core) core.resume(); },
-        rekeyPlayer: function (oldId, newId) { if (core) core.rekeyPlayer(oldId, newId); },
+        rekeyPlayer: function (oldId, newId) { return core ? core.rekeyPlayer(oldId, newId) : false; },
         resetFrameClock: function () { if (core) core.resetFrameClock(); },
         snapshotJSON: function () { return JSON.stringify(core.snapshot()); },
         drainEventsJSON: function () { return JSON.stringify(core.drainEvents()); },

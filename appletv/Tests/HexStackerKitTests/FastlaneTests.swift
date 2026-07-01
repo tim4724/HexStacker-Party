@@ -123,6 +123,17 @@ private final class Harness {
         #expect(h.net.getAllStats()[1]?.out == 2)
     }
 
+    @Test func capsOversizedEventArray() {
+        // A crafted packet with a huge `h` must not fan out into an unbounded burst
+        // of onInput calls; it is truncated to maxEventsPerPacket.
+        let h = Harness()
+        h.net.peerChannelOpened(1)
+        let cap = FastlaneConfig.maxEventsPerPacket
+        let oversized = (0..<(cap + 50)).map { ["a": $0] }
+        h.recv(1, ["ps": cap + 50, "t": 0, "h": oversized])
+        #expect(h.input.count == cap, "oversized h array is capped at maxEventsPerPacket")
+    }
+
     @Test func watchdogTearsDownOnceOnSilence() {
         let h = Harness()
         h.net.peerChannelOpened(1)

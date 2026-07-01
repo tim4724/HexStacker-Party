@@ -344,17 +344,20 @@ public final class DisplayCoordinator {
     /// participant of the current round.
     private func claimReconnect(from: Int, msg: ControllerMessage) -> Bool {
         guard let oldId = msg.rejoinToken ?? msg.rejoinId, oldId != from,
-              flow.isDisconnected(oldId), playerOrder.contains(oldId),
-              flow.rekey(oldId: oldId, newId: from) else { return false }
+              flow.isDisconnected(oldId), playerOrder.contains(oldId) else { return false }
+        // Engine-first: re-key the engine board (input + snapshot map to the kept
+        // board) BEFORE moving the roster, so a failed engine rekey can't leave the
+        // roster pointing at a board the engine never moved. engine is non-nil here
+        // (built in beginCountdown); guard defensively, and with no engine there is
+        // no board to desync from a roster-only move.
+        if let engine, !engine.rekeyPlayer(oldId: oldId, newId: from) { return false }
+        guard flow.rekey(oldId: oldId, newId: from) else { return false }
         playerOrder = playerOrder.map { $0 == oldId ? from : $0 }
         flow.setActiveOrder(playerOrder)
         flow.onSeen(from, nowProvider())
         // Carry the KO state onto the new peer index so a claim-rejoin after a KO
         // still reports alive:false in its welcome (web parity).
         if let wasAlive = aliveState.removeValue(forKey: oldId) { aliveState[from] = wasAlive }
-        // Re-key the engine so the returning peer's input + board map to the kept
-        // board (the next snapshot's id set then rebuilds the board under `from`).
-        engine?.rekeyPlayer(oldId: oldId, newId: from)
         output?.setDisconnected(playerId: oldId, joinURL: nil)   // clear the dropped board's rejoin QR
         if pausedAuto { autoResume() }                          // a participant returned
         sendWelcome(to: from, isLateJoiner: false)

@@ -13,6 +13,12 @@ import XCTest
 ///
 /// Capture-only (no assertion): a different focused app would just yield a less
 /// useful screenshot, never a failed build.
+///
+/// NOTE: a local Simulator renders the home screen (app icon + Top Shelf banner)
+/// crisply, but GitHub's headless macOS runner has no real display, so the home
+/// scene snapshot fails (`FBSSceneSnapshotError`) and the capture falls back to
+/// the blurred wallpaper. A blurry CI artifact here is expected, not a regression;
+/// run this test on a local Simulator for a clean Top Shelf shot.
 final class HomeScreenTests: XCTestCase {
     func testCaptureHomeScreenWithAppFocused() {
         // Leave the test runner for the home screen.
