@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The app does not track users (no analytics, ads, IDFA/ATT, or trackers). -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<!-- No data is collected: player names/colors live on the controllers, and the
+	     display's mute state is session-only (never persisted). -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<!-- No required-reason APIs are used (no UserDefaults/@AppStorage, no file
+	     timestamp / disk-space / boot-time / active-input APIs). -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array/>
+</dict>
+</plist>

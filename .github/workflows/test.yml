@@ -37,3 +37,67 @@ jobs:
       - run: npm ci
       - name: Run E2E tests
         run: npx playwright test --project=e2e --project=e2e-airconsole
+
+  tvos-core:
+    # Guards the native tvOS port against silent drift from the web source.
+    # `swift test` runs the kit suites: cross-engine render parity (ParityTests
+    # asserts the Swift render math is byte-identical to the canonical web JS run in
+    # JavaScriptCore), engine determinism + full game loop + coordinator/fastlane
+    # wiring (EngineBridgeTests/DisplayCoordinatorTests), fastlane receiver netcode
+    # (FastlaneTests), room/host FSM + geometry (KitTests), localization, and the
+    # REAL RelayClient over a loopback WebSocket (RelayClientLiveTests) covering the
+    # URLSession socket path the headless FakeTransport can't reach. None of this
+    # runs on the Linux jobs, so a web-side change to server/** or public/shared/**
+    # that breaks the native renderer/decoder would otherwise pass CI unnoticed.
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci   # esbuild + node for build:core, which the suite rebuilds via TestSupport
+      - name: Build the tvOS Swift package
+        working-directory: appletv
+        run: swift build
+      - name: Kit test suites (render parity, engine determinism + game loop, netcode, room/host, localization, live relay socket)
+        working-directory: appletv
+        run: swift test
+
+  tvos-app:
+    # Compile + link the tvOS APP target (SpriteKit/UIKit/AVFoundation +
+    # LiveKitWebRTC). `swift build` above only builds the platform-agnostic kit;
+    # the app-target sources (RootScene, BoardNode, WebRTCFastlane, …) are NOT in
+    # the SwiftPM package, so this is the only job that guards them from drift.
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci   # the pre-build phase runs build:core to bundle the engine JS
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate the Xcode project
+        working-directory: appletv
+        run: xcodegen generate
+      # Cache the resolved SPM artifacts (LiveKitWebRTC is a large binary
+      # xcframework) so we don't re-download it on every run.
+      - name: Cache SPM artifacts
+        uses: actions/cache@v4
+        with:
+          path: appletv/.build-xcode/SourcePackages
+          key: spm-${{ runner.os }}-${{ hashFiles('appletv/project.yml') }}
+      - name: Build the tvOS app for the Simulator SDK
+        working-directory: appletv
+        run: |
+          xcodebuild \
+            -project HexStacker.xcodeproj \
+            -scheme HexStackerTV \
+            -sdk appletvsimulator \
+            -destination 'generic/platform=tvOS Simulator' \
+            -derivedDataPath .build-xcode \
+            build

@@ -487,6 +487,13 @@ function rekeyDisplayGamePlayer(oldId, newId) {
     }
   }
 
+  // Move the hard-drop cooldown too, matching the engine's canonical
+  // Game.rekeyPlayer (server/Game.js) that the native ports call — otherwise a
+  // queued hard-drop right after a same-game reconnect behaves differently on
+  // web vs TV.
+  var cd = displayGame._hardDropCooldownMs;
+  if (cd && cd.has(oldId)) { cd.set(newId, cd.get(oldId)); cd.delete(oldId); }
+
   var gm = displayGame.garbageManager;
   if (!gm) return;
 

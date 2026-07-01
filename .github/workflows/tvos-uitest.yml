@@ -1,0 +1,75 @@
+name: tvOS UI Screenshots
+
+# Boots an Apple TV simulator, runs the XCUITest bundle (per-screen screenshot
+# capture + a remote-driven smoke test), and publishes the screenshots as an
+# artifact (downloadable from the PR's checks). GitHub-hosted macOS runners are
+# free on public repos, so this runs per-PR — path-filtered to changes that can
+# affect the tvOS render (the app, plus the shared engine/render sources the
+# native port mirrors) so web-only PRs don't spin up a simulator. workflow_dispatch
+# is kept for capturing screenshots on demand.
+on:
+  pull_request:
+    paths:
+      - 'appletv/**'
+      - 'server/**'
+      - 'public/shared/**'
+      - '.github/workflows/tvos-uitest.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: tvos-uitest-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  uitest:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci   # the app pre-build phase runs build:core to bundle the engine JS
+      - name: Install XcodeGen + xcparse
+        run: brew install --quiet xcodegen chargepoint/xcparse/xcparse
+      - name: Generate the Xcode project
+        working-directory: appletv
+        run: xcodegen generate
+      # Cache the resolved SPM artifacts (LiveKitWebRTC is a large binary
+      # xcframework) so we don't re-download it every run.
+      - name: Cache SPM artifacts
+        uses: actions/cache@v4
+        with:
+          path: appletv/.build-xcode/SourcePackages
+          key: spm-${{ runner.os }}-${{ hashFiles('appletv/project.yml') }}
+      # `-scheme HexStackerTV` runs the test action wired in project.yml, which
+      # builds the app and runs HexStackerTVUITests. The runtime is preinstalled on
+      # the macos-15 image (tvOS 18.5 pairs with the default Xcode 16.x); OS=latest
+      # avoids pinning a version that image updates may drop.
+      - name: Run UI tests (boots an Apple TV simulator, captures screenshots)
+        working-directory: appletv
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project HexStacker.xcodeproj \
+            -scheme HexStackerTV \
+            -sdk appletvsimulator \
+            -destination 'platform=tvOS Simulator,name=Apple TV,OS=latest' \
+            -derivedDataPath .build-xcode \
+            -resultBundlePath TestResults.xcresult
+      # Pull the named screenshot attachments out of the result bundle. Runs even
+      # if a test failed, so a regressed screen still ships its capture for review.
+      - name: Extract screenshots
+        if: always()
+        working-directory: appletv
+        run: |
+          xcparse screenshots TestResults.xcresult screenshots/
+          ls -R screenshots || true
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tvos-screenshots
+          path: appletv/screenshots
+          if-no-files-found: warn

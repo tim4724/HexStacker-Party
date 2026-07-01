@@ -5,6 +5,7 @@
   "main": "server/index.js",
   "scripts": {
     "build": "node scripts/build.js",
+    "build:core": "node scripts/build.js --core",
     "start": "node scripts/build.js && node scripts/generate-airconsole-html.js && node server/index.js",
     "dev": "node scripts/generate-airconsole-html.js && node --watch server/index.js",
     "test": "node --test tests/*.test.js partyplug/tests/*.test.js",

@@ -54,6 +54,28 @@ class Game {
     this.paused = false;
   }
 
+  // Cross-device mid-game rejoin: move a player's board, id ordering, hard-drop
+  // cooldown and garbage queues from oldId to newId, preserving board insertion
+  // order so snapshot/layout positions don't shuffle. The returning peer reclaims
+  // the dropped slot's exact game state. No-op if oldId is absent or unchanged.
+  rekeyPlayer(oldId, newId) {
+    if (oldId === newId) return false;
+    const board = this.boards.get(oldId);
+    if (!board) return false;
+    // Rebuild the Map preserving order (a plain delete+set would move it last).
+    const moved = new Map();
+    for (const [id, b] of this.boards) moved.set(id === oldId ? newId : id, b);
+    this.boards = moved;
+    board.playerId = newId;
+    this.playerIds = this.playerIds.map((id) => (id === oldId ? newId : id));
+    if (this._hardDropCooldownMs.has(oldId)) {
+      this._hardDropCooldownMs.set(newId, this._hardDropCooldownMs.get(oldId));
+      this._hardDropCooldownMs.delete(oldId);
+    }
+    this.garbageManager.rekeyPlayer(oldId, newId);
+    return true;
+  }
+
   processInput(playerId, action) {
     const board = this.boards.get(playerId);
     if (!board || !board.alive || this.ended) return;

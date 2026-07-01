@@ -1,0 +1,106 @@
+import Foundation
+@testable import HexStackerKit
+
+/// Builds the canonical core bundle ONCE per test run (the SAME `npm run
+/// build:core` the app's pre-build phase uses) and exposes the `dist/` dir the
+/// bridge loads `partycore.js` from. Rebuilding from source keeps the suite
+/// honest: it exercises the shipped artifact regenerated from the canonical
+/// modules, not a stale checkout. `static let` => built exactly once, lazily.
+enum EngineFixture {
+    static let coreBundleDir: URL = {
+        let repo = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // HexStackerKitTests
+            .deletingLastPathComponent()   // Tests
+            .deletingLastPathComponent()   // appletv
+            .deletingLastPathComponent()   // <repo>
+        let proc = Process()
+        proc.currentDirectoryURL = repo
+        proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        proc.arguments = ["npm", "run", "--silent", "build:core"]
+        var env = ProcessInfo.processInfo.environment
+        // `swift test` from Xcode runs with a minimal PATH; add the usual node homes.
+        env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + (env["PATH"] ?? "")
+        proc.environment = env
+        let pipe = Pipe()
+        proc.standardOutput = pipe
+        proc.standardError = pipe
+        do { try proc.run(); proc.waitUntilExit() }
+        catch { fatalError("build:core failed to launch (npm on PATH?): \(error)") }
+        if proc.terminationStatus != 0 {
+            let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            fatalError("npm run build:core failed (status \(proc.terminationStatus)):\n\(out)")
+        }
+        return repo.appendingPathComponent("dist")
+    }()
+}
+
+/// In-memory `RelayTransport`: records sends/broadcasts and lets a test drive the
+/// inbound callbacks (peer joins, controller messages) directly, no network.
+final class FakeTransport: RelayTransport {
+    var onCreated: ((String, String?, String?) -> Void)?
+    var onJoined: ((String, [Int]) -> Void)?
+    var onPeerJoined: ((Int) -> Void)?
+    var onPeerLeft: ((Int) -> Void)?
+    var onMessage: ((Int, [String: Any]) -> Void)?
+    var onRelayError: ((String) -> Void)?
+    var connected = false
+    var recreatedRoomCount = 0
+    var sent: [(to: Int, data: [String: Any])] = []
+    var broadcasts: [[String: Any]] = []
+    func connect() { connected = true }
+    func recreateRoom() { recreatedRoomCount += 1 }
+    func sendTo(_ index: Int, _ data: [String: Any]) { sent.append((index, data)) }
+    func broadcast(_ data: [String: Any]) { broadcasts.append(data) }
+    func didBroadcast(_ type: String) -> Bool { broadcasts.contains { ($0["type"] as? String) == type } }
+    func didSend(_ type: String, to: Int) -> Bool {
+        sent.contains { $0.to == to && ($0.data["type"] as? String) == type }
+    }
+}
+
+/// Records the coordinator's side-effects so tests can assert screen changes,
+/// countdowns, render calls, results, and pause state.
+final class FakeOutput: DisplayOutput {
+    var screen: DisplayScreen?
+    var room: String?
+    var joinURL: String?
+    var countdowns: [CountdownValue] = []
+    var renderCount = 0
+    var lastSnapshot: GameSnapshot?
+    var results: [[String: Any]]?
+    var musicStarted = false
+    var paused = false
+    var rejoinQRVisible: Set<Int> = []   // players currently showing a per-board rejoin QR
+    var calls: [String] = []   // ordered call log (for ordering regressions)
+    func showScreen(_ s: DisplayScreen) { screen = s; calls.append("showScreen") }
+    func setPaused(_ p: Bool) { paused = p; calls.append("setPaused(\(p))") }
+    func setDisconnected(playerId: Int, joinURL: String?) {
+        if joinURL != nil { rejoinQRVisible.insert(playerId) } else { rejoinQRVisible.remove(playerId) }
+    }
+    func roomReady(room: String, joinURL: String) { self.room = room; self.joinURL = joinURL }
+    func updateLobby(players: [PlayerRecord], hostPeerIndex: Int?) {}
+    func showCountdown(_ v: CountdownValue) { countdowns.append(v) }
+    func renderSnapshot(_ s: GameSnapshot) { renderCount += 1; lastSnapshot = s }
+    func showResults(_ r: [[String: Any]]) { results = r; calls.append("showResults") }
+    func playCountdownBeep(go: Bool) {}
+    func startMusic() { musicStarted = true }
+    func stopMusic() {}
+    func pauseMusic() {}
+    func resumeMusic() {}
+}
+
+/// Records the coordinator's fastlane calls and mimics the real signal
+/// interception (consumes `__rtc` envelopes) so tests can assert the coordinator
+/// wires the WebRTC fastlane up the way the web display does.
+final class FakeFastlane: InputFastlane {
+    var onInput: ((Int, [String: Any]) -> Void)?
+    var signalsHandled: [(from: Int, data: [String: Any])] = []
+    var closedPeers: [Int] = []
+    var closeAllCount = 0
+    func handleSignal(from: Int, data: [String: Any]) -> Bool {
+        guard FastlaneConfig.isSignalEnvelope(data) else { return false }
+        signalsHandled.append((from, data))
+        return true
+    }
+    func closePeer(_ index: Int) { closedPeers.append(index) }
+    func closeAll() { closeAllCount += 1 }
+}
