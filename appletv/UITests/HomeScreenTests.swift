@@ -14,11 +14,12 @@ import XCTest
 /// Capture-only (no assertion): a different focused app would just yield a less
 /// useful screenshot, never a failed build.
 ///
-/// NOTE: a local Simulator renders the home screen (app icon + Top Shelf banner)
-/// crisply, but GitHub's headless macOS runner has no real display, so the home
-/// scene snapshot fails (`FBSSceneSnapshotError`) and the capture falls back to
-/// the blurred wallpaper. A blurry CI artifact here is expected, not a regression;
-/// run this test on a local Simulator for a clean Top Shelf shot.
+/// DIAGNOSTIC: the home capture renders crisply on a local Simulator but comes back
+/// blurred on the headless CI runner. To tell whether that is a timing problem (the
+/// loaded runner just needs longer for the Top Shelf to composite) from something
+/// the headless runner can never render, this grabs a shot at several increasing
+/// delays after focusing the app. If a later shot sharpens, it is timing; if all of
+/// them blur, longer waits won't help.
 final class HomeScreenTests: XCTestCase {
     func testCaptureHomeScreenWithAppFocused() {
         // Leave the test runner for the home screen.
@@ -26,11 +27,19 @@ final class HomeScreenTests: XCTestCase {
         Thread.sleep(forTimeInterval: 2.5)
         // Focus the HexStacker icon so its Top Shelf banner renders.
         XCUIRemote.shared.press(.right)
-        Thread.sleep(forTimeInterval: 4.0)   // let the Top Shelf banner load in
 
-        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        attachment.name = "home-topshelf"
-        attachment.lifetime = .keepAlways
-        add(attachment)
+        // Cumulative waits after Right: shots at ~4s, ~10s, ~18s.
+        let steps: [(name: String, extraWait: TimeInterval)] = [
+            ("home-topshelf-04s", 4.0),
+            ("home-topshelf-10s", 6.0),
+            ("home-topshelf-18s", 8.0),
+        ]
+        for step in steps {
+            Thread.sleep(forTimeInterval: step.extraWait)
+            let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            shot.name = step.name
+            shot.lifetime = .keepAlways
+            add(shot)
+        }
     }
 }
