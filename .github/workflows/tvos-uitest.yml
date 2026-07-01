@@ -1,8 +1,9 @@
 name: tvOS UI Screenshots
 
 # Boots an Apple TV simulator, runs the XCUITest bundle (per-screen screenshot
-# capture + a remote-driven smoke test), and publishes the screenshots as an
-# artifact (downloadable from the PR's checks). GitHub-hosted macOS runners are
+# capture + a remote-driven smoke test), publishes the screenshots as an artifact
+# and posts a one-click download link in a sticky PR comment (GitHub otherwise
+# buries run artifacts several clicks deep). GitHub-hosted macOS runners are
 # free on public repos, so this runs per-PR — path-filtered to changes that can
 # affect the tvOS render (the app, plus the shared engine/render sources the
 # native port mirrors) so web-only PRs don't spin up a simulator. workflow_dispatch
@@ -24,6 +25,10 @@ jobs:
   uitest:
     runs-on: macos-15
     timeout-minutes: 45
+    permissions:
+      contents: read
+      pull-requests: write   # post/update the screenshots-link PR comment
+      issues: write          # PR comments go through the issues API
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -67,9 +72,42 @@ jobs:
           xcparse screenshots TestResults.xcresult screenshots/
           ls -R screenshots || true
       - name: Upload screenshots
+        id: upload
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: tvos-screenshots
           path: appletv/screenshots
           if-no-files-found: warn
+      # Surface the artifact with a one-click link in a sticky PR comment (updated
+      # in place each run), since GitHub buries run artifacts under the run summary.
+      - name: Comment screenshots link on the PR
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        env:
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+        with:
+          script: |
+            const marker = '<!-- tvos-screenshots -->';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const artifactUrl = process.env.ARTIFACT_URL;
+            const link = artifactUrl
+              ? `**[Download screenshots](${artifactUrl})** · [workflow run](${runUrl})`
+              : `Screenshots artifact not available this run. [workflow run](${runUrl})`;
+            const body = [
+              marker,
+              '### 📺 tvOS screenshots',
+              '',
+              link,
+              '',
+              'Captured on the Apple TV Simulator (per-screen). Note: `home-topshelf` blurs on the headless CI runner; it renders crisply on a local Simulator.',
+            ].join('\n');
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number, per_page: 100 });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
