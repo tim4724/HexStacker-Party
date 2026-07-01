@@ -1,0 +1,42 @@
+<resources>
+    <!-- Chinese — values from public/shared/i18n.js `zh`. Only keys the :tv app uses.
+         zh has only the `other` plural category (CLDR). -->
+    <string name="hold">暂存</string>
+    <string name="next">下一个</string>
+    <string name="level">等级</string>
+    <string name="lines">行数</string>
+    <string name="ko">K.O.</string>
+    <string name="go">开始</string>
+    <string name="scan_to_rejoin">扫码重新加入</string>
+
+    <string name="double_clear">二连消</string>
+    <string name="triple_clear">三连消!</string>
+
+    <string name="scan_to_join">扫码加入</string>
+    <string name="waiting_for_players">等待玩家加入...</string>
+    <string name="level_heading">等级</string>
+    <string name="music_by">音乐：FoxSynergy</string>
+
+    <string name="level_n">等级 %1$d</string>
+    <string name="new_player">新玩家</string>
+    <string name="play_again">再来一局</string>
+    <string name="new_game">新游戏</string>
+
+    <string name="paused">已暂停</string>
+    <string name="continue_btn">继续</string>
+    <string name="settings_game_music">游戏音乐</string>
+
+    <string name="reconnecting">正在重连</string>
+    <string name="disconnected">已断开连接</string>
+    <string name="connection_lost">连接已断开...</string>
+    <string name="reconnect">重新连接</string>
+
+    <string name="player">玩家</string>
+
+    <plurals name="start_n_players">
+        <item quantity="other">开始 (%1$d 位玩家)</item>
+    </plurals>
+    <plurals name="n_lines">
+        <item quantity="other">%1$d 行</item>
+    </plurals>
+</resources>

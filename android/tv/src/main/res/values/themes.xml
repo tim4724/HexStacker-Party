@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Dark, full-screen (no action bar) theme. The brand-plum background and
+         Orbitron type are applied in Compose; this is the host window shell. -->
+    <style name="Theme.HexStackerTV" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/brand_plum</item>
+        <item name="android:colorBackground">@color/brand_plum</item>
+    </style>
+</resources>

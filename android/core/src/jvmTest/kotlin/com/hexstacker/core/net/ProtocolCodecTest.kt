@@ -1,0 +1,111 @@
+package com.hexstacker.core.net
+
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+/**
+ * Wire-format coverage for [ControllerMessage.from] (the lenient inbound decoder) and
+ * the [OutboundMessage] builders (display -> controller frames). The controllers speak
+ * the web relay protocol, so these shapes must match public/shared/protocol.js exactly.
+ */
+class ProtocolCodecTest {
+
+    private fun type(o: kotlinx.serialization.json.JsonObject) = o["type"]?.jsonPrimitive?.contentOrNull
+
+    @Test
+    fun coercesNumericStringsAndDoubles() {
+        val m = ControllerMessage.from(
+            buildJsonObject {
+                put("type", "set_level")
+                put("level", JsonPrimitive("7")) // string -> Int
+                put("colorIndex", 3.0)           // double -> Int
+                put("t", JsonPrimitive("42.5"))  // string -> Double
+            },
+        )!!
+        assertEquals("set_level", m.type)
+        assertEquals(7, m.level)
+        assertEquals(3, m.colorIndex)
+        assertEquals(42.5, m.t)
+    }
+
+    @Test
+    fun booleanCoercionForFlags() {
+        val m = ControllerMessage.from(
+            buildJsonObject {
+                put("type", "hello")
+                put("autoName", true)
+                put("muted", JsonPrimitive("true")) // string -> Boolean
+            },
+        )!!
+        assertEquals(true, m.autoName)
+        assertEquals(true, m.muted)
+    }
+
+    @Test
+    fun nameMustBeAStringElseNull() {
+        // A numeric `name` is rejected (isString guard) so it never becomes a player name.
+        assertNull(ControllerMessage.from(buildJsonObject { put("type", "hello"); put("name", 42) })!!.name)
+        assertEquals("Zoe", ControllerMessage.from(buildJsonObject { put("type", "hello"); put("name", "Zoe") })!!.name)
+    }
+
+    @Test
+    fun claimFieldsDecodeForRejoin() {
+        val m = ControllerMessage.from(
+            buildJsonObject { put("type", "hello"); put("rejoinToken", JsonPrimitive("3")); put("rejoinId", 4) },
+        )!!
+        assertEquals(3, m.rejoinToken)
+        assertEquals(4, m.rejoinId)
+    }
+
+    @Test
+    fun missingTypeReturnsNull() {
+        assertNull(ControllerMessage.from(buildJsonObject { put("action", "left") }))
+    }
+
+    @Test
+    fun outboundBuilderShapes() {
+        assertEquals(Msg.GAME_START, type(OutboundMessage.gameStart()))
+        assertEquals(Msg.DISPLAY_CLOSED, type(OutboundMessage.displayClosed()))
+
+        val cd = OutboundMessage.countdownGo()
+        assertEquals(Msg.COUNTDOWN, type(cd))
+        assertEquals("GO", cd["value"]?.jsonPrimitive?.contentOrNull)
+
+        val ps = OutboundMessage.playerState(level = 5, lines = 12, alive = true, garbageIncoming = 3)
+        assertEquals(Msg.PLAYER_STATE, type(ps))
+        assertEquals(5, ps["level"]?.jsonPrimitive?.intOrNull)
+        assertEquals(12, ps["lines"]?.jsonPrimitive?.intOrNull)
+        assertEquals(3, ps["garbageIncoming"]?.jsonPrimitive?.intOrNull)
+
+        // Short KO form omits level/lines.
+        val dead = OutboundMessage.playerDead()
+        assertEquals(Msg.PLAYER_STATE, type(dead))
+        assertEquals(false, dead["alive"]?.jsonPrimitive?.contentOrNull?.toBoolean())
+        assertNull(dead["level"])
+    }
+
+    @Test
+    fun sendFrameSerializesTypeFirst() {
+        // The relay `send` envelope must encode `type` first to match the web byte layout.
+        val json = RelayJson.encodeToString(SendFrame.serializer(), SendFrame(data = buildJsonObject { put("k", 1) }, to = 2))
+        assertTrue(json.indexOf("\"type\"") < json.indexOf("\"data\""), "type precedes data in the encoded frame")
+        assertTrue(json.contains("\"send\""))
+    }
+
+    @Test
+    fun gameEndCarriesResultsArray() {
+        val results = buildJsonObject { put("playerId", 1) }
+        val frame = OutboundMessage.gameEnd(elapsed = 1234.0, results = kotlinx.serialization.json.JsonArray(listOf(results)))
+        assertEquals(Msg.GAME_END, type(frame))
+        assertEquals(1, frame["results"]!!.jsonArray.size)
+    }
+}

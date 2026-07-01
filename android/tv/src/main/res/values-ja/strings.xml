@@ -1,0 +1,42 @@
+<resources>
+    <!-- Japanese — values from public/shared/i18n.js `ja`. Only keys the :tv app uses.
+         ja has only the `other` plural category (CLDR). -->
+    <string name="hold">ホールド</string>
+    <string name="next">ネクスト</string>
+    <string name="level">レベル</string>
+    <string name="lines">ライン</string>
+    <string name="ko">K.O.</string>
+    <string name="go">GO</string>
+    <string name="scan_to_rejoin">スキャンで再参加</string>
+
+    <string name="double_clear">2ライン</string>
+    <string name="triple_clear">3ライン!</string>
+
+    <string name="scan_to_join">スキャンして参加</string>
+    <string name="waiting_for_players">プレイヤー待ってる...</string>
+    <string name="level_heading">レベル</string>
+    <string name="music_by">音楽：FoxSynergy</string>
+
+    <string name="level_n">レベル %1$d</string>
+    <string name="new_player">新しいプレイヤー</string>
+    <string name="play_again">もう一度</string>
+    <string name="new_game">新しいゲーム</string>
+
+    <string name="paused">一時停止</string>
+    <string name="continue_btn">続ける</string>
+    <string name="settings_game_music">ゲーム音楽</string>
+
+    <string name="reconnecting">再接続中...</string>
+    <string name="disconnected">切断された</string>
+    <string name="connection_lost">接続が切れた...</string>
+    <string name="reconnect">再接続</string>
+
+    <string name="player">プレイヤー</string>
+
+    <plurals name="start_n_players">
+        <item quantity="other">スタート (%1$d人)</item>
+    </plurals>
+    <plurals name="n_lines">
+        <item quantity="other">%1$dライン</item>
+    </plurals>
+</resources>

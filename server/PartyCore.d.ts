@@ -326,7 +326,14 @@ declare namespace PartyCore {
     lines?: number;
     alive?: boolean;
     /** Pre-resolved incoming garbage (board-pending + delayed queue), from the
-     *  snapshot — saves the host a mid-event getSnapshot. Full form only. */
+     *  snapshot, saving the host a mid-event getSnapshot. Full form only.
+     *
+     *  KNOWN DIVERGENCE from the web (accepted, not a bug): this reads the
+     *  POST-frame snapshot, taken after Game.handleLineClear() applied this
+     *  clear's defense, so it reflects the reduced (post-cancellation) amount.
+     *  The web (DisplayGame.js) samples it synchronously inside the line_clear
+     *  event, which fires BEFORE defense runs, so it reports the pre-cancellation
+     *  amount. Native's value is the more accurate one; see PartyCore.js. */
     garbageIncoming?: number;
   }
   interface PlayerKOCommand {

@@ -1,0 +1,583 @@
+package com.hexstacker.core.display
+
+import com.hexstacker.core.engine.EngineBridge
+import com.hexstacker.core.model.GameEvent
+import com.hexstacker.core.model.GameSnapshot
+import com.hexstacker.core.net.Msg
+import com.hexstacker.core.net.RelayTransport
+import com.hexstacker.core.net.RoomState
+import com.hexstacker.core.room.PlayerRecord
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.double
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import java.io.File
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
+
+/**
+ * Headless full-loop coverage for [DisplayCoordinator] using a fake
+ * [RelayTransport] (records sent frames) + a fake [DisplayOutput] (records
+ * side-effects) + a REAL [EngineBridge] driven from the QuickJS bundle (the
+ * `hexcore.bundle` system property, as the engine tests do).
+ *
+ * Drives the lifecycle: connect -> lobby -> hello/welcome -> start_game ->
+ * countdown 3/2/1/GO -> playing -> top-out -> results -> play_again ->
+ * return_to_lobby, asserting the right MSG types go out at each step.
+ */
+class DisplayCoordinatorTest {
+
+    private fun bundle(): String {
+        val p = System.getProperty("hexcore.bundle") ?: error("hexcore.bundle not set by build")
+        return File(p).readText()
+    }
+
+    private fun realFactory(bridge: EngineBridge): suspend (List<EngineBridge.PlayerSpec>, Long) -> EngineBridge =
+        { players, seed -> bridge.createGame(players, seed); bridge }
+
+    private fun type(o: JsonObject): String? = (o["type"] as? JsonPrimitive)?.contentOrNull
+    private fun hello(name: String) = buildJsonObject { put("type", Msg.HELLO); put("name", name) }
+    private fun simple(t: String) = buildJsonObject { put("type", t) }
+    private fun input(action: String) = buildJsonObject { put("type", Msg.INPUT); put("action", action) }
+
+    @Test
+    fun fullLifecycleLobbyToResults() = runBlocking {
+        val bridge = EngineBridge.create(bundle())
+        try {
+            val t = FakeTransport()
+            val out = FakeOutput()
+            val coord = DisplayCoordinator(t, out, realFactory(bridge), seedProvider = { 0xBADCAFEL })
+            coord.start()
+
+            t.created("ROOM42", "inst1"); coord.awaitIdle()
+            assertEquals(DisplayScreen.LOBBY, out.screens.last())
+            assertEquals("ROOM42", out.lastRoom)
+
+            t.peerJoined(1); t.peerJoined(2); coord.awaitIdle()
+            assertEquals(2, coord.flow.size)
+            assertTrue(t.sent.any { it.first == 1 && type(it.second) == Msg.LOBBY_UPDATE })
+
+            // hello -> welcome (LOBBY form includes alive/paused)
+            t.sent.clear()
+            t.deliver(1, hello("Alex")); coord.awaitIdle()
+            assertEquals("Alex", coord.flow.player(1)!!.playerName)
+            val welcome = t.sent.firstOrNull { it.first == 1 && type(it.second) == Msg.WELCOME }
+            assertNotNull(welcome)
+            assertTrue(welcome.second.containsKey("alive"))
+            assertTrue(welcome.second.containsKey("paused"))
+
+            // start_game -> beginCountdown (boards visible behind overlay)
+            t.deliver(1, simple(Msg.START_GAME)); coord.awaitIdle()
+            assertEquals(RoomState.COUNTDOWN, coord.state)
+            assertEquals(DisplayScreen.GAME, out.screens.last())
+
+            // deterministic countdown: entry=3, +1000=2, +1000=1, +1000=GO(music), +500=start
+            coord.tick(0.0)
+            coord.tick(1000.0)
+            coord.tick(1000.0)
+            coord.tick(1000.0)
+            assertEquals(
+                listOf(
+                    CountdownValue.Number(3),
+                    CountdownValue.Number(2),
+                    CountdownValue.Number(1),
+                    CountdownValue.Go,
+                ),
+                out.countdowns,
+            )
+            assertEquals(1, out.beeps.count { it }, "exactly one GO beep")
+            assertTrue(out.musicStarted)
+            assertEquals(RoomState.COUNTDOWN, coord.state) // GO holds, not yet PLAYING
+            assertTrue(t.sent.any { it.first == -1 && type(it.second) == Msg.COUNTDOWN })
+            coord.tick(500.0)
+            assertEquals(RoomState.PLAYING, coord.state)
+            assertTrue(t.sent.any { it.first == -1 && type(it.second) == Msg.GAME_START })
+
+            // late joiner during PLAYING -> welcome omits alive/paused
+            t.sent.clear()
+            t.deliver(3, hello("Zoe")); coord.awaitIdle()
+            val lateWelcome = t.sent.firstOrNull { it.first == 3 && type(it.second) == Msg.WELCOME }
+            assertNotNull(lateWelcome)
+            assertFalse(lateWelcome.second.containsKey("alive"))
+            assertFalse(lateWelcome.second.containsKey("paused"))
+
+            // drive participants to top-out -> gameEnd command -> RESULTS
+            var guard = 0
+            while (coord.state == RoomState.PLAYING && guard < 4000) {
+                t.deliver(1, input("hard_drop"))
+                t.deliver(2, input("hard_drop"))
+                coord.awaitIdle()
+                coord.tick(50.0)
+                guard++
+            }
+            assertEquals(RoomState.RESULTS, coord.state, "game tops out within the tick budget")
+            assertEquals(DisplayScreen.RESULTS, out.screens.last())
+            assertTrue(out.musicStopped)
+            assertTrue(out.setPausedCalls.last() == false, "setPaused(false) runs before showResults")
+            assertTrue(t.sent.any { it.first >= 0 && type(it.second) == Msg.GAME_OVER }, "a KO unicast game_over")
+            assertNotNull(t.sent.lastOrNull { it.first == -1 && type(it.second) == Msg.GAME_END })
+            val results = assertNotNull(out.lastResults)
+            assertTrue(results.isNotEmpty())
+            assertTrue(results.all { it.playerName != null }, "results enriched with names")
+            assertTrue(results.any { it.playerId == 3 && it.newPlayer }, "late joiner appears as newPlayer")
+
+            // play_again -> new countdown
+            t.deliver(1, simple(Msg.PLAY_AGAIN)); coord.awaitIdle()
+            assertEquals(RoomState.COUNTDOWN, coord.state)
+
+            // return_to_lobby -> lobby + broadcast
+            t.sent.clear()
+            t.deliver(1, simple(Msg.RETURN_TO_LOBBY)); coord.awaitIdle()
+            assertEquals(RoomState.LOBBY, coord.state)
+            assertEquals(DisplayScreen.LOBBY, out.screens.last())
+            assertTrue(t.sent.any { it.first == -1 && type(it.second) == Msg.RETURN_TO_LOBBY })
+
+            coord.stop()
+        } finally {
+            bridge.close()
+        }
+    }
+
+    @Test
+    fun pauseResumeAndConnectedGuard() = runBlocking {
+        val bridge = EngineBridge.create(bundle())
+        try {
+            val t = FakeTransport()
+            val out = FakeOutput()
+            val coord = DisplayCoordinator(t, out, realFactory(bridge), seedProvider = { 0xBADCAFEL })
+            coord.start()
+            t.created("R", null); coord.awaitIdle()
+            t.peerJoined(1); t.peerJoined(2); coord.awaitIdle()
+            t.deliver(1, simple(Msg.START_GAME)); coord.awaitIdle()
+            coord.tick(0.0); coord.tick(1000.0); coord.tick(1000.0); coord.tick(1000.0); coord.tick(500.0)
+            assertEquals(RoomState.PLAYING, coord.state)
+
+            // pause
+            t.sent.clear()
+            t.deliver(1, simple(Msg.PAUSE_GAME)); coord.awaitIdle()
+            assertTrue(out.pausedFlag)
+            assertTrue(t.sent.any { it.first == -1 && type(it.second) == Msg.GAME_PAUSED })
+
+            // resume
+            t.sent.clear()
+            t.deliver(1, simple(Msg.RESUME_GAME)); coord.awaitIdle()
+            assertFalse(out.pausedFlag)
+            assertTrue(t.sent.any { it.first == -1 && type(it.second) == Msg.GAME_RESUMED })
+
+            // pause again, disconnect everyone, then a DISPLAY-remote resume is blocked
+            // (a controller resume would reconnect the sender first; the remote does not).
+            t.deliver(1, simple(Msg.PAUSE_GAME)); coord.awaitIdle()
+            assertTrue(out.pausedFlag)
+            t.peerLeft(1); t.peerLeft(2); coord.awaitIdle()
+            assertEquals(0, coord.flow.connectedCount)
+            t.sent.clear()
+            coord.remoteTogglePause()
+            assertTrue(out.pausedFlag, "resume blocked while everyone is disconnected")
+            assertFalse(t.sent.any { type(it.second) == Msg.GAME_RESUMED })
+
+            coord.stop()
+        } finally {
+            bridge.close()
+        }
+    }
+
+    @Test
+    fun messageHandlingLobby() = runBlocking {
+        val t = FakeTransport()
+        val out = FakeOutput()
+        val coord = DisplayCoordinator(
+            t,
+            out,
+            engineFactory = { _, _ -> error("engine must not be built in the lobby message test") },
+            seedProvider = { 0L },
+        )
+        coord.start()
+        t.created("R", null); coord.awaitIdle()
+        t.peerJoined(1); t.peerJoined(2); coord.awaitIdle() // slots 0 / 1, host = 1
+
+        // set_level: reject out-of-range, accept in-range
+        t.deliver(1, buildJsonObject { put("type", Msg.SET_LEVEL); put("level", 99) }); coord.awaitIdle()
+        assertEquals(1, coord.flow.player(1)!!.startLevel)
+        t.deliver(1, buildJsonObject { put("type", Msg.SET_LEVEL); put("level", 7) }); coord.awaitIdle()
+        assertEquals(7, coord.flow.player(1)!!.startLevel)
+
+        // set_color: reject taken slot, accept free slot
+        t.deliver(1, buildJsonObject { put("type", Msg.SET_COLOR); put("colorIndex", 1) }); coord.awaitIdle()
+        assertEquals(0, coord.flow.player(1)!!.colorSlot)
+        t.deliver(1, buildJsonObject { put("type", Msg.SET_COLOR); put("colorIndex", 3) }); coord.awaitIdle()
+        assertEquals(3, coord.flow.player(1)!!.colorSlot)
+
+        // ping -> pong echoes t
+        t.sent.clear()
+        t.deliver(2, buildJsonObject { put("type", Msg.PING); put("t", 42.5) }); coord.awaitIdle()
+        val pong = t.sent.firstOrNull { it.first == 2 && type(it.second) == Msg.PONG }
+        assertNotNull(pong)
+        assertEquals(42.5, pong.second["t"]!!.jsonPrimitive.double)
+
+        // room full: fill to 8, the 9th controller is rejected
+        for (i in 3..8) t.peerJoined(i)
+        coord.awaitIdle()
+        assertEquals(8, coord.flow.size)
+        t.sent.clear()
+        t.peerJoined(9); coord.awaitIdle()
+        assertTrue(t.sent.any { it.first == 9 && type(it.second) == Msg.ERROR })
+        assertEquals(8, coord.flow.size)
+
+        coord.stop()
+    }
+
+    /** Drive connect -> lobby -> peers -> start -> countdown to PLAYING. */
+    private suspend fun toPlaying(coord: DisplayCoordinator, t: FakeTransport, peers: List<Int>) {
+        t.created("R", null); coord.awaitIdle()
+        for (p in peers) t.peerJoined(p)
+        coord.awaitIdle()
+        t.deliver(peers.first(), simple(Msg.START_GAME)); coord.awaitIdle()
+        coord.tick(0.0); coord.tick(1000.0); coord.tick(1000.0); coord.tick(1000.0); coord.tick(500.0)
+    }
+
+    @Test
+    fun allParticipantsDropAutoPausesSilentlyThenReconnectResumes() = runBlocking {
+        val bridge = EngineBridge.create(bundle())
+        try {
+            val t = FakeTransport(); val out = FakeOutput()
+            val coord = DisplayCoordinator(t, out, realFactory(bridge), seedProvider = { 0xBADCAFEL })
+            coord.start()
+            toPlaying(coord, t, listOf(1, 2))
+            assertEquals(RoomState.PLAYING, coord.state)
+
+            val pausesBefore = out.musicPauses
+            t.sent.clear()
+            t.peerLeft(1); t.peerLeft(2); coord.awaitIdle()
+            assertTrue(coord.flow.allParticipantsDisconnected())
+            assertTrue(out.musicPauses > pausesBefore, "music paused on all-disconnect")
+            assertFalse(t.sent.any { type(it.second) == Msg.GAME_PAUSED }, "auto-pause is silent (controllers gone)")
+            assertFalse(out.pausedFlag, "no pause overlay for a silent auto-pause")
+
+            // Any message from a dropped participant reconnects it and lifts the auto-pause.
+            t.sent.clear()
+            t.deliver(1, simple(Msg.PING)); coord.awaitIdle()
+            assertEquals(RoomState.PLAYING, coord.state)
+            assertTrue(t.sent.any { type(it.second) == Msg.GAME_RESUMED }, "auto-resume broadcasts GAME_RESUMED")
+            assertTrue(out.musicResumes > 0, "music resumed on reconnect")
+
+            coord.stop()
+        } finally { bridge.close() }
+    }
+
+    @Test
+    fun graceWindowReturnsToLobbyWhenAllDropWithLateJoinerWaiting() = runBlocking {
+        val bridge = EngineBridge.create(bundle())
+        try {
+            var now = 0.0
+            val t = FakeTransport(); val out = FakeOutput()
+            val coord = DisplayCoordinator(t, out, realFactory(bridge), seedProvider = { 0xBADCAFEL })
+            coord.clock = { now }
+            coord.start()
+            toPlaying(coord, t, listOf(1, 2))
+            t.deliver(3, hello("Zoe")); coord.awaitIdle() // late joiner (waiting for next game)
+            assertTrue(coord.flow.hasLateJoiners())
+
+            now = 1000.0
+            t.peerLeft(1); t.peerLeft(2); coord.awaitIdle() // arms the 5s grace deadline
+            assertEquals(RoomState.PLAYING, coord.state, "still playing during the grace window")
+
+            now = 6100.0
+            coord.tick(1200.0) // 1Hz sweep fires graceTick past the deadline
+            assertEquals(RoomState.LOBBY, coord.state, "grace elapsed -> back to lobby for the late joiner")
+            assertTrue(t.sent.any { it.first == -1 && type(it.second) == Msg.RETURN_TO_LOBBY })
+
+            coord.stop()
+        } finally { bridge.close() }
+    }
+
+    @Test
+    fun livenessSweepDisconnectsSilentControllerWithRejoinUrl() = runBlocking {
+        val bridge = EngineBridge.create(bundle())
+        try {
+            var now = 0.0
+            val t = FakeTransport(); val out = FakeOutput()
+            val coord = DisplayCoordinator(t, out, realFactory(bridge), seedProvider = { 0xBADCAFEL })
+            coord.clock = { now }
+            coord.start()
+            toPlaying(coord, t, listOf(1, 2))
+            // Keep peer 2 alive; let peer 1 go silent past LIVENESS_TIMEOUT_MS (3s).
+            now = 3500.0
+            t.deliver(2, simple(Msg.PING)); coord.awaitIdle() // refreshes peer 2 presence
+            out.disconnects.clear()
+            coord.tick(1100.0) // 1Hz sweep -> expiredPeers(now) -> checkLiveness marks disconnected + rejoin QR
+            assertTrue(coord.flow.isDisconnected(1), "silent controller marked disconnected")
+            assertFalse(coord.flow.isDisconnected(2), "recently-seen controller stays connected")
+            val overlay = out.disconnects.lastOrNull { it.first == 1 }
+            assertNotNull(overlay)
+            assertTrue(overlay.second?.contains("claim=1") == true, "rejoin overlay carries ?claim=<peerIndex>")
+
+            coord.stop()
+        } finally { bridge.close() }
+    }
+
+    @Test
+    fun remoteControlsDriveLifecycleAndMute() = runBlocking {
+        val bridge = EngineBridge.create(bundle())
+        try {
+            val t = FakeTransport(); val out = FakeOutput()
+            val coord = DisplayCoordinator(t, out, realFactory(bridge), seedProvider = { 0xBADCAFEL })
+            coord.start()
+            t.created("R", null); coord.awaitIdle()
+            t.peerJoined(1); coord.awaitIdle()
+
+            // remoteStartMatch from LOBBY -> COUNTDOWN
+            coord.remoteStartMatch(); coord.awaitIdle()
+            assertEquals(RoomState.COUNTDOWN, coord.state)
+
+            // remoteReturnToLobby -> LOBBY
+            coord.remoteReturnToLobby(); coord.awaitIdle()
+            assertEquals(RoomState.LOBBY, coord.state)
+
+            // remoteToggleMute flips + broadcasts + drives output.setMuted
+            t.sent.clear()
+            val muted = coord.remoteToggleMute()
+            assertTrue(muted)
+            assertTrue(out.mutedFlag, "remote mute silences TV music via output.setMuted")
+            assertTrue(t.sent.any { it.first == -1 && type(it.second) == Msg.DISPLAY_MUTED })
+
+            coord.stop()
+        } finally { bridge.close() }
+    }
+
+    @Test
+    fun crossDeviceClaimReclaimsDroppedBoard() = runBlocking {
+        val bridge = EngineBridge.create(bundle())
+        try {
+            val t = FakeTransport(); val out = FakeOutput()
+            val coord = DisplayCoordinator(t, out, realFactory(bridge), seedProvider = { 0xBADCAFEL })
+            coord.start()
+            toPlaying(coord, t, listOf(1, 2))
+            // Player 1 drops mid-game -> disconnected + per-board rejoin overlay.
+            t.peerLeft(1); coord.awaitIdle()
+            assertTrue(coord.flow.isDisconnected(1))
+
+            // A returning phone gets a fresh peerIndex (5), then claims peer 1 via the ?claim= QR.
+            t.peerJoined(5); coord.awaitIdle()
+            out.disconnects.clear()
+            t.deliver(5, buildJsonObject { put("type", Msg.HELLO); put("rejoinToken", 1) }); coord.awaitIdle()
+
+            assertTrue(coord.flow.contains(5), "returning peer holds the reclaimed slot")
+            assertFalse(coord.flow.contains(1), "the old peerIndex is gone (placeholder + old record merged)")
+            assertFalse(coord.flow.isDisconnected(5), "the reclaimed board is connected")
+            assertTrue(out.disconnects.any { it.first == 1 && it.second == null }, "old board's rejoin overlay cleared")
+            assertEquals(RoomState.PLAYING, coord.state, "the match continues")
+            coord.stop()
+        } finally { bridge.close() }
+    }
+
+    @Test
+    fun autoNameSkipsBlocklist() = runBlocking {
+        val t = FakeTransport(); val out = FakeOutput()
+        val coord = DisplayCoordinator(t, out, engineFactory = { _, _ -> error("no engine") }, seedProvider = { 0L })
+        coord.start()
+        t.created("R", null); coord.awaitIdle()
+        t.peerJoined(1); t.peerJoined(2); t.peerJoined(3); t.peerJoined(4); coord.awaitIdle()
+        // HX-1, HX-2, HX-3, then 4 is blocklisted -> HX-5.
+        assertEquals("HX-1", coord.flow.player(1)!!.playerName)
+        assertEquals("HX-3", coord.flow.player(3)!!.playerName)
+        assertEquals("HX-5", coord.flow.player(4)!!.playerName, "auto-name skips the blocklisted 4")
+        coord.stop()
+    }
+
+    @Test
+    fun displayClosedBroadcastOnStop() = runBlocking {
+        val t = FakeTransport(); val out = FakeOutput()
+        val coord = DisplayCoordinator(t, out, engineFactory = { _, _ -> error("no engine") }, seedProvider = { 0L })
+        coord.start()
+        t.created("R", null); coord.awaitIdle()
+        t.peerJoined(1); coord.awaitIdle()
+        t.sent.clear()
+        coord.stop()
+        assertTrue(t.sent.any { it.first == -1 && type(it.second) == Msg.DISPLAY_CLOSED })
+    }
+
+    @Test
+    fun sanitizeNameStripsControlAndZeroWidthAndRemapsLegacySlot() = runBlocking {
+        val t = FakeTransport(); val out = FakeOutput()
+        val coord = DisplayCoordinator(t, out, engineFactory = { _, _ -> error("no engine") }, seedProvider = { 0L })
+        coord.start()
+        t.created("R", null); coord.awaitIdle()
+        // control chars (tab) + zero-width space stripped, trimmed.
+        t.deliver(1, hello("  A​l\tex  ")); coord.awaitIdle()
+        assertEquals("Alex", coord.flow.player(1)!!.playerName)
+        // Legacy "P2" slot name -> auto HX name, never applied verbatim.
+        t.deliver(2, hello("P2")); coord.awaitIdle()
+        assertTrue(coord.flow.player(2)!!.playerName.startsWith("HX-"), "P1-8 legacy slot names are auto-named")
+        coord.stop()
+    }
+
+    @Test
+    fun displayRejoinReStampsSurvivorLiveness() = runBlocking {
+        // FINDING #1: onDisplayRejoined re-stamps flow.onSeen for every surviving peer, so a
+        // survivor whose last ping predates the display's own link drop is NOT expired by the
+        // first liveness sweep after reconnect.
+        val bridge = EngineBridge.create(bundle())
+        try {
+            var now = 0.0
+            val t = FakeTransport(); val out = FakeOutput()
+            val coord = DisplayCoordinator(t, out, realFactory(bridge), seedProvider = { 0xBADCAFEL })
+            coord.clock = { now }
+            coord.start()
+            toPlaying(coord, t, listOf(1, 2))
+            assertEquals(RoomState.PLAYING, coord.state)
+            // Both controllers last pinged at t=0.
+            t.deliver(1, simple(Msg.PING)); t.deliver(2, simple(Msg.PING)); coord.awaitIdle()
+
+            // The display's relay link drops and rejoins ~2.5s later with both peers present.
+            now = 2500.0
+            t.joined("R", listOf(1, 2)); coord.awaitIdle()
+            assertTrue(coord.flow.contains(1) && coord.flow.contains(2), "survivors kept on rejoin")
+
+            // A liveness sweep at t=3200. Without the rejoin re-stamp both peers' last-seen would
+            // still read t=0 (>3s stale) and both would be flagged disconnected here.
+            now = 3200.0
+            coord.tick(1100.0)
+            assertFalse(coord.flow.isDisconnected(1), "rejoin re-stamped survivor 1's liveness")
+            assertFalse(coord.flow.isDisconnected(2), "rejoin re-stamped survivor 2's liveness")
+            coord.stop()
+        } finally { bridge.close() }
+    }
+
+    @Test
+    fun allDropDuringCountdownAutoPausesOnStart() = runBlocking {
+        // FINDING #2: startPlaying() runs checkAllParticipantsDisconnected() right after entering
+        // PLAYING, so an all-drop during COUNTDOWN silently auto-pauses at match start instead of
+        // playing itself out unpaused.
+        val bridge = EngineBridge.create(bundle())
+        try {
+            val t = FakeTransport(); val out = FakeOutput()
+            val coord = DisplayCoordinator(t, out, realFactory(bridge), seedProvider = { 0xBADCAFEL })
+            coord.start()
+            t.created("R", null); coord.awaitIdle()
+            t.peerJoined(1); t.peerJoined(2); coord.awaitIdle()
+            t.deliver(1, simple(Msg.START_GAME)); coord.awaitIdle()
+            assertEquals(RoomState.COUNTDOWN, coord.state)
+
+            // Enter the countdown, then everyone drops mid-countdown (no auto-pause yet).
+            coord.tick(0.0) // step 0 -> "3"
+            t.peerLeft(1); t.peerLeft(2); coord.awaitIdle()
+            assertTrue(coord.flow.allParticipantsDisconnected())
+            assertEquals(RoomState.COUNTDOWN, coord.state, "no auto-pause during COUNTDOWN")
+            assertFalse(out.pausedFlag)
+
+            // Finish the countdown -> startPlaying -> checkAllParticipantsDisconnected silent-pauses.
+            val pausesBefore = out.musicPauses
+            coord.tick(1000.0); coord.tick(1000.0); coord.tick(1000.0); coord.tick(500.0)
+            assertEquals(RoomState.PLAYING, coord.state)
+            assertTrue(out.musicPauses > pausesBefore, "silent auto-pause on start when all participants gone")
+            assertFalse(out.pausedFlag, "silent auto-pause shows no pause overlay")
+            coord.stop()
+        } finally { bridge.close() }
+    }
+
+    @Test
+    fun beginCountdownReStampsLastSeenSoQuietControllerSurvivesCountdown() = runBlocking {
+        // FINDING #4: beginCountdown() calls flow.clearDisconnected(now) to re-stamp lastSeen on
+        // the everyone-present transition, so a controller that went quiet just before the match
+        // isn't instantly flagged during COUNTDOWN.
+        val bridge = EngineBridge.create(bundle())
+        try {
+            var now = 0.0
+            val t = FakeTransport(); val out = FakeOutput()
+            val coord = DisplayCoordinator(t, out, realFactory(bridge), seedProvider = { 0xBADCAFEL })
+            coord.clock = { now }
+            coord.start()
+            t.created("R", null); coord.awaitIdle()
+            t.peerJoined(1); t.peerJoined(2); coord.awaitIdle()
+            // Both controllers check in at t=0 (stamps lastSeen); peer 2 then stays quiet.
+            t.deliver(1, hello("Ann")); t.deliver(2, hello("Bo")); coord.awaitIdle()
+
+            // The host starts the match just under the 3s liveness timeout.
+            now = 2900.0
+            t.deliver(1, simple(Msg.START_GAME)); coord.awaitIdle()
+            assertEquals(RoomState.COUNTDOWN, coord.state)
+
+            // A liveness sweep during COUNTDOWN. Without the beginCountdown re-stamp, quiet peer 2's
+            // last-seen would still read t=0 (>3s stale) and it would be flagged disconnected.
+            now = 3500.0
+            coord.tick(0.0)    // step 0 -> "3"
+            coord.tick(1100.0) // 1Hz sweep at now=3500
+            assertFalse(coord.flow.isDisconnected(2), "beginCountdown re-stamped the quiet controller's liveness")
+            assertFalse(coord.flow.isDisconnected(1), "the host controller stays connected")
+            coord.stop()
+        } finally { bridge.close() }
+    }
+
+    // ---- fakes ----
+
+    private class FakeTransport : RelayTransport {
+        val sent = mutableListOf<Pair<Int, JsonObject>>() // (to, data); to == -1 for broadcast
+
+        override var onCreated: ((room: String, instance: String?, region: String?) -> Unit)? = null
+        override var onJoined: ((room: String, peers: List<Int>) -> Unit)? = null
+        override var onPeerJoined: ((index: Int) -> Unit)? = null
+        override var onPeerLeft: ((index: Int) -> Unit)? = null
+        override var onMessage: ((from: Int, data: JsonObject) -> Unit)? = null
+        override var onRelayError: ((message: String) -> Unit)? = null
+        override var onState: ((data: JsonElement) -> Unit)? = null
+        override var onReplaced: (() -> Unit)? = null
+        override var onConnectionState: ((RelayTransport.ConnectionState) -> Unit)? = null
+
+        override fun connect() {}
+        override fun disconnect() {}
+        override fun sendTo(index: Int, data: JsonObject) { sent += index to data }
+        override fun broadcast(data: JsonObject) { sent += -1 to data }
+        override fun setState(data: JsonObject) {}
+
+        // inbound drivers
+        fun created(room: String, inst: String?) = onCreated?.invoke(room, inst, null)
+        fun joined(room: String, peers: List<Int>) = onJoined?.invoke(room, peers)
+        fun peerJoined(i: Int) = onPeerJoined?.invoke(i)
+        fun peerLeft(i: Int) = onPeerLeft?.invoke(i)
+        fun deliver(from: Int, data: JsonObject) = onMessage?.invoke(from, data)
+    }
+
+    private class FakeOutput : DisplayOutput {
+        val screens = mutableListOf<DisplayScreen>()
+        val countdowns = mutableListOf<CountdownValue>()
+        val snapshots = mutableListOf<GameSnapshot>()
+        val events = mutableListOf<GameEvent>()
+        val beeps = mutableListOf<Boolean>()
+        val setPausedCalls = mutableListOf<Boolean>()
+        val disconnects = mutableListOf<Pair<Int, String?>>()
+        var lastResults: List<ResultEntry>? = null
+        var lastRoom: String? = null
+        var lastLobby: List<PlayerRecord>? = null
+        var lobbyUpdates = 0
+        var musicStarted = false
+        var musicStopped = false
+        var musicPauses = 0
+        var musicResumes = 0
+        var pausedFlag = false
+        var mutedFlag = false
+
+        override fun showScreen(screen: DisplayScreen) { screens += screen }
+        override fun roomReady(room: String, joinUrl: String) { lastRoom = room }
+        override fun updateLobby(players: List<PlayerRecord>, hostPeerIndex: Int?) { lobbyUpdates++; lastLobby = players }
+        override fun showCountdown(value: CountdownValue) { countdowns += value }
+        override fun renderSnapshot(snapshot: GameSnapshot) { snapshots += snapshot }
+        override fun showResults(results: List<ResultEntry>) { lastResults = results }
+        override fun playCountdownBeep(go: Boolean) { beeps += go }
+        override fun startMusic() { musicStarted = true }
+        override fun stopMusic() { musicStopped = true }
+        override fun pauseMusic() { musicPauses++ }
+        override fun resumeMusic() { musicResumes++ }
+        override fun handleGameEvent(event: GameEvent) { events += event }
+        override fun setDisconnected(playerId: Int, joinUrl: String?) { disconnects += playerId to joinUrl }
+        override fun setPaused(paused: Boolean) { this.pausedFlag = paused; setPausedCalls += paused }
+        override fun setMuted(muted: Boolean) { this.mutedFlag = muted }
+    }
+}

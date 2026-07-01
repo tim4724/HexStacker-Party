@@ -1,0 +1,43 @@
+<resources>
+    <!-- Italian — values from public/shared/i18n.js `it`. Only keys the :tv app uses. -->
+    <string name="hold">HOLD</string>
+    <string name="next">NEXT</string>
+    <string name="level">LIVELLO</string>
+    <string name="lines">LINEE</string>
+    <string name="ko">K.O.</string>
+    <string name="go">VIA!</string>
+    <string name="scan_to_rejoin">SCANSIONA PER RIENTRARE</string>
+
+    <string name="double_clear">DOUBLE</string>
+    <string name="triple_clear">TRIPLE!</string>
+
+    <string name="scan_to_join">Scansiona per unirti</string>
+    <string name="waiting_for_players">In attesa di giocatori...</string>
+    <string name="level_heading">Livello</string>
+    <string name="music_by">Musica di FoxSynergy</string>
+
+    <string name="level_n">Livello %1$d</string>
+    <string name="new_player">Nuovo giocatore</string>
+    <string name="play_again">Gioca ancora</string>
+    <string name="new_game">Nuova partita</string>
+
+    <string name="paused">IN PAUSA</string>
+    <string name="continue_btn">Continua</string>
+    <string name="settings_game_music">Musica</string>
+
+    <string name="reconnecting">RICONNESSIONE</string>
+    <string name="disconnected">DISCONNESSO</string>
+    <string name="connection_lost">Connessione persa...</string>
+    <string name="reconnect">RICONNETTI</string>
+
+    <string name="player">Giocatore</string>
+
+    <plurals name="start_n_players">
+        <item quantity="one">AVVIA (%1$d giocatore)</item>
+        <item quantity="other">AVVIA (%1$d giocatori)</item>
+    </plurals>
+    <plurals name="n_lines">
+        <item quantity="one">%1$d linea</item>
+        <item quantity="other">%1$d linee</item>
+    </plurals>
+</resources>

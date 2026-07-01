@@ -75,6 +75,24 @@ function copyPlayer(s) {
   };
 }
 
+// Rekey one entry of a Map from oldId -> newId, preserving insertion order (so the
+// snapshot's player order stays stable across a cross-device claim). Optional
+// mutateValue runs on the moved value (e.g. board.playerId = newId).
+function rekeyMapPreservingOrder(map, oldId, newId, mutateValue) {
+  if (!map || !map.has(oldId)) return;
+  var next = new Map();
+  for (var entry of map) {
+    if (entry[0] === oldId) {
+      if (mutateValue) mutateValue(entry[1]);
+      next.set(newId, entry[1]);
+    } else {
+      next.set(entry[0], entry[1]);
+    }
+  }
+  map.clear();
+  for (var e of next) map.set(e[0], e[1]);
+}
+
 function PartyCore(players, seed) {
   var self = this;
   this._buf = [];
@@ -152,6 +170,28 @@ PartyCore.prototype.resetFrameClock = function() {
   this._prevNowMs = null;
 };
 
+// Cross-device claim: a returning controller (a NEW peerIndex after a reload or a
+// different phone) reclaims a dropped participant's board. Rekeys the engine's
+// per-player state from oldId -> newId (boards, playerIds, hard-drop cooldown,
+// garbage queues), mirroring the web's rekeyDisplayGamePlayer + GarbageManager
+// .rekeyPlayer. The roster/host side is the caller's RoomFlow.rekey. Pure (no
+// clock/IO); no-op + false when oldId is unknown or equals newId. Returns true if
+// a board moved. Native ports call this via Bridge.rekey on a claim HELLO.
+PartyCore.prototype.rekey = function(oldId, newId) {
+  if (oldId === newId) return false;
+  var g = this.game;
+  if (!g || !g.boards.has(oldId)) return false;
+  rekeyMapPreservingOrder(g.boards, oldId, newId, function(board) { board.playerId = newId; });
+  for (var i = 0; i < g.playerIds.length; i++) {
+    if (g.playerIds[i] === oldId) g.playerIds[i] = newId;
+  }
+  rekeyMapPreservingOrder(g._hardDropCooldownMs, oldId, newId, null);
+  if (g.garbageManager && typeof g.garbageManager.rekeyPlayer === 'function') {
+    g.garbageManager.rekeyPlayer(oldId, newId);
+  }
+  return true;
+};
+
 // Per-frame engine work. Caps nowMs -> deltaMs, ticks the engine (which
 // self-gates on paused/ended), drains both onEvent and onGameEnd into one
 // ordered events array, returns a value-copy snapshot and a normalized
@@ -222,6 +262,17 @@ PartyCore._toCommands = function(events, snapshot) {
             level: p.level,
             lines: p.lines,
             alive: p.alive,
+            // KNOWN DIVERGENCE from the web (accepted, not a bug): garbageIncoming
+            // here reads from `snapshot`, which frame() captured AFTER
+            // game.update() returned, i.e. after Game.handleLineClear() applied
+            // this clear's defense and cancelled incoming garbage. The web
+            // (DisplayGame.js) instead samples getSnapshot() synchronously inside
+            // the line_clear onEvent, which fires at the TOP of handleLineClear
+            // (Game.js) BEFORE defense runs. So for a clear that cancels incoming
+            // garbage, native reports the reduced POST-cancellation amount while
+            // the web reports the PRE-cancellation amount. Native's value is the
+            // more accurate one; changing it would need an engine-integration hook
+            // and would break the partycore-commands golden fixture.
             garbageIncoming: p.pendingGarbage
           });
         }

@@ -1,0 +1,42 @@
+<resources>
+    <!-- Korean — values from public/shared/i18n.js `ko`. Only keys the :tv app uses.
+         ko has only the `other` plural category (CLDR). -->
+    <string name="hold">홀드</string>
+    <string name="next">다음</string>
+    <string name="level">레벨</string>
+    <string name="lines">줄</string>
+    <string name="ko">K.O.</string>
+    <string name="go">GO</string>
+    <string name="scan_to_rejoin">스캔하여 재참가</string>
+
+    <string name="double_clear">2줄</string>
+    <string name="triple_clear">3줄!</string>
+
+    <string name="scan_to_join">스캔하여 참가</string>
+    <string name="waiting_for_players">플레이어를 기다리는 중...</string>
+    <string name="level_heading">레벨</string>
+    <string name="music_by">음악: FoxSynergy</string>
+
+    <string name="level_n">레벨 %1$d</string>
+    <string name="new_player">새 플레이어</string>
+    <string name="play_again">다시 하기</string>
+    <string name="new_game">새 게임</string>
+
+    <string name="paused">일시정지</string>
+    <string name="continue_btn">계속</string>
+    <string name="settings_game_music">게임 음악</string>
+
+    <string name="reconnecting">재연결 중</string>
+    <string name="disconnected">연결 끊김</string>
+    <string name="connection_lost">연결 끊겼어...</string>
+    <string name="reconnect">재연결</string>
+
+    <string name="player">플레이어</string>
+
+    <plurals name="start_n_players">
+        <item quantity="other">시작 (%1$d명)</item>
+    </plurals>
+    <plurals name="n_lines">
+        <item quantity="other">%1$d줄</item>
+    </plurals>
+</resources>

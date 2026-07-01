@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Cocoa Arcade brand surfaces (mirrors public/shared/theme.css tokens). -->
+    <color name="brand_plum">#1E1A2B</color>      <!-- bg-primary -->
+    <color name="bg_board">#15121F</color>        <!-- bg-board -->
+    <color name="bg_card">#2A2540</color>         <!-- bg-card -->
+    <color name="accent_red">#E5484D</color>      <!-- placeholder accent, refined from theme.js -->
+</resources>

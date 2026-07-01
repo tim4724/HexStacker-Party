@@ -1,0 +1,43 @@
+<resources>
+    <!-- German — values from public/shared/i18n.js `de`. Only keys the :tv app uses. -->
+    <string name="hold">HOLD</string>
+    <string name="next">NEXT</string>
+    <string name="level">LEVEL</string>
+    <string name="lines">ZEILEN</string>
+    <string name="ko">K.O.</string>
+    <string name="go">LOS</string>
+    <string name="scan_to_rejoin">ERNEUT SCANNEN</string>
+
+    <string name="double_clear">DOUBLE</string>
+    <string name="triple_clear">TRIPLE!</string>
+
+    <string name="scan_to_join">Scannen</string>
+    <string name="waiting_for_players">Warte auf Spieler...</string>
+    <string name="level_heading">Level</string>
+    <string name="music_by">Musik von FoxSynergy</string>
+
+    <string name="level_n">Level %1$d</string>
+    <string name="new_player">Neuer Spieler</string>
+    <string name="play_again">Nochmal</string>
+    <string name="new_game">Neues Spiel</string>
+
+    <string name="paused">PAUSIERT</string>
+    <string name="continue_btn">Weiter</string>
+    <string name="settings_game_music">Musik</string>
+
+    <string name="reconnecting">VERBINDE NEU...</string>
+    <string name="disconnected">GETRENNT</string>
+    <string name="connection_lost">Verbindung verloren...</string>
+    <string name="reconnect">NEU VERBINDEN</string>
+
+    <string name="player">Spieler</string>
+
+    <plurals name="start_n_players">
+        <item quantity="one">START (%1$d Spieler)</item>
+        <item quantity="other">START (%1$d Spieler)</item>
+    </plurals>
+    <plurals name="n_lines">
+        <item quantity="one">%1$d Zeile</item>
+        <item quantity="other">%1$d Zeilen</item>
+    </plurals>
+</resources>

@@ -1,4 +1,7 @@
 .DS_Store
+# JetBrains / Android Studio IDE files (root .idea/ and android/.idea/, plus module files)
+.idea/
+*.iml
 node_modules/
 dist/
 # Content-hashed web bundles emitted by scripts/build.js (the dotted hash segment

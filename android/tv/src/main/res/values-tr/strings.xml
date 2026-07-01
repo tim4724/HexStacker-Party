@@ -1,0 +1,43 @@
+<resources>
+    <!-- Turkish — values from public/shared/i18n.js `tr`. Only keys the :tv app uses. -->
+    <string name="hold">HOLD</string>
+    <string name="next">NEXT</string>
+    <string name="level">SEVİYE</string>
+    <string name="lines">SATIR</string>
+    <string name="ko">K.O.</string>
+    <string name="go">BAŞLA!</string>
+    <string name="scan_to_rejoin">TEKRAR KATILMAK İÇİN TARA</string>
+
+    <string name="double_clear">İKİLİ</string>
+    <string name="triple_clear">ÜÇLÜ!</string>
+
+    <string name="scan_to_join">Katılmak için tara</string>
+    <string name="waiting_for_players">Oyuncular bekleniyor...</string>
+    <string name="level_heading">Seviye</string>
+    <string name="music_by">Müzik: FoxSynergy</string>
+
+    <string name="level_n">Seviye %1$d</string>
+    <string name="new_player">Yeni oyuncu</string>
+    <string name="play_again">Tekrar oyna</string>
+    <string name="new_game">Yeni oyun</string>
+
+    <string name="paused">DURAKLATILDI</string>
+    <string name="continue_btn">Devam</string>
+    <string name="settings_game_music">Oyun müziği</string>
+
+    <string name="reconnecting">YENİDEN BAĞLANIYOR</string>
+    <string name="disconnected">BAĞLANTI KESİLDİ</string>
+    <string name="connection_lost">Bağlantı kesildi...</string>
+    <string name="reconnect">YENİDEN BAĞLAN</string>
+
+    <string name="player">Oyuncu</string>
+
+    <plurals name="start_n_players">
+        <item quantity="one">BAŞLAT (%1$d oyuncu)</item>
+        <item quantity="other">BAŞLAT (%1$d oyuncu)</item>
+    </plurals>
+    <plurals name="n_lines">
+        <item quantity="one">%1$d satır</item>
+        <item quantity="other">%1$d satır</item>
+    </plurals>
+</resources>

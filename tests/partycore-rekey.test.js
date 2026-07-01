@@ -1,0 +1,38 @@
+'use strict';
+
+// PartyCore.rekey() unit coverage. rekey is the engine-side of a cross-device
+// claim (a returning controller reclaims a dropped participant's board); it was
+// previously exercised only via the Kotlin EngineBridgeTest, so npm test never
+// caught a regression here. Mirrors partyplug/RoomFlow.rekey on the roster side.
+
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { PartyCore } = require('../server/PartyCore');
+
+function newCore() {
+  const roster = new Map([['p1', { startLevel: 1 }], ['p2', { startLevel: 1 }]]);
+  const pc = new PartyCore(roster, 12345);
+  pc.init();
+  return pc;
+}
+
+const ids = (pc) => pc.snapshot().players.map((p) => p.id);
+
+test('rekey moves a board to the new id, preserving player order', () => {
+  const pc = newCore();
+  assert.deepEqual(ids(pc), ['p1', 'p2']);
+
+  assert.equal(pc.rekey('p1', 'p9'), true, 'returns true when a board moved');
+
+  assert.deepEqual(ids(pc), ['p9', 'p2'], 'p1 -> p9, order preserved');
+  assert.equal(pc.game.boards.has('p9'), true, 'board is now keyed by the new id');
+  assert.equal(pc.game.boards.has('p1'), false, 'old id no longer keys a board');
+  assert.ok(pc.game.playerIds.includes('p9') && !pc.game.playerIds.includes('p1'));
+});
+
+test('rekey is a no-op for an unknown or identical id', () => {
+  const pc = newCore();
+  assert.equal(pc.rekey('nope', 'p9'), false, 'unknown oldId -> false, no change');
+  assert.equal(pc.rekey('p1', 'p1'), false, 'oldId === newId -> false, no change');
+  assert.deepEqual(ids(pc), ['p1', 'p2'], 'roster untouched');
+});
