@@ -100,6 +100,12 @@ declare class PartyCore {
    *  while paused. */
   pause(): void;
   resume(): void;
+  /** Cross-device claim: rekey the engine's per-player state from `oldId` to
+   *  `newId` (boards, playerIds, hard-drop cooldown, garbage queues) via the
+   *  canonical `Game.rekeyPlayer`. `false` (no-op) when `oldId` is unknown,
+   *  equals `newId`, or `newId` already owns a board (forged-claim guard);
+   *  `true` if a board moved. Native ports call this on a claim HELLO. */
+  rekeyPlayer(oldId: string, newId: string): boolean;
   /** Advance the engine by `deltaMs`. Individually callable for the native
    *  granular path; self-gates on paused/ended. `frame()` calls this internally —
    *  don't also call it in the same tick. */
@@ -326,7 +332,14 @@ declare namespace PartyCore {
     lines?: number;
     alive?: boolean;
     /** Pre-resolved incoming garbage (board-pending + delayed queue), from the
-     *  snapshot — saves the host a mid-event getSnapshot. Full form only. */
+     *  snapshot, saving the host a mid-event getSnapshot. Full form only.
+     *
+     *  KNOWN DIVERGENCE from the web (accepted, not a bug): this reads the
+     *  POST-frame snapshot, taken after Game.handleLineClear() applied this
+     *  clear's defense, so it reflects the reduced (post-cancellation) amount.
+     *  The web (DisplayGame.js) samples it synchronously inside the line_clear
+     *  event, which fires BEFORE defense runs, so it reports the pre-cancellation
+     *  amount. Native's value is the more accurate one; see PartyCore.js. */
     garbageIncoming?: number;
   }
   interface PlayerKOCommand {

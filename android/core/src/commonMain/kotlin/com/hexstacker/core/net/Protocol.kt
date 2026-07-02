@@ -1,0 +1,246 @@
+package com.hexstacker.core.net
+
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.put
+
+/** Mirror of public/shared/protocol.js + the display-side relay constants. */
+object RelayConfig {
+    const val RELAY_URL = "wss://ws.hexstacker.com"
+    const val STUN_URL = "stun:stun.hexstacker.com:3478"
+
+    /** The display's clientId is the literal "display" so the relay restores slot 0 across reconnects. */
+    const val DISPLAY_CLIENT_ID = "display"
+
+    /** Slot 0 (display) + MAX_PLAYERS(8) controllers. */
+    const val MAX_CLIENTS = 9
+
+    /** Where phones load the controller (QR target). Join URL = "<base>/<room>#<instance>". */
+    const val CONTROLLER_BASE_URL = "https://hexstacker.com"
+
+    const val MAX_RECONNECT_ATTEMPTS = 5
+    const val RECONNECT_BASE_MS = 1000L
+    const val RECONNECT_FACTOR = 1.5
+    const val RECONNECT_CAP_MS = 5000L
+
+    /** Tear down + reconnect if the self-echo goes silent this long (6x the 1Hz heartbeat). */
+    const val SELF_HEARTBEAT_DEAD_MS = 6000L
+    const val HEARTBEAT_INTERVAL_MS = 1000L
+
+    /** Relay eviction close code: another client claimed our clientId/slot. */
+    const val CLOSE_CODE_REPLACED = 4000
+}
+
+/** Application message-type strings (data.type), verbatim from protocol.js. */
+object Msg {
+    // Controller -> Display
+    const val HELLO = "hello"
+    const val INPUT = "input"
+    const val SOFT_DROP = "soft_drop"
+    const val SOFT_DROP_END = "soft_drop_end"
+    const val START_GAME = "start_game"
+    const val PLAY_AGAIN = "play_again"
+    const val RETURN_TO_LOBBY = "return_to_lobby"
+    const val PAUSE_GAME = "pause_game"
+    const val RESUME_GAME = "resume_game"
+    const val LEAVE = "leave"
+    const val SET_LEVEL = "set_level"
+    const val SET_COLOR = "set_color"
+    const val SET_NAME = "set_name"
+    const val SET_DISPLAY_MUTE = "set_display_mute"
+    const val PING = "ping"
+
+    // Display -> specific controller
+    const val WELCOME = "welcome"
+    const val GAME_OVER = "game_over"
+    const val LOBBY_UPDATE = "lobby_update"
+    const val PONG = "pong"
+    const val PLAYER_STATE = "player_state"
+
+    // Display -> all controllers (broadcast)
+    const val COUNTDOWN = "countdown"
+    const val DISPLAY_MUTED = "display_muted"
+    const val GAME_START = "game_start"
+    const val GAME_END = "game_end"
+    const val GAME_PAUSED = "game_paused"
+    const val GAME_RESUMED = "game_resumed"
+    const val DISPLAY_CLOSED = "display_closed"
+    const val ERROR = "error"
+
+    /** Internal display self-liveness canary (echoed via relay slot 0); not in protocol.js MSG. */
+    const val HEARTBEAT = "_heartbeat"
+}
+
+/** protocol.js ROOM_STATE. */
+enum class RoomState(val wire: String) {
+    LOBBY("lobby"),
+    COUNTDOWN("countdown"),
+    PLAYING("playing"),
+    RESULTS("results");
+
+    companion object {
+        fun fromWire(s: String?): RoomState? = entries.firstOrNull { it.wire == s }
+    }
+}
+
+/** Tolerant decoder for relay frames. */
+internal val RelayJson = Json {
+    ignoreUnknownKeys = true
+    isLenient = true
+    encodeDefaults = true
+    explicitNulls = false
+}
+
+// ---- Outbound frames (serialized to text and sent). `type` first so encoded bytes match the web. ----
+@Serializable
+data class CreateFrame(val type: String = "create", val clientId: String, val maxClients: Int)
+
+@Serializable
+data class JoinFrame(val type: String = "join", val clientId: String, val room: String)
+
+@Serializable
+data class SendFrame(val type: String = "send", val data: JsonObject, val to: Int? = null)
+
+@Serializable
+data class SetStateFrame(val type: String = "set_state", val data: JsonObject)
+
+// ---- Inbound frames (decoded from the parsed root object, per type) ----
+@Serializable
+data class CreatedFrame(
+    val room: String = "",
+    val index: Int = 0,
+    val instance: String? = null,
+    val region: String? = null,
+)
+
+@Serializable
+data class JoinedFrame(val room: String = "", val index: Int = 0, val peers: List<Int> = emptyList())
+
+@Serializable
+data class PeerEventFrame(val index: Int = -1)
+
+@Serializable
+data class MessageFrame(val from: Int = -1, val data: JsonObject = JsonObject(emptyMap()))
+
+@Serializable
+data class StateFrame(val data: JsonElement = JsonNull)
+
+@Serializable
+data class ErrorFrame(val message: String = "unknown relay error")
+
+/**
+ * Lenient inbound app-message parser (mirrors Protocol.swift ControllerMessage). The
+ * `data` object on a `message` frame is heterogeneous; every field but `type` is
+ * nullable, with number/string coercion matching the web display.
+ */
+data class ControllerMessage(
+    val type: String,
+    val action: String? = null,
+    val speed: Double? = null,
+    val name: String? = null,
+    val autoName: Boolean? = null,
+    val level: Int? = null,
+    val colorIndex: Int? = null,
+    val muted: Boolean? = null,
+    val t: Double? = null,
+    val rejoinId: Int? = null,
+    val rejoinToken: Int? = null,
+    val claim: Int? = null,
+) {
+    companion object {
+        fun from(obj: JsonObject): ControllerMessage? {
+            val type = obj.prim("type")?.contentOrNull ?: return null
+            return ControllerMessage(
+                type = type,
+                action = obj.str("action"),
+                speed = obj.dbl("speed"),
+                name = obj.str("name"),
+                autoName = obj.bool("autoName"),
+                level = obj.int("level"),
+                colorIndex = obj.int("colorIndex"),
+                muted = obj.bool("muted"),
+                t = obj.dbl("t"),
+                rejoinId = obj.int("rejoinId"),
+                rejoinToken = obj.int("rejoinToken"),
+                claim = obj.int("claim"),
+            )
+        }
+
+        private fun JsonObject.prim(k: String) = this[k] as? JsonPrimitive
+        private fun JsonObject.str(k: String): String? =
+            prim(k)?.let { if (it.isString) it.content else null }
+        private fun JsonObject.bool(k: String): Boolean? = prim(k)?.booleanOrNull
+        private fun JsonObject.int(k: String): Int? =
+            prim(k)?.let { it.intOrNull ?: it.doubleOrNull?.toInt() ?: it.contentOrNull?.toIntOrNull() }
+        private fun JsonObject.dbl(k: String): Double? =
+            prim(k)?.let { it.doubleOrNull ?: it.contentOrNull?.toDoubleOrNull() }
+    }
+}
+
+/** Fixed-shape display->controller payload builders (mirror Protocol.swift OutboundMessage). */
+object OutboundMessage {
+    fun pong(t: Double?): JsonObject = buildJsonObject {
+        put("type", Msg.PONG); if (t != null) put("t", t)
+    }
+
+    fun countdown(value: Int): JsonObject = buildJsonObject { put("type", Msg.COUNTDOWN); put("value", value) }
+    fun countdownGo(): JsonObject = buildJsonObject { put("type", Msg.COUNTDOWN); put("value", "GO") }
+    fun gameStart(): JsonObject = buildJsonObject { put("type", Msg.GAME_START) }
+    fun gamePaused(): JsonObject = buildJsonObject { put("type", Msg.GAME_PAUSED) }
+    fun gameResumed(): JsonObject = buildJsonObject { put("type", Msg.GAME_RESUMED) }
+    fun gameOver(): JsonObject = buildJsonObject { put("type", Msg.GAME_OVER) }
+    fun displayClosed(): JsonObject = buildJsonObject { put("type", Msg.DISPLAY_CLOSED) }
+    fun displayMuted(muted: Boolean): JsonObject = buildJsonObject { put("type", Msg.DISPLAY_MUTED); put("muted", muted) }
+    fun returnToLobby(playerCount: Int): JsonObject =
+        buildJsonObject { put("type", Msg.RETURN_TO_LOBBY); put("playerCount", playerCount) }
+
+    fun error(message: String): JsonObject = buildJsonObject { put("type", Msg.ERROR); put("message", message) }
+    fun playerState(level: Int, lines: Int, alive: Boolean, garbageIncoming: Int): JsonObject = buildJsonObject {
+        put("type", Msg.PLAYER_STATE); put("level", level); put("lines", lines)
+        put("alive", alive); put("garbageIncoming", garbageIncoming)
+    }
+
+    fun playerDead(): JsonObject = buildJsonObject { put("type", Msg.PLAYER_STATE); put("alive", false) }
+    fun gameEnd(elapsed: Double, results: JsonArray): JsonObject = buildJsonObject {
+        put("type", Msg.GAME_END); put("elapsed", elapsed); put("results", results)
+    }
+}
+
+/** The relay transport the DisplayCoordinator drives (mirror Protocol.swift RelayTransport). */
+interface RelayTransport {
+    fun connect()
+    fun disconnect()
+    fun sendTo(index: Int, data: JsonObject)
+    fun broadcast(data: JsonObject)
+    fun setState(data: JsonObject)
+
+    /**
+     * Forget the current (dead) room and open a fresh session: the next socket open
+     * sends `create` instead of `join`, and the new room arrives via [onCreated].
+     * Used when the relay reports the room gone after a display rejoin (the web's
+     * resetToWelcome -> connectAndCreateRoom path).
+     */
+    fun createFresh()
+
+    var onCreated: ((room: String, instance: String?, region: String?) -> Unit)?
+    var onJoined: ((room: String, peers: List<Int>) -> Unit)?
+    var onPeerJoined: ((index: Int) -> Unit)?
+    var onPeerLeft: ((index: Int) -> Unit)?
+    var onMessage: ((from: Int, data: JsonObject) -> Unit)?
+    var onRelayError: ((message: String) -> Unit)?
+    var onState: ((data: JsonElement) -> Unit)?
+    var onReplaced: (() -> Unit)?
+    var onConnectionState: ((ConnectionState) -> Unit)?
+
+    enum class ConnectionState { IDLE, CONNECTING, OPEN, RECONNECTING, CLOSED }
+}

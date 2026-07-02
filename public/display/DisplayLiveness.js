@@ -3,7 +3,8 @@
 // =====================================================================
 // Display Liveness — heartbeat monitoring for display and controllers
 // Depends on: DisplayState.js (globals), DisplayConnection.js (showDisconnectQR),
-//             DisplayGame.js (pauseGame, checkAllPlayersDisconnected)
+//             DisplayGame.js (pauseGame, checkAllPlayersDisconnected,
+//             returnToLobby)
 // =====================================================================
 
 function startLivenessCheck() {

@@ -1,0 +1,125 @@
+name: Android TV
+
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+
+      # The native core the app runs in QuickJS is the canonical JS engine bundle,
+      # so the engine + conformance-golden bundles must be built before Gradle:
+      # :tv's preBuild copies dist/partycore.js into assets, and :core:jvmTest loads
+      # dist/partycore.js + dist/partycore-frame-test.js as its cross-engine oracles.
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - name: Build engine bundles (QuickJS core + conformance golden driver)
+        run: |
+          npm run build
+          node scripts/build-conformance-bundle.js
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v5
+
+      # One --continue invocation so a test failure still runs the rest and the
+      # screenshots/reports below always upload:
+      #   :core:jvmTest            — 45 engine/render/RoomFlow parity tests
+      #   :tv:recordRoborazziDebug — runs the :tv unit tests, rendering the Compose
+      #                              screens + Canvas board to PNGs (Robolectric
+      #                              native-graphics, no emulator)
+      #   :tv:assembleDebug        — the installable TV APK compiles
+      - name: Test, render screenshots, assemble APK
+        working-directory: android
+        run: ./gradlew :core:jvmTest :tv:recordRoborazziDebug :tv:assembleDebug --continue --console=plain --stacktrace
+
+      - name: Upload TV screenshots
+        id: screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tv-screenshots
+          path: android/tv/build/outputs/roborazzi/*.png
+          if-no-files-found: error
+
+      # Post (or update in place) a sticky PR comment linking the screenshot
+      # artifact, so reviewers reach the 1920x1080 renders without opening the
+      # run summary. Runs on push, so it resolves the PR from the branch head.
+      - name: Comment screenshot download link on the PR
+        if: always() && github.ref != 'refs/heads/main' && steps.screenshots.outputs.artifact-url != ''
+        uses: actions/github-script@v8
+        env:
+          ARTIFACT_URL: ${{ steps.screenshots.outputs.artifact-url }}
+        with:
+          script: |
+            const marker = '<!-- tv-screenshots -->';
+            const body = [
+              marker,
+              '### 📸 TV screenshots',
+              '',
+              `[**Download \`tv-screenshots\`**](${process.env.ARTIFACT_URL}): every screen rendered this run at **1920×1080**.`,
+              'Compose lobby / results / overlays plus the Canvas board for 2/3/4 players, captured headless via Robolectric (record-only, for review).',
+              '',
+              '_Requires being signed in to GitHub; the link expires when the run artifacts do._',
+            ].join('\n');
+            const branch = context.ref.replace('refs/heads/', '');
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:${branch}`,
+              state: 'open',
+            });
+            if (prs.length === 0) {
+              core.info(`No open PR for ${branch}; skipping screenshot comment.`);
+              return;
+            }
+            for (const pr of prs) {
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+              });
+              const existing = comments.find((c) => c.body.includes(marker));
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existing.id,
+                  body,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  body,
+                });
+              }
+            }
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-test-reports
+          path: |
+            android/core/build/reports/tests/
+            android/tv/build/reports/tests/
+          if-no-files-found: warn

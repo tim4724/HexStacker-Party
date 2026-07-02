@@ -571,11 +571,14 @@ function maybeBroadcastHostChange() {
   broadcastLobbyUpdate();
 }
 
-// Each fanout costs one AirConsole message per player, against AirConsole's
-// 25 msgs/sec screen limit. Bursts (the adapter-recreation join storm fires
-// peer_joined per controller in a tight loop; reconnect paths can broadcast
-// twice in one tick) must coalesce into the trailing send. 400ms caps the
-// worst case at 2.5 fanouts/sec x 8 players = 20 msgs/sec.
+// doBroadcastLobbyUpdate() publishes ONE retained snapshot via party.setState()
+// (a single relay broadcast / one setCustomDeviceState), no longer a
+// per-player LOBBY_UPDATE fanout. This throttle therefore coalesces bursty
+// republishes into a single trailing snapshot rather than capping a per-player
+// message rate. Bursts to absorb: host-change re-broadcasts, color picks, and
+// the adapter-recreation join storm (peer_joined fires per controller in a
+// tight loop); reconnect paths can also broadcast twice in one tick. 400ms
+// collapses each burst to at most one leading + one trailing set_state.
 var LOBBY_BROADCAST_MIN_INTERVAL_MS = 400;
 var _lobbyBroadcastTimer = null;
 var _lastLobbyBroadcastAt = 0;

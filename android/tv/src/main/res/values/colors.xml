@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Cocoa Arcade brand surface (public/shared/theme.css bg-primary token). Only the
+         theme's window background needs an XML resource; every other color lives in
+         Compose (ui/Tokens.kt) or the Canvas layer (render/TvColors.kt). -->
+    <color name="brand_plum">#1E1A2B</color>
+</resources>

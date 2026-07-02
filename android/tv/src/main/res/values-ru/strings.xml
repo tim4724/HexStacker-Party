@@ -1,0 +1,48 @@
+<resources>
+    <!-- Russian — values from public/shared/i18n.js `ru`. Only keys the :tv app uses.
+         ru uses one/few/many/other plural categories (CLDR). -->
+    <string name="hold">ХОЛД</string>
+    <string name="next">ДАЛЕЕ</string>
+    <string name="level">УРОВЕНЬ</string>
+    <string name="lines">ЛИНИИ</string>
+    <string name="ko">K.O.</string>
+    <string name="go">СТАРТ</string>
+    <string name="scan_to_rejoin">СКАНИРУЙ И ВЕРНИСЬ</string>
+
+    <string name="double_clear">DOUBLE</string>
+    <string name="triple_clear">TRIPLE!</string>
+
+    <string name="scan_to_join">Сканируй и заходи</string>
+    <string name="waiting_for_players">Ждём игроков...</string>
+    <string name="level_heading">Уровень</string>
+    <string name="music_by">Музыка: FoxSynergy (CC-BY 3.0)</string>
+
+    <string name="level_n">Уровень %1$d</string>
+    <string name="new_player">Новый игрок</string>
+    <string name="play_again">Играть снова</string>
+    <string name="new_game">Новая игра</string>
+
+    <string name="paused">ПАУЗА</string>
+    <string name="continue_btn">Продолжить</string>
+    <string name="settings_game_music">Музыка</string>
+
+    <string name="reconnecting">ПЕРЕПОДКЛЮЧЕНИЕ</string>
+    <string name="disconnected">ОТКЛЮЧЕНО</string>
+    <string name="connection_lost">Соединение потеряно...</string>
+    <string name="reconnect">ПЕРЕПОДКЛЮЧИТЬСЯ</string>
+
+    <string name="player">Игрок</string>
+
+    <plurals name="start_n_players">
+        <item quantity="one">СТАРТ (%1$d игрок)</item>
+        <item quantity="few">СТАРТ (%1$d игрока)</item>
+        <item quantity="many">СТАРТ (%1$d игроков)</item>
+        <item quantity="other">СТАРТ (%1$d игроков)</item>
+    </plurals>
+    <plurals name="n_lines">
+        <item quantity="one">%1$d линия</item>
+        <item quantity="few">%1$d линии</item>
+        <item quantity="many">%1$d линий</item>
+        <item quantity="other">%1$d линий</item>
+    </plurals>
+</resources>

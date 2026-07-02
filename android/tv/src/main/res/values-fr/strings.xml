@@ -1,0 +1,43 @@
+<resources>
+    <!-- French — values from public/shared/i18n.js `fr`. Only keys the :tv app uses. -->
+    <string name="hold">HOLD</string>
+    <string name="next">SUIVANT</string>
+    <string name="level">NIVEAU</string>
+    <string name="lines">LIGNES</string>
+    <string name="ko">K.O.</string>
+    <string name="go">GO</string>
+    <string name="scan_to_rejoin">SCANNER POUR REJOINDRE</string>
+
+    <string name="double_clear">DOUBLE</string>
+    <string name="triple_clear">TRIPLE !</string>
+
+    <string name="scan_to_join">Scanner pour rejoindre</string>
+    <string name="waiting_for_players">En attente de joueurs...</string>
+    <string name="level_heading">Niveau</string>
+    <string name="music_by">Musique par FoxSynergy (CC-BY 3.0)</string>
+
+    <string name="level_n">Niveau %1$d</string>
+    <string name="new_player">Nouveau joueur</string>
+    <string name="play_again">Rejouer</string>
+    <string name="new_game">Nouvelle partie</string>
+
+    <string name="paused">EN PAUSE</string>
+    <string name="continue_btn">Continuer</string>
+    <string name="settings_game_music">Musique</string>
+
+    <string name="reconnecting">RECONNEXION</string>
+    <string name="disconnected">DÉCONNECTÉ</string>
+    <string name="connection_lost">Connexion perdue...</string>
+    <string name="reconnect">SE RECONNECTER</string>
+
+    <string name="player">Joueur</string>
+
+    <plurals name="start_n_players">
+        <item quantity="one">LANCER (%1$d joueur)</item>
+        <item quantity="other">LANCER (%1$d joueurs)</item>
+    </plurals>
+    <plurals name="n_lines">
+        <item quantity="one">%1$d ligne</item>
+        <item quantity="other">%1$d lignes</item>
+    </plurals>
+</resources>

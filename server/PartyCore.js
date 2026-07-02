@@ -222,6 +222,17 @@ PartyCore._toCommands = function(events, snapshot) {
             level: p.level,
             lines: p.lines,
             alive: p.alive,
+            // KNOWN DIVERGENCE from the web (accepted, not a bug): garbageIncoming
+            // here reads from `snapshot`, which frame() captured AFTER
+            // game.update() returned, i.e. after Game.handleLineClear() applied
+            // this clear's defense and cancelled incoming garbage. The web
+            // (DisplayGame.js) instead samples getSnapshot() synchronously inside
+            // the line_clear onEvent, which fires at the TOP of handleLineClear
+            // (Game.js) BEFORE defense runs. So for a clear that cancels incoming
+            // garbage, native reports the reduced POST-cancellation amount while
+            // the web reports the PRE-cancellation amount. Native's value is the
+            // more accurate one; changing it would need an engine-integration hook
+            // and would break the partycore-commands golden fixture.
             garbageIncoming: p.pendingGarbage
           });
         }

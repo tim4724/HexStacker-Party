@@ -1,0 +1,71 @@
+<resources>
+    <!--
+      Default (English) UI strings for the :tv app. Values mirror
+      `public/shared/i18n.js` `en` (the source of truth) EXACTLY — no TV-invented
+      copy. Strings stored in their RAW i18n form: CSS-style uppercasing is applied
+      at the render site (ChromeButton, #qr-label, .card-level__heading) as the code
+      already does, NOT baked into the data.
+    -->
+    <string name="app_name" translatable="false">HexStacker TV</string>
+
+    <!-- Brand wordmark (not in i18n.js; identical across all locales). -->
+    <string name="wordmark_main" translatable="false">HEX STACKER</string>
+    <string name="wordmark_sub" translatable="false">PARTY</string>
+
+    <!-- Canvas HUD labels (already-uppercase in the i18n data; drawn verbatim). -->
+    <string name="hold">HOLD</string>
+    <string name="next">NEXT</string>
+    <string name="level">LEVEL</string>
+    <string name="lines">LINES</string>
+    <string name="ko">KO</string>
+    <string name="go">GO</string>
+    <string name="scan_to_rejoin">SCAN TO REJOIN</string>
+
+    <!-- Line-clear popups (i18n double / triple; drawn verbatim like the web). -->
+    <string name="double_clear">DOUBLE</string>
+    <string name="triple_clear">TRIPLE!</string>
+
+    <!-- Lobby. -->
+    <string name="scan_to_join">Scan to join</string>
+    <string name="waiting_for_players">Waiting for players...</string>
+    <string name="level_heading">Level</string>
+
+    <!-- Music attribution. CC-BY 3.0 requires crediting "Lunar Joyride" by
+         FoxSynergy (res/raw/lunar_joyride.mp3). Mirrors web i18n `music_by`. -->
+    <string name="music_by">Music by FoxSynergy (CC-BY 3.0)</string>
+
+    <!-- Empty-slot placeholder name: DisplayUI `'P' + (idx+1)` (not localized). -->
+    <string name="player_placeholder" translatable="false">P%1$d</string>
+
+    <!-- Results. -->
+    <string name="level_n">Level %1$d</string>
+    <string name="new_player">New player</string>
+    <string name="play_again">Play Again</string>
+    <string name="new_game">New Game</string>
+    <!-- DisplayUI '–' (en-dash) rank for late joiners (not localized). -->
+    <string name="late_joiner_rank" translatable="false">–</string>
+
+    <!-- Pause. -->
+    <string name="paused">PAUSED</string>
+    <string name="continue_btn">Continue</string>
+    <string name="settings_game_music">Game Music</string>
+
+    <!-- Connection overlay. -->
+    <string name="reconnecting">RECONNECTING</string>
+    <string name="disconnected">DISCONNECTED</string>
+    <string name="connection_lost">Connection lost...</string>
+    <string name="reconnect">RECONNECT</string>
+
+    <!-- Unnamed-player fallback (i18n player). -->
+    <string name="player">Player</string>
+
+    <!-- Plurals (i18n start_n_players / n_lines). -->
+    <plurals name="start_n_players">
+        <item quantity="one">START (%1$d player)</item>
+        <item quantity="other">START (%1$d players)</item>
+    </plurals>
+    <plurals name="n_lines">
+        <item quantity="one">%1$d line</item>
+        <item quantity="other">%1$d lines</item>
+    </plurals>
+</resources>

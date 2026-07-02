@@ -2,6 +2,8 @@
 
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 // =====================================================================
 // Retained room-snapshot migration: the display publishes ONE roster
@@ -77,7 +79,7 @@ function makeRoster(entries) {
   return new Map(entries);
 }
 
-describe('room snapshot — display builder', () => {
+describe('room snapshot: display builder', () => {
   test('encodes the roster keyed by peerIndex with name + color, plus host', () => {
     const players = makeRoster([
       [1, { playerName: 'Ann', playerIndex: 2, startLevel: 5 }],
@@ -119,7 +121,7 @@ describe('room snapshot — display builder', () => {
   });
 });
 
-describe('room snapshot — controller derivation parity', () => {
+describe('room snapshot: controller derivation parity', () => {
   test('derives exactly the old fanout fields (except per-recipient startLevel)', () => {
     const players = makeRoster([
       [1, { playerName: 'Ann', playerIndex: 2, startLevel: 5 }],
@@ -171,4 +173,101 @@ describe('room snapshot — controller derivation parity', () => {
     assert.equal(derived.playerCount, 1); // self not yet counted; WELCOME corrects
     assert.equal(derived.isHost, false);
   });
+});
+
+// =====================================================================
+// Production lockstep drift guard
+// =====================================================================
+// The three functions above are hand-copied MIRRORS of production logic (see
+// the header). Nothing structural forces them to track the source, so this
+// guard reads the REAL production files and asserts that each mirror's
+// load-bearing lines still appear in BOTH the production source AND the
+// mirror's own body. If production changes a mirrored line without this test
+// being updated (or vice versa), the fragment stops matching one side and the
+// guard fails, catching silent drift while the value-parity tests above stay
+// green.
+//
+// Robustness: fragments are matched after stripping line comments and ALL
+// whitespace, so cosmetic reformatting (indentation, `function (a,b)` vs
+// `function(a,b)`) never trips the guard, but any token/logic change does.
+// Fragments are chosen from lines that are token-identical on both sides;
+// lines that differ only in wiring (the mirror takes `hostPeerIndex` as an arg
+// where production calls `getHostPeerIndex()`, or writes `x != null` where
+// production writes `(x != null)`) are left out and covered indirectly by an
+// adjacent identical line, so the guard stays strict without pinning cosmetics.
+
+function stripToTokens(src) {
+  return src.replace(/\/\/[^\n]*/g, '').replace(/\s+/g, '');
+}
+
+const DISPLAY_SRC = stripToTokens(
+  fs.readFileSync(path.join(__dirname, '..', 'public', 'display', 'DisplayConnection.js'), 'utf8')
+);
+const CONTROLLER_SRC = stripToTokens(
+  fs.readFileSync(path.join(__dirname, '..', 'public', 'controller', 'ControllerGame.js'), 'utf8')
+);
+
+// Each entry pins a mirror to the production function it claims to copy. Every
+// fragment must appear (token-normalized) in BOTH the mirror's own source and
+// the production file.
+const LOCKSTEP = [
+  {
+    what: 'buildRoomSnapshot mirrors DisplayConnection.js#buildRoomSnapshot',
+    mirror: buildRoomSnapshot,
+    prod: DISPLAY_SRC,
+    fragments: [
+      'roster[entry[0]] = { name: p.playerName, color: p.playerIndex };',
+      'players: roster };',
+    ],
+  },
+  {
+    what: 'deriveFromSnapshot mirrors ControllerGame.js#onState',
+    mirror: deriveFromSnapshot,
+    prod: CONTROLLER_SRC,
+    fragments: [
+      'var roster = snap.players;',
+      'var ids = Object.keys(roster);',
+      'var c = roster[ids[i]].color;',
+      "if (typeof c === 'number') colors.push(c);",
+      'colors.sort(function(a, b) { return a - b; });',
+      'var hostIdx = snap.hostPeerIndex;',
+      'playerCount: ids.length,',
+      'colorIndex: mine ? mine.color : undefined,',
+      'takenColorIndices: colors,',
+      'isHost: (peerIndex != null && hostIdx != null) ? (peerIndex === hostIdx) : undefined,',
+      'hostName: hostEntry ? hostEntry.name : null,',
+      'hostColorIndex: hostEntry ? hostEntry.color : null',
+    ],
+  },
+  {
+    what: 'legacyLobbyUpdateTo mirrors DisplayConnection.js#sendLobbyUpdateTo',
+    mirror: legacyLobbyUpdateTo,
+    prod: DISPLAY_SRC,
+    fragments: [
+      'playerCount: players.size,',
+      'startLevel: player.startLevel || 1,',
+      'hostName: hostPlayer ? hostPlayer.playerName : null,',
+      'hostColorIndex: hostPlayer ? hostPlayer.playerIndex : null,',
+      'colorIndex: player.playerIndex,',
+    ],
+  },
+];
+
+describe('room snapshot: production lockstep guard', () => {
+  for (const { what, mirror, prod, fragments } of LOCKSTEP) {
+    const mirrorSrc = stripToTokens(mirror.toString());
+    for (const fragment of fragments) {
+      test(`${what}: "${fragment}"`, () => {
+        const needle = stripToTokens(fragment);
+        assert.ok(
+          mirrorSrc.includes(needle),
+          'the test mirror no longer contains this asserted line; update the fragment list'
+        );
+        assert.ok(
+          prod.includes(needle),
+          'production source no longer contains this mirrored line; the test mirror is stale'
+        );
+      });
+    }
+  }
 });
