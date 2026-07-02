@@ -5,7 +5,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -76,7 +75,8 @@ fun MusicSwitch(
             .then(if (focused) Modifier.border(4.dp, Tokens.white, shape) else Modifier)
             .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
             .onFocusChanged { focused = it.isFocused }
-            .focusable()
+            // clickable provides the focus target (see ChromeButton): a separate
+            // Modifier.focusable would steal D-pad focus from the click handler.
             .clickable { onToggle() }
             .padding(horizontal = rowHeight * 0.5f),
         verticalAlignment = Alignment.CenterVertically,

@@ -76,6 +76,12 @@ class MusicPlayer(context: Context) {
     private var muted = false
     private var lastLevel = 0
 
+    // Mirrors Music.js `playing`/`_paused`: pause() only takes effect while the loop runs,
+    // resume() only reverses a pause() — so a pause/resume during the pre-GO countdown
+    // (music starts at GO) can't start playback that start() never began.
+    private var playing = false
+    private var pausedByOverlay = false
+
     // Volume-fade plumbing (mirrors Music.js's linearRampToValueAtTime + `generation`
     // guard so overlapping stop/pause/resume calls cancel cleanly). Main-thread only.
     private val fadeHandler = Handler(Looper.getMainLooper())
@@ -133,6 +139,8 @@ class MusicPlayer(context: Context) {
     fun start() {
         cancelFade()
         lastLevel = 0
+        playing = true
+        pausedByOverlay = false
         player.playbackParameters = PlaybackParameters(1.0f, 1.0f)
         player.volume = targetVolume()
         player.seekTo(0L)
@@ -141,19 +149,29 @@ class MusicPlayer(context: Context) {
 
     /** Stop the loop: fade out (0.4s, web) then pause + rewind (match end / return to lobby). */
     fun stop() {
+        playing = false
+        pausedByOverlay = false
         fadeTo(0f, STOP_FADE_MS) {
             player.playWhenReady = false
             player.seekTo(0L)
         }
     }
 
-    /** Pause during gameplay (overlay): fade out (0.3s, web) then pause, keeping the position. */
+    /** Pause during gameplay (overlay): fade out (0.3s, web) then pause, keeping the
+     *  position. No-op while the loop isn't running (Music.js `if (!playing) return`). */
     fun pause() {
+        if (!playing) return
+        playing = false
+        pausedByOverlay = true
         fadeTo(0f, PAUSE_FADE_MS) { player.playWhenReady = false }
     }
 
-    /** Resume from [pause]: re-arm playback and fade the volume back in over 0.3s. */
+    /** Resume from [pause]: re-arm playback and fade the volume back in over 0.3s.
+     *  No-op unless a [pause] is actually pending (Music.js `if (!_paused) return`). */
     fun resume() {
+        if (playing || !pausedByOverlay) return
+        playing = true
+        pausedByOverlay = false
         cancelFade()
         player.playWhenReady = true
         player.volume = 0f

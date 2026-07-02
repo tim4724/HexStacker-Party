@@ -394,11 +394,14 @@ class DisplayCoordinator(
     private suspend fun onLinkState(state: RelayTransport.ConnectionState) {
         when (state) {
             RelayTransport.ConnectionState.RECONNECTING, RelayTransport.ConnectionState.CLOSED -> {
-                if (flow.state == RoomState.PLAYING && !paused) {
+                val active = flow.state == RoomState.PLAYING || flow.state == RoomState.COUNTDOWN
+                if (active && !paused) {
                     paused = true
                     linkPaused = true
-                    engine?.pause()
-                    engine?.resetFrameClock()
+                    if (flow.state == RoomState.PLAYING) { // COUNTDOWN: the engine isn't ticking yet
+                        engine?.pause()
+                        engine?.resetFrameClock()
+                    }
                     output.pauseMusic()
                 }
             }
@@ -648,9 +651,10 @@ class DisplayCoordinator(
 
     private suspend fun advanceCountdown(deltaMs: Double) {
         if (countdownStep < 0) {
-            emitCountdownStep(0) // step 0 fires immediately at entry
+            emitCountdownStep(0) // step 0 fires immediately at entry (even if paused)
             return
         }
+        if (paused) return // a mid-countdown pause freezes the count (web clearCountdownTimers)
         countdownElapsed += deltaMs
         val nextStep = countdownStep + 1
         val threshold = if (nextStep <= 3) nextStep * STEP_MS else 3 * STEP_MS + GO_HOLD_MS
@@ -780,21 +784,34 @@ class DisplayCoordinator(
         transport.createFresh() // handleCreated re-arms the room code + QR when `created` lands
     }
 
+    /** Manual pause; allowed while PLAYING or mid-COUNTDOWN (web pauseGame). During
+     *  COUNTDOWN the engine isn't ticking yet, so freezing [advanceCountdown] via
+     *  [paused] is the whole freeze (web clearCountdownTimers). */
     private suspend fun pauseGame() {
-        if (paused || flow.state != RoomState.PLAYING) return // never pause during COUNTDOWN
+        if (paused || (flow.state != RoomState.PLAYING && flow.state != RoomState.COUNTDOWN)) return
         paused = true
-        engine?.pause()
-        engine?.resetFrameClock() // forget the frame clock so resume re-primes with delta 0
+        if (flow.state == RoomState.PLAYING) {
+            engine?.pause()
+            engine?.resetFrameClock() // forget the frame clock so resume re-primes with delta 0
+        }
         output.pauseMusic()
         output.setPaused(true)
         transport.broadcast(OutboundMessage.gamePaused())
     }
 
     private suspend fun resumeGame() {
-        if (!paused || flow.state != RoomState.PLAYING) return
+        if (!paused || (flow.state != RoomState.PLAYING && flow.state != RoomState.COUNTDOWN)) return
         if (flow.allParticipantsDisconnected()) return // web canResumeGame
         paused = false
-        engine?.resume()
+        if (flow.state == RoomState.COUNTDOWN) {
+            // Web resume (startCountdown(callback, remaining)): the current number stays on
+            // screen without a re-broadcast/beep and gets its FULL second again; a shown GO
+            // re-arms the full 500ms hold. In the accumulator model that is a rewind to the
+            // current step's start.
+            if (countdownStep >= 0) countdownElapsed = countdownStep * STEP_MS
+        } else {
+            engine?.resume()
+        }
         if (!muted) output.resumeMusic()
         output.setPaused(false)
         transport.broadcast(OutboundMessage.gameResumed())
@@ -837,7 +854,7 @@ class DisplayCoordinator(
             muted
         }
         RemoteKind.TOGGLE_PAUSE -> {
-            if (flow.state == RoomState.PLAYING) {
+            if (flow.state == RoomState.PLAYING || flow.state == RoomState.COUNTDOWN) {
                 if (paused) resumeGame() else pauseGame()
             }
             paused
@@ -845,8 +862,7 @@ class DisplayCoordinator(
         RemoteKind.PLAY_PAUSE -> {
             when (flow.state) {
                 RoomState.LOBBY, RoomState.RESULTS -> if (flow.size >= 1) beginCountdown()
-                RoomState.PLAYING -> if (paused) resumeGame() else pauseGame()
-                RoomState.COUNTDOWN -> {} // pause during countdown is unsupported (web freezes the count; deferred)
+                RoomState.COUNTDOWN, RoomState.PLAYING -> if (paused) resumeGame() else pauseGame()
             }
             muted
         }

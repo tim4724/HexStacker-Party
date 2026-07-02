@@ -573,6 +573,78 @@ class DisplayCoordinatorTest {
     }
 
     @Test
+    fun pauseDuringCountdownFreezesAndResumeReplaysTheCurrentSecond() = runBlocking {
+        // Web pauseGame/resumeGame support COUNTDOWN: pausing freezes the count
+        // (clearCountdownTimers) and resuming gives the current number its FULL second
+        // again (startCountdown(callback, remaining)) without re-broadcasting it.
+        val bridge = EngineBridge.create(bundle())
+        try {
+            val t = FakeTransport(); val out = FakeOutput()
+            val coord = DisplayCoordinator(t, out, realFactory(bridge), seedProvider = { 0xBADCAFEL })
+            coord.start()
+            t.created("R", null); coord.awaitIdle()
+            t.peerJoined(1); t.peerJoined(2); coord.awaitIdle()
+            t.deliver(1, simple(Msg.START_GAME)); coord.awaitIdle()
+            coord.tick(0.0)      // "3"
+            coord.tick(1000.0)   // "2"
+            assertEquals(listOf<CountdownValue>(CountdownValue.Number(3), CountdownValue.Number(2)), out.countdowns)
+
+            // Pause mid-"2": overlay + broadcast, and the count freezes.
+            t.sent.clear()
+            t.deliver(1, simple(Msg.PAUSE_GAME)); coord.awaitIdle()
+            assertTrue(out.pausedFlag, "pause overlay shows during a countdown pause")
+            assertTrue(t.sent.any { it.first == -1 && type(it.second) == Msg.GAME_PAUSED })
+            coord.tick(5000.0)
+            assertEquals(RoomState.COUNTDOWN, coord.state, "countdown frozen while paused")
+            assertEquals(2, out.countdowns.size, "no further countdown steps while paused")
+
+            // Resume: "2" replays its full second — 999ms later still nothing, 1ms more -> "1".
+            t.sent.clear()
+            t.deliver(1, simple(Msg.RESUME_GAME)); coord.awaitIdle()
+            assertFalse(out.pausedFlag)
+            assertTrue(t.sent.any { it.first == -1 && type(it.second) == Msg.GAME_RESUMED })
+            coord.tick(999.0)
+            assertEquals(2, out.countdowns.size, "current number replays a FULL second after resume")
+            coord.tick(1.0)
+            assertEquals(CountdownValue.Number(1), out.countdowns.last())
+
+            // Finish: GO + the 500ms hold -> PLAYING.
+            coord.tick(1000.0)
+            assertEquals(CountdownValue.Go, out.countdowns.last())
+            coord.tick(500.0)
+            assertEquals(RoomState.PLAYING, coord.state)
+            coord.stop()
+        } finally { bridge.close() }
+    }
+
+    @Test
+    fun pauseAtGoReplaysTheFullGoHoldOnResume() = runBlocking {
+        // Web: remaining == 0 (GO on screen) re-arms the full 500ms goTimeout on resume.
+        val bridge = EngineBridge.create(bundle())
+        try {
+            val t = FakeTransport(); val out = FakeOutput()
+            val coord = DisplayCoordinator(t, out, realFactory(bridge), seedProvider = { 0xBADCAFEL })
+            coord.start()
+            t.created("R", null); coord.awaitIdle()
+            t.peerJoined(1); coord.awaitIdle()
+            t.deliver(1, simple(Msg.START_GAME)); coord.awaitIdle()
+            coord.tick(0.0); coord.tick(1000.0); coord.tick(1000.0); coord.tick(1000.0) // -> GO
+            assertEquals(CountdownValue.Go, out.countdowns.last())
+
+            coord.remoteTogglePause()
+            coord.tick(2000.0)
+            assertEquals(RoomState.COUNTDOWN, coord.state, "GO hold frozen while paused")
+
+            coord.remoteTogglePause()
+            coord.tick(499.0)
+            assertEquals(RoomState.COUNTDOWN, coord.state, "GO hold replays in full after resume")
+            coord.tick(1.0)
+            assertEquals(RoomState.PLAYING, coord.state)
+            coord.stop()
+        } finally { bridge.close() }
+    }
+
+    @Test
     fun roomNotFoundAfterRejoinResetsToFreshRoom() = runBlocking {
         // Port of the web's 'error' protocol case: the relay lost our room while the
         // display's link was down, so the rejoin fails with "Room not found". The code on

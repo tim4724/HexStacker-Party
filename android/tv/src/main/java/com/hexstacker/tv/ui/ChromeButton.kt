@@ -4,7 +4,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -33,8 +32,9 @@ import androidx.compose.ui.unit.sp
 
 /**
  * Focusable text button — the web `.btn-primary`/`.btn-secondary` + tvOS
- * `MenuButton`, built on `Modifier.focusable` so D-pad navigation, skip-disabled,
- * and DPAD_CENTER/ENTER activation all come from the native focus engine.
+ * `MenuButton`, built on `Modifier.clickable` (whose non-touch-mode focus target
+ * gives D-pad navigation, skip-disabled, and DPAD_CENTER/ENTER activation from
+ * the native focus engine).
  *
  * Visuals (mirror `MenuButton.setFocused` + CSS):
  *  - primary enabled → vertical gradient `[tint, tint*0.82]` (CSS color-mix 82% black)
@@ -93,7 +93,10 @@ fun ChromeButton(
             .then(ringModifier)
             .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
             .onFocusChanged { focused = it.isFocused }
-            .focusable(enabled = enabled)
+            // clickable provides the focus target itself (focusable-in-non-touch-mode).
+            // Do NOT add a separate Modifier.focusable here: that stacks a second focus
+            // target which wins D-pad focus, and DPAD_CENTER then never reaches the
+            // clickable's key handler — the button highlights but can't be activated.
             .clickable(enabled = enabled) { onClick() }
             .padding(contentPadding),
         contentAlignment = Alignment.Center,
