@@ -38,6 +38,7 @@ scripts/gallery/webshell/
 # art lives in appletv/.../*.brandassets; regen via generate-tvos-icons.js for the
 # app icon and generate-tvos-topshelf.js for the Top Shelf images)
 artwork/tvos-preview/
+artwork/android-preview/
 build/
 .dev-certs/
 public/display/screen.html

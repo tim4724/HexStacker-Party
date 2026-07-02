@@ -21,10 +21,12 @@
   // exact PARTY_PALETTE from public/shared/theme.js and the same hex/cell
   // geometry as artwork/builder.html so the TV brand never drifts from web.
   //
-  // Layers (for parallax): 'back'  = background + soft depth pieces;
-  //                        'front' = crisp pieces + wordmark on transparency;
-  //                        'flat'  = everything (single-image top shelf).
+  // Layers (for parallax): 'back'   = background + soft depth elements;
+  //                        'middle' = the hex-gem mark on transparency;
+  //                        'front'  = crisp accent pieces (+ optional wordmark);
+  //                        'flat'   = everything (single-image top shelf).
   // window.renderHexBrandLayer(spec) -> PNG data URL (alpha preserved).
+  // window.renderLauncherIcon(spec)  -> Android legacy launcher icon PNG.
   // ============================================================
   const SQRT3 = Math.sqrt(3);
   function hexPath(ctx, cx, cy, r) {
@@ -136,6 +138,36 @@
     ctx.filter = `blur(${blur}px)`;
     drawPiece(ctx, cx, cy, type, hexSize, rot, pieceColor(type));
     ctx.restore();
+  }
+
+  // The 4-hex "gem" mark — same geometry as the Android adaptive-icon
+  // foreground and leanback banner (android .../drawable/ic_launcher_*.xml):
+  // four flat-top pillow hexes at (0, ±s) and (±√3·s, 0) — grid-adjacent
+  // cells exploded by 2/√3 — drawn at radius 1.085·s (the vectors' exact
+  // ratio) so only a tight seam shows between them. Red on the vertical
+  // axis, tangerine on the horizontal — the brand UI accents.
+  const GEM_CELLS = [
+    [0, -1, 0], [-SQRT3, 0, 1], [SQRT3, 0, 1], [0, 1, 0],
+  ];
+  function gemColors() { return [PAL[0] || '#FF6B6B', PAL[7] || '#FF8C42']; }
+  function drawGem(ctx, cx, cy, s) {
+    const cols = gemColors();
+    for (const [ux, uy, ci] of GEM_CELLS) stampPillow(ctx, cx + ux * s, cy + uy * s, s * 1.085, cols[ci]);
+  }
+  function drawGemGlow(ctx, cx, cy, s, alpha, blur) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.filter = `blur(${blur}px)`;
+    drawGem(ctx, cx, cy, s * 1.12);
+    ctx.restore();
+  }
+
+  // Faint stroked hex outline — honeycomb texture for the back layer.
+  function drawHexOutline(ctx, cx, cy, r, alpha) {
+    hexPathRounded(ctx, cx, cy, r, r * 0.15);
+    ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+    ctx.lineWidth = Math.max(1, r * 0.10);
+    ctx.stroke();
   }
 
   // ============================================================
@@ -250,8 +282,11 @@
 
   // ============================================================
   // Layout interpreter. spec = {
-  //   w, h, layer:'back'|'front'|'flat', refForSize,
+  //   w, h, layer:'back'|'middle'|'front'|'flat', refForSize,
+  //   outlineHexes:[{nx,ny,sizeFrac,alpha}],
+  //   gemGlow:{nx,ny,sizeFrac,alpha,blurFrac} | null,
   //   backPieces:[{type,nx,ny,sizeFrac,rot,alpha,blurFrac}],
+  //   gem:{nx,ny,sizeFrac} | null,
   //   pieces:[{type,nx,ny,sizeFrac,rot}],
   //   wordmark:{lines, ncy, sizeFrac, maxWidthFrac, lineHeight} | null
   // }  nx/ny are 0..1 of w/h; sizeFrac is hex circumradius / h.
@@ -263,14 +298,25 @@
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, W, H);
     const drawBack = spec.layer === 'back' || spec.layer === 'flat';
+    const drawMiddle = spec.layer === 'middle' || spec.layer === 'flat';
     const drawFront = spec.layer === 'front' || spec.layer === 'flat';
 
     if (drawBack) {
       paintRadial(ctx, W, H);
+      for (const o of (spec.outlineHexes || [])) {
+        drawHexOutline(ctx, o.nx * W, o.ny * H, o.sizeFrac * H, o.alpha ?? 0.08);
+      }
       for (const p of (spec.backPieces || [])) {
         drawPieceGlow(ctx, p.nx * W, p.ny * H, p.type, p.sizeFrac * H, p.rot || 0,
                       p.alpha ?? 0.5, (p.blurFrac ?? 0.04) * H);
       }
+      if (spec.gemGlow) {
+        const g = spec.gemGlow;
+        drawGemGlow(ctx, g.nx * W, g.ny * H, g.sizeFrac * H, g.alpha ?? 0.4, (g.blurFrac ?? 0.05) * H);
+      }
+    }
+    if (drawMiddle && spec.gem) {
+      drawGem(ctx, spec.gem.nx * W, spec.gem.ny * H, spec.gem.sizeFrac * H);
     }
     if (drawFront) {
       // trails first so the pieces render on top
@@ -321,6 +367,34 @@
     });
   }
   window.renderTopShelf = renderTopShelf;
+
+  // Android legacy launcher icon (pre-adaptive fallback mipmaps). Mirrors the
+  // adaptive icon exactly: the ic_launcher_background.xml radial mapped to the
+  // 72dp visible crop of the 108dp grid, the gem at the adaptive foreground's
+  // size (hex s = 9.17/72 of the crop), masked to the legacy shape.
+  // spec = { size, shape: 'square'|'round' } -> PNG data URL.
+  function renderLauncherIcon(spec) {
+    const N = spec.size;
+    const canvas = document.getElementById('stage');
+    canvas.width = N; canvas.height = N;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, N, N);
+    ctx.save();
+    ctx.beginPath();
+    if (spec.shape === 'round') ctx.arc(N / 2, N / 2, N * 0.49, 0, Math.PI * 2);
+    else ctx.roundRect(N * 0.04, N * 0.04, N * 0.92, N * 0.92, N * 0.12);
+    ctx.clip();
+    const g = ctx.createRadialGradient(0.361 * N, 0.333 * N, 0, 0.361 * N, 0.333 * N, 1.278 * N);
+    g.addColorStop(0, '#2A2540');
+    g.addColorStop(0.62, '#1E1A2B');
+    g.addColorStop(1, '#15121F');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, N, N);
+    drawGem(ctx, N / 2, N / 2, (9.17 / 72) * N);
+    ctx.restore();
+    return canvas.toDataURL('image/png');
+  }
+  window.renderLauncherIcon = renderLauncherIcon;
   window.__TVOS_READY__ = true;
   </script>
 </body>
