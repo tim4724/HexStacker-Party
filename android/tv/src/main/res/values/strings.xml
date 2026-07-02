@@ -21,9 +21,9 @@
     <string name="go">GO</string>
     <string name="scan_to_rejoin">SCAN TO REJOIN</string>
 
-    <!-- Line-clear popups (i18n double / triple; kept as today's TV text for en). -->
+    <!-- Line-clear popups (i18n double / triple; drawn verbatim like the web). -->
     <string name="double_clear">DOUBLE</string>
-    <string name="triple_clear">TRIPLE</string>
+    <string name="triple_clear">TRIPLE!</string>
 
     <!-- Lobby. -->
     <string name="scan_to_join">Scan to join</string>
