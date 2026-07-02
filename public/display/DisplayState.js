@@ -284,6 +284,9 @@ var startBtn = document.getElementById('start-btn');
 var countdownOverlay = document.getElementById('countdown-overlay');
 var countdownNumber = document.getElementById('countdown-number');
 var resultsList = document.getElementById('results-list');
+// Global highscore panel (AirConsole mode only — markup is inert in normal mode).
+var globalLeaderboard = document.getElementById('global-leaderboard');
+var globalLeaderboardList = document.getElementById('global-leaderboard-list');
 var playAgainBtn = document.getElementById('play-again-btn');
 var newGameResultsBtn = document.getElementById('new-game-results-btn');
 var gameToolbar = document.getElementById('game-toolbar');

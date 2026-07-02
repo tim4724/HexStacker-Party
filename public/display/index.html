@@ -191,7 +191,18 @@
 
   <!-- Results overlay (shown on top of game screen) -->
   <div id="results-screen" class="screen hidden">
-    <div id="results-list"></div>
+    <div class="results-layout">
+      <div id="results-list"></div>
+      <!-- Global highscore panel — AirConsole mode only; revealed by renderGlobalLeaderboard -->
+      <aside id="global-leaderboard" class="global-leaderboard hidden">
+        <div class="global-leaderboard__tabs" role="tablist">
+          <button type="button" class="gl-tab is-active" id="gl-tab-all" role="tab" aria-selected="true" aria-controls="global-leaderboard-list" data-board="all" data-i18n="leaderboard_alltime">All-time</button>
+          <button type="button" class="gl-tab" id="gl-tab-month" role="tab" aria-selected="false" aria-controls="global-leaderboard-list" data-board="month" data-i18n="leaderboard_monthly">Monthly</button>
+        </div>
+        <h3 class="global-leaderboard__heading" data-i18n="leaderboard_heading">Global Top 10</h3>
+        <ol id="global-leaderboard-list" role="tabpanel" aria-labelledby="gl-tab-all"></ol>
+      </aside>
+    </div>
     <div id="results-buttons">
       <button id="play-again-btn" class="btn btn-primary" data-i18n="play_again">Play Again</button>
       <button id="new-game-results-btn" class="btn btn-secondary" data-i18n="new_game">New Game</button>

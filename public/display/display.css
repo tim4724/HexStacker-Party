@@ -860,6 +860,141 @@ body.airconsole #qr-container,
   pointer-events: auto;
 }
 
+/* ============================================
+   Global Leaderboard (AirConsole mode only)
+   Session results on the left; a conditional global top-10 panel on the
+   right that auto-toggles between the All-time / Monthly boards. The panel
+   is revealed by renderGlobalLeaderboard; until then the layout is a single
+   centered column (its normal appearance + all of normal mode).
+   ============================================ */
+.results-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+/* Two-column once the panel is shown. */
+#results-screen.results-screen--has-global .results-layout {
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  gap: clamp(1rem, 3vw, 3rem);
+}
+#results-screen.results-screen--has-global #results-list {
+  flex: 1 1 480px;
+  width: auto;
+  max-width: 600px;
+}
+
+/* No generic .hidden utility exists — scope the hide rule. Its (0,2,0)
+   specificity beats the base .global-leaderboard rule below. */
+.global-leaderboard.hidden { display: none; }
+
+/* No panel box — just a labelled column of cards beside the session list,
+   separated by the layout gap. Rows reuse the session card treatment so both
+   columns read as one component. */
+.global-leaderboard {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.3rem, 0.8vh, 0.7rem);
+  flex: 0 1 360px;
+}
+
+.global-leaderboard__tabs {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+/* Flat text tabs — active is an accent underline, not a filled pill. */
+.gl-tab {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(0.7rem, 1.3vh, 0.95rem);
+  letter-spacing: 0.05em;
+  padding: 0.2em 0.1em;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.gl-tab.is-active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent-primary);
+}
+.gl-tab:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.global-leaderboard__heading {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(0.9rem, 1.8vh, 1.4rem);
+  letter-spacing: 0.08em;
+  text-align: center;
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+#global-leaderboard-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.3rem, 0.7vh, 0.6rem);
+}
+
+/* Same card treatment as .result-row (bg-card + border + radius), just more
+   compact since there are up to 10 rows. */
+.gl-row {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.5rem, 1.5vw, 1rem);
+  padding: clamp(0.4rem, 0.9vh, 0.8rem) clamp(0.7rem, 1.5vw, 1.2rem);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  font-size: clamp(0.85rem, 1.7vh, 1.3rem);
+}
+.gl-rank {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  min-width: 3.5ch;
+}
+.gl-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+}
+.gl-score {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+
+/* Stack instead of side-by-side on cramped / portrait displays. */
+@media (max-width: 900px) {
+  #results-screen.results-screen--has-global .results-layout {
+    flex-direction: column;
+    align-items: center;
+  }
+  #results-screen.results-screen--has-global #results-list,
+  .global-leaderboard {
+    flex: none;
+    width: 90%;
+    max-width: 700px;
+  }
+}
+
 /* Device-choice visibility on cramped viewports. Styles in
    /shared/device-choice.css. The ID+root-class selector (1,1,1) beats
    .device-choice.hidden (0,2,0) so the element shows even with the

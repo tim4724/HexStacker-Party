@@ -116,8 +116,302 @@ setRoomState = function(newState) {
   if (ok && before !== ROOM_STATE.RESULTS && newState === ROOM_STATE.RESULTS) {
     try { airconsole.showAd(); } catch (e) {}
   }
+  // Leaving RESULTS (Play Again, New Game, return to lobby): stop the
+  // leaderboard auto-toggle and collapse the panel so the next round's
+  // results screen starts clean. The next round repopulates from scratch.
+  if (ok && before === ROOM_STATE.RESULTS && newState !== ROOM_STATE.RESULTS) {
+    _hsStopToggle();
+    if (_hsRefetchTimer) { clearTimeout(_hsRefetchTimer); _hsRefetchTimer = null; }
+    if (_hsPumpWatchdog) { clearTimeout(_hsPumpWatchdog); _hsPumpWatchdog = null; }
+    hideGlobalLeaderboard();
+  }
   return ok;
 };
+
+// =====================================================================
+// Global highscores (AirConsole native High Score API)
+// On game end, store each played player's lines to two boards — all-time and
+// the current month — keyed by level_version. Then fetch both and render a
+// global top-10 panel on the results screen that auto-toggles between the
+// boards a session player actually ranks in (world top 100). See plan.
+// =====================================================================
+
+var HS_LEVEL_NAME = 'HexStacker Party'; // human-readable; shows in AC share image
+var HS_SCHEMA = 'v1-';                  // scoring-schema prefix; bump to fork boards
+var HS_RANK_CUTOFF = 100;               // show a board only if a session player is in the world top N
+var HS_TOGGLE_MS = 6000;
+
+// level_version per board. Month is computed live (UTC) so a display left open
+// across a month boundary files into the right bucket.
+function hsBoardVersion(key) {
+  if (key === 'month') {
+    var d = new Date();
+    var m = d.getUTCMonth() + 1;
+    return HS_SCHEMA + d.getUTCFullYear() + '-' + (m < 10 ? '0' + m : m);
+  }
+  return HS_SCHEMA + 'all';
+}
+function hsBoardKeyForVersion(v) {
+  if (v === hsBoardVersion('all')) return 'all';
+  if (v === hsBoardVersion('month')) return 'month';
+  return null;
+}
+
+// boardKey -> { entries:[{rank,name,scoreString}], rankByPlayerId:{}, qualifies:bool }
+var _hsCache = {};
+var _hsPlayerUids = {};        // playerId -> uid, for the current round
+var _hsActiveBoard = 'all';
+var _hsTogglePinned = false;   // a manual pill click stops auto-rotation
+var _hsToggleTimer = null;
+var _hsRequestQueue = [];
+var _hsRequestInFlight = false;
+var _hsPendingBoard = null;
+var _hsRefetchTimer = null;
+var _hsPumpWatchdog = null;
+
+function acStoreHighScores(msg) {
+  // `airconsole` is this file's own var, always set; the typeof guard covers
+  // the AC_MOCK / older-SDK path where the High Score API is absent.
+  if (typeof airconsole.storeHighScore !== 'function') return;
+  if (!msg || !msg.results || msg._hsStored) return;
+  msg._hsStored = true;
+
+  var played = msg.results.filter(function(r) {
+    return typeof r.rank === 'number' && !r.newPlayer;
+  });
+  if (!played.length) return;
+
+  // Fresh round: reset cache, toggle, active board, and the request pipeline.
+  // Resetting the queue/in-flight is essential — a Play Again that lands before
+  // the previous round's onHighScores arrives would otherwise leave a stale
+  // in-flight flag set, stranding this round's requests behind it.
+  _hsCache = {};
+  _hsPlayerUids = {};
+  _hsTogglePinned = false;
+  _hsActiveBoard = 'all';
+  _hsRequestQueue = [];
+  _hsRequestInFlight = false;
+  _hsPendingBoard = null;
+  if (_hsRefetchTimer) { clearTimeout(_hsRefetchTimer); _hsRefetchTimer = null; }
+  if (_hsPumpWatchdog) { clearTimeout(_hsPumpWatchdog); _hsPumpWatchdog = null; }
+
+  var boards = ['all', 'month'];
+  for (var i = 0; i < played.length; i++) {
+    var r = played[i];
+    var uid = airconsole.getUID(r.playerId);
+    if (!uid) continue; // controller dropped at game end — no UID to attribute
+    _hsPlayerUids[r.playerId] = uid;
+    // A 0-line result (instant topout) isn't worth a new board entry — skip the
+    // store but keep the uid so any prior best still surfaces a world-rank badge.
+    if (!(r.lines > 0)) continue;
+    for (var b = 0; b < boards.length; b++) {
+      try {
+        // score_string is English (AC's own share image); our render localizes
+        // from the numeric score instead.
+        airconsole.storeHighScore(HS_LEVEL_NAME, hsBoardVersion(boards[b]), r.lines,
+          uid, { level: r.level }, r.lines + ' lines');
+      } catch (e) { /* NaN guard / SDK throw */ }
+    }
+  }
+
+  // Prefetch both boards so the auto-toggle has data to cycle through. This
+  // races the storeHighScore calls above, so the first paint may show pre-store
+  // data; onHighScoreStored re-fetches once the new bests are confirmed.
+  requestHighScoresFor('all');
+  requestHighScoresFor('month');
+}
+
+// Wrap the global results renderer so storing rides on the single funnel for
+// live end, test harness and reconnect-restore (DisplayGame.js onGameEnd).
+var _origOnGameEnd = onGameEnd;
+onGameEnd = function(msg) {
+  _origOnGameEnd(msg);
+  acStoreHighScores(msg);
+};
+
+// One request in flight at a time; onHighScores pumps the next. Dedupe so a
+// burst of onHighScoreStored re-fetches can't pile redundant requests for the
+// same board onto the queue.
+function requestHighScoresFor(boardKey) {
+  if (typeof airconsole.requestHighScores !== 'function') return;
+  if (_hsRequestQueue.indexOf(boardKey) === -1) _hsRequestQueue.push(boardKey);
+  _hsPumpRequests();
+}
+function _hsPumpRequests() {
+  if (_hsRequestInFlight || !_hsRequestQueue.length) return;
+  var key = _hsRequestQueue.shift();
+  _hsRequestInFlight = true;
+  _hsPendingBoard = key;
+  // Watchdog: if the SDK accepts the request but never fires onHighScores
+  // (network blip / SDK quirk), clear in-flight after 10s so the queue can't
+  // stall the panel permanently.
+  if (_hsPumpWatchdog) clearTimeout(_hsPumpWatchdog);
+  _hsPumpWatchdog = setTimeout(function() {
+    _hsPumpWatchdog = null;
+    _hsRequestInFlight = false;
+    _hsPendingBoard = null;
+    _hsPumpRequests();
+  }, 10000);
+  try {
+    // undefined uids = all connected controllers, so our players' own entries
+    // (with their ranks.world) come back alongside the global top 10.
+    // top=10 leaders to display; total=20 leaves room (total - top) for the
+    // connected players' own context entries, so a player ranked outside the
+    // top 10 still gets their world rank back for the per-row badge.
+    airconsole.requestHighScores(HS_LEVEL_NAME, hsBoardVersion(key), undefined, ['world'], 20, 10);
+  } catch (e) {
+    _hsRequestInFlight = false;
+    _hsPendingBoard = null;
+    _hsPumpRequests();
+  }
+}
+
+airconsole.onHighScoreStored = function(/* high_score */) {
+  // Fires once per storeHighScore that set a new best — up to 2xN times a round.
+  // Debounce into a single re-fetch so the board updates once the storm settles.
+  // Don't clear the cache: _hsIngestBoard overwrites each board's entry when its
+  // response lands, so clearing here would only risk a mid-flight blank.
+  if (_hsRefetchTimer) clearTimeout(_hsRefetchTimer);
+  _hsRefetchTimer = setTimeout(function() {
+    _hsRefetchTimer = null;
+    requestHighScoresFor('all');
+    requestHighScoresFor('month');
+  }, 600);
+};
+
+airconsole.onHighScores = function(list) {
+  if (_hsPumpWatchdog) { clearTimeout(_hsPumpWatchdog); _hsPumpWatchdog = null; }
+  list = list || [];
+  // Route by the version on the returned entries; fall back to the pending
+  // board when the list is empty (an empty board carries no version) or when
+  // the version is unrecognized (e.g. the UTC month rolled over between the
+  // request and this response).
+  var boardKey = (list[0] && hsBoardKeyForVersion(list[0].level_version)) || _hsPendingBoard;
+  _hsRequestInFlight = false;
+  _hsPendingBoard = null;
+  if (boardKey) _hsIngestBoard(boardKey, list);
+  _hsPumpRequests();
+  _hsRefreshDisplay();
+};
+
+// AirConsole's High Score typedef documents uids/nicknames as pipe-joined
+// strings, but the live SDK (1.11.x) returns plain arrays. Normalize both so a
+// future SDK change in either direction keeps matching/naming working.
+function _hsToList(v) {
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'string') return v.split('|');
+  return [];
+}
+function _hsFirstOf(v) {
+  var list = _hsToList(v);
+  return list.length ? list[0] : '';
+}
+
+function _hsIngestBoard(key, list) {
+  var uidToPlayer = {};
+  for (var pid in _hsPlayerUids) uidToPlayer[_hsPlayerUids[pid]] = pid;
+
+  var bestRank = Infinity;
+  var top = [];
+  var seenUid = {};
+
+  for (var i = 0; i < list.length; i++) {
+    var e = list[i];
+    var world = e.ranks && e.ranks.world;
+    if (world == null) continue;
+    var euids = _hsToList(e.uids);
+    // If this entry is one of our session players, note it so the row can be
+    // tinted in their color, and track the best session rank for the gate.
+    var matchedPlayerId = null;
+    for (var u = 0; u < euids.length; u++) {
+      if (uidToPlayer[euids[u]] != null) {
+        matchedPlayerId = uidToPlayer[euids[u]];
+        if (world < bestRank) bestRank = world;
+        break;
+      }
+    }
+    // Collect entries for the top-10 panel (dedupe by user).
+    var firstUid = euids[0] || '';
+    if (!seenUid[firstUid]) {
+      seenUid[firstUid] = true;
+      var colorIndex = null;
+      if (matchedPlayerId != null) {
+        var pinfo = players.get(matchedPlayerId);
+        colorIndex = pinfo ? pinfo.playerIndex : null;
+      }
+      top.push({
+        rank: world,
+        name: _hsFirstOf(e.nicknames) || t('player'),
+        scoreString: t('n_lines', { count: e.score }),
+        colorIndex: colorIndex
+      });
+    }
+  }
+  top.sort(function(a, b) { return a.rank - b.rank; });
+
+  _hsCache[key] = {
+    entries: top.slice(0, 10),
+    qualifies: bestRank <= HS_RANK_CUTOFF
+  };
+}
+
+function _hsQualifyingBoards() {
+  var out = [];
+  ['all', 'month'].forEach(function(k) {
+    if (_hsCache[k] && _hsCache[k].qualifies) out.push(k);
+  });
+  return out;
+}
+
+function _hsShowBoard(key) {
+  var board = _hsCache[key];
+  if (!board) return;
+  _hsActiveBoard = key;
+  renderGlobalLeaderboard(board.entries, key);
+}
+
+function _hsRefreshDisplay() {
+  if (roomState !== ROOM_STATE.RESULTS) return;
+  var qualifying = _hsQualifyingBoards();
+  if (!qualifying.length) {
+    _hsStopToggle();
+    hideGlobalLeaderboard();
+    return;
+  }
+  if (qualifying.indexOf(_hsActiveBoard) === -1) _hsActiveBoard = qualifying[0];
+  _hsShowBoard(_hsActiveBoard);
+  if (!_hsTogglePinned && qualifying.length > 1) _hsStartToggle();
+  else _hsStopToggle();
+}
+
+function _hsStartToggle() {
+  _hsStopToggle();
+  _hsToggleTimer = setInterval(function() {
+    var q = _hsQualifyingBoards();
+    if (q.length < 2) { _hsStopToggle(); return; }
+    var idx = q.indexOf(_hsActiveBoard);
+    _hsShowBoard(q[(idx + 1) % q.length]);
+  }, HS_TOGGLE_MS);
+}
+function _hsStopToggle() {
+  if (_hsToggleTimer) { clearInterval(_hsToggleTimer); _hsToggleTimer = null; }
+}
+
+// Manual override: tapping a pill pins that board (any cached board, even one
+// the session didn't rank in) and stops auto-rotation for this results screen.
+(function wireGlobalLeaderboardTabs() {
+  if (!globalLeaderboard) return;
+  var tabs = globalLeaderboard.querySelectorAll('.gl-tab');
+  for (var i = 0; i < tabs.length; i++) {
+    tabs[i].addEventListener('click', function() {
+      var key = this.getAttribute('data-board');
+      if (!_hsCache[key]) return;
+      _hsTogglePinned = true;
+      _hsStopToggle();
+      _hsShowBoard(key);
+    });
+  }
+})();
 
 // Replace PartyConnection with a factory that returns AirConsoleAdapter.
 // `window.` qualifier is required: PartyConnection.js is stripped from the AC
