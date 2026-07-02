@@ -33,9 +33,12 @@ internal object EngineBootstrap {
         resume: function () { if (core) core.resume(); },
         resetFrameClock: function () { if (core) core.resetFrameClock(); },
         rekey: function (oldId, newId) { return !!(core && core.rekey(oldId, newId)); },
-        snapshotJSON: function () { return JSON.stringify(core.snapshot()); },
-        drainEventsJSON: function () { return JSON.stringify(core.drainEvents()); },
-        frameJSON: function (now) { return JSON.stringify(core.frame(now)); },
+        // Reads can't no-op like the writes above (they must return JSON), so a
+        // read-before-create fails loud with a message that names the ordering bug
+        // instead of an opaque TypeError on `core.snapshot`.
+        snapshotJSON: function () { if (!core) throw new Error('no game: create() not called'); return JSON.stringify(core.snapshot()); },
+        drainEventsJSON: function () { if (!core) throw new Error('no game: create() not called'); return JSON.stringify(core.drainEvents()); },
+        frameJSON: function (now) { if (!core) throw new Error('no game: create() not called'); return JSON.stringify(core.frame(now)); },
         isEnded: function () { return !!(core && core.game && core.game.ended); }
       };
     })();

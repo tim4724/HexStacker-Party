@@ -174,8 +174,12 @@ PartyCore.prototype.resetFrameClock = function() {
 // different phone) reclaims a dropped participant's board. Rekeys the engine's
 // per-player state from oldId -> newId (boards, playerIds, hard-drop cooldown,
 // garbage queues), mirroring the web's rekeyDisplayGamePlayer + GarbageManager
-// .rekeyPlayer. The roster/host side is the caller's RoomFlow.rekey. Pure (no
-// clock/IO); no-op + false when oldId is unknown or equals newId. Returns true if
+// .rekeyPlayer. KNOWN DIVERGENCE: the web rekey does NOT move _hardDropCooldownMs
+// (a reclaiming player starts with a fresh cooldown); carrying it here is
+// deliberate so a reclaim can't bypass the hard-drop throttle. Worst case the
+// reclaimed board's first hard-drop waits out HARD_DROP_MIN_INTERVAL_MS (150ms).
+// The roster/host side is the caller's RoomFlow.rekey. Pure (no clock/IO);
+// no-op + false when oldId is unknown or equals newId. Returns true if
 // a board moved. Native ports call this via Bridge.rekey on a claim HELLO.
 PartyCore.prototype.rekey = function(oldId, newId) {
   if (oldId === newId) return false;

@@ -272,6 +272,13 @@ class DisplayCoordinator(
                 !playerOrder.contains(p.peerIndex)
             sendWelcome(p.peerIndex, isLateJoiner = late)
         }
+        // The link-drop pause lifts only now that the room-level rejoin reconciled the roster
+        // (resumeGame's allParticipantsDisconnected guard sees the post-reconcile truth and the
+        // GAME_RESUMED broadcast can't outrun the relay's join processing).
+        if (linkPaused) {
+            linkPaused = false
+            resumeGame()
+        }
     }
 
     private fun onPeerJoined(index: Int) {
@@ -376,8 +383,11 @@ class DisplayCoordinator(
 
     /**
      * The display's own relay link state. On a drop, pause the running game (controllers
-     * are unreachable, so no broadcast); on reconnect, resume. handleJoined re-welcomes
-     * the survivors once the relay is back.
+     * are unreachable, so no broadcast). The resume lives in [handleJoined], not here: OPEN
+     * fires at raw-socket-open, before the relay has processed our join, so resuming (and
+     * broadcasting GAME_RESUMED) now could race ahead of the roster reconciliation and be
+     * dropped server-side. The web equivalent (onDisplayRejoined) also resumes only after
+     * the relay's `joined` reply.
      */
     private suspend fun onLinkState(state: RelayTransport.ConnectionState) {
         when (state) {
@@ -388,12 +398,6 @@ class DisplayCoordinator(
                     engine?.pause()
                     engine?.resetFrameClock()
                     output.pauseMusic()
-                }
-            }
-            RelayTransport.ConnectionState.OPEN -> {
-                if (linkPaused) {
-                    linkPaused = false
-                    resumeGame()
                 }
             }
             else -> {}
@@ -455,11 +459,24 @@ class DisplayCoordinator(
                 transport.sendTo(from, OutboundMessage.error("Room is full"))
                 return
             }
-            val name = sanitizeName(msg.name) ?: autoName(msg.name)
+            // autoName=true re-resolves through the room-unique generator even when the
+            // submitted HX name sanitizes fine, so a rejoining controller can't duplicate
+            // another player's name (web sanitizePlayerName with requestedAutoName).
+            val name = if (msg.autoName == true) autoName(msg.name) else (sanitizeName(msg.name) ?: autoName(msg.name))
             flow.addPlayer(from, name, slot)
         } else {
-            val name = sanitizeName(msg.name)
-            if (name != null && msg.autoName != true) flow.player(from)!!.playerName = name
+            // Mirror web onHello's existing-player branch: a non-empty submission or an
+            // autoName request re-resolves via sanitizePlayerName (auto/empty/legacy names
+            // go through the generator, excluding this peer's own entry so an unchanged
+            // HX name keeps its number); custom names apply as entered.
+            val rec = flow.player(from)!!
+            val submitted = !msg.name.isNullOrBlank()
+            if (msg.autoName == true || submitted) {
+                val requested = if (submitted) msg.name else rec.playerName
+                val cleaned = sanitizeName(requested)
+                rec.playerName =
+                    if (msg.autoName == true || cleaned == null) autoName(requested, exceptId = from) else cleaned
+            }
         }
         val late = (flow.state == RoomState.PLAYING || flow.state == RoomState.COUNTDOWN) &&
             !playerOrder.contains(from)
@@ -629,10 +646,9 @@ class DisplayCoordinator(
 
     private suspend fun advanceCountdown(deltaMs: Double) {
         if (countdownStep < 0) {
-            emitCountdownStep(0) // step 0 fires immediately at entry (even if paused)
+            emitCountdownStep(0) // step 0 fires immediately at entry
             return
         }
-        if (paused) return // pause freezes the countdown
         countdownElapsed += deltaMs
         val nextStep = countdownStep + 1
         val threshold = if (nextStep <= 3) nextStep * STEP_MS else 3 * STEP_MS + GO_HOLD_MS
@@ -795,10 +811,8 @@ class DisplayCoordinator(
         RemoteKind.PLAY_PAUSE -> {
             when (flow.state) {
                 RoomState.LOBBY, RoomState.RESULTS -> if (flow.size >= 1) beginCountdown()
-                RoomState.COUNTDOWN, RoomState.PLAYING ->
-                    if (flow.state == RoomState.PLAYING) {
-                        if (paused) resumeGame() else pauseGame()
-                    }
+                RoomState.PLAYING -> if (paused) resumeGame() else pauseGame()
+                RoomState.COUNTDOWN -> {} // pause during countdown is unsupported (web freezes the count; deferred)
             }
             muted
         }
@@ -914,8 +928,11 @@ class DisplayCoordinator(
     // Helpers
     // =====================================================================
 
+    // isExpired catches a controller that went silent within the last second, before the
+    // 1 Hz liveness sweep could mark it disconnected (web prunes on isDisconnected || isExpired).
     private fun pruneDisconnected() {
-        for (rec in flow.list()) if (flow.isDisconnected(rec.peerIndex)) {
+        val now = nowWallMs()
+        for (rec in flow.list()) if (flow.isDisconnected(rec.peerIndex) || flow.isExpired(rec.peerIndex, now)) {
             flow.removePlayer(rec.peerIndex)
             playerOrder.removeAll { it == rec.peerIndex }
         }
@@ -927,9 +944,9 @@ class DisplayCoordinator(
      * randomly from the same pool, but determinism is fine here and keeps it testable).
      * An explicit `preferred` HX-number is honored when free + allowed.
      */
-    private fun autoName(preferred: String? = null): String {
+    private fun autoName(preferred: String? = null, exceptId: Int? = null): String {
         val taken = HashSet<Int>()
-        for (p in flow.list()) autoNameNumber(p.playerName)?.let { taken.add(it) }
+        for (p in flow.list()) if (p.peerIndex != exceptId) autoNameNumber(p.playerName)?.let { taken.add(it) }
         autoNameNumber(preferred)?.let { n ->
             if (n !in AUTO_NAME_BLOCKLIST && n !in taken) return "HX-$n"
         }
@@ -944,7 +961,7 @@ class DisplayCoordinator(
         if (raw == null) return null
         val sb = StringBuilder(raw.length)
         for (ch in raw) {
-            if (ch.code < 0x20) continue // control chars
+            if (ch.code < 0x20 || ch.code == 0x7F) continue // control chars + DEL (web strips [\x00-\x1f\x7f])
             if (isDefaultIgnorable(ch)) continue
             sb.append(ch)
         }

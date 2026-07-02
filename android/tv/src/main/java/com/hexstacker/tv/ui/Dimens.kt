@@ -7,9 +7,6 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.max
 import kotlin.math.min
 
-/** 1 CSS rem == 16 px (browser default root font-size). */
-const val REM: Float = 16f
-
 /**
  * CSS-`clamp()` helper bound to a viewport. Widths/heights are treated as
  * dp ~= css-px (close enough for TV layout; the integrator fine-tunes against

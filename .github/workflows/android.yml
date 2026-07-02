@@ -74,7 +74,7 @@ jobs:
               marker,
               '### 📸 TV screenshots',
               '',
-              `[**Download \`tv-screenshots\`**](${process.env.ARTIFACT_URL}): 10 screens rendered this run at **1920×1080**.`,
+              `[**Download \`tv-screenshots\`**](${process.env.ARTIFACT_URL}): every screen rendered this run at **1920×1080**.`,
               'Compose lobby / results / overlays plus the Canvas board for 2/3/4 players, captured headless via Robolectric (record-only, for review).',
               '',
               '_Requires being signed in to GitHub; the link expires when the run artifacts do._',

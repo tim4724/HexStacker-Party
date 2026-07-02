@@ -17,11 +17,14 @@ import kotlinx.coroutines.withContext
  * driving the SAME canonical server engine (bundled to `dist/partycore.js`)
  * through `PartyCore.frame(nowMs)`. Does NOT re-port game logic.
  *
- * Threading: the QuickJS C runtime is single-threaded. The instance is created on
- * a serial [dispatcher]; every public method is `suspend` and guarded by a [Mutex]
- * so two `evaluate` calls can never overlap on the one shared mutable `Game`. Route
- * the frame loop and controller input through the same coordinator coroutine so
- * input accumulates between frames exactly as the web does.
+ * Threading: the QuickJS C runtime is not thread-safe (though it has no thread
+ * affinity), and quickjs-kt runs `evaluate` on the CALLER's thread — the
+ * [dispatcher] passed to `QuickJs.create` only dispatches its async-function jobs,
+ * which this shim never uses. Serialization is what matters, and the [Mutex] here
+ * (plus quickjs-kt's own internal lock) guarantees two `evaluate` calls never
+ * overlap on the one shared mutable `Game`. Route the frame loop and controller
+ * input through the same coordinator coroutine so input accumulates between
+ * frames exactly as the web does.
  *
  * One bridge lives for the whole app: `createGame()` re-inits a fresh game per
  * match (the JS `Bridge.create` reassigns `core`) without re-parsing the bundle.
@@ -34,8 +37,9 @@ class EngineBridge private constructor(
 
     companion object {
         /**
-         * Build a ready bridge: create QuickJS on [dispatcher], evaluate the engine
-         * bundle (defines `globalThis.HexCore`) + the Bridge shim, verify both exist.
+         * Build a ready bridge: create QuickJS (with [dispatcher] as its async-job
+         * dispatcher), evaluate the engine bundle (defines `globalThis.HexCore`) +
+         * the Bridge shim, verify both exist.
          *
          * @param bundleJs full text of `dist/partycore.js` (asset on device, file in tests)
          * @param dispatcher a SERIAL dispatcher; defaults to a private limitedParallelism(1)
@@ -99,11 +103,7 @@ class EngineBridge private constructor(
      * reclaimed board. Returns true if a board moved. Mirrors `PartyCore.rekey`.
      */
     suspend fun rekey(oldId: Int, newId: Int): Boolean = lock.withLock {
-        try {
-            qjs.evaluate<Boolean>("Bridge.rekey($oldId, $newId)")
-        } catch (e: Throwable) {
-            throw EngineException.wrap("rekey", e)
-        }
+        evalTyped("rekey", "Bridge.rekey($oldId, $newId)")
     }
 
     /**
@@ -116,11 +116,7 @@ class EngineBridge private constructor(
     }
 
     suspend fun isEnded(): Boolean = lock.withLock {
-        try {
-            qjs.evaluate<Boolean>("Bridge.isEnded()")
-        } catch (e: Throwable) {
-            throw EngineException.wrap("isEnded", e)
-        }
+        evalTyped("isEnded", "Bridge.isEnded()")
     }
 
     // --- reads ---------------------------------------------------------------
@@ -146,20 +142,23 @@ class EngineBridge private constructor(
 
     /**
      * Close the QuickJS runtime. `suspend` + [lock] so it can never overlap an
-     * in-flight frame()/input call, and frees the thread-confined C runtime on the
-     * engine [dispatcher] thread that created it (never the caller's, e.g. Main).
+     * in-flight frame()/input call; hopping to [dispatcher] additionally keeps the
+     * native teardown off the caller's (Main) thread.
      */
     suspend fun close() = lock.withLock { withContext(dispatcher) { qjs.close() } }
 
     // --- internals -----------------------------------------------------------
 
     private suspend fun eval(label: String, code: String) {
+        evalTyped<Any?>(label, code)
+    }
+
+    private suspend inline fun <reified T> evalTyped(label: String, code: String): T =
         try {
-            qjs.evaluate<Any?>(code)
+            qjs.evaluate<T>(code)
         } catch (e: Throwable) {
             throw EngineException.wrap(label, e)
         }
-    }
 
     private suspend inline fun <reified T> decode(label: String, code: String): T {
         val json = try {

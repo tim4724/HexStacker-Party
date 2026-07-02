@@ -14,6 +14,5 @@ internal object EngineJson {
     val json = Json {
         ignoreUnknownKeys = true
         isLenient = false
-        explicitNulls = false
     }
 }

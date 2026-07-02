@@ -19,10 +19,7 @@ import kotlinx.serialization.encoding.Encoder
  * piece still partly in the buffer.
  */
 @Serializable(with = CellSerializer::class)
-data class Cell(val col: Int, val row: Int) {
-    val x get() = col
-    val y get() = row
-}
+data class Cell(val col: Int, val row: Int)
 
 object CellSerializer : KSerializer<Cell> {
     private val delegate = ListSerializer(Int.serializer())

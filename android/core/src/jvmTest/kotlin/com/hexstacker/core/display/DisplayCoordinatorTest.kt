@@ -516,6 +516,84 @@ class DisplayCoordinatorTest {
         } finally { bridge.close() }
     }
 
+    @Test
+    fun linkResumeWaitsForRoomRejoinNotSocketOpen() = runBlocking {
+        // The display's link-drop pause must lift on the relay's `joined` reply (roster
+        // reconciled), NOT on raw socket OPEN — OPEN fires before the relay has processed
+        // the join, so a GAME_RESUMED broadcast then could be dropped server-side.
+        val bridge = EngineBridge.create(bundle())
+        try {
+            val t = FakeTransport(); val out = FakeOutput()
+            val coord = DisplayCoordinator(t, out, realFactory(bridge), seedProvider = { 0xBADCAFEL })
+            coord.start()
+            toPlaying(coord, t, listOf(1, 2))
+            assertEquals(RoomState.PLAYING, coord.state)
+
+            // Link drops mid-game: silent pause (controllers unreachable, no broadcast).
+            val pausesBefore = out.musicPauses
+            coord.onLinkStateChanged(RelayTransport.ConnectionState.RECONNECTING); coord.awaitIdle()
+            assertTrue(out.musicPauses > pausesBefore, "link drop pauses the running game")
+
+            // Socket re-opens; the room-level join is still in flight -> no resume yet.
+            t.sent.clear()
+            coord.onLinkStateChanged(RelayTransport.ConnectionState.OPEN); coord.awaitIdle()
+            assertFalse(t.sent.any { type(it.second) == Msg.GAME_RESUMED }, "no resume before the room rejoin")
+
+            // The relay's joined reply reconciles the roster -> the game resumes now.
+            t.joined("R", listOf(1, 2)); coord.awaitIdle()
+            assertTrue(t.sent.any { it.first == -1 && type(it.second) == Msg.GAME_RESUMED }, "resume after joined")
+            assertTrue(out.musicResumes > 0, "music resumed with the game")
+            coord.stop()
+        } finally { bridge.close() }
+    }
+
+    @Test
+    fun returnToLobbyPrunesJustExpiredController() = runBlocking {
+        // pruneDisconnected must also drop a controller whose silence hasn't yet been
+        // flagged by the 1 Hz liveness sweep (web prunes on isDisconnected || isExpired).
+        val bridge = EngineBridge.create(bundle())
+        try {
+            var now = 0.0
+            val t = FakeTransport(); val out = FakeOutput()
+            val coord = DisplayCoordinator(t, out, realFactory(bridge), seedProvider = { 0xBADCAFEL })
+            coord.clock = { now }
+            coord.start()
+            toPlaying(coord, t, listOf(1, 2))
+            // Both controllers last checked in at t=0; peer 2 then goes silent.
+            t.deliver(1, simple(Msg.PING)); t.deliver(2, simple(Msg.PING)); coord.awaitIdle()
+
+            // Host returns to lobby >3s later, BEFORE any liveness sweep flagged peer 2.
+            now = 3500.0
+            t.deliver(1, simple(Msg.RETURN_TO_LOBBY)); coord.awaitIdle()
+            assertEquals(RoomState.LOBBY, coord.state)
+            assertTrue(coord.flow.contains(1), "the just-seen host survives the prune")
+            assertFalse(coord.flow.contains(2), "a silent-past-timeout controller is pruned without waiting for the sweep")
+            coord.stop()
+        } finally { bridge.close() }
+    }
+
+    @Test
+    fun helloAutoNameReResolvesRoomUnique() = runBlocking {
+        val t = FakeTransport(); val out = FakeOutput()
+        val coord = DisplayCoordinator(t, out, engineFactory = { _, _ -> error("no engine") }, seedProvider = { 0L })
+        coord.start()
+        t.created("R", null); coord.awaitIdle()
+        t.peerJoined(1); t.peerJoined(2); coord.awaitIdle() // auto-named HX-1, HX-2
+
+        // A NEW controller submitting a stored auto-name that's already taken re-resolves
+        // through the generator (web sanitizePlayerName with requestedAutoName): no duplicates.
+        t.deliver(3, buildJsonObject { put("type", Msg.HELLO); put("name", "HX-1"); put("autoName", true) })
+        coord.awaitIdle()
+        assertEquals("HX-3", coord.flow.player(3)!!.playerName)
+
+        // An EXISTING auto-named player's rejoin HELLO excludes itself from the collision
+        // set (keeps its own number) and can't steal another player's.
+        t.deliver(1, buildJsonObject { put("type", Msg.HELLO); put("name", "HX-2"); put("autoName", true) })
+        coord.awaitIdle()
+        assertEquals("HX-1", coord.flow.player(1)!!.playerName)
+        coord.stop()
+    }
+
     // ---- fakes ----
 
     private class FakeTransport : RelayTransport {

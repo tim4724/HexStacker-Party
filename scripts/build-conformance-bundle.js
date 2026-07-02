@@ -9,23 +9,20 @@
 // This is the cross-engine conformance harness: if QuickJS (Android) / JSC
 // (tvOS) reproduce the V8-recorded golden, the canonical engine is faithful on
 // that engine. Output is git-ignored (regenerated from canonical JS, cannot
-// drift). Same esbuild config family as scripts/build.js coreOptions.
+// drift). Reuses scripts/build.js coreOptions (only the entry/global/outfile
+// differ) so this bundle can't drift from the config dist/partycore.js ships with.
 
 const path = require('path');
 const esbuild = require('esbuild');
+const { coreOptions } = require('./build.js');
 
 const ROOT = path.join(__dirname, '..');
 
-esbuild.build({
+esbuild.build(coreOptions({
   entryPoints: [path.join(ROOT, 'tests', 'helpers', 'partycore-frame-script.js')],
-  bundle: true,
-  format: 'iife',
   globalName: 'HexFrameTest',
-  platform: 'neutral',
-  target: 'es2017',
-  legalComments: 'none',
   outfile: path.join(ROOT, 'dist', 'partycore-frame-test.js'),
-}).then(function () {
+})).then(function () {
   console.log('build: dist/partycore-frame-test.js');
 }).catch(function (err) {
   console.error(err);

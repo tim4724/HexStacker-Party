@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -79,7 +80,12 @@ fun ResultsScreen(
     LaunchedEffect(Unit) {
         delay(1500) // web resultsButtonsEnter 1.5s gate
         revealed = true
-        runCatching { playAgainFocus.requestFocus() }
+    }
+    // Separate effect keyed on the reveal: focusable(enabled=false) has NO focus target
+    // node, so requesting focus in the same resumption that sets `revealed = true` (before
+    // the recomposition attaches the node) would silently no-op and leave the D-pad blind.
+    LaunchedEffect(revealed) {
+        if (revealed) runCatching { playAgainFocus.requestFocus() }
     }
 
     BoxWithConstraints(
@@ -114,7 +120,11 @@ fun ResultsScreen(
                 verticalArrangement = Arrangement.spacedBy(vp.vhDp(6.4f, 0.8f, 12.8f)),
             ) {
                 sorted.forEachIndexed { i, res ->
-                    ResultRow(res = res, index = i, solo = solo, vp = vp)
+                    // Keyed like LobbyScreen's PlayerGrid: late joiners append to `sorted` at
+                    // runtime, and the key keeps each row's entrance Animatable with its player.
+                    key(res.playerId) {
+                        ResultRow(res = res, index = i, solo = solo, vp = vp)
+                    }
                 }
             }
 
@@ -189,7 +199,11 @@ private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, vp: Vp) {
                 topLeft = Offset(stroke / 2f, stroke / 2f),
                 size = Size(size.width - stroke, size.height - stroke),
                 cornerRadius = CornerRadius(Tokens.radiusMd.toPx()),
-                style = Stroke(width = stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 7f))),
+                // dp-scaled (not raw px) so the dash density matches across 720p..4K panels.
+                style = Stroke(
+                    width = stroke,
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(10.dp.toPx(), 7.dp.toPx())),
+                ),
             )
         }
     } else {

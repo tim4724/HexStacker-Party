@@ -6,6 +6,7 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.os.SystemClock
 import android.util.AttributeSet
+import android.util.Log
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import androidx.annotation.VisibleForTesting
@@ -22,7 +23,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.math.floor
 import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.roundToInt
 
 /** Per-seat presentation metadata supplied by the coordinator (NOT engine state). */
@@ -125,9 +125,6 @@ class BoardSurfaceView @JvmOverloads constructor(
     private val eventQueue = ConcurrentLinkedQueue<GameEvent>()
     private val disconnects = ConcurrentHashMap<Int, String>()
 
-    /** Optional TV overscan inset as a fraction of min(w,h). Default 0 (modern TVs). */
-    @Volatile var overscanFraction: Double = 0.0
-
     @Volatile private var running = false
     private var renderThread: Thread? = null
 
@@ -223,8 +220,10 @@ class BoardSurfaceView @JvmOverloads constructor(
                         continue
                     }
                     drawFrame(canvas)
-                } catch (_: Throwable) {
-                    // Surface went away mid-frame; loop re-checks `running`.
+                } catch (t: Throwable) {
+                    // Surface-teardown races land here benignly (running flips false first);
+                    // anything else would silently blank the board forever, so leave a trace.
+                    if (running) Log.w(TAG, "drawFrame failed", t)
                 } finally {
                     if (canvas != null) runCatching { h.unlockCanvasAndPost(canvas) }
                 }
@@ -378,16 +377,19 @@ class BoardSurfaceView @JvmOverloads constructor(
     }
 
     private fun rebuildLayout() {
+        // Clear the flag BEFORE snapshotting the inputs: a setViewport()/surfaceChanged()
+        // landing mid-rebuild re-marks it and the next frame rebuilds with the fresh
+        // values. Clearing at the end would swallow that concurrent update.
+        layoutDirty = false
         val w = surfaceW
         val h = surfaceH
         val s = seats
-        if (w <= 0 || h <= 0 || s.isEmpty()) return // not ready; retry next frame
+        if (w <= 0 || h <= 0 || s.isEmpty()) { layoutDirty = true; return } // not ready; retry next frame
 
         for (r in renderers) r.recycle()
 
-        val inset = overscanFraction * min(w, h)
         val n = if (playerCount > 0) playerCount else s.size
-        val layout = LayoutEngine.layout(n, (w - 2 * inset), (h - 2 * inset), textHeightOverride)
+        val layout = LayoutEngine.layout(n, w.toDouble(), h.toDouble(), textHeightOverride)
 
         val newRenderers = ArrayList<BoardRenderer>(layout.placements.size)
         val idx = HashMap<Int, Int>()
@@ -397,8 +399,8 @@ class BoardSurfaceView @JvmOverloads constructor(
                 BoardRenderer(
                     context = context,
                     geometry = layout.geometry,
-                    boardX = (inset + pl.originX).toFloat(),
-                    boardY = (inset + pl.originY).toFloat(),
+                    boardX = pl.originX.toFloat(),
+                    boardY = pl.originY.toFloat(),
                     colorSlot = seat.colorSlot,
                     name = seat.name,
                     stampCache = stampCache,
@@ -417,7 +419,6 @@ class BoardSurfaceView @JvmOverloads constructor(
         pendingByPlayer.clear()
         emptySnapshots = arrayOfNulls(newRenderers.size)
         timerCachedSeconds = -1L
-        layoutDirty = false
     }
 
     // ── Timer (port of DisplayUI.drawTimer) ──────────────────────────────────
@@ -489,6 +490,7 @@ class BoardSurfaceView @JvmOverloads constructor(
     )
 
     private companion object {
+        private const val TAG = "BoardSurfaceView"
         private const val VIS_ROWS = EngineConstants.VISIBLE_ROWS // 15
         private val EMPTY_GRID: List<List<Int>> =
             List(EngineConstants.VISIBLE_ROWS) { List(EngineConstants.COLS) { 0 } }

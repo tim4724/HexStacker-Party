@@ -278,8 +278,11 @@ class WebRtcFastlane(context: Context, private val iceUrls: List<String>) : Fast
     private abstract class SdpAdapter : SdpObserver {
         override fun onCreateSuccess(desc: SessionDescription) {}
         override fun onSetSuccess() {}
-        override fun onCreateFailure(error: String?) {}
-        override fun onSetFailure(error: String?) {}
+        // A failed create/set means this peer never gets a data channel and silently
+        // stays on the relay fallback — log it so a no-P2P device leaves a trail
+        // (PartyFastlane.js warns on the same failures).
+        override fun onCreateFailure(error: String?) { Log.w(TAG, "sdp create failed: $error") }
+        override fun onSetFailure(error: String?) { Log.w(TAG, "sdp set failed: $error") }
     }
 
     companion object {

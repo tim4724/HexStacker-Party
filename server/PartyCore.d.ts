@@ -100,6 +100,11 @@ declare class PartyCore {
    *  while paused. */
   pause(): void;
   resume(): void;
+  /** Cross-device claim: rekey the engine's per-player state from `oldId` to
+   *  `newId` (boards, playerIds, hard-drop cooldown, garbage queues). No-op +
+   *  `false` when `oldId` is unknown or equals `newId`; `true` if a board moved.
+   *  Native ports call this via `Bridge.rekey` on a claim HELLO. */
+  rekey(oldId: string, newId: string): boolean;
   /** Advance the engine by `deltaMs`. Individually callable for the native
    *  granular path; self-gates on paused/ended. `frame()` calls this internally —
    *  don't also call it in the same tick. */

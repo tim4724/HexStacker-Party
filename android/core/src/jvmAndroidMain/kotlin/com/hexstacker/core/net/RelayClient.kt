@@ -101,10 +101,18 @@ class RelayClient(
         connectLocked()
     }
 
-    /** Stop and let the executor thread die. Call from onCleared/onDestroy. */
+    /**
+     * Stop and let the executor thread die. Call from onCleared/onDestroy. Also disposes
+     * the (per-instance) OkHttp dispatcher/pool so a recreated Activity doesn't strand
+     * idle threads and connections until their own timeouts.
+     */
     fun shutdown() {
         disconnect()
-        ops.executeSafe { ops.shutdown() }
+        ops.executeSafe {
+            ops.shutdown()
+            httpClient.dispatcher.executorService.shutdown()
+            httpClient.connectionPool.evictAll()
+        }
     }
 
     // ----- connection lifecycle (run on ops) -----
@@ -279,6 +287,9 @@ class RelayClient(
         }
 
         override fun onClosing(ws: WebSocket, code: Int, reason: String) = ops.executeSafe {
+            // Acknowledge the server-initiated close so OkHttp completes the handshake and
+            // releases the connection promptly (otherwise it lingers until the TCP teardown).
+            ws.close(1000, null)
             if (ws === webSocket) handleDrop(code)
         }
 

@@ -146,7 +146,10 @@ internal fun roundRectPath(x: Float, y: Float, w: Float, h: Float, r: Float): Pa
 /** Canvas2D text-baseline parity (Android draws from the baseline; web offsets). */
 internal enum class TextBaseline { TOP, MIDDLE, BOTTOM }
 
-/** Draw [text] so its [baseline] edge sits at (x,y) — mirrors `ctx.textBaseline`. */
+/** Draw [text] so its [baseline] edge sits at (x,y) — mirrors `ctx.textBaseline`.
+ *  Uses Paint.ascent()/descent() (primitive returns) rather than `paint.fontMetrics`,
+ *  which allocates a fresh FontMetrics per call — this helper runs under all HUD text
+ *  in the 60fps draw path. */
 internal fun Canvas.drawTextB(
     text: String,
     x: Float,
@@ -154,11 +157,10 @@ internal fun Canvas.drawTextB(
     paint: Paint,
     baseline: TextBaseline,
 ) {
-    val fm = paint.fontMetrics
     val dy = when (baseline) {
-        TextBaseline.TOP -> -fm.ascent
-        TextBaseline.MIDDLE -> -(fm.ascent + fm.descent) / 2f
-        TextBaseline.BOTTOM -> -fm.descent
+        TextBaseline.TOP -> -paint.ascent()
+        TextBaseline.MIDDLE -> -(paint.ascent() + paint.descent()) / 2f
+        TextBaseline.BOTTOM -> -paint.descent()
     }
     drawText(text, x, y + dy, paint)
 }

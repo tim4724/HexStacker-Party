@@ -13,6 +13,7 @@ import com.hexstacker.core.model.PlayerState
 import com.hexstacker.core.render.ColorMath
 import com.hexstacker.core.render.HexCell
 import com.hexstacker.core.render.HexGeometry
+import com.hexstacker.core.render.Rgb
 import com.hexstacker.core.render.Theme
 import com.hexstacker.core.render.Zigzag
 import com.hexstacker.core.render.outlineVertices
@@ -128,7 +129,10 @@ class BoardRenderer(
         typeface = fonts.bold; textSize = valueSizeF; textAlign = Paint.Align.LEFT
         color = TvColors.white.toArgb()
     }
-    private val koWashPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+    private val koWashPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = Rgb(30, 0, 0).argb(0.6) // web KO wash rgba(30,0,0,0.6); constant, set once
+    }
     private val koTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = fonts.black; textSize = koTextSizeF; textAlign = Paint.Align.CENTER
         color = colorInt(TvColors.koLabel)
@@ -540,6 +544,13 @@ class BoardRenderer(
         }
     }
 
+    // Level/lines strings change rarely; cache them like the surface view's timer string
+    // instead of allocating two Strings per board per frame.
+    private var levelCached = Int.MIN_VALUE
+    private var levelStr = ""
+    private var linesCached = Int.MIN_VALUE
+    private var linesStr = ""
+
     private fun drawLevelLines(canvas: Canvas, p: PlayerState) {
         val panelX = boardX + boardWidth + panelGapF
         val nextCount = min(p.nextPieces.size, 3)
@@ -548,10 +559,13 @@ class BoardRenderer(
         val linesY = belowNextY + rowHeightF
         val valueYOffset = labelSizeF + cellSize * 0.1f
 
+        if (p.level != levelCached) { levelCached = p.level; levelStr = p.level.toString() }
+        if (p.lines != linesCached) { linesCached = p.lines; linesStr = p.lines.toString() }
+
         canvas.drawTextB(labelLevel, panelX, belowNextY, labelPaint, TextBaseline.TOP)
         canvas.drawTextB(labelLines, panelX, linesY, labelPaint, TextBaseline.TOP)
-        canvas.drawTextB(p.level.toString(), panelX, belowNextY + valueYOffset, valuePaint, TextBaseline.TOP)
-        canvas.drawTextB(p.lines.toString(), panelX, linesY + valueYOffset, valuePaint, TextBaseline.TOP)
+        canvas.drawTextB(levelStr, panelX, belowNextY + valueYOffset, valuePaint, TextBaseline.TOP)
+        canvas.drawTextB(linesStr, panelX, linesY + valueYOffset, valuePaint, TextBaseline.TOP)
     }
 
     private fun drawGarbageMeter(canvas: Canvas, pending: Int) {
@@ -617,7 +631,6 @@ class BoardRenderer(
     private fun drawKO(canvas: Canvas) {
         canvas.save()
         canvas.clipPath(boardOutlineAbsPath)
-        koWashPaint.color = com.hexstacker.core.render.Rgb(30, 0, 0).argb(0.6)
         canvas.drawRect(boardX, boardY, boardX + boardWidth, boardY + boardHeight, koWashPaint)
         canvas.drawTextB(labelKo, boardX + boardWidth / 2f, boardY + boardHeight / 2f, koTextPaint, TextBaseline.MIDDLE)
         canvas.restore()
@@ -708,6 +721,13 @@ class BoardRenderer(
     }
 
     // ── Disconnect overlay (secondary; QR supplied by the surface view) ───────
+
+    // The card geometry only depends on the (construction-fixed) board rect, so the two
+    // rounded-rect paths are built on the first QR frame and reused — the overlay shows
+    // for as long as a board stays dropped, and per-frame Paths would be pure GC churn.
+    private var disconnectCardRR: Path? = null
+    private var disconnectQrClip: Path? = null
+
     fun drawDisconnectedOverlay(canvas: Canvas, qr: Bitmap?) {
         canvas.drawPath(boardOutlineAbsPath, disconnectOverlayPaint)
 
@@ -724,13 +744,16 @@ class BoardRenderer(
         val groupY = boardY + (boardHeight - totalH) / 2f
         val outerX = boardX + (boardWidth - outerSize) / 2f
 
-        // Card fill + rim share one path (identical bounds), so build it once.
-        val cardRR = roundRectPath(outerX, groupY, outerSize, outerSize, qrRadius)
+        // Card fill + rim share one path (identical bounds).
+        val cardRR = disconnectCardRR
+            ?: roundRectPath(outerX, groupY, outerSize, outerSize, qrRadius).also { disconnectCardRR = it }
         canvas.drawPath(cardRR, disconnectCardPaint)
         canvas.drawPath(cardRR, disconnectBorderPaint)
 
+        val qrClip = disconnectQrClip
+            ?: roundRectPath(outerX + pad, groupY + pad, qrSize, qrSize, max(1f, qrRadius - pad)).also { disconnectQrClip = it }
         canvas.save()
-        canvas.clipPath(roundRectPath(outerX + pad, groupY + pad, qrSize, qrSize, max(1f, qrRadius - pad)))
+        canvas.clipPath(qrClip)
         qrDstRect.set(outerX + pad, groupY + pad, outerX + pad + qrSize, groupY + pad + qrSize)
         canvas.drawBitmap(qr, null, qrDstRect, stampPaint)
         canvas.restore()
