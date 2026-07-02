@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -25,7 +24,7 @@ import com.hexstacker.tv.R
 
 /**
  * Pause overlay (web `#pause-overlay`, tvOS `setPaused`): "PAUSED" over a
- * full-width Game Music switch and a Continue / New Game button pair. The music
+ * compact Game Music switch row and a Continue / New Game button pair. The music
  * row is the Android/tvOS addition (the display has no toolbar mute on TV).
  * Default focus = CONTINUE; D-pad Up from the buttons reaches the music switch.
  *
@@ -69,12 +68,13 @@ fun PauseOverlay(
                 ),
             )
 
+            // Content-hugging: the label sits right next to the switch (a row spanning
+            // the button pair left a large dead gap between them).
             MusicSwitch(
                 isOn = musicOn,
                 tint = hostColor,
                 rowHeight = vp.vhDp(44f, 7f, 72f),
                 onToggle = onToggleMusic,
-                modifier = Modifier.width(btnMin * 2 + btnGap), // span the button pair
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(btnGap)) {

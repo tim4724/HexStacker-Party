@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -201,6 +202,11 @@ private fun JoinPop(content: @Composable () -> Unit) {
             scaleX = scale.value
             scaleY = scale.value
             this.alpha = alpha.value
+            // alpha<1 with the default Auto strategy composites into an offscreen buffer
+            // that CLIPS to the layer bounds — the 1.08 overshoot would lose its edges
+            // mid-pop. ModulateAlpha applies alpha without a buffer (no clipping),
+            // matching CSS opacity which never clips.
+            compositingStrategy = CompositingStrategy.ModulateAlpha
         },
     ) { content() }
 }
@@ -221,6 +227,10 @@ private fun EntranceBand(
         Modifier.graphicsLayer {
             alpha = anim.value
             translationY = startOffsetY.toPx() * (1f - anim.value)
+            // No offscreen buffer (see JoinPop): a START button focused during the
+            // entrance overflows the band bounds (focus scale + ring) and the Auto
+            // strategy's alpha buffer would clip it while it slides in.
+            compositingStrategy = CompositingStrategy.ModulateAlpha
         },
     ) { content() }
 }

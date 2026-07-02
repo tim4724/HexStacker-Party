@@ -36,8 +36,8 @@ import com.hexstacker.tv.R
 
 /**
  * The host's "Game Music" on/off control (the display-side mute), surfaced in the
- * pause overlay as a full-width focusable settings row: label left, switch right
- * (web `.settings-switch`, tvOS `MusicSwitch`). Switch geometry mirrors the web
+ * pause overlay as a compact focusable row: label, then the switch (web
+ * `.settings-switch`, tvOS `MusicSwitch`). Switch geometry mirrors the web
  * 52:30 track / 24px thumb / 3px inset. ON → track = host tint, thumb right;
  * OFF → track = white@0.12, thumb left. ON means music is playing.
  *
@@ -80,7 +80,7 @@ fun MusicSwitch(
             .clickable { onToggle() }
             .padding(horizontal = rowHeight * 0.5f),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(rowHeight * 0.75f),
     ) {
         Text(
             text = stringResource(R.string.settings_game_music), // NOT uppercased (gotcha #8)

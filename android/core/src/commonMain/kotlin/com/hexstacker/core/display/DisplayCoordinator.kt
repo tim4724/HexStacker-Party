@@ -110,9 +110,10 @@ class DisplayCoordinator(
     private var lastResultsJson: JsonArray? = null
     private val aliveState = HashMap<Int, Boolean>()
 
-    // Countdown driven by accumulated frame time (deterministic + testable).
+    // Countdown driven by accumulated frame time (deterministic + testable). Step 0
+    // ("3") is emitted synchronously by beginCountdown; ticks advance the rest.
     private var countdownElapsed = 0.0
-    private var countdownStep = -1 // -1 init; 0->3, 1->2, 2->1, 3->GO, 4->start
+    private var countdownStep = 0 // 0->3, 1->2, 2->1, 3->GO, 4->start
 
     // Liveness: accumulates tick time to run a ~1 Hz expiredPeers() sweep.
     private var livenessAccumMs = 0.0
@@ -598,7 +599,6 @@ class DisplayCoordinator(
         linkPaused = false
         aliveState.clear()
         countdownElapsed = 0.0
-        countdownStep = -1
         if (!makeEngine()) {
             returnToLobby()
             return
@@ -607,6 +607,10 @@ class DisplayCoordinator(
         // COUNTDOWN (onCountdownDisplay sets gameState = null) so pieces/ghost appear only at
         // GO. showScreen(GAME) resets the boards; the first snapshot renders once PLAYING ticks.
         output.showScreen(DisplayScreen.GAME)
+        // Step 0 ("3") fires synchronously with the screen switch (web startCountdown
+        // broadcasts immediately), so the first GAME frame already carries the countdown
+        // overlay instead of flashing bare boards until the next tick.
+        emitCountdownStep(0)
     }
 
     private suspend fun makeEngine(): Boolean {
@@ -663,10 +667,6 @@ class DisplayCoordinator(
     }
 
     private suspend fun advanceCountdown(deltaMs: Double) {
-        if (countdownStep < 0) {
-            emitCountdownStep(0) // step 0 fires immediately at entry (even if paused)
-            return
-        }
         if (paused) return // a mid-countdown pause freezes the count (web clearCountdownTimers)
         countdownElapsed += deltaMs
         val nextStep = countdownStep + 1
