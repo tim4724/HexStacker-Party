@@ -353,8 +353,11 @@ final class RootScene: SKScene, DisplayOutput {
     }
 
     func setPaused(_ paused: Bool) {
-        // Rebuild the pause buttons (positions depend on the play rect).
-        pauseLayer.children.compactMap { $0 as? MenuButton }.forEach { $0.removeFromParent() }
+        // Rebuild the pause rows (positions depend on the play rect). Remove the
+        // music switch too, not just the buttons: a stale MusicSwitch left behind
+        // stacks under the fresh one, and once the mute state differs between two
+        // pause sessions both knobs show at once.
+        pauseLayer.children.filter { $0 is MenuButton || $0 is MusicSwitch }.forEach { $0.removeFromParent() }
         if paused {
             let cx = playRect.midX, cy = playRect.midY
             // Three evenly-spaced rows centered on the overlay: PAUSED / music / buttons.
