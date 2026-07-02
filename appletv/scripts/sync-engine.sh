@@ -32,11 +32,12 @@ rm -rf "$DEST"
 mkdir -p "$DEST"
 
 # Build the portable native core (server/core-entry.js -> dist/partycore.js: an
-# iife exposing globalThis.HexCore with PartyCore + RoomFlow). Requires deps to be
-# installed at the repo root.
+# iife exposing globalThis.HexCore with PartyCore + RoomFlow). On a fresh clone
+# the repo-root deps are not installed yet; bootstrap them so the first Xcode
+# build works without any manual setup (later builds skip this).
 if [[ ! -d "$REPO_ROOT/node_modules/esbuild" ]]; then
-  echo "sync-engine: esbuild not installed — run 'npm ci' at the repo root first" >&2
-  exit 1
+  echo "sync-engine: node_modules missing, running 'npm ci' at the repo root (first build only)"
+  ( cd "$REPO_ROOT" && npm ci )
 fi
 ( cd "$REPO_ROOT" && npm run --silent build:core )
 
