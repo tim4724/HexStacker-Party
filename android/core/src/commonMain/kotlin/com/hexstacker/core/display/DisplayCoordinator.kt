@@ -144,6 +144,7 @@ class DisplayCoordinator(
         data class PeerJoined(val index: Int) : Action
         data class PeerLeft(val index: Int) : Action
         data class Message(val from: Int, val data: JsonObject) : Action
+        data class RelayError(val message: String) : Action
         data class Tick(val deltaMs: Double, val ack: CompletableDeferred<Unit>) : Action
         data class Remote(val kind: RemoteKind, val ack: CompletableDeferred<Boolean>?) : Action
         data class Link(val state: RelayTransport.ConnectionState) : Action
@@ -159,7 +160,7 @@ class DisplayCoordinator(
         transport.onPeerJoined = { idx -> actions.trySend(Action.PeerJoined(idx)) }
         transport.onPeerLeft = { idx -> actions.trySend(Action.PeerLeft(idx)) }
         transport.onMessage = { from, data -> actions.trySend(Action.Message(from, data)) }
-        transport.onRelayError = { /* surfaced by the app UI if needed */ }
+        transport.onRelayError = { msg -> actions.trySend(Action.RelayError(msg)) }
         flow.onRosterChange = { players -> output.updateLobby(players, flow.host) }
         // Fast-lane: decoded P2P inputs enter the SAME single-consumer queue as relay
         // messages (identical handling); its signaling answers ride the relay back.
@@ -201,6 +202,7 @@ class DisplayCoordinator(
                     is Action.PeerJoined -> onPeerJoined(action.index)
                     is Action.PeerLeft -> onPeerLeft(action.index)
                     is Action.Message -> onMessage(action.from, action.data)
+                    is Action.RelayError -> onRelayError(action.message)
                     is Action.Tick -> try {
                         tickLocked(action.deltaMs)
                     } finally {
@@ -744,6 +746,38 @@ class DisplayCoordinator(
         broadcastLobby()
         transport.broadcast(OutboundMessage.returnToLobby(flow.size))
         output.showScreen(DisplayScreen.LOBBY)
+    }
+
+    /**
+     * Relay protocol error. Port of the web's `error` case (DisplayConnection.js):
+     * "Room not found" / "Room is full" after a display rejoin means the relay lost our
+     * room while our link was down — the code on screen is dead (controllers get "Room
+     * not found") and every roster entry is unreachable. The web resets to WELCOME and
+     * creates a fresh room; the TV has no welcome screen, so reset straight to a
+     * fresh-room lobby. Any other relay error is non-fatal (the web just warns).
+     */
+    private fun onRelayError(message: String) {
+        if (message != "Room not found" && message != "Room is full") return
+        resetSession()
+    }
+
+    /** Full session reset + a fresh room (web resetToWelcome -> connectAndCreateRoom). */
+    private fun resetSession() {
+        paused = false
+        autoPaused = false
+        linkPaused = false
+        lastResultsJson = null
+        aliveState.clear()
+        engine = null
+        fastlane?.closeAll()
+        output.stopMusic()
+        output.setPaused(false)
+        playerOrder = mutableListOf()
+        room = null
+        instance = null
+        flow.reset() // roster/liveness/host cleared, state -> LOBBY, fires onRosterChange
+        output.showScreen(DisplayScreen.LOBBY)
+        transport.createFresh() // handleCreated re-arms the room code + QR when `created` lands
     }
 
     private suspend fun pauseGame() {

@@ -573,6 +573,39 @@ class DisplayCoordinatorTest {
     }
 
     @Test
+    fun roomNotFoundAfterRejoinResetsToFreshRoom() = runBlocking {
+        // Port of the web's 'error' protocol case: the relay lost our room while the
+        // display's link was down, so the rejoin fails with "Room not found". The code on
+        // screen is dead (controllers can't join it) — reset the session and create a
+        // fresh room instead of keeping the stale QR up (web resetToWelcome path).
+        val bridge = EngineBridge.create(bundle())
+        try {
+            val t = FakeTransport(); val out = FakeOutput()
+            val coord = DisplayCoordinator(t, out, realFactory(bridge), seedProvider = { 0xBADCAFEL })
+            coord.start()
+            toPlaying(coord, t, listOf(1, 2))
+            assertEquals(RoomState.PLAYING, coord.state)
+
+            t.relayError("Room not found"); coord.awaitIdle()
+            assertEquals(RoomState.LOBBY, coord.state)
+            assertEquals(0, coord.flow.size, "dead room's roster cleared (every peer is unreachable)")
+            assertEquals(1, t.freshCreates, "transport asked to create a fresh room")
+            assertEquals(DisplayScreen.LOBBY, out.screens.last())
+
+            // The relay's created reply re-arms the lobby with the new room code.
+            t.created("NEW1", "inst2"); coord.awaitIdle()
+            assertEquals("NEW1", out.lastRoom)
+
+            // A transient relay error is non-fatal: nothing resets.
+            t.peerJoined(1); coord.awaitIdle()
+            t.relayError("some transient failure"); coord.awaitIdle()
+            assertEquals(1, coord.flow.size)
+            assertEquals(1, t.freshCreates)
+            coord.stop()
+        } finally { bridge.close() }
+    }
+
+    @Test
     fun helloAutoNameReResolvesRoomUnique() = runBlocking {
         val t = FakeTransport(); val out = FakeOutput()
         val coord = DisplayCoordinator(t, out, engineFactory = { _, _ -> error("no engine") }, seedProvider = { 0L })
@@ -598,6 +631,7 @@ class DisplayCoordinatorTest {
 
     private class FakeTransport : RelayTransport {
         val sent = mutableListOf<Pair<Int, JsonObject>>() // (to, data); to == -1 for broadcast
+        var freshCreates = 0
 
         override var onCreated: ((room: String, instance: String?, region: String?) -> Unit)? = null
         override var onJoined: ((room: String, peers: List<Int>) -> Unit)? = null
@@ -614,6 +648,7 @@ class DisplayCoordinatorTest {
         override fun sendTo(index: Int, data: JsonObject) { sent += index to data }
         override fun broadcast(data: JsonObject) { sent += -1 to data }
         override fun setState(data: JsonObject) {}
+        override fun createFresh() { freshCreates++ }
 
         // inbound drivers
         fun created(room: String, inst: String?) = onCreated?.invoke(room, inst, null)
@@ -621,6 +656,7 @@ class DisplayCoordinatorTest {
         fun peerJoined(i: Int) = onPeerJoined?.invoke(i)
         fun peerLeft(i: Int) = onPeerLeft?.invoke(i)
         fun deliver(from: Int, data: JsonObject) = onMessage?.invoke(from, data)
+        fun relayError(msg: String) = onRelayError?.invoke(msg)
     }
 
     private class FakeOutput : DisplayOutput {

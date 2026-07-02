@@ -224,6 +224,14 @@ interface RelayTransport {
     fun broadcast(data: JsonObject)
     fun setState(data: JsonObject)
 
+    /**
+     * Forget the current (dead) room and open a fresh session: the next socket open
+     * sends `create` instead of `join`, and the new room arrives via [onCreated].
+     * Used when the relay reports the room gone after a display rejoin (the web's
+     * resetToWelcome -> connectAndCreateRoom path).
+     */
+    fun createFresh()
+
     var onCreated: ((room: String, instance: String?, region: String?) -> Unit)?
     var onJoined: ((room: String, peers: List<Int>) -> Unit)?
     var onPeerJoined: ((index: Int) -> Unit)?

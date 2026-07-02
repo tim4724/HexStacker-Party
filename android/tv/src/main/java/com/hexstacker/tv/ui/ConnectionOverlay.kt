@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +36,13 @@ fun ConnectionOverlay(
     modifier: Modifier = Modifier,
 ) {
     val focus = remember { FocusRequester() }
+    // Take focus when the RECONNECT button appears: nothing else on screen is focusable
+    // in the gave-up state, so without this the D-pad can't activate the button at all.
+    // Keyed on the same flags that compose the button, so the effect runs after the
+    // recomposition that attached its focus target.
+    LaunchedEffect(disconnected, showReconnect) {
+        if (disconnected && showReconnect) runCatching { focus.requestFocus() }
+    }
 
     BoxWithConstraints(
         modifier = modifier

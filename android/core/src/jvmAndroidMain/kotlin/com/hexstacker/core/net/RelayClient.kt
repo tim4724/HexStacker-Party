@@ -101,6 +101,16 @@ class RelayClient(
         connectLocked()
     }
 
+    /** Drop the dead room's identity and reconnect on the bare URL: [onSocketOpened]
+     *  then sends `create` (a fresh room) instead of rejoining the lost one. */
+    override fun createFresh() = ops.executeSafe {
+        lastRoom = null
+        lastInstance = null
+        shouldReconnect = true
+        reconnectAttempt = 0
+        connectLocked()
+    }
+
     /**
      * Stop and let the executor thread die. Call from onCleared/onDestroy. Also disposes
      * the (per-instance) OkHttp dispatcher/pool so a recreated Activity doesn't strand
