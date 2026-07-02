@@ -23,12 +23,15 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 import kotlin.random.Random
 import kotlin.time.DurationUnit
 import kotlin.time.TimeSource
@@ -99,6 +102,9 @@ class DisplayCoordinator(
     private var muted = false
     // Host-change dedup for the mid-game handoff re-broadcast (web maybeBroadcastHostChange).
     private var lastBroadcastedHost: Int? = null
+    // Retained-snapshot throttle (web _lastLobbyBroadcastAt / _lobbyBroadcastTimer).
+    private var lastSnapshotAt = -1e12
+    private var snapshotPending = false
     // Retained results (replayed to a controller that (re)connects during RESULTS) + the
     // last-known alive of each participant (so a mid-game reconnect's WELCOME is accurate).
     private var lastResultsJson: JsonArray? = null
@@ -122,6 +128,9 @@ class DisplayCoordinator(
     companion object {
         private const val STEP_MS = 1000.0   // DisplayCoordinator.swift stepMs
         private const val GO_HOLD_MS = 500.0 // goHoldMs (web GO->start setTimeout 500)
+        // Coalesce bursty snapshot republishes (join storms, color picks, host churn)
+        // into at most one leading + one trailing set_state per window (web value).
+        private const val LOBBY_BROADCAST_MIN_INTERVAL_MS = 400.0
         private const val NAME_MAX_LEN = 16
         private const val START_LEVEL_MIN = 1
         private const val START_LEVEL_MAX = 15
@@ -255,6 +264,9 @@ class DisplayCoordinator(
     private suspend fun handleJoined(room: String, peers: List<Int>) {
         // The DISPLAY's own relay reconnect: reconcile the roster and re-welcome.
         this.room = room
+        // Reset the host-change dedup sentinel (web onDisplayRejoined): after a rejoin
+        // any subsequent host broadcast must publish regardless of pre-drop state.
+        lastBroadcastedHost = null
         // Re-stamp liveness for surviving peers, collecting the gone ones for onPeerLeft.
         // Mirrors onDisplayRejoined: a survivor whose last ping predates the display's link
         // drop must not be expired by the first liveness tick after reconnect, so refresh
@@ -622,6 +634,7 @@ class DisplayCoordinator(
         // countdown must advance by real elapsed time (a 1000ms tick is one second
         // of countdown, not 50ms).
         val deltaMs = if (rawDelta.isFinite()) rawDelta.coerceAtLeast(0.0) else 0.0
+        flushPendingSnapshot() // trailing edge of the set_state throttle
         livenessAccumMs += deltaMs
         if (livenessAccumMs >= 1000.0) {
             livenessAccumMs = 0.0
@@ -878,10 +891,61 @@ class DisplayCoordinator(
     // Outbound builders
     // =====================================================================
 
+    /**
+     * Publish ONE retained room snapshot via set_state instead of fanning out a
+     * per-recipient LOBBY_UPDATE (web doBroadcastLobbyUpdate, PR #170): the relay
+     * pushes it live to connected controllers and replays it to any (re)joining peer
+     * right after `joined`, so N messages collapse to one set_state and a briefly
+     * dropped controller catches up for free. Controllers derive playerCount, taken
+     * colors, host name/color and their own color from the roster (controller
+     * onState); per-recipient startLevel still goes out targeted ([sendLobbyUpdate]
+     * on SET_LEVEL) and WELCOME stays authoritative for identity.
+     */
     private fun broadcastLobby() {
-        for (p in flow.list()) sendLobbyUpdate(p.peerIndex)
         lastBroadcastedHost = flow.host // keep the handoff dedup sentinel current
+        publishRoomSnapshot()
         refreshDisplayLobby()
+    }
+
+    /**
+     * Throttled, leading + trailing (web LOBBY_BROADCAST_MIN_INTERVAL_MS): a call
+     * after a quiet period publishes immediately; calls inside the interval collapse
+     * into one trailing publish that reads live state at fire time (the tick loop
+     * drives the trailing edge, so while backgrounded it fires on the next frame).
+     */
+    private fun publishRoomSnapshot() {
+        val now = nowWallMs()
+        if (now - lastSnapshotAt >= LOBBY_BROADCAST_MIN_INTERVAL_MS) {
+            snapshotPending = false
+            lastSnapshotAt = now
+            transport.setState(buildRoomSnapshot())
+        } else {
+            snapshotPending = true
+        }
+    }
+
+    /** Fire a pending trailing snapshot once the throttle window has elapsed. */
+    private fun flushPendingSnapshot() {
+        if (!snapshotPending) return
+        val now = nowWallMs()
+        if (now - lastSnapshotAt < LOBBY_BROADCAST_MIN_INTERVAL_MS) return
+        snapshotPending = false
+        lastSnapshotAt = now
+        transport.setState(buildRoomSnapshot())
+    }
+
+    /** Web buildRoomSnapshot: roster keyed by peerIndex (name + color slot) + host.
+     *  Globally-shared state only; per-recipient fields stay on WELCOME/LOBBY_UPDATE. */
+    private fun buildRoomSnapshot(): JsonObject = buildJsonObject {
+        put("hostPeerIndex", flow.host?.let { JsonPrimitive(it) } ?: JsonNull)
+        putJsonObject("players") {
+            for (p in flow.list()) {
+                putJsonObject(p.peerIndex.toString()) {
+                    put("name", p.playerName)
+                    put("color", p.colorSlot)
+                }
+            }
+        }
     }
 
     /** Rebuild the display's own lobby UI (in-place field mutations don't fire onRosterChange). */

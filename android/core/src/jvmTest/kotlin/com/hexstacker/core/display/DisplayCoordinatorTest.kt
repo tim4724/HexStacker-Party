@@ -14,6 +14,8 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.double
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.io.File
@@ -63,7 +65,8 @@ class DisplayCoordinatorTest {
 
             t.peerJoined(1); t.peerJoined(2); coord.awaitIdle()
             assertEquals(2, coord.flow.size)
-            assertTrue(t.sent.any { it.first == 1 && type(it.second) == Msg.LOBBY_UPDATE })
+            // Lobby changes publish ONE retained snapshot (set_state), not a fanout.
+            assertTrue(t.states.isNotEmpty(), "peer joins publish a retained room snapshot")
 
             // hello -> welcome (LOBBY form includes alive/paused)
             t.sent.clear()
@@ -699,10 +702,57 @@ class DisplayCoordinatorTest {
         coord.stop()
     }
 
+    @Test
+    fun retainedSnapshotShapeAndThrottle() = runBlocking {
+        // Web PR #170 parity: lobby changes publish ONE retained set_state snapshot
+        // ({hostPeerIndex, players:{idx:{name,color}}}), throttled leading+trailing
+        // (400ms) so a join storm collapses to one leading + one trailing publish
+        // that reads live state at fire time.
+        var now = 0.0
+        val t = FakeTransport(); val out = FakeOutput()
+        val coord = DisplayCoordinator(t, out, engineFactory = { _, _ -> error("no engine") }, seedProvider = { 0L })
+        coord.clock = { now }
+        coord.start()
+        t.created("R", null); coord.awaitIdle()
+
+        // Leading edge: the first join publishes immediately.
+        t.peerJoined(1); coord.awaitIdle()
+        assertEquals(1, t.states.size, "leading publish is immediate")
+
+        // Burst inside the window coalesces: no new publish yet.
+        t.peerJoined(2); t.peerJoined(3); coord.awaitIdle()
+        assertEquals(1, t.states.size, "burst inside the window is pending, not published")
+
+        // The trailing edge fires from the tick loop once the window elapses,
+        // reading LIVE state (all three players, latest colors).
+        now = 450.0
+        coord.tick(16.0)
+        assertEquals(2, t.states.size, "trailing publish after the window")
+        val snap = t.states.last()
+        val players = snap["players"]!!.jsonObject
+        assertEquals(setOf("1", "2", "3"), players.keys)
+        assertEquals(1, snap["hostPeerIndex"]!!.jsonPrimitive.int, "host pointer carried")
+        val p2 = players["2"]!!.jsonObject
+        assertEquals("HX-2", p2["name"]!!.jsonPrimitive.content)
+        assertEquals(1, p2["color"]!!.jsonPrimitive.int)
+
+        // A color pick after a quiet period publishes immediately with the new color.
+        now = 2000.0
+        t.deliver(2, buildJsonObject { put("type", Msg.SET_COLOR); put("colorIndex", 6) }); coord.awaitIdle()
+        assertEquals(3, t.states.size)
+        assertEquals(
+            6,
+            t.states.last()["players"]!!.jsonObject["2"]!!.jsonObject["color"]!!.jsonPrimitive.int,
+            "snapshot confirms the display-accepted color",
+        )
+        coord.stop()
+    }
+
     // ---- fakes ----
 
     private class FakeTransport : RelayTransport {
         val sent = mutableListOf<Pair<Int, JsonObject>>() // (to, data); to == -1 for broadcast
+        val states = mutableListOf<JsonObject>() // retained set_state snapshots
         var freshCreates = 0
 
         override var onCreated: ((room: String, instance: String?, region: String?) -> Unit)? = null
@@ -719,7 +769,7 @@ class DisplayCoordinatorTest {
         override fun disconnect() {}
         override fun sendTo(index: Int, data: JsonObject) { sent += index to data }
         override fun broadcast(data: JsonObject) { sent += -1 to data }
-        override fun setState(data: JsonObject) {}
+        override fun setState(data: JsonObject) { states += data }
         override fun createFresh() { freshCreates++ }
 
         // inbound drivers

@@ -1,6 +1,7 @@
 package com.hexstacker.tv.render
 
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
@@ -166,6 +167,20 @@ class BoardSurfaceView @JvmOverloads constructor(
     }
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+    /**
+     * Runtime locale switch. The manifest self-handles `locale` (recreating the
+     * Activity would tear down the room), and the framework still dispatches the new
+     * Configuration to attached views — so re-resolve the Canvas-layer strings here:
+     * the popup labels directly, and the per-renderer HUD labels by marking the
+     * layout dirty (rebuildLayout constructs fresh BoardRenderers, whose constructor
+     * reads the now-updated resources). Compose chrome updates itself.
+     */
+    override fun onConfigurationChanged(newConfig: Configuration?) {
+        super.onConfigurationChanged(newConfig)
+        animations.setPopupLabels(context.getString(R.string.double_clear), context.getString(R.string.triple_clear))
+        layoutDirty = true
+    }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
         running = true

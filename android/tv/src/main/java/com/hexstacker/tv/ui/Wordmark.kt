@@ -54,7 +54,10 @@ fun Wordmark(mainSize: TextUnit, modifier: Modifier = Modifier) {
             ),
             onTextLayout = { textSize = it.size },
         )
-        Spacer(Modifier.height((mainSize.value * 0.22f).dp)) // tvOS gap = mainSize*0.22 (CSS margin-top 0.25em)
+        // CSS `.gradient-title__sub { margin-top: 0.25em }` resolves against the SUB's own
+        // font-size (0.42em of main), so the real web gap is 0.25 * 0.42 = 0.105 * mainSize
+        // (verified against the live page's computed style: 3.696px at mainSize 35.2px).
+        Spacer(Modifier.height((mainSize.value * 0.105f).dp))
         androidx.compose.material3.Text(
             text = stringResource(R.string.wordmark_sub),
             style = AppType.wordmarkSub.merge(

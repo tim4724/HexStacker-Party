@@ -33,11 +33,11 @@ jobs:
           npm run build
           node scripts/build-conformance-bundle.js
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
 
       # One --continue invocation so a test failure still runs the rest and the
       # screenshots/reports below always upload:
@@ -53,7 +53,7 @@ jobs:
       - name: Upload TV screenshots
         id: screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tv-screenshots
           path: android/tv/build/outputs/roborazzi/*.png
@@ -116,7 +116,7 @@ jobs:
 
       - name: Upload test reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: android-test-reports
           path: |
