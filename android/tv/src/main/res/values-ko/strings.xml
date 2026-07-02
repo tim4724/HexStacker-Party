@@ -15,7 +15,7 @@
     <string name="scan_to_join">스캔하여 참가</string>
     <string name="waiting_for_players">플레이어를 기다리는 중...</string>
     <string name="level_heading">레벨</string>
-    <string name="music_by">음악: FoxSynergy</string>
+    <string name="music_by">음악: FoxSynergy (CC-BY 3.0)</string>
 
     <string name="level_n">레벨 %1$d</string>
     <string name="new_player">새 플레이어</string>

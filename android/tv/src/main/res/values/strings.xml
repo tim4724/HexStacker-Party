@@ -32,7 +32,7 @@
 
     <!-- Music attribution. CC-BY 3.0 requires crediting "Lunar Joyride" by
          FoxSynergy (res/raw/lunar_joyride.mp3). Mirrors web i18n `music_by`. -->
-    <string name="music_by">Music by FoxSynergy</string>
+    <string name="music_by">Music by FoxSynergy (CC-BY 3.0)</string>
 
     <!-- Empty-slot placeholder name: DisplayUI `'P' + (idx+1)` (not localized). -->
     <string name="player_placeholder" translatable="false">P%1$d</string>

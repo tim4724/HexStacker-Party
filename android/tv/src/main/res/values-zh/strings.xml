@@ -15,7 +15,7 @@
     <string name="scan_to_join">扫码加入</string>
     <string name="waiting_for_players">等待玩家加入...</string>
     <string name="level_heading">等级</string>
-    <string name="music_by">音乐：FoxSynergy</string>
+    <string name="music_by">音乐：FoxSynergy（CC-BY 3.0）</string>
 
     <string name="level_n">等级 %1$d</string>
     <string name="new_player">新玩家</string>

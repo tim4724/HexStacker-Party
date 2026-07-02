@@ -1,9 +1,11 @@
 'use strict';
 
-// PartyCore.rekey() unit coverage. rekey is the engine-side of a cross-device
-// claim (a returning controller reclaims a dropped participant's board); it was
-// previously exercised only via the Kotlin EngineBridgeTest, so npm test never
-// caught a regression here. Mirrors partyplug/RoomFlow.rekey on the roster side.
+// PartyCore.rekeyPlayer() unit coverage through the PARTYCORE surface — the
+// exact call the native bridges make on a cross-device claim (a returning
+// controller reclaims a dropped participant's board). The Game-level mechanics
+// live in tests/rekey-player.test.js; this file pins the PartyCore delegation
+// and the snapshot-visible effects the native hosts rely on. Mirrors
+// partyplug/RoomFlow.rekey on the roster side.
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -18,11 +20,11 @@ function newCore() {
 
 const ids = (pc) => pc.snapshot().players.map((p) => p.id);
 
-test('rekey moves a board to the new id, preserving player order', () => {
+test('rekeyPlayer moves a board to the new id, preserving player order', () => {
   const pc = newCore();
   assert.deepEqual(ids(pc), ['p1', 'p2']);
 
-  assert.equal(pc.rekey('p1', 'p9'), true, 'returns true when a board moved');
+  assert.equal(pc.rekeyPlayer('p1', 'p9'), true, 'returns true when a board moved');
 
   assert.deepEqual(ids(pc), ['p9', 'p2'], 'p1 -> p9, order preserved');
   assert.equal(pc.game.boards.has('p9'), true, 'board is now keyed by the new id');
@@ -30,9 +32,11 @@ test('rekey moves a board to the new id, preserving player order', () => {
   assert.ok(pc.game.playerIds.includes('p9') && !pc.game.playerIds.includes('p1'));
 });
 
-test('rekey is a no-op for an unknown or identical id', () => {
+test('rekeyPlayer is a no-op for unknown, identical, or already-owned ids', () => {
   const pc = newCore();
-  assert.equal(pc.rekey('nope', 'p9'), false, 'unknown oldId -> false, no change');
-  assert.equal(pc.rekey('p1', 'p1'), false, 'oldId === newId -> false, no change');
+  assert.equal(pc.rekeyPlayer('nope', 'p9'), false, 'unknown oldId -> false, no change');
+  assert.equal(pc.rekeyPlayer('p1', 'p1'), false, 'oldId === newId -> false, no change');
+  // Forged-claim guard: an id that already owns a board can't absorb another.
+  assert.equal(pc.rekeyPlayer('p1', 'p2'), false, 'newId owns a board -> refused');
   assert.deepEqual(ids(pc), ['p1', 'p2'], 'roster untouched');
 });

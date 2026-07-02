@@ -14,7 +14,7 @@
     <string name="scan_to_join">Katılmak için tara</string>
     <string name="waiting_for_players">Oyuncular bekleniyor...</string>
     <string name="level_heading">Seviye</string>
-    <string name="music_by">Müzik: FoxSynergy</string>
+    <string name="music_by">Müzik: FoxSynergy (CC-BY 3.0)</string>
 
     <string name="level_n">Seviye %1$d</string>
     <string name="new_player">Yeni oyuncu</string>

@@ -514,6 +514,10 @@ class DisplayCoordinator(
         if (oldId == from) return false
         if (!flow.contains(oldId) || !flow.isDisconnected(oldId)) return false
         if (!playerOrder.contains(oldId)) return false
+        // Forged-claim guard (web claimReconnectPeer): an ACTIVE participant can't claim
+        // another board — a genuine cross-device rejoin always arrives under a FRESH
+        // peer index. Game.rekeyPlayer refuses the same case engine-side.
+        if (playerOrder.contains(from)) return false
         if (!flow.rekey(oldId, from)) return false
         flow.onSeen(from, nowWallMs())
         fastlane?.close(oldId) // drop the dropped device's P2P link; the returning device re-offers

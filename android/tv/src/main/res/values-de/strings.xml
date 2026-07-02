@@ -14,7 +14,7 @@
     <string name="scan_to_join">Scannen</string>
     <string name="waiting_for_players">Warte auf Spieler...</string>
     <string name="level_heading">Level</string>
-    <string name="music_by">Musik von FoxSynergy</string>
+    <string name="music_by">Musik von FoxSynergy (CC-BY 3.0)</string>
 
     <string name="level_n">Level %1$d</string>
     <string name="new_player">Neuer Spieler</string>

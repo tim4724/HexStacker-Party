@@ -32,7 +32,7 @@ internal object EngineBootstrap {
         pause: function () { if (core) core.pause(); },
         resume: function () { if (core) core.resume(); },
         resetFrameClock: function () { if (core) core.resetFrameClock(); },
-        rekey: function (oldId, newId) { return !!(core && core.rekey(oldId, newId)); },
+        rekey: function (oldId, newId) { return !!(core && core.rekeyPlayer(oldId, newId)); },
         // Reads can't no-op like the writes above (they must return JSON), so a
         // read-before-create fails loud with a message that names the ordering bug
         // instead of an opaque TypeError on `core.snapshot`.

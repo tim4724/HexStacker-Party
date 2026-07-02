@@ -100,7 +100,8 @@ class EngineBridge private constructor(
     /**
      * Cross-device claim: rekey the engine's per-player state (board, garbage queue,
      * cooldown) from [oldId] to [newId] so a returning controller's inputs hit the
-     * reclaimed board. Returns true if a board moved. Mirrors `PartyCore.rekey`.
+     * reclaimed board. Returns true if a board moved; false also when [newId] already
+     * owns a board (the engine's forged-claim guard). Calls `PartyCore.rekeyPlayer`.
      */
     suspend fun rekey(oldId: Int, newId: Int): Boolean = lock.withLock {
         evalTyped("rekey", "Bridge.rekey($oldId, $newId)")

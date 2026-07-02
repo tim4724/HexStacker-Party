@@ -382,6 +382,29 @@ class DisplayCoordinatorTest {
     }
 
     @Test
+    fun activeParticipantCannotForgeClaim() = runBlocking {
+        // Web claimReconnectPeer guard: an ACTIVE participant sending a claim HELLO for a
+        // dropped board is refused (a genuine cross-device rejoin arrives under a fresh
+        // peer index); Game.rekeyPlayer refuses the same case engine-side.
+        val bridge = EngineBridge.create(bundle())
+        try {
+            val t = FakeTransport(); val out = FakeOutput()
+            val coord = DisplayCoordinator(t, out, realFactory(bridge), seedProvider = { 0xBADCAFEL })
+            coord.start()
+            toPlaying(coord, t, listOf(1, 2))
+            t.peerLeft(1); coord.awaitIdle()
+            assertTrue(coord.flow.isDisconnected(1))
+
+            // Active participant 2 tries to claim player 1's dropped board.
+            t.deliver(2, buildJsonObject { put("type", Msg.HELLO); put("rejoinToken", 1) }); coord.awaitIdle()
+            assertTrue(coord.flow.contains(1), "the dropped board's slot is NOT absorbed")
+            assertTrue(coord.flow.isDisconnected(1), "player 1 stays reclaimable")
+            assertTrue(coord.flow.contains(2), "the forger keeps its own identity")
+            coord.stop()
+        } finally { bridge.close() }
+    }
+
+    @Test
     fun autoNameSkipsBlocklist() = runBlocking {
         val t = FakeTransport(); val out = FakeOutput()
         val coord = DisplayCoordinator(t, out, engineFactory = { _, _ -> error("no engine") }, seedProvider = { 0L })
