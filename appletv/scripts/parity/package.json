@@ -1,0 +1,9 @@
+{
+  "name": "hexstacker-visual-parity",
+  "private": true,
+  "type": "module",
+  "description": "Cross-engine visual parity: web canvas vs native tvOS render",
+  "devDependencies": {
+    "pngjs": "^7.0.0"
+  }
+}

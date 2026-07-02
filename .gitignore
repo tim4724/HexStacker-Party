@@ -26,6 +26,10 @@ public/artwork/*
 !public/artwork/social-preview.png
 !public/artwork/trailer.mp4
 artwork/ad-clip/output/raw/
+# Regenerable review composites for the tvOS brand assets (the committed source
+# art lives in appletv/.../*.brandassets; regen via generate-tvos-icons.js for the
+# app icon and generate-tvos-topshelf.js for the Top Shelf images)
+artwork/tvos-preview/
 build/
 .dev-certs/
 public/display/screen.html

@@ -115,6 +115,12 @@ PartyCore.prototype.pause = function() {
 PartyCore.prototype.resume = function() {
   return this.game.resume();
 };
+// Cross-device mid-game rejoin: re-key a participant's engine state (board,
+// garbage, cooldown) from oldId to newId. The host (display) calls this when a
+// dropped player reclaims their slot under a new peer index.
+PartyCore.prototype.rekeyPlayer = function(oldId, newId) {
+  return this.game.rekeyPlayer(oldId, newId);
+};
 
 // Individually callable; native ticks the engine at vsync. Game.update
 // self-gates on paused/ended.

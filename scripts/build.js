@@ -37,6 +37,44 @@ async function buildCore() {
   }));
 }
 
+// The i18n keys the native displays (tvOS / Android TV) actually render. The web
+// controller-, legal-, and settings-only keys are excluded so the shipped table
+// stays small. Kept here (not in the native ports) so the single source of truth
+// for copy remains public/shared/i18n.js — the ports load the generated JSON and
+// can never drift from the web wording.
+const LOCALE_DISPLAY_KEYS = [
+  // In-game HUD + board overlays
+  'hold', 'next', 'level', 'lines', 'ko', 'go', 'triple', 'double',
+  'scan_to_rejoin', 'disconnected',
+  // Lobby
+  'scan_to_join', 'waiting_for_players', 'start_n_players', 'level_heading',
+  'music_by',
+  // Pause overlay
+  'paused', 'continue_btn', 'new_game', 'settings_game_music',
+  // Display-connection overlay
+  'reconnecting', 'connection_lost', 'reconnect', 'attempt_n_of_m',
+  // Results
+  'play_again', 'n_lines', 'level_n', 'new_player', 'player',
+];
+
+// Emit dist/locale.json: the display key subset of every locale in i18n.js. The
+// native ports bundle this next to the engine (sync-engine.sh) and resolve it at
+// runtime, so the TV copy is generated from the same source as the web and never
+// hand-maintained. Plural keys keep their { one, other, ... } object shape.
+function buildLocale() {
+  const { LOCALES } = require('../public/shared/i18n.js');
+  const out = {};
+  for (const lang of Object.keys(LOCALES)) {
+    const strings = LOCALES[lang];
+    const subset = {};
+    for (const key of LOCALE_DISPLAY_KEYS) {
+      if (strings[key] !== undefined) subset[key] = strings[key];
+    }
+    out[lang] = subset;
+  }
+  fs.writeFileSync(path.join(ROOT, 'dist', 'locale.json'), JSON.stringify(out) + '\n');
+}
+
 // Web app bundle: concatenate the app's scripts in load order, then run the
 // result through esbuild.transform (whitespace + syntax minify only). Identifier
 // minification is OFF on purpose: the shells are global-scope scripts whose
@@ -86,6 +124,13 @@ async function main() {
 
   await buildCore();
   console.log('build: dist/partycore.js');
+  buildLocale();
+  console.log('build: dist/locale.json');
+
+  // `--core` (npm run build:core): the native ports need only the portable core
+  // bundle (+ the locale table). Stop here so the tvOS pre-build phase / swift
+  // tests don't also sweep and rewrite the git-ignored public/ hashed web bundles.
+  if (process.argv.includes('--core')) return;
 
   // Independent (different output dirs, no shared state), so build them
   // concurrently — `npm start` now runs this on every boot.

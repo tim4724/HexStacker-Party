@@ -487,6 +487,13 @@ function rekeyDisplayGamePlayer(oldId, newId) {
     }
   }
 
+  // Move the hard-drop cooldown too, matching the engine's canonical
+  // Game.rekeyPlayer (server/Game.js) that the native ports call — otherwise a
+  // queued hard-drop right after a same-game reconnect behaves differently on
+  // web vs TV.
+  var cd = displayGame._hardDropCooldownMs;
+  if (cd && cd.has(oldId)) { cd.set(newId, cd.get(oldId)); cd.delete(oldId); }
+
   var gm = displayGame.garbageManager;
   if (!gm) return;
 
@@ -507,6 +514,10 @@ function claimReconnectPeer(fromId, msg) {
   if (oldId == null || oldId === fromId) return false;
   if (!players.has(oldId) || !disconnectedQRs.has(oldId)) return false;
   if (playerOrder.indexOf(oldId) < 0) return false;
+  // An active participant can't claim another board: rekeying onto an id that
+  // already owns a board would silently drop one of the two in the Map rebuild.
+  // A genuine cross-device rejoin always arrives under a FRESH peer index.
+  if (playerOrder.indexOf(fromId) >= 0) return false;
 
   cleanupPlayerInput(oldId);
   cleanupPlayerInput(fromId);
@@ -526,6 +537,14 @@ function claimReconnectPeer(fromId, msg) {
   if (lastAliveState[oldId] !== undefined) {
     lastAliveState[fromId] = lastAliveState[oldId];
     delete lastAliveState[oldId];
+  }
+  // Remap the cached ranking too: a claim on the RESULTS screen replays
+  // lastResults in the WELCOME, and the returning controller matches its own
+  // row by playerId.
+  if (lastResults && Array.isArray(lastResults.results)) {
+    for (var li = 0; li < lastResults.results.length; li++) {
+      if (lastResults.results[li].playerId === oldId) lastResults.results[li].playerId = fromId;
+    }
   }
   transferMapEntry(garbageIndicatorEffects, oldId, fromId);
   transferMapEntry(garbageDefenceEffects, oldId, fromId);
