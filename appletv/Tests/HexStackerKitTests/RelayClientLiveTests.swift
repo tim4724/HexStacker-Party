@@ -11,7 +11,10 @@ import Foundation
 ///
 /// The real client is intentionally not deterministic to the millisecond (real
 /// sockets, real reconnect backoff), so assertions poll with generous deadlines.
-@Suite struct RelayClientLiveTests {
+/// Serialized: on a cold CI runner, concurrent URLSession connects to parallel
+/// NWListeners have taken >10 s to open, blowing every in-flight deadline at
+/// once; one live socket at a time keeps the timing assumptions honest.
+@Suite(.serialized) struct RelayClientLiveTests {
 
     /// RelayClient delivers callbacks on `cbQueue` (a background serial queue), so
     /// a plain sleep-poll from the test thread observes the captured state without
@@ -42,8 +45,9 @@ import Foundation
         client.connect()
 
         // The socket connected, the client sent `create`, and the server's
-        // `created` reply was decoded back into onCreated with the room + instance.
-        #expect(waitUntil { state.get().room != nil }, "onCreated fired")
+        // `created` reply was decoded back into onCreated with the room +
+        // instance. The first open on a cold CI runner has taken >10 s.
+        #expect(waitUntil(15) { state.get().room != nil }, "onCreated fired")
         #expect(state.get().room == server.roomCode)
         #expect(state.get().instance == server.instance)
         #expect(waitUntil { !server.receivedEnvelopes(type: "create").isEmpty }, "server saw a create")
@@ -88,7 +92,7 @@ import Foundation
         client.onJoined = { _, peers in state.set { $0.rejoinPeers = peers } }
 
         client.connect()
-        #expect(waitUntil { state.get().room != nil }, "initial create landed")
+        #expect(waitUntil(15) { state.get().room != nil }, "initial create landed")
         #expect(server.connectionCount == 1)
 
         // The relay link drops. RelayClient must auto-reconnect (first backoff ~1 s)
@@ -96,7 +100,7 @@ import Foundation
         // which is what restores it to slot 0 on the relay.
         server.dropCurrentConnection()
         #expect(waitUntil(8) { server.connectionCount >= 2 }, "client reopened a socket")
-        #expect(waitUntil(3) { !server.receivedEnvelopes(type: "join").isEmpty }, "reconnect sent join")
+        #expect(waitUntil(8) { !server.receivedEnvelopes(type: "join").isEmpty }, "reconnect sent join")
         let join = server.receivedEnvelopes(type: "join").first
         #expect(join?["clientId"] as? String == "display", "join carries the display clientId (slot-0 restore)")
         #expect(join?["room"] as? String == server.roomCode, "join re-pins the created room")
@@ -116,7 +120,7 @@ import Foundation
         client.onReplaced = { state.set { $0.replaced = true } }
 
         client.connect()
-        #expect(waitUntil { state.get().room != nil }, "initial create landed")
+        #expect(waitUntil(15) { state.get().room != nil }, "initial create landed")
 
         // The relay evicts this display (another client claimed the "display"
         // clientId): the 4000 close must surface as onReplaced (regardless of
