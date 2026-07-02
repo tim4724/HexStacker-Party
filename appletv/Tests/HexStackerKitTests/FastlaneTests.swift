@@ -155,6 +155,21 @@ private final class Harness {
         #expect(h.scheduler.pending.contains { !$0.canceled }, "a fresh watchdog is armed")
     }
 
+    @Test func replacedChannelDisarmsTheStaleWatchdog() {
+        // The controller re-offers (e.g. after an ICE hiccup) and the channel is
+        // replaced before the first session's watchdog fired. The stale timer
+        // must be disarmed — teardownPeer keys by index, so it would otherwise
+        // tear down the fresh, healthy channel when its deadline lapses.
+        let h = Harness()
+        h.net.peerChannelOpened(1)
+        let staleTimer = h.scheduler.pending[0]
+        h.net.peerChannelOpened(1)
+        #expect(staleTimer.canceled, "the replaced session's watchdog is disarmed")
+        staleTimer.work?()   // simulate the old deadline lapsing anyway
+        #expect(h.net.isOpen(1), "the fresh channel survives the old session's deadline")
+        #expect(h.closed.isEmpty, "no spurious onPeerClosed")
+    }
+
     @Test func explicitCloseTearsDown() {
         let h = Harness()
         h.net.peerChannelOpened(1)

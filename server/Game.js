@@ -57,9 +57,12 @@ class Game {
   // Cross-device mid-game rejoin: move a player's board, id ordering, hard-drop
   // cooldown and garbage queues from oldId to newId, preserving board insertion
   // order so snapshot/layout positions don't shuffle. The returning peer reclaims
-  // the dropped slot's exact game state. No-op if oldId is absent or unchanged.
+  // the dropped slot's exact game state. No-op if oldId is absent or unchanged,
+  // and refused if newId already owns a board — the Map rebuild would silently
+  // drop one of the two boards and duplicate newId in playerIds.
   rekeyPlayer(oldId, newId) {
     if (oldId === newId) return false;
+    if (this.boards.has(newId)) return false;
     const board = this.boards.get(oldId);
     if (!board) return false;
     // Rebuild the Map preserving order (a plain delete+set would move it last).

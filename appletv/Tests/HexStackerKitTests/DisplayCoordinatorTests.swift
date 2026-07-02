@@ -101,6 +101,32 @@ import Foundation
         #expect(!coord.flow.isDisconnected(9))
     }
 
+    /// A forged claim from a peer that already owns a board must be rejected:
+    /// rekeying the dropped board onto the attacker's own id would silently
+    /// drop one of the two boards in the engine's Map rebuild and duplicate
+    /// the id in playerIds (Game.rekeyPlayer refuses it too, defense in depth).
+    @Test func activeParticipantCannotClaimAnotherBoard() {
+        let clock = Clock()
+        let (coord, ft, fo) = makeLobby(players: 2, clock: clock)
+        coord.remoteStartMatch(); runCountdown(coord)
+        #expect(coord.state == .playing)
+
+        // Player 2 drops mid-game: slot kept, marked disconnected.
+        ft.onPeerLeft?(2)
+        #expect(coord.flow.isDisconnected(2) && coord.flow.contains(2))
+
+        // Player 1 (active, owns a board) re-sends HELLO with a forged claim on 2.
+        ft.onMessage?(1, ["type": "hello", "rejoinToken": 2])
+        #expect(coord.flow.contains(2), "the dropped slot is untouched")
+        #expect(coord.flow.isDisconnected(2), "still claimable by its real owner")
+        #expect(coord.flow.contains(1), "the sender keeps its own slot")
+
+        // Both boards survive under their own ids in the engine snapshot.
+        coord.tick(deltaMs: 16)
+        #expect(fo.lastSnapshot?.players.map(\.id).sorted() == [1, 2],
+                "both boards intact under their own ids")
+    }
+
     /// Find the most recent WELCOME the coordinator sent to `id`.
     private func lastWelcome(_ ft: FakeTransport, to id: Int) -> [String: Any]? {
         ft.sent.last { $0.to == id && ($0.data["type"] as? String) == "welcome" }?.data

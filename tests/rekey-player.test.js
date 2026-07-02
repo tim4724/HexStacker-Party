@@ -63,3 +63,13 @@ test('rekeyPlayer leaves other players untouched', () => {
   const p2After = JSON.stringify(core.snapshot().players.find((p) => p.id === 2));
   assert.equal(p2After, p2Before, 'the other board is byte-identical');
 });
+
+test('rekeyPlayer refuses a newId that already owns a board', () => {
+  // Rekeying onto an active id would silently drop one of the two boards in
+  // the Map rebuild and duplicate the id in playerIds (a forged ?claim= from
+  // an active controller must not corrupt the match).
+  const core = makeCore();
+  const before = JSON.stringify(core.snapshot());
+  assert.equal(core.rekeyPlayer(1, 2), false, 'occupied target id rejected');
+  assert.equal(JSON.stringify(core.snapshot()), before, 'state byte-identical');
+});

@@ -160,6 +160,10 @@ public final class FastlaneNetcode {
     /// The DataChannel to `peerIdx` opened. Resets per-session netcode state and
     /// arms the silence watchdog.
     public func peerChannelOpened(_ peerIdx: Int) {
+        // Disarm a replaced session's still-pending watchdog: teardownPeer keys
+        // by index, so the stale timer would otherwise fire (up to watchdogMs
+        // later) and tear down this fresh, healthy channel.
+        peers[peerIdx]?.watchdog?.cancel()
         let peer = Peer()
         peers[peerIdx] = peer
         onPeerReady?(peerIdx)

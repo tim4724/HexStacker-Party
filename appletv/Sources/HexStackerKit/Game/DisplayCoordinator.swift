@@ -345,8 +345,14 @@ public final class DisplayCoordinator {
     /// the claim was applied (caller is done). Only valid for a disconnected
     /// participant of the current round.
     private func claimReconnect(from: Int, msg: ControllerMessage) -> Bool {
+        // `!playerOrder.contains(from)`: an active participant can't claim
+        // another board — rekeying onto an id that already owns a board would
+        // silently drop one of the two in the engine's Map rebuild (a forged
+        // rejoinToken in a re-sent HELLO could otherwise corrupt the match).
+        // A genuine cross-device rejoin always arrives under a FRESH index.
         guard let oldId = msg.rejoinToken ?? msg.rejoinId, oldId != from,
-              flow.isDisconnected(oldId), playerOrder.contains(oldId) else { return false }
+              flow.isDisconnected(oldId), playerOrder.contains(oldId),
+              !playerOrder.contains(from) else { return false }
         // Engine-first: re-key the engine board (input + snapshot map to the kept
         // board) BEFORE moving the roster, so a failed engine rekey can't leave the
         // roster pointing at a board the engine never moved. engine is non-nil here
@@ -360,6 +366,15 @@ public final class DisplayCoordinator {
         // Carry the KO state onto the new peer index so a claim-rejoin after a KO
         // still reports alive:false in its welcome (web parity).
         if let wasAlive = aliveState.removeValue(forKey: oldId) { aliveState[from] = wasAlive }
+        // Remap the cached ranking too: a claim on the RESULTS screen (player
+        // dropped mid-game, match ended before they returned) replays
+        // lastResults in the WELCOME, and the controller matches its own row
+        // by playerId (web parity: claimReconnectPeer does the same).
+        lastResults = lastResults?.map { entry in
+            var e = entry
+            if e["playerId"] as? Int == oldId { e["playerId"] = from }
+            return e
+        }
         output?.setDisconnected(playerId: oldId, joinURL: nil)   // clear the dropped board's rejoin QR
         if pausedAuto { autoResume() }                          // a participant returned
         sendWelcome(to: from, isLateJoiner: false)

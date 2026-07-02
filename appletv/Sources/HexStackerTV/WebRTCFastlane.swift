@@ -159,8 +159,10 @@ final class WebRTCFastlane: NSObject, InputFastlane {
         let ice = LKRTCIceCandidate(sdp: cand, sdpMLineIndex: mLineIndex,
                                     sdpMid: candidate["sdpMid"] as? String)
         // Candidates can arrive before the remote description; queue until it's set.
+        // Capped: a peer spamming ICE frames without ever completing an offer
+        // must not grow the queue unbounded (a real session sends a handful).
         if conn.pc.remoteDescription == nil {
-            conn.pendingCandidates.append(ice)
+            if conn.pendingCandidates.count < 32 { conn.pendingCandidates.append(ice) }
         } else {
             conn.pc.add(ice) { _ in }
         }
