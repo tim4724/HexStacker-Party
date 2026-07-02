@@ -18,6 +18,9 @@ public protocol DisplayOutput: AnyObject {
     func setDisconnected(playerId: Int, joinURL: String?)
     /// Show/hide the paused overlay (driven by the remote or a controller).
     func setPaused(_ paused: Bool)
+    /// The display mute changed (remote toggle or the host phone's Game Music
+    /// switch) — keep any visible music switch in sync.
+    func setDisplayMuted(_ muted: Bool)
     func playCountdownBeep(go: Bool)
     func startMusic()
     func stopMusic()
@@ -30,6 +33,7 @@ public extension DisplayOutput {
     func handleGameEvent(_ event: GameEvent) {}
     func setDisconnected(playerId: Int, joinURL: String?) {}
     func setPaused(_ paused: Bool) {}
+    func setDisplayMuted(_ muted: Bool) {}
 }
 
 /// The native display brain: owns the relay transport, the RoomFlow roster, and
@@ -399,6 +403,7 @@ public final class DisplayCoordinator {
         // the flag only took effect at the next match start.
         if muted { output?.pauseMusic() }
         else if flow.state == .playing && !paused { output?.resumeMusic() }
+        output?.setDisplayMuted(muted)   // keep a visible pause-menu switch live
     }
 
     // MARK: - Countdown + game
@@ -766,6 +771,7 @@ public final class DisplayCoordinator {
         transport.broadcast(OutboundMessage.displayMuted(muted))
         if muted { output?.pauseMusic() }
         else if flow.state == .playing && !paused { output?.resumeMusic() }
+        output?.setDisplayMuted(muted)
         return muted
     }
 

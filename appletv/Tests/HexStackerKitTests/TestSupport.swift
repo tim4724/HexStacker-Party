@@ -69,10 +69,12 @@ final class FakeOutput: DisplayOutput {
     var results: [[String: Any]]?
     var musicStarted = false
     var paused = false
+    var displayMuted: Bool?   // last setDisplayMuted value (nil = never called)
     var rejoinQRVisible: Set<Int> = []   // players currently showing a per-board rejoin QR
     var calls: [String] = []   // ordered call log (for ordering regressions)
     func showScreen(_ s: DisplayScreen) { screen = s; calls.append("showScreen") }
     func setPaused(_ p: Bool) { paused = p; calls.append("setPaused(\(p))") }
+    func setDisplayMuted(_ m: Bool) { displayMuted = m }
     func setDisconnected(playerId: Int, joinURL: String?) {
         if joinURL != nil { rejoinQRVisible.insert(playerId) } else { rejoinQRVisible.remove(playerId) }
     }

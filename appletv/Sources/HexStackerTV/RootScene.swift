@@ -401,8 +401,13 @@ final class RootScene: SKScene, DisplayOutput {
     }
 
     private func toggleMusic() {
-        let muted = coordinator?.remoteToggleMute() ?? false
-        musicToggle?.setOn(!muted)
+        // The knob follows via the coordinator's setDisplayMuted callback, the
+        // same path that keeps it live when the host phone toggles Game Music.
+        coordinator?.remoteToggleMute()
+    }
+
+    func setDisplayMuted(_ muted: Bool) {
+        musicToggle?.setOn(!muted)   // switch shows "music on", the inverse of mute
     }
 
     // MARK: - Apple TV remote (display-side controls)

@@ -438,10 +438,24 @@ import Foundation
     // MARK: - Apple TV remote: music mute toggle returns the new state
 
     @Test func remoteToggleMuteToggles() {
-        let (coord, _, _) = makeLobby(players: 1)
+        let (coord, _, fo) = makeLobby(players: 1)
         coord.remoteStartMatch(); runCountdown(coord)
         #expect(coord.remoteToggleMute() == true, "first toggle mutes")
+        #expect(fo.displayMuted == true, "display switch told about the mute")
         #expect(coord.remoteToggleMute() == false, "second toggle unmutes")
+        #expect(fo.displayMuted == false, "display switch told about the unmute")
+    }
+
+    // A host phone toggling Game Music (SET_DISPLAY_MUTE) must drive the display
+    // UI too, so a visible pause-menu switch updates live instead of showing the
+    // state it was built with.
+    @Test func hostSetMuteDrivesDisplaySwitch() {
+        let (coord, ft, fo) = makeLobby(players: 1)
+        ft.onMessage?(1, ["type": "set_display_mute", "muted": true])
+        #expect(coord.isMuted, "host mute applied")
+        #expect(fo.displayMuted == true, "display switch updated live")
+        ft.onMessage?(1, ["type": "set_display_mute", "muted": false])
+        #expect(fo.displayMuted == false, "display switch updated live on unmute")
     }
 
     // MARK: - Game over broadcasts game_end and sets results AFTER clearing the pause menu
