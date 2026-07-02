@@ -61,7 +61,8 @@
 
   // Pillow tier — ported 1:1 from CanvasUtils _stampHexPillow (matches the
   // cover-art cellStyle). Rounded corners + radial sheen + bottom shade line.
-  function stampPillow(ctx, cx, cy, r, color) {
+  // sheen (default 0.3) can be boosted for hero-scale marks.
+  function stampPillow(ctx, cx, cy, r, color, sheen) {
     const size = r * SQRT3;
     const cornerR = r * 0.15;
     const lineInset = cornerR / SQRT3;
@@ -72,7 +73,7 @@
     ctx.save();
     ctx.clip();
     const g = ctx.createRadialGradient(cx - r * 0.05, cy - r * 0.1, 0, cx, cy, r * 1.1);
-    g.addColorStop(0, 'rgba(255,255,255,0.3)');
+    g.addColorStop(0, `rgba(255,255,255,${sheen ?? 0.3})`);
     g.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = g;
     ctx.fill();
@@ -144,21 +145,30 @@
   // foreground and leanback banner (android .../drawable/ic_launcher_*.xml):
   // four flat-top pillow hexes at (0, ±s) and (±√3·s, 0) — grid-adjacent
   // cells exploded by 2/√3 — drawn at radius 1.085·s (the vectors' exact
-  // ratio) so only a tight seam shows between them. Red on the vertical
-  // axis, tangerine on the horizontal — the brand UI accents.
+  // ratio) so only a tight seam shows between them. Cell order: top, left,
+  // right, bottom; colors/rot/sheen come from opts. The default colorway is
+  // the party spread — red / teal / honey / magenta (palette 0,1,2,5) — the
+  // single source of truth the Android vectors mirror.
   const GEM_CELLS = [
-    [0, -1, 0], [-SQRT3, 0, 1], [SQRT3, 0, 1], [0, 1, 0],
+    [0, -1], [-SQRT3, 0], [SQRT3, 0], [0, 1],
   ];
-  function gemColors() { return [PAL[0] || '#FF6B6B', PAL[7] || '#FF8C42']; }
-  function drawGem(ctx, cx, cy, s) {
-    const cols = gemColors();
-    for (const [ux, uy, ci] of GEM_CELLS) stampPillow(ctx, cx + ux * s, cy + uy * s, s * 1.085, cols[ci]);
+  function gemColors() {
+    return [PAL[0] || '#FF6B6B', PAL[1] || '#4ECDC4', PAL[2] || '#FFE066', PAL[5] || '#F178D8'];
   }
-  function drawGemGlow(ctx, cx, cy, s, alpha, blur) {
+  function drawGem(ctx, cx, cy, s, opts) {
+    const o = opts || {};
+    const cols = o.colors || gemColors();
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate((o.rot || 0) * Math.PI / 180);
+    GEM_CELLS.forEach(([ux, uy], i) => stampPillow(ctx, ux * s, uy * s, s * 1.085, cols[i], o.sheen));
+    ctx.restore();
+  }
+  function drawGemGlow(ctx, cx, cy, s, alpha, blur, opts) {
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.filter = `blur(${blur}px)`;
-    drawGem(ctx, cx, cy, s * 1.12);
+    drawGem(ctx, cx, cy, s * 1.12, opts);
     ctx.restore();
   }
 
@@ -168,6 +178,48 @@
     ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
     ctx.lineWidth = Math.max(1, r * 0.10);
     ctx.stroke();
+  }
+
+  // Soft ambient color blob (back layer) — off-hue washes that keep the plum
+  // from reading flat behind a hero mark.
+  function drawAmbient(ctx, cx, cy, r, color, alpha) {
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, rgba(color, alpha));
+    g.addColorStop(1, rgba(color, 0));
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+  }
+
+  // Corner-darkening vignette (back layer) — pulls the eye to the center.
+  function paintVignette(ctx, W, H, strength) {
+    const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.72);
+    g.addColorStop(0, 'rgba(8,6,16,0)');
+    g.addColorStop(1, `rgba(8,6,16,${strength})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // 4-point specular glint (front layer): hot core + two thin crossed arms.
+  function drawSparkle(ctx, cx, cy, r, alpha) {
+    ctx.save();
+    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, r * 0.55);
+    core.addColorStop(0, `rgba(255,255,255,${alpha})`);
+    core.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = core;
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    ctx.fillStyle = `rgba(255,255,255,${alpha * 0.9})`;
+    for (const rot of [0, Math.PI / 2]) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(rot);
+      ctx.beginPath();
+      ctx.moveTo(-r, 0);
+      ctx.quadraticCurveTo(0, -r * 0.13, r, 0);
+      ctx.quadraticCurveTo(0, r * 0.13, -r, 0);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
   }
 
   // ============================================================
@@ -283,11 +335,14 @@
   // ============================================================
   // Layout interpreter. spec = {
   //   w, h, layer:'back'|'middle'|'front'|'flat', refForSize,
+  //   ambient:[{nx,ny,rFrac,color,alpha}],
   //   outlineHexes:[{nx,ny,sizeFrac,alpha}],
   //   gemGlow:{nx,ny,sizeFrac,alpha,blurFrac} | null,
   //   backPieces:[{type,nx,ny,sizeFrac,rot,alpha,blurFrac}],
-  //   gem:{nx,ny,sizeFrac} | null,
+  //   vignette: strength | undefined,
+  //   gem:{nx,ny,sizeFrac,rot,colors,sheen} | null,
   //   pieces:[{type,nx,ny,sizeFrac,rot}],
+  //   sparkles:[{nx,ny,sizeFrac,alpha}],
   //   wordmark:{lines, ncy, sizeFrac, maxWidthFrac, lineHeight} | null
   // }  nx/ny are 0..1 of w/h; sizeFrac is hex circumradius / h.
   // ============================================================
@@ -303,6 +358,9 @@
 
     if (drawBack) {
       paintRadial(ctx, W, H);
+      for (const a of (spec.ambient || [])) {
+        drawAmbient(ctx, a.nx * W, a.ny * H, a.rFrac * H, a.color, a.alpha ?? 0.1);
+      }
       for (const o of (spec.outlineHexes || [])) {
         drawHexOutline(ctx, o.nx * W, o.ny * H, o.sizeFrac * H, o.alpha ?? 0.08);
       }
@@ -312,11 +370,12 @@
       }
       if (spec.gemGlow) {
         const g = spec.gemGlow;
-        drawGemGlow(ctx, g.nx * W, g.ny * H, g.sizeFrac * H, g.alpha ?? 0.4, (g.blurFrac ?? 0.05) * H);
+        drawGemGlow(ctx, g.nx * W, g.ny * H, g.sizeFrac * H, g.alpha ?? 0.4, (g.blurFrac ?? 0.05) * H, spec.gem);
       }
+      if (spec.vignette) paintVignette(ctx, W, H, spec.vignette);
     }
     if (drawMiddle && spec.gem) {
-      drawGem(ctx, spec.gem.nx * W, spec.gem.ny * H, spec.gem.sizeFrac * H);
+      drawGem(ctx, spec.gem.nx * W, spec.gem.ny * H, spec.gem.sizeFrac * H, spec.gem);
     }
     if (drawFront) {
       // trails first so the pieces render on top
@@ -325,6 +384,9 @@
       }
       for (const p of (spec.pieces || [])) {
         drawPiece(ctx, p.nx * W, p.ny * H, p.type, p.sizeFrac * H, p.rot || 0);
+      }
+      for (const sp of (spec.sparkles || [])) {
+        drawSparkle(ctx, sp.nx * W, sp.ny * H, sp.sizeFrac * H, sp.alpha ?? 0.85);
       }
       if (spec.wordmark) {
         drawWordmark(ctx, W, {
@@ -372,7 +434,7 @@
   // adaptive icon exactly: the ic_launcher_background.xml radial mapped to the
   // 72dp visible crop of the 108dp grid, the gem at the adaptive foreground's
   // size (hex s = 9.17/72 of the crop), masked to the legacy shape.
-  // spec = { size, shape: 'square'|'round' } -> PNG data URL.
+  // spec = { size, shape: 'square'|'round', gem: drawGem opts } -> PNG data URL.
   function renderLauncherIcon(spec) {
     const N = spec.size;
     const canvas = document.getElementById('stage');
@@ -390,7 +452,7 @@
     g.addColorStop(1, '#15121F');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, N, N);
-    drawGem(ctx, N / 2, N / 2, (9.17 / 72) * N);
+    drawGem(ctx, N / 2, N / 2, (9.17 / 72) * N, spec.gem);
     ctx.restore();
     return canvas.toDataURL('image/png');
   }

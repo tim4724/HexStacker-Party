@@ -5,10 +5,11 @@
 // brand primitives (artwork/tvos-icon.html) and writes them into the tvOS asset
 // catalog. Per the tvOS HIG the icon is a single centered focal point with no
 // text (the shelf shows the app name itself): the 4-hex "gem" mark — identical
-// geometry to the Android adaptive icon / leanback banner — over a plum radial.
-// Three parallax layers: BACK (opaque plum + faint honeycomb + the gem's soft
-// glow), MIDDLE (the gem), FRONT (two small falling-piece accents on
-// transparency; crops the most when focused, so nothing essential lives here).
+// geometry and party colorway to the Android adaptive icon / leanback banner —
+// over a plum radial. Three parallax layers: BACK (opaque plum + honeycomb +
+// ambient washes + per-hex neon glow + vignette), MIDDLE (the gem), FRONT
+// (falling-piece accent + specular glint on transparency; crops the most when
+// focused, so nothing essential lives here).
 // Uses canvas.toDataURL so the upper layers keep real alpha. The Top Shelf
 // (the fullscreen showcase) is the gameplay key art, generated separately by
 // generate-tvos-topshelf.js — Apple's HIG wants rich key art there and a simple
@@ -35,22 +36,31 @@ const PREVIEW_DIR = path.resolve(__dirname, 'tvos-preview');
 const PREVIEW_ONLY = process.argv.includes('--preview-only');
 
 // ---- Layout ---------------------------------------------------------------
-// Gem centered; total gem height = (2 + √3)·s ≈ 3.73·s → sizeFrac 0.165 gives
-// ~62% of icon height, comfortably inside the 370x222 safe zone. Front accents
-// sit in opposite corners, clear of the gem and inside the safe zone.
-const GEM = { nx: 0.5, ny: 0.5, sizeFrac: 0.165 };
+// Hero gem in the party colorway (gemColors() default), ~80% of icon height
+// ((2 + 1.085·√3)·s), still inside the 370x222 safe zone. Each hex casts its
+// own colored neon glow (back layer); a vignette pulls the eye center; one
+// violet piece falls in from the top-left with a motion trail bleeding off
+// the edge; a specular glint rides the red hex on the front layer.
+const GEM = { nx: 0.5, ny: 0.5, sizeFrac: 0.205, sheen: 0.42 };
 const ICON = {
   gem: GEM,
-  gemGlow: { ...GEM, alpha: 0.42, blurFrac: 0.055 },
+  gemGlow: { ...GEM, alpha: 0.5, blurFrac: 0.055 },
   outlineHexes: [
     { nx: 0.075, ny: 0.78, sizeFrac: 0.09, alpha: 0.07 },
     { nx: 0.155, ny: 0.915, sizeFrac: 0.09, alpha: 0.07 },
     { nx: 0.905, ny: 0.13, sizeFrac: 0.09, alpha: 0.07 },
     { nx: 0.975, ny: 0.265, sizeFrac: 0.09, alpha: 0.07 },
   ],
+  ambient: [
+    { nx: 0.12, ny: 0.10, rFrac: 0.75, color: '#5B7FFF', alpha: 0.10 },
+    { nx: 0.90, ny: 0.92, rFrac: 0.75, color: '#F178D8', alpha: 0.08 },
+  ],
+  vignette: 0.5,
   pieces: [
-    { type: 'V3', nx: 0.145, ny: 0.20, sizeFrac: 0.048, rot: 5, trailFrac: 0.22 },
-    { type: 'o',  nx: 0.86,  ny: 0.78, sizeFrac: 0.048, rot: 0 },
+    { type: 'o', nx: 0.135, ny: 0.20, sizeFrac: 0.048, rot: 2, trailFrac: 0.30 },
+  ],
+  sparkles: [
+    { nx: 0.415, ny: 0.235, sizeFrac: 0.042, alpha: 0.9 },
   ],
 };
 
