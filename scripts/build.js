@@ -48,7 +48,7 @@ const LOCALE_DISPLAY_KEYS = [
   'scan_to_rejoin', 'disconnected',
   // Lobby
   'scan_to_join', 'waiting_for_players', 'start_n_players', 'level_heading',
-  'stacked_by', 'music_by',
+  'music_by',
   // Pause overlay
   'paused', 'continue_btn', 'new_game', 'settings_game_music',
   // Display-connection overlay

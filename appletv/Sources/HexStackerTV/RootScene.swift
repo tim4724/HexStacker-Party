@@ -775,8 +775,10 @@ final class RootScene: SKScene, DisplayOutput {
 
         // --- Bottom: Start button (focusable; host-tinted), sized to its text
         // plus padding (web .btn is content-width, not a fixed wide pill).
+        // Lifted off the bottom edge so the button, the credit line below it,
+        // and the screen edge each get breathing room instead of stacking tight.
         let pillH = max(48, H * 0.06)
-        let pillY = margin + pillH / 2
+        let pillY = margin * 1.8 + pillH / 2
         let hasPlayers = !players.isEmpty
         let hostColor = host.flatMap { h in players.first { $0.peerIndex == h }?.colorSlot }
             .map { SKTheme.player(slot: $0) }
@@ -803,13 +805,15 @@ final class RootScene: SKScene, DisplayOutput {
         // --- Footer credit, in the band below the Start button. The web only
         // shows #lobby-footer here in AirConsole mode, where (like here) the
         // lobby is the first screen and there's no separate welcome screen to
-        // carry the credit instead.
+        // carry the credit instead. TV shows only the music attribution (the
+        // CC-BY license rides in the shared music_by string; the web conveys
+        // it via the OpenGameArt link, which a TV can't offer).
         let footer = SKLabelNode()
         footer.verticalAlignmentMode = .center
-        footer.setStyledText("\(tr("stacked_by"))   ·   \(tr("music_by"))",
+        footer.setStyledText(tr("music_by"),
                               font: AppFont.psName(.regular), size: min(H * 0.022, 18),
                               color: SKTheme.textSecondary, tracking: 0.02)
-        footer.position = CGPoint(x: W / 2, y: margin / 2)
+        footer.position = CGPoint(x: W / 2, y: margin * 0.9)
         lobbyContent.addChild(footer)
         if animateEntrance {
             footer.alpha = 0
