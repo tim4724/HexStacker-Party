@@ -273,9 +273,6 @@
       }
     }
     if (drawFront) {
-      for (const g of (spec.grids || [])) {
-        drawHexGrid(ctx, g.nx * W, g.ny * H, g.hexFrac * H, g.cells);
-      }
       // trails first so the pieces render on top
       for (const p of (spec.pieces || [])) {
         if (p.trailFrac) drawPieceTrail(ctx, p.nx * W, p.ny * H, p.type, p.sizeFrac * H, p.rot || 0, p.trailFrac * H);

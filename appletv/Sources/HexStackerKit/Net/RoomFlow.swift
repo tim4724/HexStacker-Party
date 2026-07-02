@@ -97,12 +97,16 @@ public final class RoomFlow {
     @discardableResult
     public func addPlayer(peerIndex: Int, playerName: String, colorSlot: Int, startLevel: Int = 1) -> PlayerRecord {
         if let existing = players[peerIndex] {
-            existing.playerName = playerName
-            existing.colorSlot = colorSlot
-            existing.startLevel = startLevel
-            existing.connected = true            // joinedAt preserved
-            disconnected.remove(peerIndex)
-            emittingHostChange { /* effective host may change */ }
+            // Mutate inside the wrapper so a host-eligibility change (a sticky
+            // host regaining `connected`) actually emits (JS captures prevHost
+            // before the mutations).
+            emittingHostChange {
+                existing.playerName = playerName
+                existing.colorSlot = colorSlot
+                existing.startLevel = startLevel
+                existing.connected = true            // joinedAt preserved
+                disconnected.remove(peerIndex)
+            }
             onPlayerUpdate?(existing)
             onRosterChange?(list())
             return existing
@@ -332,6 +336,9 @@ public final class RoomFlow {
     }
 
     private func reconcileStickyHost() {
+        // An empty room keeps the slot untouched (JS parity); nulling it here
+        // would emit a spurious host change on an empty-room state transition.
+        guard !players.isEmpty else { return }
         let eligible: Set<Int>? = restricted ? Set(order) : nil
         if isEligible(hostPeerIndex, eligible) { return }
         hostPeerIndex = electNextHost(exclude: hostPeerIndex)

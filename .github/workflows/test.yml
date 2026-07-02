@@ -91,6 +91,9 @@ jobs:
         with:
           path: appletv/.build-xcode/SourcePackages
           key: spm-${{ runner.os }}-${{ hashFiles('appletv/project.yml') }}
+          # A project.yml edit shouldn't re-download the whole LiveKitWebRTC
+          # xcframework: restore the previous cache and let SPM re-resolve.
+          restore-keys: spm-${{ runner.os }}-
       - name: Build the tvOS app for the Simulator SDK
         working-directory: appletv
         run: |

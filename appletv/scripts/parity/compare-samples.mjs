@@ -16,7 +16,11 @@ const PIECE_COLORS = {
   4: [0xA7, 0x8B, 0xFA], 5: [0x7B, 0xED, 0x6F], 6: [0xF1, 0x78, 0xD8],
   9: [0x80, 0x80, 0x80],
 };
-const EXPECTED = [1, 2, 3, 4, 5, 6, 9, 1, 2]; // fixture bottom row by column
+// Fixture bottom row by column, read from fixture.json so the expected row
+// can't drift from what the renderers were told to draw.
+const EXPECTED = JSON.parse(
+  readFileSync(new URL('./fixture.json', import.meta.url), 'utf8')
+).grid.at(-1);
 
 function nearest([r, g, b]) {
   let best = -1, bestD = Infinity;

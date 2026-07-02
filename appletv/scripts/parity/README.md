@@ -55,8 +55,11 @@ uses `8753`. Serve from the **repo root** so the `../../../` script paths in
 ```bash
 # from the repo root: /Users/tim/emdash/worktrees/HexStacker-Party/emdash/apple-tv-rl1im
 python3 -m http.server 8753
-# or:  node server/index.js   (then use that server's port + path)
 ```
+
+(The app server, `node server/index.js`, will NOT work here: it exposes the
+engine at `/engine/`, not `/server/`, so `render-web.html`'s script paths 404.
+Any plain static server rooted at the repo root is fine.)
 
 Page URL: `http://localhost:8753/appletv/scripts/parity/render-web.html`
 

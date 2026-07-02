@@ -67,6 +67,26 @@ import Foundation
         #expect(abs(jg.fillAlpha - sg.fillAlpha) < 1e-9)
     }
 
+    /// The board-perimeter outline (the wall stroke and the well clip ring) is
+    /// the most intricate hand-ported render math; pin it to
+    /// computeHexOutlineVerts for both the raw ring (outset 0) and the
+    /// average-normal outward-offset ring (outset > 0).
+    @Test func boardOutlineMatches() throws {
+        let js = try makeJS()
+        for cs in [14.0, 20.0] {
+            let g = HexGeometry(cellSize: cs)
+            for outset in [0.0, 2.5] {
+                let j = js.outline(cellSize: cs, outset: outset)
+                let s = g.outlineVertices(outset: outset)
+                try #require(j.count == s.count, "vertex count (cs \(cs), outset \(outset))")
+                for (jv, sv) in zip(j, s) {
+                    #expect(abs(jv.x - sv.x) < 1e-6 && abs(jv.y - sv.y) < 1e-6,
+                            "vertex mismatch at cs \(cs), outset \(outset)")
+                }
+            }
+        }
+    }
+
     /// The zigzag clear-detection ports (used for the on-board clear preview and
     /// near-clear pulse) must equal constants.js byte-for-byte, including the
     /// bottom-first overlap ordering and ghost-completion filter.

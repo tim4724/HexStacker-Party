@@ -99,7 +99,11 @@ public enum LayoutEngine {
     private static let padding = Theme.Size.canvasPad
     private static let totalCellsWide = Double(EngineConstants.cols) + 3 + 3   // board + side panels
 
-    /// Height reserved above the board for the player-name label.
+    /// Height reserved above the board for the player-name label. Approximation:
+    /// the web measures real glyph metrics here (DisplayUI.js measureHeight,
+    /// ascent+descent of 'Mg' ≈ 0.9·nameSize), so native boards come out
+    /// marginally smaller/lower for the same viewport. Layout is not part of the
+    /// byte-parity contract; keep the two visually close if either side changes.
     public static func textHeight(_ cs: Double) -> Double {
         let nameSize = max(18.0, cs * 0.7)
         let nameGap = cs * 0.6

@@ -67,6 +67,13 @@ public final class RenderMathJS {
               var isFilled = function(c,r){ return grid[r][c] > 0; };
               return window.GameConstants.findNearClearZigzags(cols, totalRows, isFilled);
             };
+            // Board-perimeter outline ring, board-local origin (bx = by = 0),
+            // mirroring how BoardRenderer.js calls it for the wall stroke
+            // (outset > 0) and the well clip path (outset 0).
+            globalThis.__outline = function(cs, outset){
+              var g = __geom(cs);
+              return window.GameConstants.computeHexOutlineVerts(0, 0, g.hexSize, g.hexH, g.colW, 9, 15, outset);
+            };
             """)
         if let e = thrown { throw ParityError.eval(e) }
     }
@@ -117,6 +124,13 @@ public final class RenderMathJS {
     public func nearClear(grid: [[Int]], cols: Int) -> [Cell] {
         let call = "JSON.stringify(__nearClear(\(Self.gridJS(grid)),\(cols)))"
         return Self.parseCells(ctx.evaluateScript(call)!.toString()!)
+    }
+
+    /// computeHexOutlineVerts (constants.js): the board wall / well-clip ring.
+    public func outline(cellSize: Double, outset: Double) -> [(x: Double, y: Double)] {
+        let json = ctx.evaluateScript("JSON.stringify(__outline(\(cellSize),\(outset)))")!.toString()!
+        guard let pairs = try? JSONDecoder().decode([[Double]].self, from: Data(json.utf8)) else { return [] }
+        return pairs.compactMap { $0.count == 2 ? (x: $0[0], y: $0[1]) : nil }
     }
 
     private static func gridJS(_ grid: [[Int]]) -> String {

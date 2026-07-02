@@ -91,7 +91,11 @@ final class WebRTCFastlane: NSObject, InputFastlane {
     // MARK: InputFastlane
 
     func handleSignal(from: Int, data: [String: Any]) -> Bool {
-        guard let kind = data[FastlaneConfig.signalKey] as? String else { return false }
+        // Consume ANY envelope carrying the signal key: a malformed non-string
+        // kind must not leak into app dispatch (JS PartyFastlane consumes on
+        // presence alone).
+        guard data[FastlaneConfig.signalKey] != nil else { return false }
+        guard let kind = data[FastlaneConfig.signalKey] as? String else { return true }
         // Always on main (relay callbacks are delivered on .main).
         switch kind {
         case "offer":  if let sdp = data["sdp"] as? [String: Any] { handleOffer(from: from, sdp: sdp) }

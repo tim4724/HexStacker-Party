@@ -48,6 +48,9 @@ jobs:
         with:
           path: appletv/.build-xcode/SourcePackages
           key: spm-${{ runner.os }}-${{ hashFiles('appletv/project.yml') }}
+          # A project.yml edit shouldn't re-download the whole LiveKitWebRTC
+          # xcframework: restore the previous cache and let SPM re-resolve.
+          restore-keys: spm-${{ runner.os }}-
       # `-scheme HexStackerTV` runs the test action wired in project.yml, which
       # builds the app and runs HexStackerTVUITests. The runtime is preinstalled on
       # the macos-15 image (tvOS 18.5 pairs with the default Xcode 16.x); OS=latest
@@ -81,8 +84,10 @@ jobs:
           if-no-files-found: warn
       # Surface the artifact with a one-click link in a sticky PR comment (updated
       # in place each run), since GitHub buries run artifacts under the run summary.
+      # Same-repo PRs only: a fork PR's GITHUB_TOKEN is read-only regardless of the
+      # job's `permissions:` block, so the comment API would 403 and fail the job.
       - name: Comment screenshots link on the PR
-        if: always() && github.event_name == 'pull_request'
+        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@v8
         env:
           ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
@@ -104,7 +109,9 @@ jobs:
             ].join('\n');
             const { owner, repo } = context.repo;
             const issue_number = context.issue.number;
-            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number, per_page: 100 });
+            // Paginate: on a long PR thread the marker comment falls off page 1
+            // and a non-paginated lookup would post duplicates instead of updating.
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number, per_page: 100 });
             const existing = comments.find((c) => c.body && c.body.includes(marker));
             if (existing) {
               await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });

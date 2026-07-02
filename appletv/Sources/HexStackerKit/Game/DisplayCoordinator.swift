@@ -23,7 +23,6 @@ public protocol DisplayOutput: AnyObject {
     func stopMusic()
     func pauseMusic()
     func resumeMusic()
-    func setMusicLevel(_ level: Int)
 }
 
 public extension DisplayOutput {
@@ -31,7 +30,6 @@ public extension DisplayOutput {
     func handleGameEvent(_ event: GameEvent) {}
     func setDisconnected(playerId: Int, joinURL: String?) {}
     func setPaused(_ paused: Bool) {}
-    func setMusicLevel(_ level: Int) {}
 }
 
 /// The native display brain: owns the relay transport, the RoomFlow roster, and

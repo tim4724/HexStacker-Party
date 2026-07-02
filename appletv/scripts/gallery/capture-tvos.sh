@@ -47,7 +47,9 @@ if [ "${HEX_SKIP_BUILD:-0}" != "1" ]; then
     -destination "platform=tvOS Simulator,id=$DEV" -derivedDataPath "$DD" build >/dev/null
 fi
 
-APP="$(find "$DD/Build/Products" -maxdepth 3 -name 'HexStackerTV.app' | head -1)"
+# -print -quit instead of `| head -1`: head closing the pipe early would
+# SIGPIPE find under pipefail if there were ever multiple matches.
+APP="$(find "$DD/Build/Products" -maxdepth 3 -name 'HexStackerTV.app' -print -quit)"
 [ -n "$APP" ] || { echo "no built .app under $DD"; exit 1; }
 echo "app: $APP"
 

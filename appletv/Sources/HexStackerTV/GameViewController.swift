@@ -48,10 +48,19 @@ final class GameViewController: UIViewController {
         NotificationCenter.default.addObserver(
             self, selector: #selector(appDidEnterBackground),
             name: UIApplication.didEnterBackgroundNotification, object: nil)
+        // Coming back needs the inverse: controllers were told the display
+        // closed, so re-join and re-welcome them (not posted on first launch).
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(appWillEnterForeground),
+            name: UIApplication.willEnterForegroundNotification, object: nil)
     }
 
     @objc private func appDidEnterBackground() {
         rootScene?.notifyDisplayClosing()
+    }
+
+    @objc private func appWillEnterForeground() {
+        rootScene?.appWillEnterForeground()
     }
 
     private var rootScene: RootScene? { (view as? SKView)?.scene as? RootScene }

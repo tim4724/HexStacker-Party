@@ -54,6 +54,14 @@ public final class RelayClient: NSObject, RelayTransport {
     private var lastHeartbeatEcho: TimeInterval = 0
     private static let heartbeatDeadSeconds: TimeInterval = 6.0   // SELF_HEARTBEAT_DEAD_MS
 
+    // The heartbeat only starts on created/joined, so a socket that completes the
+    // WS upgrade but never gets a handshake answer (wedged shard) would otherwise
+    // sit in .open forever with no probe armed. The web's liveness interval keeps
+    // running across reconnects and re-detects this; this timer is the native
+    // equivalent for the handshake window.
+    private var handshakeTimer: DispatchSourceTimer?
+    private static let handshakeTimeoutSeconds: TimeInterval = 6.0
+
     public init(baseURL: String = Protocol.relayURL,
                 clientId: String = Protocol.displayClientId,
                 maxClients: Int = Protocol.maxClients,
@@ -116,6 +124,7 @@ public final class RelayClient: NSObject, RelayTransport {
         q.async {
             self.shouldReconnect = false
             self.cancelReconnectTimer()
+            self.cancelHandshakeTimer()
             self.stopHeartbeat()
             self.task?.cancel(with: .goingAway, reason: nil)
             self.task = nil
@@ -141,6 +150,7 @@ public final class RelayClient: NSObject, RelayTransport {
 
     private func connectLocked() {
         cancelReconnectTimer()
+        cancelHandshakeTimer()
         dropHandled = false
         setState(reconnectAttempt > 0 ? .reconnecting : .connecting)
 
@@ -176,7 +186,14 @@ public final class RelayClient: NSObject, RelayTransport {
                 guard task === self.task else { return }   // stale socket
                 switch result {
                 case .failure:
-                    self.handleDrop(closeCode: nil)
+                    // A server-initiated close surfaces here as a receive failure,
+                    // racing the didCloseWith delegate (which the identity guard
+                    // ignores once `task` is cleared). Read the close code off the
+                    // task itself so an eviction (4000) isn't consumed as an
+                    // ordinary drop, which would auto-rejoin and start the
+                    // takeover war onReplaced exists to prevent.
+                    let code = task.closeCode
+                    self.handleDrop(closeCode: code == .invalid ? nil : code.rawValue)
                 case .success(let message):
                     switch message {
                     case .string(let s): self.handleFrame(s)
@@ -194,6 +211,7 @@ public final class RelayClient: NSObject, RelayTransport {
         if dropHandled { return }
         dropHandled = true
         stopHeartbeat()
+        cancelHandshakeTimer()
         task = nil
 
         if closeCode == 4000 {
@@ -278,6 +296,7 @@ public final class RelayClient: NSObject, RelayTransport {
             lastRoom = room
             lastInstance = instance
             reconnectAttempt = 0
+            cancelHandshakeTimer()
             startHeartbeat()
             emit { self.onCreated?(room, instance, region) }
 
@@ -286,6 +305,7 @@ public final class RelayClient: NSObject, RelayTransport {
             let peers = (obj["peers"] as? [Any])?.compactMap { Self.intValue($0) } ?? []
             lastRoom = room
             reconnectAttempt = 0
+            cancelHandshakeTimer()
             startHeartbeat()
             emit { self.onJoined?(room, peers) }
 
@@ -313,7 +333,29 @@ public final class RelayClient: NSObject, RelayTransport {
         } else {
             sendEnvelope(["type": "create", "clientId": clientId, "maxClients": maxClients])
         }
+        startHandshakeTimeout()
         setState(.open)
+    }
+
+    /// Arm the created/joined answer deadline; a silent relay is treated as a
+    /// drop so the capped backoff (and eventually the gave-up overlay) applies.
+    private func startHandshakeTimeout() {
+        cancelHandshakeTimer()
+        let timer = DispatchSource.makeTimerSource(queue: q)
+        timer.schedule(deadline: .now() + Self.handshakeTimeoutSeconds)
+        timer.setEventHandler { [weak self] in
+            guard let self, let old = self.task else { return }
+            self.task = nil
+            old.cancel(with: .goingAway, reason: nil)
+            self.handleDrop(closeCode: nil)
+        }
+        timer.resume()
+        handshakeTimer = timer
+    }
+
+    private func cancelHandshakeTimer() {
+        handshakeTimer?.cancel()
+        handshakeTimer = nil
     }
 
     private func sendEnvelope(_ dict: [String: Any]) {

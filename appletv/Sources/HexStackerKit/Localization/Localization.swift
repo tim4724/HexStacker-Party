@@ -66,8 +66,10 @@ public final class Localization {
         if let s = raw as? String {
             value = s
         } else if let forms = raw as? [String: Any] {
-            let count = (params["count"] as? Int) ?? 1
-            let category = Self.pluralCategory(locale: locale, count: count)
+            // A missing count selects 'other', not 'one' (i18n.js: an undefined
+            // count fails every locale's === 1 test).
+            let category = (params["count"] as? Int)
+                .map { Self.pluralCategory(locale: locale, count: $0) } ?? "other"
             value = (forms[category] as? String) ?? (forms["other"] as? String) ?? ""
         } else {
             return key

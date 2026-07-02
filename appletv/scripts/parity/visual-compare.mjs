@@ -79,9 +79,12 @@ function classify(r, g, b) {
   return { id: best.id, dist: Math.sqrt(bestD) };
 }
 
-// --- Fixture: bottom row only (row index 14), as defined in fixture.json ---
+// --- Fixture: bottom row only (row index 14), read from fixture.json so the
+// expected row can't drift from what the renderers were told to draw ---
 const BOTTOM_ROW_INDEX = VISIBLE_ROWS - 1; // 14
-const BOTTOM_ROW = [1, 2, 3, 4, 5, 6, 9, 1, 2];
+const BOTTOM_ROW = JSON.parse(
+  readFileSync(new URL('./fixture.json', import.meta.url), 'utf8')
+).grid[BOTTOM_ROW_INDEX];
 
 function loadPng(path) {
   let PNG;

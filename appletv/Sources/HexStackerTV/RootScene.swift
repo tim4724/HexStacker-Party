@@ -25,6 +25,7 @@ final class RootScene: SKScene, DisplayOutput {
     private let gameEffect = SKEffectNode()
     private let resultsLayer = SKNode()
     private let timerNode = SKNode()          // container for the fixed-advance timer glyphs
+    private var lastTimerKey = ""             // change-gate for the once-a-second timer text
     private var timerGlyphs: [SKLabelNode] = []
 
     // Countdown overlay (dim + number), independent of the three screens.
@@ -53,6 +54,7 @@ final class RootScene: SKScene, DisplayOutput {
     private var lastCellSize: CGFloat = 30
     private var lastTime: TimeInterval = 0
     private var shotMode = false   // HEXSHOT: render one frozen state, no live tick
+    private var relayStarted = false   // false in the offline harness modes
 
     // Player ids already shown in the lobby — used to fire the join-pop only on
     // newly arriving players, not on every roster rebuild.
@@ -201,7 +203,19 @@ final class RootScene: SKScene, DisplayOutput {
         }
 
         coordinator.start()
+        relayStarted = true
         showScreen(.lobby)
+    }
+
+    /// App returned to the foreground. Backgrounding broadcast DISPLAY_CLOSED
+    /// (notifyDisplayClosing) but kept the socket, so after a quick Home-and-back
+    /// nothing detects a drop and the controllers stay stranded on their end
+    /// screens. Force a fresh join: `joined` replays the roster through the
+    /// coordinator's onJoined, which reconciles presence and re-welcomes every
+    /// controller, the same recovery the web gets from a page reload.
+    func appWillEnterForeground() {
+        guard relayStarted else { return }   // HEXSHOT/HEXLOBBY/HEXDEMO never connect
+        relay?.reconnectNow()
     }
 
     override func update(_ currentTime: TimeInterval) {
@@ -357,10 +371,10 @@ final class RootScene: SKScene, DisplayOutput {
             // d-pad Up), spanning the button pair's width so its focus frame is
             // proportional. ON tint = host color (web --player-color).
             let muted = coordinator?.isMuted ?? false
-            let music = MusicSwitch(width: btnW * 2 + gap, height: btnH, isOn: !muted,
-                                    tint: hostColorOpt ?? SKTheme.accentSecondary) { [weak self] in self?.toggleMusic() }
-            music.position = CGPoint(x: cx, y: cy)
-            musicToggle = music
+            let musicRow = MusicSwitch(width: btnW * 2 + gap, height: btnH, isOn: !muted,
+                                       tint: hostColorOpt ?? SKTheme.accentSecondary) { [weak self] in self?.toggleMusic() }
+            musicRow.position = CGPoint(x: cx, y: cy)
+            musicToggle = musicRow
 
             let cont = MenuButton(text: trUpper("continue_btn"), width: btnW, height: btnH, primary: true,
                                   tint: hostColor) { [weak self] in self?.coordinator?.remoteTogglePause() }
@@ -370,10 +384,13 @@ final class RootScene: SKScene, DisplayOutput {
                                 tint: hostColor, secondaryTint: true) { [weak self] in self?.coordinator?.remoteReturnToLobby() }
             cont.position = CGPoint(x: cx - btnW / 2 - gap / 2, y: cy - rowSpacing)
             ng.position = CGPoint(x: cx + btnW / 2 + gap / 2, y: cy - rowSpacing)
-            pauseLayer.addChild(music)
+            // Above pauseDim (see buildPauseOverlay: equal-z order is undefined
+            // under ignoresSiblingOrder).
+            for row in [musicRow, cont, ng] { row.zPosition = 1 }
+            pauseLayer.addChild(musicRow)
             pauseLayer.addChild(cont)
             pauseLayer.addChild(ng)
-            setMenu([[music], [cont, ng]], focus: (1, 0))   // default focus = Continue
+            setMenu([[musicRow], [cont, ng]], focus: (1, 0))   // default focus = Continue
         } else {
             setMenu([])
         }
@@ -397,6 +414,22 @@ final class RootScene: SKScene, DisplayOutput {
     private var savedFocusRC: (r: Int, c: Int) = (0, 0)
 
     private func setMenu(_ rows: [[Focusable]], focus: (Int, Int)? = nil) {
+        // While the connection overlay is up it owns the live menu. A screen
+        // rebuilding underneath (roster change in the lobby, results, pause)
+        // must land in the stash instead; otherwise hideConnectionOverlay
+        // would restore the old, since-detached rows and strand focus on nodes
+        // no longer in the scene.
+        if savedMenuRows != nil {
+            savedMenuRows = rows
+            savedFocusRC = focus ?? (0, 0)
+            return
+        }
+        applyMenu(rows, focus: focus)
+    }
+
+    /// Install `rows` as the live menu, bypassing the overlay stash; only the
+    /// connection overlay's own show/hide paths call this.
+    private func applyMenu(_ rows: [[Focusable]], focus: (Int, Int)? = nil) {
         menuRows = rows
         if let f = focus, rows.indices.contains(f.0), rows[f.0].indices.contains(f.1), rows[f.0][f.1].enabled {
             focusRC = f
@@ -483,8 +516,14 @@ final class RootScene: SKScene, DisplayOutput {
     private func updateTimer(elapsedMs: Double) {
         let total = Int(elapsedMs / 1000)
         let str = String(format: "%02d:%02d", total / 60, total % 60)
-        let chars = Array(str)
         let fs = max(28, lastCellSize * 0.65)
+        // The text changes once a second; skip the per-frame glyph
+        // re-rasterization (setStyledText re-runs layout + texture upload)
+        // unless something that feeds the render actually changed.
+        let key = "\(str)|\(fs)|\(currentPlayerCount)"
+        if key == lastTimerKey && !timerNode.isHidden { return }
+        lastTimerKey = key
+        let chars = Array(str)
         // Fixed per-glyph advances (web drawTimer): digits share a width, the colon
         // is narrower, so nothing shifts as the seconds tick.
         let digitAdvance = fs * 0.92, colonAdvance = fs * 0.52
@@ -575,6 +614,9 @@ final class RootScene: SKScene, DisplayOutput {
 
         pauseTitle.verticalAlignmentMode = .center
         pauseTitle.horizontalAlignmentMode = .center
+        // Explicit z above the dim: ignoresSiblingOrder makes equal-z sibling
+        // order undefined, so content at the scrim's z0 could draw behind it.
+        pauseTitle.zPosition = 1
         pauseTitle.setStyledText(tr("paused"), font: AppFont.black, size: min(size.height * 0.04, 56),
                                  color: SKTheme.textPrimary(), tracking: 0.15)
         pauseLayer.addChild(pauseTitle)
@@ -633,11 +675,12 @@ final class RootScene: SKScene, DisplayOutput {
                 self?.relay?.reconnectNow(); self?.hideConnectionOverlay()
             }
             btn.position = CGPoint(x: cx, y: cy - playRect.height * 0.12)
+            btn.zPosition = 1   // above connDim, like the heading/status labels
             connLayer.addChild(btn)
             connButton = btn
-            setMenu([[btn]])
+            applyMenu([[btn]])
         } else {
-            setMenu([])   // informational / terminal: block input to the screen behind
+            applyMenu([])   // informational / terminal: block input to the screen behind
         }
     }
 
@@ -654,8 +697,8 @@ final class RootScene: SKScene, DisplayOutput {
         connLayer.isHidden = true
         connButton?.removeFromParent(); connButton = nil
         if let rows = savedMenuRows {
-            setMenu(rows, focus: (savedFocusRC.r, savedFocusRC.c))
-            savedMenuRows = nil
+            savedMenuRows = nil   // clear FIRST so this install isn't diverted back into the stash
+            applyMenu(rows, focus: (savedFocusRC.r, savedFocusRC.c))
         }
     }
 

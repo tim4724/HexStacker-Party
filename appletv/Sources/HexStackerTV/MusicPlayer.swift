@@ -15,7 +15,9 @@ final class MusicPlayer {
 
     private var buffer: AVAudioPCMBuffer?
     private var isPlaying = false
+    private var isPaused = false
     private var lastLevel = 0
+    private var configChangeObserver: NSObjectProtocol?
 
     private static let masterVolume: Float = 0.50
     // Beeps are mono; the player is connected with this exact format and the
@@ -43,6 +45,21 @@ final class MusicPlayer {
         engine.connect(beepPlayer, to: engine.mainMixerNode, format: beepFormat)
 
         musicMixer.outputVolume = Self.masterVolume
+
+        // An output route/config change (HDMI-CEC handoff, AVR, AirPlay) stops
+        // the engine; without this, audio stays dead until the next match's
+        // start(). Restart and resume whatever was audible.
+        configChangeObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            self.startEngineIfNeeded()
+            if self.isPlaying && !self.isPaused { self.musicPlayer.play() }
+        }
+    }
+
+    deinit {
+        if let configChangeObserver { NotificationCenter.default.removeObserver(configChangeObserver) }
     }
 
     private func loadTrack() {
@@ -63,16 +80,22 @@ final class MusicPlayer {
         musicPlayer.scheduleBuffer(buffer, at: nil, options: [.loops])
         musicPlayer.play()
         isPlaying = true
+        isPaused = false
         lastLevel = 0
     }
 
     func stop() {
         musicPlayer.stop()
         isPlaying = false
+        isPaused = false
     }
 
-    func pause() { musicPlayer.pause() }
+    func pause() {
+        isPaused = true
+        musicPlayer.pause()
+    }
     func resume() {
+        isPaused = false
         startEngineIfNeeded()
         if isPlaying { musicPlayer.play() }
     }

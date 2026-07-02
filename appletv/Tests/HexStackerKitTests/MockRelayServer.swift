@@ -87,6 +87,17 @@ final class MockRelayServer {
         c?.cancel()
     }
 
+    /// Close the current socket with a WebSocket close frame carrying `code`
+    /// (4000 = evicted: another client claimed this clientId's slot).
+    func closeCurrentConnection(code: UInt16) {
+        lock.lock(); let c = latest; lock.unlock()
+        guard let c else { return }
+        let meta = NWProtocolWebSocket.Metadata(opcode: .close)
+        meta.closeCode = .privateCode(code)
+        let ctx = NWConnection.ContentContext(identifier: "close", metadata: [meta])
+        c.send(content: nil, contentContext: ctx, isComplete: true, completion: .contentProcessed { _ in })
+    }
+
     func stop() {
         listener.cancel()
         lock.lock(); let conns = connections; connections = []; latest = nil; lock.unlock()

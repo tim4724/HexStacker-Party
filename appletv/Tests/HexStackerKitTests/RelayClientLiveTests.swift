@@ -104,6 +104,33 @@ import Foundation
         #expect(waitUntil(3) { state.get().rejoinPeers == [1] }, "onJoined delivered the reconnect roster")
     }
 
+    @Test func evictionCloseFiresOnReplacedWithoutReconnect() throws {
+        let server = try MockRelayServer(); try server.start()
+        defer { server.stop() }
+
+        let client = RelayClient(baseURL: server.baseURL, clientId: "display", callbackQueue: cbQueue)
+        defer { client.disconnect() }
+
+        let state = Captured()
+        client.onCreated = { room, _, _ in state.set { $0.room = room } }
+        client.onReplaced = { state.set { $0.replaced = true } }
+
+        client.connect()
+        #expect(waitUntil { state.get().room != nil }, "initial create landed")
+
+        // The relay evicts this display (another client claimed the "display"
+        // clientId): the 4000 close must surface as onReplaced (regardless of
+        // whether URLSession reports it via the didCloseWith delegate or the
+        // pending receive's failure) and must NOT auto-rejoin, which would
+        // evict the replacement right back (takeover ping-pong).
+        server.closeCurrentConnection(code: 4000)
+        #expect(waitUntil(5) { state.get().replaced }, "onReplaced fired on close 4000")
+        // A would-be reconnect fires after ~1 s of backoff; give it room to
+        // (wrongly) appear before asserting it didn't.
+        Thread.sleep(forTimeInterval: 1.5)
+        #expect(server.connectionCount == 1, "evicted client did not reconnect")
+    }
+
     /// Thread-safe capture of results delivered on the async callback queue.
     private final class Captured {
         struct State {
@@ -112,6 +139,7 @@ import Foundation
             var joined: [Int] = []
             var messages: [(Int, [String: Any])] = []
             var rejoinPeers: [Int]?
+            var replaced = false
         }
         private var s = State()
         private let l = NSLock()
