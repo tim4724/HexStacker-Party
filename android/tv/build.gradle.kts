@@ -79,6 +79,24 @@ tasks.named("preBuild") {
     dependsOn(syncEngineBundle)
 }
 
+// The screenshot tests derive their fixture data by running the canonical engine
+// bundle (dist/partycore.js) in QuickJS on the Robolectric host JVM, exactly as
+// :core:jvmTest does. Point them at the repo-root bundle by absolute path so the
+// test is hermetic regardless of the working directory.
+tasks.withType<Test>().configureEach {
+    val repoRoot = rootProject.layout.projectDirectory.dir("..")
+    systemProperty("hexcore.bundle", repoRoot.file("dist/partycore.js").asFile.absolutePath)
+}
+
+// :tv resolves the ANDROID variant of quickjs-kt transitively through :core, whose
+// AAR only bundles Android ELF .so files — those can't load on the host JVM the
+// Robolectric unit tests run on. Drop it from the unit-test runtime classpath and
+// substitute the desktop-JVM variant (added as testImplementation below), which
+// ships the host natives and exposes the identical com.dokar.quickjs.* API.
+configurations.matching { it.name.endsWith("UnitTestRuntimeClasspath") }.configureEach {
+    exclude(group = "io.github.dokar3", module = "quickjs-kt-android")
+}
+
 dependencies {
     implementation(project(":core"))
 
@@ -114,6 +132,11 @@ dependencies {
     // writes PNGs for CI artifacts + golden diffing. `./gradlew :tv:recordRoborazziDebug`.
     testImplementation(composeBom)
     testImplementation(libs.junit)
+    // Runs the canonical engine bundle in QuickJS on the host JVM to source the
+    // cross-platform gallery fixtures (see GalleryFixtures test helper). The -jvm
+    // variant carries the desktop natives the android AAR lacks.
+    testImplementation(libs.quickjs.kt.jvm)
+    testImplementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.robolectric)
     testImplementation(libs.roborazzi)
     testImplementation(libs.roborazzi.compose)

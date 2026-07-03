@@ -73,6 +73,7 @@ const ENGINE_FILES = new Set([
   'Piece.js',
   'PlayerBoard.js',
   'PartyCore.js',
+  'GalleryFixtures.js',
 ]);
 
 // --- MIME types ---
@@ -181,6 +182,35 @@ const server = http.createServer((req, res) => {
     }
   }
 
+  // Cross-platform TV gallery (scripts/gallery), so the gallery nav's TV link
+  // works in local dev after a local capture/assemble. Deployed hosts never
+  // reach this route: Traefik path-routes /tv-gallery to the static gallery
+  // pod, and the game image ships without these files anyway (404s here).
+  if (urlPath === '/tv-gallery') {
+    // Redirect to the slash form so the page's relative shots/ paths resolve.
+    res.writeHead(301, { Location: '/tv-gallery/' });
+    res.end();
+    return;
+  }
+  if (urlPath.startsWith('/tv-gallery/')) {
+    const rest = urlPath === '/tv-gallery/'
+      ? 'gallery.html'
+      : urlPath.slice('/tv-gallery/'.length);
+    if (rest.includes('..')) { res.writeHead(400); res.end('Bad Request'); return; }
+    const tvGalleryPath = path.join(__dirname, '..', 'scripts', 'gallery', rest);
+    fs.readFile(tvGalleryPath, (err, data) => {
+      if (err) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not Found — regenerate via scripts/gallery/README.md');
+        return;
+      }
+      const type = rest.endsWith('.png') ? 'image/png' : 'text/html; charset=utf-8';
+      res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' });
+      res.end(data);
+    });
+    return;
+  }
+
   // Health check endpoint
   if (urlPath === '/health') {
     sendJson(res, 200, { status: 'ok' });
@@ -220,6 +250,12 @@ const server = http.createServer((req, res) => {
     urlPath = '/privacy.html';
   } else if (urlPath === '/imprint') {
     urlPath = '/imprint.html';
+  } else if (urlPath === '/gallery' || urlPath === '/gallery-controller' || urlPath === '/gallery-rotations') {
+    // Extensionless gallery URLs (matching /privacy and /imprint style), carved
+    // out ahead of the room-code catch below. Deployed hosts never get here:
+    // Traefik routes /gallery* to the static gallery pod, whose nginx does the
+    // same $uri.html resolution.
+    urlPath = urlPath + '.html';
   } else if (urlPath.length > 1 && !urlPath.includes('.') && urlPath.split('/').filter(Boolean).length === 1) {
     // Single path segment with no file extension -> room code -> serve controller
     urlPath = '/controller/index.html';

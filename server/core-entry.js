@@ -14,3 +14,8 @@
 // with no require/window/DOM/timers to prove it stays host-injectable.
 exports.PartyCore = require('./PartyCore.js').PartyCore;
 exports.RoomFlow = require('../partyplug/RoomFlow.js');
+// Canonical screen-gallery fixture data (scripts/gallery/): shipped in the
+// core so tvOS HEXSHOT states and the Android screenshot tests render the
+// exact snapshots the web gallery shows. Small (data + a scripted-drop
+// builder) and pure, so it rides along rather than needing a second bundle.
+exports.GalleryFixtures = require('./GalleryFixtures.js').GalleryFixtures;

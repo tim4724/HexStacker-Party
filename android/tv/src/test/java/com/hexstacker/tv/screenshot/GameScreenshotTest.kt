@@ -1,12 +1,6 @@
 package com.hexstacker.tv.screenshot
 
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import com.github.takahirom.roborazzi.captureRoboImage
-import com.hexstacker.core.model.GameSnapshot
-import com.hexstacker.tv.render.BoardSurfaceView
-import com.hexstacker.tv.render.DemoSnapshots
-import com.hexstacker.tv.render.SeatMeta
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -16,14 +10,14 @@ import org.robolectric.annotation.GraphicsMode
 
 /**
  * In-game screenshots at full 1080p: the live multi-board game surface
- * ([BoardSurfaceView]) laid out for 2 / 3 / 4 players via `LayoutEngine`, with the
- * match timer, per-tier boards, garbage meters, and a KO'd board.
+ * ([com.hexstacker.tv.render.BoardSurfaceView]) laid out for 2 / 3 / 4 players via
+ * `LayoutEngine`, with the match timer, per-tier boards, garbage meters, a KO'd board,
+ * and the per-board disconnect/rejoin QR.
  *
- * [BoardSurfaceView] is a real SurfaceView whose render thread draws to a hardware
- * canvas that a headless run can't provide, so we drive its exact per-vsync render
- * path ([BoardSurfaceView.renderFrameForTest]) onto an owned 1920x1080 Bitmap and
- * capture that. The boards come from [DemoSnapshots], a tv-local frozen fixture
- * (mirroring the Apple TV HEXSHOT demo states), re-seated to distinct player ids/colors.
+ * Every board comes from the canonical cross-platform [GalleryFixtures]: the SAME
+ * `HexCore.GalleryFixtures.gameSnapshot(...)` states the web and Apple TV galleries
+ * render, produced by running the built engine bundle in QuickJS (no hand-ported
+ * grids). Seat names/colors come from `roster(count)`, start levels from the variant.
  *
  * These are record-only smoke tests: they assert the full render path runs without
  * throwing and emit PNGs to `build/outputs/roborazzi/` for human review. They are NOT
@@ -36,61 +30,33 @@ import org.robolectric.annotation.GraphicsMode
 @Config(qualifiers = "w1920dp-h1080dp-land-mdpi")
 class GameScreenshotTest {
 
-    /** name / player color slot / start level / alive — one board's presentation. */
-    private data class Seat(val name: String, val slot: Int, val level: Int, val alive: Boolean = true)
+    private val app get() = RuntimeEnvironment.getApplication()
 
-    private fun shoot(name: String, elapsedMs: Double, seats: List<Seat>) {
-        val view = BoardSurfaceView(RuntimeEnvironment.getApplication())
-        val seatMetas = seats.mapIndexed { i, s ->
-            SeatMeta(playerId = i, name = s.name, colorSlot = s.slot, startLevel = s.level)
-        }
-        // Board j is drawn from players[j] (positional), so keep the same order as seats.
-        val players = seats.mapIndexed { i, s -> DemoSnapshots.game(s.level, s.alive).copy(id = i) }
-
-        view.setViewport(WIDTH, HEIGHT, seats.size, seatMetas)
-        view.submitSnapshot(GameSnapshot(players = players, elapsed = elapsedMs))
-
-        val bitmap = Bitmap.createBitmap(WIDTH, HEIGHT, Bitmap.Config.ARGB_8888)
-        view.renderFrameForTest(Canvas(bitmap))
-        bitmap.captureRoboImage("$OUT/$name.png")
+    private fun gameShot(name: String, variant: String) {
+        val fx = GalleryFixtures.game(variant)
+        val seats = BoardFixtureRenderer.seats(GalleryFixtures.roster(fx.variant.players), fx.variant.levels)
+        BoardFixtureRenderer.render(app, seats, fx.snapshot).captureRoboImage("$OUT/$name.png")
     }
 
-    @Test
-    fun game2p() = shoot(
-        "game_2p",
-        elapsedMs = 83_000.0, // 01:23
-        seats = listOf(
-            Seat("ALEX", slot = 0, level = 3),  // NORMAL tier
-            Seat("SAM", slot = 4, level = 9),   // PILLOW tier + garbage meter
-        ),
-    )
+    @Test fun gameLv1() = gameShot("game_lv1", "lv1")   // NORMAL tier, 4 boards, 01:15
+    @Test fun gameLv8() = gameShot("game_lv8", "lv8")   // PILLOW tier + garbage meters
+    @Test fun gameLv12() = gameShot("game_lv12", "lv12") // NEON_FLAT tier
+    @Test fun game2p() = gameShot("game_2p", "2p")       // levels 3/9, garbage on board 1, 01:23
+    @Test fun game3p() = gameShot("game_3p", "3p")       // levels 1/8/12, odd count → left-anchored timer, 00:47
+    @Test fun game4p() = gameShot("game_4p", "4p")       // levels 3/9/12/1, board 3 KO'd, garbage, 02:12
 
+    /** Per-board rejoin overlay: slot 1 dropped over the lv1 boards, QR encoding the
+     *  production `?claim=<peerIndex>` rejoin URL (BoardSurfaceView.setDisconnected path). */
     @Test
-    fun game3p() = shoot(
-        "game_3p",
-        elapsedMs = 47_000.0, // 00:47 (odd count → left-anchored timer)
-        seats = listOf(
-            Seat("ALEX", slot = 0, level = 1),
-            Seat("SAM", slot = 4, level = 8),
-            Seat("KAI", slot = 6, level = 12), // NEON_FLAT tier
-        ),
-    )
-
-    @Test
-    fun game4p() = shoot(
-        "game_4p",
-        elapsedMs = 132_000.0, // 02:12
-        seats = listOf(
-            Seat("ALEX", slot = 0, level = 3),
-            Seat("SAM", slot = 4, level = 9),
-            Seat("KAI", slot = 6, level = 12),
-            Seat("JORDAN", slot = 2, level = 1, alive = false), // KO'd board
-        ),
-    )
+    fun disconnectedController() {
+        val fx = GalleryFixtures.game("lv1")
+        val seats = BoardFixtureRenderer.seats(GalleryFixtures.roster(fx.variant.players), fx.variant.levels)
+        val rejoin = GalleryFixtures.claimUrl(GalleryFixtures.join.qrText, peerIndex = 1)
+        BoardFixtureRenderer.render(app, seats, fx.snapshot, disconnects = mapOf(1 to rejoin))
+            .captureRoboImage("$OUT/disconnected_controller.png")
+    }
 
     private companion object {
         const val OUT = "build/outputs/roborazzi"
-        const val WIDTH = 1920
-        const val HEIGHT = 1080
     }
 }

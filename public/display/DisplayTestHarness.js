@@ -331,7 +331,11 @@ function _buildHexDebugState(debugPlayers, level) {
 }
 
 function _buildDebugPlayers(count, level, hostSlot) {
-  var names = ['Emma', 'Jake', 'Sofia', 'Liam', 'Mia', 'Noah', 'Ava', 'Leo'];
+  // Canonical roster from the shared fixture module (names + lobby levels),
+  // so the web gallery shows the same players as the tvOS / Android TV
+  // columns. An explicit ?level= > 1 still pins every badge to that level.
+  var _roster = GameEngine.GalleryFixtures.roster(8);
+  var names = GameEngine.GalleryFixtures.NAMES;
   var max = Math.min(count, 8);
   // Build the slot list. Usually slots fill sequentially 0..count-1; but when
   // the scenario host (viewAs) lives outside that range, we swap the last
@@ -349,11 +353,29 @@ function _buildDebugPlayers(count, level, hostSlot) {
     list.push({
       id: 'debug' + slot,
       name: names[slot] || ('P' + (slot + 1)),
-      level: level,
+      level: (level && level > 1) ? level : (_roster[slot] ? _roster[slot].level : 1),
       slot: slot
     });
   }
   return list;
+}
+
+// Build the injectable game state from the shared GalleryFixtures module (the
+// same snapshots the tvOS and Android TV galleries render), remapped onto the
+// harness's debug roster ids. Used by the cross-platform gallery scenarios;
+// the web-only effect scenarios keep _buildHexDebugState, whose grid layout
+// their replay mutations depend on.
+function _buildFixtureState(playerCount, variantName, level) {
+  var GF = GameEngine.GalleryFixtures;
+  var spec = variantName ? GF.gameVariant(variantName) : null;
+  if (!spec) spec = { players: playerCount, level: level || 1 };
+  var snap = GF.gameSnapshot(spec);
+  for (var i = 0; i < snap.players.length; i++) {
+    var slot = snap.players[i].id;
+    snap.players[i].id = 'debug' + slot;
+    snap.players[i].playerName = GF.NAMES[slot];
+  }
+  return snap;
 }
 
 // Run an animation trigger after the iframe has painted its first frame.
@@ -376,11 +398,22 @@ function _fireLineClear(playerIdx, lines) {
   animations.addHexCellClear(boardRenderers[playerIdx], cells, rowCount);
 }
 
+// Replace the live falling-piece background with the frozen GalleryFixtures
+// frame so the welcome/lobby gallery shots show the same ambient pieces as the
+// tvOS / Android TV columns (the live animation freezes at a different moment
+// on every platform and every run).
+function _freezeWelcomeBg() {
+  if (typeof welcomeBg === 'undefined' || !welcomeBg) return;
+  welcomeBg.renderStatic(GameEngine.GalleryFixtures.ambientPieces());
+}
+
 function _fakeLobbyQR() {
   // Adclip mode shows the bare site (no room code) so the QR + URL function
-  // as a clean CTA. Gallery preview keeps the historic hexstacker.com/TEST
-  // styling so the join-url two-part rendering still gets verified.
-  var qrTarget = _adclipMode ? 'https://hexstacker.com' : 'https://hexstacker.com/TEST12';
+  // as a clean CTA. Gallery preview uses the shared JOIN fixture (the same
+  // host/code/QR target the tvOS and Android TV galleries render) so the
+  // join-url two-part rendering still gets verified and stays comparable.
+  var JOIN = GameEngine.GalleryFixtures.JOIN;
+  var qrTarget = _adclipMode ? 'https://hexstacker.com' : JOIN.qrText;
   if (joinUrlEl) {
     var hostEl = joinUrlEl.querySelector('.join-url__host');
     var codeEl = joinUrlEl.querySelector('.join-url__code');
@@ -395,10 +428,10 @@ function _fakeLobbyQR() {
         joinUrlEl.textContent = 'hexstacker.com';
       }
     } else if (hostEl && codeEl) {
-      hostEl.textContent = 'hexstacker.com/';
-      codeEl.textContent = 'TEST';
+      hostEl.textContent = JOIN.host;
+      codeEl.textContent = JOIN.code;
     } else {
-      joinUrlEl.textContent = 'hexstacker.com/TEST';
+      joinUrlEl.textContent = JOIN.host + JOIN.code;
     }
   }
   fetch('/api/qr?text=' + encodeURIComponent(qrTarget))
@@ -419,6 +452,14 @@ function initScenario(opts) {
   var rawCount = (opts.players != null) ? opts.players : 1;
   var playerCount = Math.max(0, Math.min(rawCount, 8));
   var level = opts.level || 1;
+
+  // A named GalleryFixtures board variant (?variant=lv8/2p/...) fixes the
+  // player count regardless of the players param, so the roster always
+  // matches the boards it will render.
+  if (opts.variant) {
+    var _vSpec = GameEngine.GalleryFixtures.gameVariant(opts.variant);
+    if (_vSpec) playerCount = _vSpec.players;
+  }
 
   // Host override for gallery previews. getHostPeerIndex() consults
   // party.getMasterPeerIndex() first, so stubbing it lets us render the
@@ -444,6 +485,7 @@ function initScenario(opts) {
   // Welcome: no players, stay on welcome screen.
   if (scenario === 'welcome') {
     showScreen(SCREEN.WELCOME);
+    _freezeWelcomeBg();
     return;
   }
 
@@ -452,6 +494,7 @@ function initScenario(opts) {
     window.__TEST__.addPlayers(_buildDebugPlayers(playerCount, level, hostSlot));
     _fakeLobbyQR();
     showScreen(SCREEN.LOBBY);
+    _freezeWelcomeBg();
     return;
   }
 
@@ -462,6 +505,7 @@ function initScenario(opts) {
     document.body.classList.add('airconsole');
     window.__TEST__.addPlayers(_buildDebugPlayers(playerCount, level, hostSlot));
     showScreen(SCREEN.LOBBY);
+    _freezeWelcomeBg();
     return;
   }
 
@@ -544,7 +588,16 @@ function initScenario(opts) {
     return;
   }
 
-  var state = _buildHexDebugState(debugPlayers, level);
+  // Cross-platform gallery rows render the shared GalleryFixtures snapshot
+  // (identical on web / tvOS / Android TV); the web-only effect scenarios keep
+  // the local debug grid their replay mutations are tuned to.
+  var _fixtureScenarios = {
+    'playing': 1, 'pause': 1, 'reconnecting': 1, 'disconnected': 1,
+    'disconnected-controller': 1, 'results': 1
+  };
+  var state = _fixtureScenarios[scenario]
+    ? _buildFixtureState(playerCount, opts.variant, level)
+    : _buildHexDebugState(debugPlayers, level);
   window.__TEST__.injectGameState(state);
   startRenderLoop();
 
@@ -703,18 +756,20 @@ function initScenario(opts) {
     reconnectBtn.classList.remove('hidden');
     return;
   }
+  if (scenario === 'disconnected-controller') {
+    // Per-board rejoin QR: run the production disconnect path for slot 1 so
+    // the overlay renders exactly as in a live game (production appends
+    // ?claim=<peerIndex> to joinUrl for the rejoin link).
+    joinUrl = GameEngine.GalleryFixtures.JOIN.qrText;
+    showDisconnectQR('debug1');
+    return;
+  }
   if (scenario === 'results') {
-    var results = { elapsed: 123456, results: [] };
-    for (var i = 0; i < debugPlayers.length; i++) {
-      var pInfo = players.get(debugPlayers[i].id);
-      results.results.push({
-        playerId: debugPlayers[i].id,
-        playerName: debugPlayers[i].name,
-        colorIndex: pInfo && pInfo.playerIndex,
-        rank: i + 1,
-        lines: 30 - i * 3,
-        level: level + (playerCount - 1 - i)
-      });
+    // Canonical ranking from the shared fixture module, remapped onto the
+    // harness's debug roster ids.
+    var results = GameEngine.GalleryFixtures.results(playerCount);
+    for (var i = 0; i < results.results.length; i++) {
+      results.results[i].playerId = 'debug' + results.results[i].playerId;
     }
     window.__TEST__.injectResults(results);
     return;

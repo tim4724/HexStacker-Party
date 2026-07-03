@@ -18,6 +18,7 @@ var DISPLAY_CARDS = [
   { key: 'reconnecting',     title: 'Reconnecting' },
   { key: 'pause',            title: 'Paused',                hostVariant: true },
   { key: 'disconnected',     title: 'Disconnected', hostVariant: true },
+  { key: 'disconnected-controller', title: 'Disconnected (one controller)' },
   { key: 'results',          title: 'Results',      hostVariant: true },
   { key: 'privacy',          title: 'Privacy', staticPath: '/privacy' },
   { key: 'imprint',          title: 'Imprint', staticPath: '/imprint' }

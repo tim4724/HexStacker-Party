@@ -512,4 +512,90 @@ import Foundation
         ft.onMessage?(1, ["type": "play_again"])
         #expect(coord.state == .countdown, "a controller's play_again starts a new match")
     }
+
+    // MARK: - Screen-gallery shots source the canonical GalleryFixtures data
+
+    /// A bare coordinator (no relay/start) for the frozen HEXSHOT render paths.
+    private func makeShotCoordinator() -> (DisplayCoordinator, FakeOutput) {
+        let fo = FakeOutput()
+        let coord = DisplayCoordinator(transport: FakeTransport(), engineDirectory: EngineFixture.coreBundleDir,
+                                       output: fo, seedProvider: { 0xBADCAFE })
+        return (coord, fo)
+    }
+
+    @Test func lobbyShotUsesJoinAndRosterFixtures() {
+        let (coord, fo) = makeShotCoordinator()
+        coord.renderShot("lobby", playerCount: 4)
+        #expect(fo.screen == .lobby)
+        // Displayed host/code from JOIN.host + JOIN.code; QR from the distinct qrText.
+        #expect(fo.joinURL == "https://hexstacker.com/TEST", "displayed join URL is JOIN.host + JOIN.code")
+        #expect(fo.qrText == "https://hexstacker.com/TEST12", "QR encodes the separate JOIN.qrText")
+        // Roster names/colors come from GalleryFixtures.roster(4).
+        #expect(coord.flow.list().map(\.playerName) == ["Emma", "Jake", "Sofia", "Liam"])
+        #expect(coord.flow.list().map(\.colorSlot) == [0, 1, 2, 3])
+        // The lobby background is frozen to the shared ambientPieces() fixture.
+        #expect(fo.lobbyAmbient?.count == 16, "16 frozen ambient pieces delivered")
+        #expect(fo.lobbyAmbient?.allSatisfy { (1...6).contains($0.typeId) && !$0.cells.isEmpty } == true)
+    }
+
+    @Test func emptyLobbyShotKeepsJoinFixtureWithNoPlayers() {
+        let (coord, fo) = makeShotCoordinator()
+        coord.renderShot("lobby-empty", playerCount: 0)
+        #expect(fo.screen == .lobby)
+        #expect(fo.qrText == "https://hexstacker.com/TEST12")
+        #expect(coord.flow.size == 0, "empty lobby has no roster cards")
+        #expect(fo.lobbyAmbient?.count == 16, "the waiting lobby still freezes the ambient background")
+    }
+
+    @Test func gameVariantShotRendersCanonicalSnapshot() {
+        let (coord, fo) = makeShotCoordinator()
+        coord.renderShot("game-4p")   // player count comes from the variant, not HEXPLAYERS
+        #expect(fo.screen == .game)
+        let snap = fo.lastSnapshot
+        #expect(snap?.players.count == 4, "the 4p variant fixes four boards")
+        #expect(snap?.elapsed == 132000, "the match timer shows the fixture elapsed (02:12)")
+        #expect(snap?.players.map(\.level) == [3, 9, 12, 1], "mixed tiers from the variant spec")
+        #expect(snap?.players.last?.alive == false, "the 4p variant KOs the last board")
+        #expect(coord.flow.list().map(\.playerName) == ["Emma", "Jake", "Sofia", "Liam"])
+    }
+
+    @Test func countdownShotShowsEmptyRosterBoards() {
+        let (coord, fo) = makeShotCoordinator()
+        coord.renderShot("countdown", playerCount: 4)
+        #expect(fo.screen == .game)
+        #expect(fo.countdowns.contains(.number(3)), "the 3-2-1 overlay freezes at 3 (web parity)")
+        let snap = fo.lastSnapshot
+        #expect(snap?.players.count == 4)
+        // Pre-game wells: no spawn piece / ghost / hold / next, and an empty grid.
+        #expect(snap?.players.allSatisfy { $0.currentPiece == nil && $0.nextPieces.isEmpty } == true)
+        #expect(snap?.players.allSatisfy { p in p.grid.allSatisfy { row in row.allSatisfy { $0 == 0 } } } == true,
+                "countdown boards are empty wells")
+        #expect(snap?.players.map(\.level) == [3, 1, 5, 2], "levels from roster(4)")
+    }
+
+    @Test func disconnectedControllerShotRaisesSlotOneClaimQR() {
+        let (coord, fo) = makeShotCoordinator()
+        coord.renderShot("disconnected-controller")
+        #expect(fo.screen == .game)
+        #expect(fo.rejoinQRVisible == [1], "only slot 1's per-board rejoin QR is shown")
+    }
+
+    @Test func resultsShotUsesResultsFixtureOverFrozenBoards() {
+        let (coord, fo) = makeShotCoordinator()
+        coord.renderShot("results", playerCount: 4)
+        #expect(fo.screen == .results)
+        let res = fo.results
+        #expect(res?.count == 4)
+        #expect(res?.first?["playerName"] as? String == "Emma")
+        #expect(res?.first?["rank"] as? Int == 1)
+        #expect(res?.first?["lines"] as? Int == 30, "canonical ranking from results(4)")
+    }
+
+    @Test func soloResultsShotHasSingleRow() {
+        let (coord, fo) = makeShotCoordinator()
+        coord.renderShot("results-solo")
+        #expect(fo.screen == .results)
+        #expect(fo.results?.count == 1)
+        #expect(fo.lastSnapshot?.players.count == 1, "one frozen board behind the solo result")
+    }
 }

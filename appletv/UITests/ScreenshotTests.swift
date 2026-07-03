@@ -15,7 +15,9 @@ import XCTest
 /// without crashing on every screen.
 final class ScreenshotTests: XCTestCase {
 
-    /// name : HEXSHOT state : HEXPLAYERS — mirrors scripts/gallery/capture-tvos.sh.
+    /// name : HEXSHOT state : HEXPLAYERS — mirrors the `tvos` entries in the
+    /// repo-root scripts/gallery/scenarios.json (names must stay the canonical
+    /// scenario keys: the TV Gallery workflow matches attachments by that name).
     private let states: [(name: String, shot: String, players: String)] = [
         ("lobby", "lobby", "4"),
         ("lobby-2p", "lobby", "2"),
@@ -25,6 +27,11 @@ final class ScreenshotTests: XCTestCase {
         ("game", "game", "4"),
         ("game-lv8", "game-lv8", "4"),
         ("game-lv12", "game-lv12", "4"),
+        // Player count comes from the variant spec for these; HEXPLAYERS is passed
+        // for clarity only (the shot ignores it).
+        ("game-2p", "game-2p", "2"),
+        ("game-3p", "game-3p", "3"),
+        ("game-4p", "game-4p", "4"),
         ("pause", "pause", "4"),
         ("pause-music", "pause-music", "4"),
         ("disconnected-controller", "disconnected-controller", "4"),

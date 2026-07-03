@@ -76,21 +76,10 @@ jobs:
           path: android/tv/build/outputs/roborazzi/*.png
           if-no-files-found: error
 
-      # Post (or update in place) a sticky PR comment linking the screenshot
-      # artifact, so reviewers reach the 1920x1080 renders without opening the
-      # run summary. Runs on push, so the action resolves the PR from the branch.
-      - name: Comment screenshot download link on the PR
-        if: always() && github.ref != 'refs/heads/main' && steps.screenshots.outputs.artifact-url != ''
-        uses: ./.github/actions/sticky-comment
-        with:
-          marker: '<!-- tv-screenshots -->'
-          body: |
-            ### 📸 TV screenshots
-
-            [**Download `tv-screenshots`**](${{ steps.screenshots.outputs.artifact-url }}): every screen rendered this run at **1920×1080**.
-            Compose lobby / results / overlays plus the Canvas board for 2/3/4 players, captured headless via Robolectric (record-only, for review).
-
-            _Requires being signed in to GitHub; the link expires when the run artifacts do._
+      # No sticky PR comment here: the TV Gallery workflow consumes this
+      # artifact and posts the one gallery comment (browsable web/tvOS/Android
+      # comparison at <preview-host>/tv-gallery/), which supersedes the old
+      # per-platform screenshot links.
 
       - name: Upload test reports
         if: always()

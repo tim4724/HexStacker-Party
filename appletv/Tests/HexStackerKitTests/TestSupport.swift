@@ -88,6 +88,7 @@ final class FakeOutput: DisplayOutput {
     var paused = false
     var displayMuted: Bool?   // last setDisplayMuted value (nil = never called)
     var rejoinQRVisible: Set<Int> = []   // players currently showing a per-board rejoin QR
+    var lobbyAmbient: [AmbientPiece]?    // last frozen lobby-background fixture (nil = never)
     var calls: [String] = []   // ordered call log (for ordering regressions)
     func showScreen(_ s: DisplayScreen) { screen = s; calls.append("showScreen") }
     func setPaused(_ p: Bool) { paused = p; calls.append("setPaused(\(p))") }
@@ -95,7 +96,11 @@ final class FakeOutput: DisplayOutput {
     func setDisconnected(playerId: Int, joinURL: String?) {
         if joinURL != nil { rejoinQRVisible.insert(playerId) } else { rejoinQRVisible.remove(playerId) }
     }
-    func roomReady(room: String, joinURL: String) { self.room = room; self.joinURL = joinURL }
+    func setLobbyAmbient(_ pieces: [AmbientPiece]) { lobbyAmbient = pieces }
+    var qrText: String?
+    func roomReady(room: String, joinURL: String, qrText: String) {
+        self.room = room; self.joinURL = joinURL; self.qrText = qrText
+    }
     func updateLobby(players: [PlayerRecord], hostPeerIndex: Int?) {}
     func showCountdown(_ v: CountdownValue) { countdowns.append(v) }
     func renderSnapshot(_ s: GameSnapshot) { renderCount += 1; lastSnapshot = s }

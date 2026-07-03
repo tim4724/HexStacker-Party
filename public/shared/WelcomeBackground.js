@@ -172,6 +172,37 @@ class WelcomeBackground {
     this.lastTime = null;
   }
 
+  // Freeze the animation and render one deterministic frame from GalleryFixtures
+  // ambient placements (scripts/gallery: the same frozen pieces the tvOS and
+  // Android TV gallery shots draw). Placements live in a 1920x1080 y-down
+  // reference space; scale to this canvas. Gallery-shot only — production
+  // keeps the live loop.
+  renderStatic(placements) {
+    this.stop();
+    const ctx = this.ctx;
+    if (this.gradientBitmap) {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(this.gradientBitmap, 0, 0, this.w, this.h);
+      ctx.imageSmoothingEnabled = true;
+    } else {
+      ctx.clearRect(0, 0, this.w, this.h);
+    }
+    const sx = this.w / 1920;
+    const sy = this.h / 1080;
+    for (const pl of placements) {
+      const color = typeof PIECE_COLORS !== 'undefined' ? PIECE_COLORS[pl.typeId] : '#4444ff';
+      ctx.globalAlpha = pl.opacity;
+      this._drawPiece(ctx, {
+        cells: pl.cells,
+        blockSize: pl.size * sy,
+        color: color,
+        x: pl.x * sx,
+        y: pl.y * sy,
+      });
+      ctx.globalAlpha = 1;
+    }
+  }
+
   // --- Internals ---
 
   _initPool() {

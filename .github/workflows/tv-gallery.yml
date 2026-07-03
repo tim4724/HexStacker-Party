@@ -1,0 +1,374 @@
+name: TV Gallery
+
+# Assembles the cross-platform screen gallery (web reference vs tvOS vs
+# Android TV, one row per state in scripts/gallery/scenarios.json) from the
+# screenshot artifacts the two TV workflows publish, plus freshly captured
+# web-harness references. Runs whenever either TV workflow finishes; the two
+# firings per push race benignly — each assembles from whatever both platforms
+# have published so far, and the later one (with the concurrency group
+# cancelling the earlier if still running) ships the complete page. The sticky
+# PR comment is updated in place either way.
+#
+# The assembled page ships two ways: an artifact (download fallback) and a
+# browsable deployment on the app preview's own host at
+# https://<preview-host>/tv-gallery/ — a tiny static nginx pod path-routed in
+# the same cg-<branch> namespace. It can't ride the app image build because
+# the native shots only exist after the platform toolchains ran (macOS
+# simulator, Robolectric) — hence a separate image built here, after assembly.
+on:
+  workflow_run:
+    workflows: ['Android TV', 'tvOS UI Screenshots']
+    types: [completed]
+  # The gallery pod also serves the LIVE web gallery (/gallery.html), which the
+  # game image no longer ships — so web-display-only pushes (which never fire
+  # the TV workflows) must deploy it too. On these runs the native columns fall
+  # back to the branch's latest screenshot artifacts, or show explicit gaps.
+  push:
+    branches: ['**']
+    paths:
+      - 'public/**'
+      - 'server/**'
+      - 'partyplug/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/tv-gallery.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: tv-gallery-${{ github.event.workflow_run.head_branch || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50   # includes up to ~35 min waiting for in-flight TV workflows
+    permissions:
+      contents: read
+      actions: read        # download artifacts published by the TV workflows
+      packages: write      # push the static gallery image for the k8s preview
+    outputs:
+      image_tag: ${{ steps.image.outputs.tag }}
+      safe_branch: ${{ steps.host.outputs.safe_branch }}
+      host: ${{ steps.host.outputs.host }}
+    env:
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      HEAD_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'npm'
+      - run: npm ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Capture web reference shots
+        run: |
+          PORT=8788 node server/index.js &
+          for i in $(seq 1 50); do
+            curl -fsS http://localhost:8788/ >/dev/null 2>&1 && break
+            sleep 0.2
+          done
+          node scripts/gallery/capture-web.mjs http://localhost:8788
+
+      # Pull the native screenshot artifacts for this commit. A push-triggered
+      # run usually starts BEFORE the TV workflows finish for the same SHA
+      # (and pre-merge, workflow_run can't re-fire this workflow), so if a run
+      # for this SHA exists but hasn't completed, WAIT for it instead of
+      # shipping empty columns. Fallback: if a TV workflow never triggered for
+      # this SHA (its path filter skipped it), the newest completed run on the
+      # branch is still accurate — that platform's render is unchanged by
+      # definition of the filter.
+      - name: Download native screenshot artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          WAIT_DEADLINE=$((SECONDS + 2100))   # shared across both workflows
+          lookup () { # $1 workflow file, $2 artifact name, $3 dest dir
+            local run_id status
+            while :; do
+              run_id=""; status=""
+              read -r run_id status < <(gh api -X GET "repos/${{ github.repository }}/actions/workflows/$1/runs" \
+                -f head_sha="$HEAD_SHA" -f per_page=1 \
+                --jq '.workflow_runs[0] // empty | "\(.id) \(.status)"') || true
+              [ -z "$run_id" ] && break                      # never triggered for this SHA
+              [ "$status" = "completed" ] && break
+              if [ $SECONDS -ge $WAIT_DEADLINE ]; then
+                echo "timed out waiting for $1 (run $run_id still $status)"
+                run_id=""
+                break
+              fi
+              echo "waiting for $1 run $run_id ($status)..."
+              sleep 30
+            done
+            if [ -z "$run_id" ]; then
+              run_id=$(gh api -X GET "repos/${{ github.repository }}/actions/workflows/$1/runs" \
+                         -f branch="$HEAD_BRANCH" -f status=completed -f per_page=1 \
+                         --jq '.workflow_runs[0].id // empty')
+              [ -n "$run_id" ] && echo "no completed $1 run for $HEAD_SHA; using latest on $HEAD_BRANCH (run $run_id)"
+            fi
+            if [ -n "$run_id" ]; then
+              gh run download "$run_id" --name "$2" --dir "$3" \
+                || echo "artifact $2 not found on run $run_id; that column stays empty"
+            else
+              echo "no completed $1 run found; that column stays empty"
+            fi
+          }
+          lookup android.yml tv-screenshots /tmp/shots-android
+          lookup tvos-uitest.yml tvos-screenshots /tmp/shots-tvos
+
+      - name: Collect native shots into canonical names
+        run: |
+          [ -d /tmp/shots-android ] && node scripts/gallery/collect-shots.mjs android /tmp/shots-android
+          [ -d /tmp/shots-tvos ] && node scripts/gallery/collect-shots.mjs tvos /tmp/shots-tvos
+          true
+
+      - name: Assemble gallery
+        run: node scripts/gallery/gen-gallery.mjs
+
+      - name: Upload gallery
+        id: gallery
+        uses: actions/upload-artifact@v7
+        with:
+          name: tv-gallery
+          path: |
+            scripts/gallery/gallery.html
+            scripts/gallery/shots
+          if-no-files-found: error
+
+      # Static gallery image, deployed below onto the app preview's host under
+      # /tv-gallery/ (path-routed to its own tiny nginx pod). The shots exist
+      # only after the platform toolchains ran (Simulator on macOS,
+      # Robolectric), so this can't ride the app image build — it's its own
+      # image built from the just-assembled files.
+      - name: Resolve gallery host
+        id: host
+        run: |
+          SAFE_BRANCH=$(echo "$HEAD_BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9-]#-#g' | cut -c1-50 | sed 's/-*$//')
+          if [ "$HEAD_BRANCH" = "main" ]; then
+            HOST="main.hexstacker.com"
+          else
+            HOST="preview-${SAFE_BRANCH}.hexstacker.com"
+          fi
+          echo "safe_branch=$SAFE_BRANCH" >> "$GITHUB_OUTPUT"
+          echo "host=$HOST" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push gallery image
+        id: image
+        run: |
+          # Stage the live web gallery entry pages (excluded from the game
+          # image by .dockerignore; this image is their home).
+          mkdir -p scripts/gallery/webshell
+          cp public/gallery* scripts/gallery/webshell/
+          echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          TAG="ghcr.io/${REPO_LC}-tv-gallery:${{ steps.host.outputs.safe_branch }}-${HEAD_SHA:0:12}"
+          docker build -f scripts/gallery/Dockerfile -t "$TAG" scripts/gallery
+          docker push "$TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      # No PR comment here: the Preview Comment workflow's single comment
+      # carries the /gallery and /tv-gallery/ links (the URLs are deterministic
+      # from the branch name, so it can post them at PR open before this
+      # workflow has deployed anything). The artifact link stays reachable via
+      # the run summary.
+
+  # Serve the assembled gallery next to the app preview: a tiny nginx
+  # deployment in the same per-branch namespace (cg-<branch>), path-routed on
+  # the preview's own host at https://<host>/tv-gallery/ (Traefik's longer
+  # PathPrefix rule outranks the app's host-only rule, and the route works even
+  # on native-only branches where no app preview exists). The namespace
+  # boilerplate mirrors preview.yml and is applied idempotently — a native-only
+  # branch can land here before (or without) an app preview ever creating the
+  # namespace. Cleanup rides the existing Preview Cleanup workflow, which
+  # deletes the whole namespace on branch delete.
+  deploy:
+    runs-on: [self-hosted, k8s]
+    needs: assemble
+    if: github.actor != 'dependabot[bot]'
+    environment: preview
+    timeout-minutes: 10
+    steps:
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v5
+        with:
+          version: v1.30.0
+
+      - name: Write kubeconfig
+        run: |
+          echo "${KUBECONFIG_B64}" | base64 -d > kubeconfig
+          echo "KUBECONFIG=$PWD/kubeconfig" >> "$GITHUB_ENV"
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+
+      - name: Deploy gallery to Kubernetes
+        env:
+          IMAGE: ${{ needs.assemble.outputs.image_tag }}
+          SAFE_BRANCH: ${{ needs.assemble.outputs.safe_branch }}
+          HOST: ${{ needs.assemble.outputs.host }}
+        run: |
+          set -euo pipefail
+          NS="cg-${SAFE_BRANCH}"
+
+          kubectl get ns "$NS" >/dev/null 2>&1 || kubectl create ns "$NS"
+
+          # Grant deployer SA permissions in this namespace (scoped RBAC)
+          cat <<RBAC | kubectl apply -n "$NS" -f -
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          metadata:
+            name: stacker-deployer
+          roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: ClusterRole
+            name: stacker-preview-resources
+          subjects:
+          - kind: ServiceAccount
+            name: stacker-deployer
+            namespace: github-runner
+          RBAC
+
+          # Network policies: default-deny + allow DNS + allow traefik ingress
+          cat <<NETPOL | kubectl apply -n "$NS" -f -
+          apiVersion: networking.k8s.io/v1
+          kind: NetworkPolicy
+          metadata:
+            name: default-deny-all
+          spec:
+            podSelector: {}
+            policyTypes:
+            - Ingress
+            - Egress
+          ---
+          apiVersion: networking.k8s.io/v1
+          kind: NetworkPolicy
+          metadata:
+            name: allow-dns
+          spec:
+            podSelector: {}
+            policyTypes:
+            - Egress
+            egress:
+            - to:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: kube-system
+              ports:
+              - protocol: UDP
+                port: 53
+              - protocol: TCP
+                port: 53
+          ---
+          apiVersion: networking.k8s.io/v1
+          kind: NetworkPolicy
+          metadata:
+            name: allow-ingress-from-traefik
+          spec:
+            podSelector: {}
+            policyTypes:
+            - Ingress
+            ingress:
+            - from:
+              - ipBlock:
+                  cidr: 192.168.1.115/32
+              ports:
+              - protocol: TCP
+          NETPOL
+
+          TLS_CRT=$(kubectl get secret hexstacker-wildcard-tls -n default -o jsonpath='{.data.tls\.crt}')
+          TLS_KEY=$(kubectl get secret hexstacker-wildcard-tls -n default -o jsonpath='{.data.tls\.key}')
+
+          cat <<EOS | kubectl apply -n "$NS" -f -
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: hexstacker-wildcard-tls
+          type: kubernetes.io/tls
+          data:
+            tls.crt: ${TLS_CRT}
+            tls.key: ${TLS_KEY}
+          EOS
+
+          cat <<EOF2 | kubectl apply -n "$NS" -f -
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: tv-gallery
+          spec:
+            revisionHistoryLimit: 2
+            replicas: 1
+            selector:
+              matchLabels:
+                app: tv-gallery
+            template:
+              metadata:
+                labels:
+                  app: tv-gallery
+              spec:
+                containers:
+                  - name: tv-gallery
+                    image: ${IMAGE}
+                    ports:
+                      - containerPort: 80
+                        name: http
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: tv-gallery
+          spec:
+            selector:
+              app: tv-gallery
+            ports:
+              - port: 80
+                targetPort: 80
+          ---
+          apiVersion: traefik.io/v1alpha1
+          kind: Middleware
+          metadata:
+            name: redirect-to-https
+          spec:
+            redirectScheme:
+              scheme: https
+              permanent: true
+          ---
+          apiVersion: traefik.io/v1alpha1
+          kind: IngressRoute
+          metadata:
+            name: gallery-https
+          spec:
+            entryPoints:
+              - websecure
+            routes:
+              - match: Host(\`${HOST}\`) && (PathPrefix(\`/tv-gallery\`) || PathPrefix(\`/gallery\`))
+                kind: Rule
+                services:
+                  - name: tv-gallery
+                    port: 80
+            tls:
+              secretName: hexstacker-wildcard-tls
+          ---
+          apiVersion: traefik.io/v1alpha1
+          kind: IngressRoute
+          metadata:
+            name: gallery-http
+          spec:
+            entryPoints:
+              - web
+            routes:
+              - match: Host(\`${HOST}\`) && (PathPrefix(\`/tv-gallery\`) || PathPrefix(\`/gallery\`))
+                kind: Rule
+                services:
+                  - name: tv-gallery
+                    port: 80
+                middlewares:
+                  - name: redirect-to-https
+          EOF2
+
+          echo "### TV Gallery" >> "$GITHUB_STEP_SUMMARY"
+          echo "- URL: https://${HOST}/tv-gallery/" >> "$GITHUB_STEP_SUMMARY"

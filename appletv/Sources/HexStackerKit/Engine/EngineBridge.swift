@@ -160,6 +160,44 @@ public final class EngineBridge {
         try decode(GameSnapshot.self, method: "snapshotJSON")
     }
 
+    // MARK: - Gallery fixtures
+
+    /// The canonical cross-platform screen-gallery fixtures (`HexCore.GalleryFixtures`,
+    /// built from `server/GalleryFixtures.js`). The web harness, tvOS HEXSHOT states
+    /// and the Android screenshot tests all read THIS data, so a visual difference
+    /// between gallery columns is always a renderer difference, never a fixture one.
+
+    /// `roster(count)` — lobby cards (id == slot == colorIndex, plus name + level).
+    public func galleryRoster(count: Int) throws -> [GalleryRosterEntry] {
+        try decode([GalleryRosterEntry].self, method: "galleryRosterJSON", args: [count])
+    }
+
+    /// `JOIN` — the join target (displayed host/code + separate QR text).
+    public func galleryJoin() throws -> GalleryJoin {
+        try decode(GalleryJoin.self, method: "galleryJoinJSON")
+    }
+
+    /// A mid-game snapshot for a named board variant (`lv1`/`lv8`/`lv12`/`2p`/`3p`/`4p`).
+    public func gallerySnapshot(variant: String) throws -> GameSnapshot {
+        try decode(GameSnapshot.self, method: "gallerySnapshotJSON", args: [variant, 0, 1])
+    }
+
+    /// A mid-game snapshot for an ad-hoc `{players, level}` spec (arbitrary board
+    /// count, e.g. the frozen boards behind the results overlay).
+    public func gallerySnapshot(players: Int, level: Int) throws -> GameSnapshot {
+        try decode(GameSnapshot.self, method: "gallerySnapshotJSON", args: ["", players, level])
+    }
+
+    /// `results(count)` — the canonical finished-match ranking.
+    public func galleryResults(count: Int) throws -> GalleryResults {
+        try decode(GalleryResults.self, method: "galleryResultsJSON", args: [count])
+    }
+
+    /// `ambientPieces()` — the frozen lobby-background falling pieces.
+    public func galleryAmbient() throws -> [AmbientPiece] {
+        try decode([AmbientPiece].self, method: "galleryAmbientJSON")
+    }
+
     /// Drains and returns events accumulated since the last call.
     public func drainEvents() throws -> [GameEvent] {
         try decode([GameEvent].self, method: "drainEventsJSON")
@@ -192,8 +230,8 @@ public final class EngineBridge {
         return result
     }
 
-    private func decode<T: Decodable>(_ type: T.Type, method: String) throws -> T {
-        guard let json = bridge.invokeMethod(method, withArguments: [])?.toString(),
+    private func decode<T: Decodable>(_ type: T.Type, method: String, args: [Any] = []) throws -> T {
+        guard let json = bridge.invokeMethod(method, withArguments: args)?.toString(),
               let data = json.data(using: .utf8) else {
             throw EngineError.decode("\(method): no string returned")
         }
@@ -236,7 +274,18 @@ public final class EngineBridge {
         snapshotJSON: function () { return JSON.stringify(core.snapshot()); },
         drainEventsJSON: function () { return JSON.stringify(core.drainEvents()); },
         frameJSON: function (now) { return JSON.stringify(core.frame(now)); },
-        isEnded: function () { return !!(core && core.game && core.game.ended); }
+        isEnded: function () { return !!(core && core.game && core.game.ended); },
+        // Screen-gallery fixtures (HexCore.GalleryFixtures) — the single source
+        // the web, tvOS and Android TV galleries all render.
+        galleryRosterJSON: function (n) { return JSON.stringify(HexCore.GalleryFixtures.roster(n)); },
+        galleryJoinJSON: function () { return JSON.stringify(HexCore.GalleryFixtures.JOIN); },
+        gallerySnapshotJSON: function (variant, players, level) {
+          var GF = HexCore.GalleryFixtures;
+          var spec = (variant && variant.length) ? GF.gameVariant(variant) : { players: players, level: level };
+          return JSON.stringify(GF.gameSnapshot(spec));
+        },
+        galleryResultsJSON: function (n) { return JSON.stringify(HexCore.GalleryFixtures.results(n)); },
+        galleryAmbientJSON: function () { return JSON.stringify(HexCore.GalleryFixtures.ambientPieces()); }
       };
     })();
     """

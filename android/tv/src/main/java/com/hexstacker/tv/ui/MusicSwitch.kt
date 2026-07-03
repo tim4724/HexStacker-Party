@@ -43,6 +43,11 @@ import com.hexstacker.tv.R
  *
  * Stateless: [isOn] is owned by the caller; [onToggle] flips it (the integrator
  * calls `remoteToggleMute()` and passes the new value back as [isOn]).
+ *
+ * [focusedForShot] seeds the focused visual for the gallery screenshot tests:
+ * Robolectric's headless Compose host never gains window focus, so real focus
+ * events can't reach [onFocusChanged] there. The seed drives the exact same
+ * `focused` state the focus system drives, and any real focus event overrides it.
  */
 @Composable
 fun MusicSwitch(
@@ -52,8 +57,9 @@ fun MusicSwitch(
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
     focusRequester: FocusRequester? = null,
+    focusedForShot: Boolean = false,
 ) {
-    var focused by remember { mutableStateOf(false) }
+    var focused by remember { mutableStateOf(focusedForShot) }
     val scale by animateFloatAsState(if (focused) 1.03f else 1f, label = "musicSwitchScale")
     val shape = RoundedCornerShape(Tokens.radiusMd)
 
@@ -74,7 +80,9 @@ fun MusicSwitch(
             .background(if (focused) Tokens.white.copy(alpha = 0.06f) else Color.Transparent, shape)
             .then(if (focused) Modifier.border(4.dp, Tokens.white, shape) else Modifier)
             .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
-            .onFocusChanged { focused = it.isFocused }
+            // `|| focusedForShot`: the headless host still emits an initial
+            // isFocused=false, which would clobber the seeded shot state.
+            .onFocusChanged { focused = it.isFocused || focusedForShot }
             // clickable provides the focus target (see ChromeButton): a separate
             // Modifier.focusable would steal D-pad focus from the click handler.
             .clickable { onToggle() }

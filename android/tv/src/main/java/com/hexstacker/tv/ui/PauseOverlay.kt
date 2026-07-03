@@ -40,6 +40,7 @@ fun PauseOverlay(
     onContinue: () -> Unit,
     onNewGame: () -> Unit,
     modifier: Modifier = Modifier,
+    musicFocusedForShot: Boolean = false,
 ) {
     val continueFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { continueFocus.requestFocus() } }
@@ -75,6 +76,7 @@ fun PauseOverlay(
                 tint = hostColor,
                 rowHeight = vp.vhDp(44f, 7f, 72f),
                 onToggle = onToggleMusic,
+                focusedForShot = musicFocusedForShot,
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(btnGap)) {

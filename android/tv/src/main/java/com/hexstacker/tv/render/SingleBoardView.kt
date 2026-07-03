@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.viewinterop.AndroidView
+import com.hexstacker.core.model.EngineConstants
 import com.hexstacker.core.model.PlayerState
 import com.hexstacker.core.render.LayoutEngine
 import com.hexstacker.core.render.Theme
@@ -31,7 +32,7 @@ class SingleBoardView @JvmOverloads constructor(
     private var renderer: BoardRenderer? = null
     private var builtForKey = -1L
 
-    var snapshot: PlayerState = DemoSnapshots.lv1()
+    var snapshot: PlayerState = emptyBoard()
         set(value) {
             field = value
             invalidate()
@@ -88,6 +89,20 @@ class SingleBoardView @JvmOverloads constructor(
         stampCache.clear()
         builtForKey = -1L
     }
+
+    private companion object {
+        /** An empty board (no piece/stack) — the default before the coordinator feeds
+         *  a real engine snapshot. Live gameplay comes from the engine, not fixtures. */
+        fun emptyBoard(level: Int = 1): PlayerState = PlayerState(
+            id = 0,
+            grid = List(EngineConstants.VISIBLE_ROWS) { List(EngineConstants.COLS) { 0 } },
+            level = level,
+            lines = 0,
+            alive = true,
+            pendingGarbage = 0,
+            gridVersion = 0,
+        )
+    }
 }
 
 @Preview(widthDp = 360, heightDp = 640)
@@ -95,7 +110,7 @@ class SingleBoardView @JvmOverloads constructor(
 private fun SingleBoardPreviewNormal() {
     AndroidView(
         modifier = Modifier,
-        factory = { ctx -> SingleBoardView(ctx).apply { snapshot = DemoSnapshots.lv1(); colorSlot = 0 } },
+        factory = { ctx -> SingleBoardView(ctx).apply { colorSlot = 0 } },
     )
 }
 
@@ -104,6 +119,6 @@ private fun SingleBoardPreviewNormal() {
 private fun SingleBoardPreviewNeon() {
     AndroidView(
         modifier = Modifier,
-        factory = { ctx -> SingleBoardView(ctx).apply { snapshot = DemoSnapshots.lv12(); colorSlot = 4 } },
+        factory = { ctx -> SingleBoardView(ctx).apply { colorSlot = 4 } },
     )
 }

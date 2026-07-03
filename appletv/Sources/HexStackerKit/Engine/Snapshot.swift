@@ -165,6 +165,68 @@ public struct FrameResult: Decodable {
     public let commands: [HostCommand]
 }
 
+// MARK: - Gallery fixtures (server/GalleryFixtures.js)
+
+// Codable mirrors of the canonical screen-gallery fixture shapes. Field names
+// match the JS object keys exactly so `JSON.stringify(GalleryFixtures.*)` decodes
+// directly. The game-board fixtures reuse `GameSnapshot` (the same value-copy
+// player shape PartyCore produces).
+
+/// One lobby card from `GalleryFixtures.roster(count)`. `id == slot == colorIndex`.
+public struct GalleryRosterEntry: Decodable, Equatable {
+    public let id: Int
+    public let slot: Int
+    public let name: String
+    public let level: Int
+}
+
+/// `GalleryFixtures.JOIN`: the displayed host/code and the (separate) QR target.
+public struct GalleryJoin: Decodable, Equatable {
+    public let host: String     // "hexstacker.com/"
+    public let code: String     // "TEST"
+    public let qrText: String   // "https://hexstacker.com/TEST12"
+}
+
+/// One ranked row from `GalleryFixtures.results(count)`.
+public struct GalleryResultEntry: Decodable, Equatable {
+    public let playerId: Int
+    public let playerName: String
+    public let colorIndex: Int
+    public let rank: Int
+    public let lines: Int
+    public let level: Int
+}
+
+/// `GalleryFixtures.results(count)`: the finished-match ranking + elapsed time.
+public struct GalleryResults: Decodable, Equatable {
+    public let elapsed: Double
+    public let results: [GalleryResultEntry]
+}
+
+/// An axial `(q, r)` offset decoded from a 2-element `[q, r]` JSON array (the
+/// shape `ambientPieces()` cells use — distinct from `Axial`'s `{q, r}` object).
+public struct AxialCell: Decodable, Equatable {
+    public let q: Int
+    public let r: Int
+    public init(from decoder: Decoder) throws {
+        var c = try decoder.unkeyedContainer()
+        q = try c.decode(Int.self)
+        r = try c.decode(Int.self)
+    }
+}
+
+/// One frozen lobby-background piece from `GalleryFixtures.ambientPieces()`. The
+/// origin is in a 1920x1080 Y-DOWN reference space (y can spill past the edges);
+/// `size` is a hex circumradius; `cells` are engine-rotated axial offsets.
+public struct AmbientPiece: Decodable, Equatable {
+    public let typeId: Int
+    public let cells: [AxialCell]
+    public let x: Double
+    public let y: Double
+    public let size: Double
+    public let opacity: Double
+}
+
 // MARK: - Engine constants mirrored from server/constants.js
 
 public enum EngineConstants {

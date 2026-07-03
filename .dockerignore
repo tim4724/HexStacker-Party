@@ -3,3 +3,14 @@ node_modules
 *.md
 .github
 tests
+# Review tooling stays out of the game image: the gallery entry pages are
+# served by the tv-gallery sibling image instead (path-routed on the same
+# preview host, see scripts/gallery/README.md). Locally the dev server still
+# serves them straight from public/. The display test harness itself ships in
+# the app bundle regardless (e2e runs against it; inert without URL params).
+public/gallery*
+# Regenerable gallery output; the tv-gallery image is built separately from
+# scripts/gallery with its own context (workflow-staged), never via this image.
+scripts/gallery/shots
+scripts/gallery/gallery.html
+scripts/gallery/webshell

@@ -421,7 +421,10 @@ if (window.__TEST__ && (debugCount > 0 || _scenarioParam)) {
     scenario: _scenarioParam || 'playing',
     players: debugCount || (isNaN(_playersParsed) ? 1 : _playersParsed),
     level: parseInt(urlParams.get('level'), 10) || 1,
-    host: _hostParam === null ? null : parseInt(_hostParam, 10)
+    host: _hostParam === null ? null : parseInt(_hostParam, 10),
+    // Named GalleryFixtures board variant (lv1/lv8/lv12/2p/3p/4p) for the
+    // cross-platform gallery rows; overrides players/level when present.
+    variant: urlParams.get('variant') || null
   });
 } else if (urlParams.get('test') === '1' || urlParams.get('adclip') === '1') {
   // Test / adclip mode: skip relay connection — driven externally
