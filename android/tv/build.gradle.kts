@@ -28,7 +28,7 @@ val syncEngineBundle by tasks.registering(Copy::class) {
 
 android {
     namespace = "com.hexstacker.tv"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         applicationId = "com.hexstacker.tv"
         minSdk = 28
