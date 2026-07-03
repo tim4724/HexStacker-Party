@@ -1,0 +1,62 @@
+name: Sticky PR comment
+description: >
+  Post a PR comment identified by an invisible marker, updating it in place on
+  every subsequent run instead of stacking duplicates. Single implementation for
+  all workflows (the Android and tvOS screenshot comments once diverged here:
+  one copy paginated the comment lookup, the other re-posted duplicates as soon
+  as the marker comment fell off page 1).
+
+inputs:
+  marker:
+    description: Unique HTML-comment marker identifying the sticky comment, e.g. "<!-- tv-screenshots -->". Prepended to the body.
+    required: true
+  body:
+    description: Markdown body of the comment (without the marker).
+    required: true
+  pr-number:
+    description: >
+      PR to comment on. Pass github.event.pull_request.number on pull_request
+      triggers; leave empty on push triggers to resolve all open PRs whose head
+      is the pushed branch (same-repo only; a fork PR's GITHUB_TOKEN cannot
+      comment anyway).
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/github-script@v9
+      env:
+        MARKER: ${{ inputs.marker }}
+        BODY: ${{ inputs.body }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+      with:
+        script: |
+          const marker = process.env.MARKER;
+          const body = `${marker}\n${process.env.BODY}`;
+          const { owner, repo } = context.repo;
+
+          let prNumbers;
+          if (process.env.PR_NUMBER) {
+            prNumbers = [Number(process.env.PR_NUMBER)];
+          } else {
+            const branch = context.ref.replace('refs/heads/', '');
+            const prs = await github.paginate(github.rest.pulls.list, {
+              owner, repo, head: `${owner}:${branch}`, state: 'open', per_page: 100,
+            });
+            prNumbers = prs.map((pr) => pr.number);
+            if (prNumbers.length === 0) core.info(`No open PR for ${branch}; skipping sticky comment.`);
+          }
+
+          for (const issue_number of prNumbers) {
+            // Paginate: on a long PR thread the marker comment falls off page 1
+            // and a non-paginated lookup would post duplicates instead of updating.
+            const comments = await github.paginate(github.rest.issues.listComments,
+              { owner, repo, issue_number, per_page: 100 });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+          }
