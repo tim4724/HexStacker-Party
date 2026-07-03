@@ -99,6 +99,21 @@ function sendJson(res, statusCode, payload) {
   res.end(JSON.stringify(payload));
 }
 
+// Content-hashed web bundle (foo.<10-hex>.js), NOT its .map. Only these carry
+// build-time pre-compressed `.br`/`.gz` siblings, so only these are candidates
+// for Accept-Encoding negotiation — every other request skips the sibling probe.
+const HASHED_BUNDLE_JS = /\.[0-9a-f]{10}\.js$/;
+
+// Pick the best encoding we ship a pre-compressed sibling for (brotli first),
+// or null if the client accepts neither. `br`/`gzip` are matched as whole tokens
+// so a stray substring can't spoof support.
+function pickEncoding(acceptEncoding) {
+  const accept = acceptEncoding || '';
+  if (/(^|[,\s])br($|[,\s;])/.test(accept)) return { ext: '.br', name: 'br' };
+  if (/(^|[,\s])gzip($|[,\s;])/.test(accept)) return { ext: '.gz', name: 'gzip' };
+  return null;
+}
+
 function generateQRMatrix(text) {
   const qr = QRCode.create(text, { errorCorrectionLevel: 'L' });
   const size = qr.modules.size;
@@ -274,14 +289,18 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  fs.readFile(filePath, (err, data) => {
-    if (err) {
-      res.writeHead(404);
-      res.end('Not Found');
-      return;
-    }
+  const ext = path.extname(filePath).toLowerCase();
+  // Pre-compressed static serving: content-hashed bundles ship `.br`/`.gz`
+  // siblings from the build. If the client accepts one, serve it with the
+  // matching Content-Encoding; if the sibling is somehow missing, fall through
+  // to the plain bytes. Gated to hashed bundles so no other asset pays a
+  // speculative sibling read, and HTML (rewritten per request below) is never a
+  // candidate — it has no static sibling on disk.
+  const encoding = HASHED_BUNDLE_JS.test(filePath)
+    ? pickEncoding(req.headers['accept-encoding'])
+    : null;
 
-    const ext = path.extname(filePath).toLowerCase();
+  const deliver = (data, usedEncoding) => {
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
     const headers = { 'Content-Type': contentType };
 
@@ -374,9 +393,34 @@ const server = http.createServer((req, res) => {
       }
     }
 
+    // Serving a pre-compressed variant: tell the client how to decode it, and
+    // Vary so a shared cache never hands a br/gzip body to a client that only
+    // asked for the plain one. (The immutable, content-hashed URL already keeps
+    // stale bytes from ever being served.)
+    if (usedEncoding) {
+      headers['Content-Encoding'] = usedEncoding;
+      headers['Vary'] = 'Accept-Encoding';
+    }
+
     res.writeHead(200, headers);
     res.end(data);
-  });
+  };
+
+  if (encoding) {
+    fs.readFile(filePath + encoding.ext, (err, data) => {
+      if (!err) { deliver(data, encoding.name); return; }
+      // Sibling missing (partial build, etc.) — serve the plain bundle.
+      fs.readFile(filePath, (plainErr, plainData) => {
+        if (plainErr) { res.writeHead(404); res.end('Not Found'); return; }
+        deliver(plainData, null);
+      });
+    });
+  } else {
+    fs.readFile(filePath, (err, data) => {
+      if (err) { res.writeHead(404); res.end('Not Found'); return; }
+      deliver(data, null);
+    });
+  }
 });
 
 // --- Get local network IP ---
