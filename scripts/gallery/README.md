@@ -63,7 +63,7 @@ screenshot artifacts, captures fresh web references, and assembles the page.
 Whichever platform workflow finishes last produces the complete three-column
 page.
 
-It ships two ways, both linked from a sticky PR comment:
+It ships two ways (the PR's preview comment carries the links):
 
 - **Browsable deployment**: `https://<preview-host>/tv-gallery/` (i.e.
   `preview-<branch>.hexstacker.com/tv-gallery/`, `main.hexstacker.com/tv-gallery/`

@@ -6,13 +6,9 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const { scenarios } = JSON.parse(readFileSync(join(here, 'scenarios.json'), 'utf8'));
-// Single-sourced gallery page nav (Display/Phone/Rotations/TV) — the same
-// list the live gallery pages render in the browser.
-const { PAGES } = createRequire(import.meta.url)('../../public/gallery-nav.js');
 
 const PLATFORMS = [
   ['web', 'web reference'],
@@ -56,29 +52,25 @@ const sections = rows
   })
   .join('\n');
 
+// Header, nav, and base styling come from the shared gallery chrome
+// (/gallery.css + /gallery-nav.js), so this page is a visual sibling of the
+// live Display/Phone/Rotations galleries; only the comparison grid below is
+// page-local. Both assets resolve on the dev server and on the deployed
+// preview host (the gallery pod serves them itself).
 const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
-<title>HexStacker — TV screen gallery</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TV Gallery — HexStacker Party</title>
+<link rel="stylesheet" href="/gallery.css">
 <style>
-  :root { color-scheme: dark; }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: #15121f; color: #ece8f5;
-    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
-  header { padding: 28px 32px 8px; }
-  header h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: .02em; }
-  header p { margin: 0; color: #9b93b4; }
-  header nav { margin-top: 10px; display: flex; gap: 14px; font-size: 13px; }
-  header nav a { color: #9b93b4; text-decoration: none; }
-  header nav a:hover { color: #ece8f5; }
-  header nav a.active { color: #ece8f5; font-weight: 600; }
-  .legend { margin: 12px 32px 0; color: #9b93b4; font-size: 13px; }
-  main { padding: 16px 32px 64px; display: flex; flex-direction: column; gap: 36px; }
-  .state h2 { font-size: 16px; margin: 0 0 10px; font-weight: 600; letter-spacing: .02em; }
+  .legend { margin: 16px 20px 0; color: #8888aa; font-size: 12px; }
+  main { padding: 16px 20px 64px; display: flex; flex-direction: column; gap: 36px; }
+  .state h2 { font-size: 14px; margin: 0 0 10px; font-weight: 700; letter-spacing: .05em; }
   .state h2 .key { color: #6f6790; font-weight: 400; font-size: 12px; margin-left: 8px;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   .trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
-  figure { margin: 0; background: #1d1930; border: 1px solid #2c2742; border-radius: 12px; overflow: hidden; }
-  figcaption { padding: 6px 10px; font-size: 12px; color: #9b93b4; border-bottom: 1px solid #2c2742;
+  figure { margin: 0; background: #10101f; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; }
+  figcaption { padding: 6px 10px; font-size: 12px; color: #8888aa; border-bottom: 1px solid rgba(255,255,255,0.1);
     text-transform: uppercase; letter-spacing: .08em; }
   figcaption .note { float: right; text-transform: none; letter-spacing: 0; color: #6f6790; font-style: italic; }
   figure img { display: block; width: 100%; height: auto; background: #000; }
@@ -87,16 +79,14 @@ const html = `<!doctype html>
 </style></head>
 <body>
 <header>
-  <h1>HexStacker — TV screen gallery</h1>
-  <p>Web reference vs native tvOS vs native Android TV, one row per display state. Regenerate after UI changes.</p>
-  <nav>
-    ${PAGES.map((p) => `<a href="${p.href}"${p.href === '/tv-gallery/' ? ' class="active"' : ''}>${p.label}</a>`).join('\n    ')}
-  </nav>
+  <h1>HEX STACKER · TV</h1>
+  <nav data-gallery-nav></nav>
 </header>
-<p class="legend">Scenarios: <code>scripts/gallery/scenarios.json</code>. Capture: <code>capture-web.mjs</code> (Playwright), <code>capture-tvos.sh</code> (Simulator), <code>collect-shots.mjs android</code> (Roborazzi). Assemble: <code>gen-gallery.mjs</code>. In CI the <code>tv-gallery</code> workflow builds this from the per-platform screenshot artifacts.</p>
+<p class="legend">Web reference vs native tvOS vs native Android TV, one frozen row per display state (fixtures: <code>server/GalleryFixtures.js</code>, scenario map: <code>scripts/gallery/scenarios.json</code>). Regenerate per <code>scripts/gallery/README.md</code>.</p>
 <main>
 ${sections}
 </main>
+<script src="/gallery-nav.js"></script>
 </body></html>
 `;
 

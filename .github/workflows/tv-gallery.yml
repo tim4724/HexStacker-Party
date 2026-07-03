@@ -46,7 +46,6 @@ jobs:
     permissions:
       contents: read
       actions: read        # download artifacts published by the TV workflows
-      pull-requests: write # sticky gallery-link comment
       packages: write      # push the static gallery image for the k8s preview
     outputs:
       image_tag: ${{ steps.image.outputs.tag }}
@@ -173,32 +172,11 @@ jobs:
           docker push "$TAG"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-      # workflow_run events execute in default-branch context, so the sticky
-      # action can't resolve the PR from context.ref — resolve it explicitly
-      # from the head branch for every trigger (same-repo only; fork PRs can't
-      # be commented on with the read-only token anyway).
-      - name: Resolve PR number
-        id: pr
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          num=$(gh api -X GET "repos/${{ github.repository }}/pulls" \
-                  -f head="${{ github.repository_owner }}:$HEAD_BRANCH" -f state=open \
-                  --jq '.[0].number // empty')
-          echo "number=$num" >> "$GITHUB_OUTPUT"
-
-      - name: Comment gallery link on the PR
-        if: steps.pr.outputs.number != ''
-        uses: ./.github/actions/sticky-comment
-        with:
-          marker: '<!-- tv-gallery -->'
-          pr-number: ${{ steps.pr.outputs.number }}
-          body: |
-            ### 🖼️ TV gallery (web vs tvOS vs Android TV)
-
-            **https://${{ steps.host.outputs.host }}/tv-gallery/** — every display state side by side, one row per scenario, with explicit gaps where a platform hasn't captured. Deploys right after this comment updates (same host as the app preview; the live web gallery is at `/gallery`).
-
-            Assembled for `${{ github.event.workflow_run.head_sha || github.sha }}` from the latest `tv-screenshots` (Android, Roborazzi) and `tvos-screenshots` (Simulator) artifacts plus fresh web-harness references. Fallback if the deploy failed: [download the `tv-gallery` artifact](${{ steps.gallery.outputs.artifact-url }}) (signed-in only, expires with the run) and open `gallery.html`.
+      # No PR comment here: the Preview Comment workflow's single comment
+      # carries the /gallery and /tv-gallery/ links (the URLs are deterministic
+      # from the branch name, so it can post them at PR open before this
+      # workflow has deployed anything). The artifact link stays reachable via
+      # the run summary.
 
   # Serve the assembled gallery next to the app preview: a tiny nginx
   # deployment in the same per-branch namespace (cg-<branch>), path-routed on
