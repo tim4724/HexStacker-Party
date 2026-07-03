@@ -173,15 +173,19 @@
     this.players.set(newId, rec);
     this._disconnected.delete(oldId);
     this._disconnected.delete(newId);
-    this._lastSeen.delete(newId);          // drop the placeholder slot's stamp
-    // Carry the kept record's last-seen across the identity change so rekey is
-    // self-correct on its own. The reconnect caller (claimReconnectPeer) refreshes
-    // it via onSeen() right after, so this carry is belt-and-suspenders there; it
-    // matters for any future caller that rekeys without an immediate re-stamp.
-    if (this._lastSeen.has(oldId)) {
-      this._lastSeen.set(newId, this._lastSeen.get(oldId));
-      this._lastSeen.delete(oldId);
-    }
+    // Keep the NEWER of the two last-seen stamps. The placeholder slot's stamp
+    // (set when the claiming connection joined/HELLO'd) is the live signal — the
+    // old seat's is up to a full reconnect-grace window stale, and carrying it
+    // would let the very next liveness sweep expire the seat the instant it
+    // reconnected. The old stamp survives only as a fallback for callers that
+    // rekey a never-seen placeholder.
+    var oldStamp = this._lastSeen.get(oldId);
+    var newStamp = this._lastSeen.get(newId);
+    this._lastSeen.delete(oldId);
+    this._lastSeen.delete(newId);
+    var kept = oldStamp == null ? newStamp
+      : (newStamp == null ? oldStamp : Math.max(oldStamp, newStamp));
+    if (kept != null) this._lastSeen.set(newId, kept);
     for (var i = 0; i < this._order.length; i++) {
       if (this._order[i] === oldId) this._order[i] = newId;
     }

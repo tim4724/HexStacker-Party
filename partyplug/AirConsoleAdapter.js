@@ -88,12 +88,18 @@ class AirConsoleAdapter {
     ac.onCustomDeviceStateChange = function(device_id) {
       if (self.role !== 'controller') return;       // the display authors, never consumes
       if (device_id !== AirConsole.SCREEN) return;  // only the screen's state is the snapshot
-      if (!self.onState) return;
-      try {
-        var st = ac.getCustomDeviceState(AirConsole.SCREEN);
-        if (st !== undefined) self.onState(st);
-      } catch (e) { /* SDK not ready / no state yet */ }
+      self._replayScreenState();
     };
+  }
+
+  // Deliver the screen's current retained state to onState (shared by the
+  // change handler above and the post-`joined` replay in _fireReady).
+  _replayScreenState() {
+    if (!this.onState) return;
+    try {
+      var st = this.airconsole.getCustomDeviceState(AirConsole.SCREEN);
+      if (st !== undefined) this.onState(st);
+    } catch (e) { /* SDK not ready / no state yet */ }
   }
 
   /**
@@ -133,12 +139,7 @@ class AirConsoleAdapter {
       // relay replaying `state` after `joined`. Covers state the display set
       // before this controller connected (the SDK may not fire
       // onCustomDeviceStateChange for pre-existing state on a fresh join).
-      if (this.onState) {
-        try {
-          var screenState = this.airconsole.getCustomDeviceState(AirConsole.SCREEN);
-          if (screenState !== undefined) this.onState(screenState);
-        } catch (e) { /* no state yet */ }
-      }
+      this._replayScreenState();
     }
   }
 

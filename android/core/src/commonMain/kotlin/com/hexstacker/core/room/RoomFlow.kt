@@ -152,8 +152,12 @@ class RoomFlow(
         players[newId] = moved
         disconnected.remove(oldId)
         disconnected.remove(newId)
-        lastSeen.remove(newId)
-        lastSeen[oldId]?.let { lastSeen[newId] = it; lastSeen.remove(oldId) }
+        // Keep the NEWER of the two last-seen stamps (mirrors partyplug/RoomFlow.js):
+        // the placeholder's stamp is the claimant's live signal; the old seat's is up
+        // to a reconnect-grace window stale and survives only as a fallback for a
+        // never-seen placeholder.
+        val keptStamp = listOfNotNull(lastSeen.remove(oldId), lastSeen.remove(newId)).maxOrNull()
+        if (keptStamp != null) lastSeen[newId] = keptStamp
         for (i in order.indices) if (order[i] == oldId) order[i] = newId
         if (hostSlot == oldId) hostSlot = newId
         if (host != prevHost) onHostChange?.invoke(host)
