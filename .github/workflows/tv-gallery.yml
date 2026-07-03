@@ -42,7 +42,7 @@ concurrency:
 jobs:
   assemble:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 50   # includes up to ~35 min waiting for in-flight TV workflows
     permissions:
       contents: read
       actions: read        # download artifacts published by the TV workflows
@@ -77,24 +77,41 @@ jobs:
           done
           node scripts/gallery/capture-web.mjs http://localhost:8788
 
-      # Pull the native screenshot artifacts for this commit. Fallback: if a TV
-      # workflow didn't run for this exact SHA (its path filter skipped it), the
-      # newest completed run on the branch is still accurate — that platform's
-      # render is unchanged by definition of the filter.
+      # Pull the native screenshot artifacts for this commit. A push-triggered
+      # run usually starts BEFORE the TV workflows finish for the same SHA
+      # (and pre-merge, workflow_run can't re-fire this workflow), so if a run
+      # for this SHA exists but hasn't completed, WAIT for it instead of
+      # shipping empty columns. Fallback: if a TV workflow never triggered for
+      # this SHA (its path filter skipped it), the newest completed run on the
+      # branch is still accurate — that platform's render is unchanged by
+      # definition of the filter.
       - name: Download native screenshot artifacts
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          WAIT_DEADLINE=$((SECONDS + 2100))   # shared across both workflows
           lookup () { # $1 workflow file, $2 artifact name, $3 dest dir
-            local run_id
-            run_id=$(gh api -X GET "repos/${{ github.repository }}/actions/workflows/$1/runs" \
-                       -f head_sha="$HEAD_SHA" -f status=completed -f per_page=1 \
-                       --jq '.workflow_runs[0].id // empty')
+            local run_id status
+            while :; do
+              run_id=""; status=""
+              read -r run_id status < <(gh api -X GET "repos/${{ github.repository }}/actions/workflows/$1/runs" \
+                -f head_sha="$HEAD_SHA" -f per_page=1 \
+                --jq '.workflow_runs[0] // empty | "\(.id) \(.status)"') || true
+              [ -z "$run_id" ] && break                      # never triggered for this SHA
+              [ "$status" = "completed" ] && break
+              if [ $SECONDS -ge $WAIT_DEADLINE ]; then
+                echo "timed out waiting for $1 (run $run_id still $status)"
+                run_id=""
+                break
+              fi
+              echo "waiting for $1 run $run_id ($status)..."
+              sleep 30
+            done
             if [ -z "$run_id" ]; then
               run_id=$(gh api -X GET "repos/${{ github.repository }}/actions/workflows/$1/runs" \
                          -f branch="$HEAD_BRANCH" -f status=completed -f per_page=1 \
                          --jq '.workflow_runs[0].id // empty')
-              [ -n "$run_id" ] && echo "no $1 run for $HEAD_SHA; using latest on $HEAD_BRANCH (run $run_id)"
+              [ -n "$run_id" ] && echo "no completed $1 run for $HEAD_SHA; using latest on $HEAD_BRANCH (run $run_id)"
             fi
             if [ -n "$run_id" ]; then
               gh run download "$run_id" --name "$2" --dir "$3" \
@@ -179,7 +196,7 @@ jobs:
           body: |
             ### 🖼️ TV gallery (web vs tvOS vs Android TV)
 
-            **https://${{ steps.host.outputs.host }}/tv-gallery/** — every display state side by side, one row per scenario, with explicit gaps where a platform hasn't captured. Deploys right after this comment updates (same host as the app preview; the live web gallery is at `/gallery.html`).
+            **https://${{ steps.host.outputs.host }}/tv-gallery/** — every display state side by side, one row per scenario, with explicit gaps where a platform hasn't captured. Deploys right after this comment updates (same host as the app preview; the live web gallery is at `/gallery`).
 
             Assembled for `${{ github.event.workflow_run.head_sha }}` from the latest `tv-screenshots` (Android, Roborazzi) and `tvos-screenshots` (Simulator) artifacts plus fresh web-harness references. Fallback if the deploy failed: [download the `tv-gallery` artifact](${{ steps.gallery.outputs.artifact-url }}) (signed-in only, expires with the run) and open `gallery.html`.
 

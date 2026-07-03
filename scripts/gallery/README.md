@@ -47,7 +47,8 @@ bash scripts/gallery/capture-tvos.sh
 
 # assemble the page
 node scripts/gallery/gen-gallery.mjs
-open scripts/gallery/gallery.html
+# view via the dev server (nav links resolve there; plain `open` works too)
+open http://localhost:8770/tv-gallery/
 ```
 
 Any subset works — the page renders explicit gaps for platforms you skipped.
@@ -72,7 +73,7 @@ It ships two ways, both linked from a sticky PR comment:
   existing `Preview Cleanup` workflow on branch delete.
 
 This image is also the home of the LIVE web gallery entry pages
-(`public/gallery*` served at `/gallery.html` etc. on the same host): they are
+(`public/gallery*` served at `/gallery` etc. on the same host): they are
 excluded from the game image via `.dockerignore`, so production ships no
 review tooling. Their iframes point at absolute paths that route to the app
 preview pod on the same host, so they drive the real display app as always

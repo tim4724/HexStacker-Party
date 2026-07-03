@@ -6,9 +6,13 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const { scenarios } = JSON.parse(readFileSync(join(here, 'scenarios.json'), 'utf8'));
+// Single-sourced gallery page nav (Display/Phone/Rotations/TV) — the same
+// list the live gallery pages render in the browser.
+const { PAGES } = createRequire(import.meta.url)('../../public/gallery-nav.js');
 
 const PLATFORMS = [
   ['web', 'web reference'],
@@ -63,6 +67,10 @@ const html = `<!doctype html>
   header { padding: 28px 32px 8px; }
   header h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: .02em; }
   header p { margin: 0; color: #9b93b4; }
+  header nav { margin-top: 10px; display: flex; gap: 14px; font-size: 13px; }
+  header nav a { color: #9b93b4; text-decoration: none; }
+  header nav a:hover { color: #ece8f5; }
+  header nav a.active { color: #ece8f5; font-weight: 600; }
   .legend { margin: 12px 32px 0; color: #9b93b4; font-size: 13px; }
   main { padding: 16px 32px 64px; display: flex; flex-direction: column; gap: 36px; }
   .state h2 { font-size: 16px; margin: 0 0 10px; font-weight: 600; letter-spacing: .02em; }
@@ -81,6 +89,9 @@ const html = `<!doctype html>
 <header>
   <h1>HexStacker — TV screen gallery</h1>
   <p>Web reference vs native tvOS vs native Android TV, one row per display state. Regenerate after UI changes.</p>
+  <nav>
+    ${PAGES.map((p) => `<a href="${p.href}"${p.href === '/tv-gallery/' ? ' class="active"' : ''}>${p.label}</a>`).join('\n    ')}
+  </nav>
 </header>
 <p class="legend">Scenarios: <code>scripts/gallery/scenarios.json</code>. Capture: <code>capture-web.mjs</code> (Playwright), <code>capture-tvos.sh</code> (Simulator), <code>collect-shots.mjs android</code> (Roborazzi). Assemble: <code>gen-gallery.mjs</code>. In CI the <code>tv-gallery</code> workflow builds this from the per-platform screenshot artifacts.</p>
 <main>
