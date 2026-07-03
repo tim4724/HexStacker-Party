@@ -17,7 +17,7 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # The native core the app runs in QuickJS is the canonical JS engine bundle,
       # so the engine + conformance-golden bundles must be built before Gradle:
@@ -25,7 +25,7 @@ jobs:
       # dist/partycore.js + dist/partycore-frame-test.js as its cross-engine oracles.
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
       - run: npm ci
       - name: Build engine bundles (QuickJS core + conformance golden driver)
@@ -37,7 +37,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: gradle/actions/setup-gradle@v5
+      - uses: gradle/actions/setup-gradle@v6
 
       # One --continue invocation so a test failure still runs the rest and the
       # screenshots/reports below always upload:
@@ -64,7 +64,7 @@ jobs:
       # run summary. Runs on push, so it resolves the PR from the branch head.
       - name: Comment screenshot download link on the PR
         if: always() && github.ref != 'refs/heads/main' && steps.screenshots.outputs.artifact-url != ''
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           ARTIFACT_URL: ${{ steps.screenshots.outputs.artifact-url }}
         with:

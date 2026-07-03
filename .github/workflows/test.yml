@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
       - run: npm ci
       - run: npm test
@@ -27,12 +27,12 @@ jobs:
     timeout-minutes: 10
     container:
       # Keep this tag in sync with @playwright/test in package.json
-      image: mcr.microsoft.com/playwright:v1.60.0-noble
+      image: mcr.microsoft.com/playwright:v1.61.1-noble
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
       - run: npm ci
       - name: Run E2E tests
@@ -52,10 +52,10 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
       - run: npm ci   # esbuild + node for build:core, which the suite rebuilds via TestSupport
       - name: Build the tvOS Swift package
@@ -73,10 +73,10 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
       - run: npm ci   # the pre-build phase runs build:core to bundle the engine JS
       - name: Install XcodeGen
@@ -87,7 +87,7 @@ jobs:
       # Cache the resolved SPM artifacts (LiveKitWebRTC is a large binary
       # xcframework) so we don't re-download it on every run.
       - name: Cache SPM artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: appletv/.build-xcode/SourcePackages
           key: spm-${{ runner.os }}-${{ hashFiles('appletv/project.yml') }}
