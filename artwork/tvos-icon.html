@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>HexStacker — TV brand-asset renderer</title>
+  <link rel="stylesheet" href="../public/shared/fonts/orbitron.css">
   <style>
     html, body { margin: 0; background: #06060f; }
     #stage { display: block; image-rendering: auto; }
@@ -124,6 +125,32 @@
     ctx.restore();
   }
 
+  // Faint stroked hex outline — honeycomb texture for the Android banner.
+  function drawHexOutline(ctx, cx, cy, r, alpha, lw) {
+    hexPath(ctx, cx, cy, r);
+    ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+    ctx.lineWidth = lw;
+    ctx.stroke();
+  }
+
+  // Brand wordmark — gradient Orbitron, mirrors .gradient-title (theme.css).
+  function titleGradient(ctx, x0, x1) {
+    const g = ctx.createLinearGradient(x0, 0, x1, 0);
+    const stops = ['#FF6B6B', '#FF8C42', '#FFE066', '#7BED6F', '#4ECDC4', '#5B7FFF', '#A78BFA', '#F178D8'];
+    stops.forEach((c, i) => g.addColorStop(i / (stops.length - 1), c));
+    return g;
+  }
+  function fitFontSize(ctx, text, targetSize, maxWidth) {
+    let size = targetSize;
+    ctx.font = `900 ${size}px Orbitron, sans-serif`;
+    let safety = 120;
+    while (ctx.measureText(text).width > maxWidth && size > 8 && safety-- > 0) {
+      size = Math.max(8, size * 0.96);
+      ctx.font = `900 ${Math.round(size)}px Orbitron, sans-serif`;
+    }
+    return Math.round(size);
+  }
+
   // Radial plum backdrop — used by the Top Shelf key art.
   function paintRadial(ctx, W, H) {
     const R = Math.max(W, H) * 0.85;
@@ -213,6 +240,43 @@
     return canvas.toDataURL('image/png');
   }
   window.renderLauncherIcon = renderLauncherIcon;
+
+  // Android TV leanback banner (16:9, reference layout 320x180, rendered at
+  // every density). Google requires the full logo with text in the banner, so
+  // this is the brand lockup: the piece badge (with its icon drop shadow) next
+  // to the two-line Orbitron gradient wordmark on the icon's flat plum, with
+  // faint honeycomb corners. Raster on purpose — the wordmark uses the real
+  // brand font, which a hand-authored VectorDrawable can only approximate.
+  // spec = { w, h } -> PNG data URL.
+  function renderBanner(spec) {
+    const W = spec.w, H = spec.h, k = H / 180;
+    const canvas = document.getElementById('stage');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#241E38';
+    ctx.fillRect(0, 0, W, H);
+    for (const [x, y, r] of [[286, 30, 12.5], [305.5, 41.5, 12.5], [34, 150, 11.5], [302, 150, 11.5]]) {
+      drawHexOutline(ctx, x * k, y * k, r * k, 0.08, 1.4 * k);
+    }
+    drawBadgeShadow(ctx, 52 * k, 90 * k, 15 * k);
+    drawBadge(ctx, 52 * k, 90 * k, 15 * k);
+    const x0 = 104 * k, maxW = 206 * k;
+    const size = fitFontSize(ctx, 'STACKER', 44 * k, maxW);
+    ctx.save();
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = `900 ${size}px Orbitron, sans-serif`;
+    const wmWidth = ctx.measureText('STACKER').width;
+    ctx.shadowColor = 'rgba(0,0,0,0.55)';
+    ctx.shadowBlur = size * 0.14;
+    ctx.shadowOffsetY = Math.max(1, size * 0.04);
+    ctx.fillStyle = titleGradient(ctx, x0, x0 + wmWidth);
+    ctx.fillText('HEX', x0, 66 * k);
+    ctx.fillText('STACKER', x0, 113 * k);
+    ctx.restore();
+    return canvas.toDataURL('image/png');
+  }
+  window.renderBanner = renderBanner;
   window.__TVOS_READY__ = true;
   </script>
 </body>

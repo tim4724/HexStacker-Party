@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 'use strict';
 
-// Renders the Android legacy launcher mipmaps (ic_launcher / ic_launcher_round)
-// from the same brand primitives as the tvOS icon (artwork/tvos-icon.html), so
-// the raster fallbacks match the adaptive icon vectors exactly. With minSdk 28
-// every device resolves mipmap-anydpi-v26 first, so these only exist as
-// belt-and-braces fallbacks — but they should be the gem, not the stock robot.
+// Renders the Android raster assets from the same brand primitives as the
+// tvOS icon (artwork/tvos-icon.html):
+//   - legacy launcher mipmaps (ic_launcher / ic_launcher_round) matching the
+//     adaptive icon vectors (with minSdk 28 they are only fallbacks)
+//   - the leanback banner (mipmap-*/app_banner.webp) at every density — the
+//     brand lockup with the real Orbitron wordmark, which vectors can only
+//     approximate
 // Encodes lossless webp via cwebp (brew install webp).
 //
 //   node artwork/generate-android-icons.js          # write mipmaps + previews
@@ -27,6 +29,8 @@ const PREVIEW_ONLY = process.argv.includes('--preview-only');
 // Standard 48dp launcher ladder.
 const DENSITIES = [['mdpi', 48], ['hdpi', 72], ['xhdpi', 96], ['xxhdpi', 144], ['xxxhdpi', 192]];
 const SHAPES = [['square', 'ic_launcher'], ['round', 'ic_launcher_round']];
+// Leanback banner ladder (16:9, xhdpi baseline 320x180).
+const BANNERS = [['mdpi', 160, 90], ['hdpi', 240, 135], ['xhdpi', 320, 180], ['xxhdpi', 480, 270], ['xxxhdpi', 640, 360]];
 
 function writeDataUrl(dataUrl, dest) {
   const b64 = dataUrl.replace(/^data:image\/png;base64,/, '');
@@ -46,8 +50,15 @@ function writeDataUrl(dataUrl, dest) {
   const page = await browser.newPage();
   await page.goto(`file://${PAGE}`);
   await page.waitForFunction(() => window.__TVOS_READY__ === true);
+  // The banner wordmark needs the brand font loaded before first paint.
+  await page.evaluate(async () => {
+    await document.fonts.load('900 200px Orbitron');
+    await document.fonts.ready;
+  });
 
   const render = (spec) => page.evaluate((s) => window.renderLauncherIcon(s), spec);
+  const renderBanner = (w, h) => page.evaluate((s) => window.renderBanner(s), { w, h });
+  const toWebp = (png, dest) => execFileSync('cwebp', ['-lossless', '-z', '9', '-quiet', png, '-o', dest]);
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'hexicons-'));
 
   if (!PREVIEW_ONLY) {
@@ -56,9 +67,16 @@ function writeDataUrl(dataUrl, dest) {
         const png = path.join(tmp, `${name}-${density}.png`);
         writeDataUrl(await render({ size, shape }), png);
         const dest = path.join(RES, `mipmap-${density}`, `${name}.webp`);
-        execFileSync('cwebp', ['-lossless', '-z', '9', '-quiet', png, '-o', dest]);
+        toWebp(png, dest);
         console.log('asset  ', path.relative(ROOT, dest));
       }
+    }
+    for (const [density, w, h] of BANNERS) {
+      const png = path.join(tmp, `app_banner-${density}.png`);
+      writeDataUrl(await renderBanner(w, h), png);
+      const dest = path.join(RES, `mipmap-${density}`, 'app_banner.webp');
+      toWebp(png, dest);
+      console.log('asset  ', path.relative(ROOT, dest));
     }
   }
   fs.mkdirSync(PREVIEW_DIR, { recursive: true });
@@ -67,6 +85,8 @@ function writeDataUrl(dataUrl, dest) {
     writeDataUrl(await render({ size: 192, shape }), dest);
     console.log('preview', path.relative(ROOT, dest));
   }
+  writeDataUrl(await renderBanner(640, 360), path.join(PREVIEW_DIR, 'app_banner-640.png'));
+  console.log('preview', path.relative(ROOT, path.join(PREVIEW_DIR, 'app_banner-640.png')));
   fs.rmSync(tmp, { recursive: true, force: true });
 
   await browser.close();
