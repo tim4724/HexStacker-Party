@@ -73,6 +73,7 @@ const ENGINE_FILES = new Set([
   'Piece.js',
   'PlayerBoard.js',
   'PartyCore.js',
+  'GalleryFixtures.js',
 ]);
 
 // --- MIME types ---

@@ -1,0 +1,130 @@
+{
+  "$comment": "Single source of truth for the cross-platform TV screen gallery. Each scenario maps one canonical key to how every platform renders that state: `web` drives capture-web.mjs (display test harness URL params), `tvos` drives capture-tvos.sh (HEXSHOT/HEXPLAYERS env, mirrored by appletv/UITests/ScreenshotTests.swift), `android` names the Roborazzi PNG emitted by the :tv screenshot tests (collect-shots.mjs renames it to the canonical key). The DATA behind every row comes from server/GalleryFixtures.js (shipped in dist/partycore.js), so all three columns render identical rosters/boards/results; `variant` names a GalleryFixtures board variant. A platform without an entry has no equivalent for that state (e.g. focus states on non-TV web); gen-gallery.mjs renders that as an explicit gap.",
+  "scenarios": [
+    {
+      "key": "lobby",
+      "title": "Lobby (4 players)",
+      "web": { "scenario": "lobby", "players": 4, "params": { "host": 0 } },
+      "tvos": { "shot": "lobby", "players": 4 },
+      "android": { "file": "lobby" }
+    },
+    {
+      "key": "lobby-2p",
+      "title": "Lobby (2 players + empty slots)",
+      "web": { "scenario": "lobby", "players": 2, "params": { "host": 0 } },
+      "tvos": { "shot": "lobby", "players": 2 },
+      "android": { "file": "lobby_2p" }
+    },
+    {
+      "key": "lobby-8p",
+      "title": "Lobby (8 players)",
+      "web": { "scenario": "lobby", "players": 8, "params": { "host": 0 } },
+      "tvos": { "shot": "lobby", "players": 8 },
+      "android": { "file": "lobby_8p" }
+    },
+    {
+      "key": "lobby-empty",
+      "title": "Lobby (waiting)",
+      "web": { "scenario": "lobby", "players": 0 },
+      "tvos": { "shot": "lobby-empty", "players": 0 },
+      "android": { "file": "lobby_waiting" }
+    },
+    {
+      "key": "countdown",
+      "title": "Countdown",
+      "web": { "scenario": "countdown", "players": 4 },
+      "tvos": { "shot": "countdown", "players": 4 },
+      "android": { "file": "countdown" }
+    },
+    {
+      "key": "game",
+      "title": "Game, Normal tier (Lv 1)",
+      "web": { "scenario": "playing", "players": 4, "params": { "variant": "lv1" } },
+      "tvos": { "shot": "game", "players": 4 },
+      "android": { "file": "game_lv1" }
+    },
+    {
+      "key": "game-lv8",
+      "title": "Game, Pillow tier (Lv 8)",
+      "web": { "scenario": "playing", "players": 4, "params": { "variant": "lv8" } },
+      "tvos": { "shot": "game-lv8", "players": 4 },
+      "android": { "file": "game_lv8" }
+    },
+    {
+      "key": "game-lv12",
+      "title": "Game, Neon tier (Lv 12)",
+      "web": { "scenario": "playing", "players": 4, "params": { "variant": "lv12" } },
+      "tvos": { "shot": "game-lv12", "players": 4 },
+      "android": { "file": "game_lv12" }
+    },
+    {
+      "key": "game-2p",
+      "title": "Game, 2 boards (mixed tiers + garbage meter)",
+      "web": { "scenario": "playing", "players": 2, "params": { "variant": "2p" } },
+      "tvos": { "shot": "game-2p", "players": 2 },
+      "android": { "file": "game_2p" }
+    },
+    {
+      "key": "game-3p",
+      "title": "Game, 3 boards (mixed tiers)",
+      "web": { "scenario": "playing", "players": 3, "params": { "variant": "3p" } },
+      "tvos": { "shot": "game-3p", "players": 3 },
+      "android": { "file": "game_3p" }
+    },
+    {
+      "key": "game-4p",
+      "title": "Game, 4 boards (mixed tiers + KO)",
+      "web": { "scenario": "playing", "players": 4, "params": { "variant": "4p" } },
+      "tvos": { "shot": "game-4p", "players": 4 },
+      "android": { "file": "game_4p" }
+    },
+    {
+      "key": "pause",
+      "title": "Paused",
+      "web": { "scenario": "pause", "players": 4, "params": { "host": 0 } },
+      "tvos": { "shot": "pause", "players": 4 },
+      "android": { "file": "pause" }
+    },
+    {
+      "key": "pause-music",
+      "title": "Paused (music switch focused)",
+      "tvos": { "shot": "pause-music", "players": 4, "note": "focus state; no web equivalent" },
+      "android": { "file": "pause_music", "note": "focused visual seeded (headless host has no real focus)" }
+    },
+    {
+      "key": "disconnected-controller",
+      "title": "Disconnected, one controller (per-board QR)",
+      "web": { "scenario": "disconnected-controller", "players": 4 },
+      "tvos": { "shot": "disconnected-controller", "players": 4 },
+      "android": { "file": "disconnected_controller" }
+    },
+    {
+      "key": "reconnecting",
+      "title": "Display reconnecting (full screen)",
+      "web": { "scenario": "reconnecting", "players": 4 },
+      "tvos": { "shot": "reconnecting", "players": 4 },
+      "android": { "file": "connection_reconnecting" }
+    },
+    {
+      "key": "disconnected-display",
+      "title": "Display disconnected (full screen)",
+      "web": { "scenario": "disconnected", "players": 4, "params": { "host": 0 } },
+      "tvos": { "shot": "disconnected-display", "players": 4 },
+      "android": { "file": "connection_disconnected" }
+    },
+    {
+      "key": "results",
+      "title": "Results",
+      "web": { "scenario": "results", "players": 4, "params": { "host": 0 } },
+      "tvos": { "shot": "results", "players": 4 },
+      "android": { "file": "results" }
+    },
+    {
+      "key": "results-solo",
+      "title": "Results (solo)",
+      "web": { "scenario": "results", "players": 1, "params": { "host": 0 } },
+      "tvos": { "shot": "results-solo", "players": 1 },
+      "android": { "file": "results_solo" }
+    }
+  ]
+}

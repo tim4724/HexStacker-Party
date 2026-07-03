@@ -12,13 +12,39 @@ final class LobbyBackgroundNode: SKNode {
     private var speeds: [CGFloat] = []
     private let pieceTypes = Array(BoardNode.pieceShapes.keys)
 
+    // When set, the background is a FROZEN gallery still (no animation): the pieces
+    // come from the shared GalleryFixtures.ambientPieces() fixture so the web /
+    // tvOS / Android lobby columns render identical ambient pieces. Production
+    // leaves this nil and keeps the live falling animation.
+    private var frozen: [AmbientPiece]?
+
+    // The fixture's origin space (Y-DOWN); frozen positions scale from it to the scene.
+    private static let refW: CGFloat = 1920
+    private static let refH: CGFloat = 1080
+
     /// (Re)build the pool for a given scene size. No-op if size is unchanged.
     func configure(size: CGSize) {
         guard size != sceneSize, size.width > 0, size.height > 0 else { return }
         sceneSize = size
+        rebuild()
+    }
+
+    /// Freeze the background to the fixture pieces (gallery lobby shots): replaces
+    /// the random pool and makes `tick(dt:)` a no-op. Survives a later relayout —
+    /// configure() rebuilds the frozen layout at the new size.
+    func freeze(_ pieces: [AmbientPiece]) {
+        frozen = pieces
+        rebuild()
+    }
+
+    private func rebuild() {
         removeAllChildren()
         nodes.removeAll(); speeds.removeAll()
+        guard sceneSize.width > 0, sceneSize.height > 0 else { return }
+        if let frozen { buildFrozen(frozen) } else { buildRandomPool() }
+    }
 
+    private func buildRandomPool() {
         // Seed the pool spread across the screen (and above it) so pieces are
         // already in motion when the lobby appears.
         let cols = Int(ceil((Double(poolSize) * 1.5).squareRoot()))
@@ -26,16 +52,32 @@ final class LobbyBackgroundNode: SKNode {
             let (node, speed) = makePiece()
             let col = i % max(cols, 1)
             node.position = CGPoint(
-                x: size.width * (CGFloat(col) + 0.5) / CGFloat(max(cols, 1)) + .random(in: -40...40),
-                y: .random(in: 0...(size.height * 1.5)))
+                x: sceneSize.width * (CGFloat(col) + 0.5) / CGFloat(max(cols, 1)) + .random(in: -40...40),
+                y: .random(in: 0...(sceneSize.height * 1.5)))
             addChild(node)
             nodes.append(node); speeds.append(speed)
         }
     }
 
-    /// Advance the falling pieces by `dt` seconds (clamped by the caller).
+    /// Lay out the fixture pieces at their reference positions, scaled to the scene
+    /// (piece internals keep their fixture `size`, only the origin is scaled — Y is
+    /// flipped from the canvas Y-down origin to SpriteKit Y-up).
+    private func buildFrozen(_ pieces: [AmbientPiece]) {
+        let sx = sceneSize.width / Self.refW
+        let sy = sceneSize.height / Self.refH
+        for p in pieces {
+            let node = buildPiece(typeId: p.typeId, cells: p.cells.map { (q: $0.q, r: $0.r) },
+                                  size: CGFloat(p.size), opacity: CGFloat(p.opacity))
+            node.position = CGPoint(x: CGFloat(p.x) * sx, y: sceneSize.height - CGFloat(p.y) * sy)
+            addChild(node)
+            nodes.append(node)
+        }
+    }
+
+    /// Advance the falling pieces by `dt` seconds (clamped by the caller). No-op
+    /// while frozen (the gallery still holds its position).
     func tick(dt: CGFloat) {
-        guard sceneSize.height > 0 else { return }
+        guard frozen == nil, sceneSize.height > 0 else { return }
         for i in nodes.indices {
             let node = nodes[i]
             node.position.y -= speeds[i] * dt
@@ -67,15 +109,23 @@ final class LobbyBackgroundNode: SKNode {
         let type = pieceTypes.randomElement() ?? "I3"
         let cells = rotated(BoardNode.pieceShapes[type] ?? [], times: Int.random(in: 0...5))
         let typeId = EngineConstants.pieceTypeToId[type] ?? 1
-        let rgb = Theme.pieceColors[typeId] ?? RGB(255, 255, 255)
         let size = Self.sizes.randomElement() ?? 20      // hex circumradius
         let opacity = CGFloat.random(in: 0.14...0.22)
-        let sqrt3 = CGFloat(3).squareRoot()
-        // Gradient piece stamp (the same NORMAL recipe the game pieces use),
-        // matching the web lobby's getHexStamp background pieces instead of flat
-        // silhouettes. stampHeight = circumradius·√3, trimmed for a small cell gap.
-        let tex = HexStampFactory.shared.stamp(tier: .normal, color: rgb, size: size * sqrt3 * 0.94)
+        let node = buildPiece(typeId: typeId, cells: cells, size: size, opacity: opacity)
+        // Speed: smaller pieces fall faster (WelcomeBackground formula).
+        let speed = 15 + (32 - size) / 20 * 25
+        return (node, speed)
+    }
 
+    /// Build one translucent hex-piece silhouette: a NORMAL gradient stamp per
+    /// cell (the same recipe the game pieces use), laid out in axial coords with
+    /// the canvas-Y-down -> SpriteKit-Y-up flip. Shared by the animated random pool
+    /// (makePiece) and the frozen gallery fixture (buildFrozen).
+    private func buildPiece(typeId: Int, cells: [(q: Int, r: Int)], size: CGFloat, opacity: CGFloat) -> SKNode {
+        let rgb = Theme.pieceColors[typeId] ?? RGB(255, 255, 255)
+        let sqrt3 = CGFloat(3).squareRoot()
+        // stampHeight = circumradius·√3, trimmed for a small cell gap.
+        let tex = HexStampFactory.shared.stamp(tier: .normal, color: rgb, size: size * sqrt3 * 0.94)
         let container = SKNode()
         container.alpha = opacity
         for cell in cells {
@@ -86,8 +136,6 @@ final class LobbyBackgroundNode: SKNode {
             hex.position = CGPoint(x: cx, y: -cy)   // canvas Y-down -> SK Y-up
             container.addChild(hex)
         }
-        // Speed: smaller pieces fall faster (WelcomeBackground formula).
-        let speed = 15 + (32 - size) / 20 * 25
-        return (container, speed)
+        return container
     }
 }

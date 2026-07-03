@@ -35,9 +35,19 @@ private val SQRT3 = sqrt(3f)
  * hex piece silhouettes raining down behind the lobby content. Drives a
  * `withFrameNanos` loop only while [active] (mirror tvOS `if !lobbyLayer.isHidden`);
  * the loop cancels when [active] flips false or the composable leaves.
+ *
+ * When [fixedPieces] is non-null (screenshot fixtures), the live animation is
+ * skipped entirely and exactly those pieces are painted, scaled from the
+ * 1920x1080 reference space they are authored in to the canvas — so the gallery
+ * lobby shows the SAME frozen ambient columns as the web/tvOS galleries. Production
+ * callers pass nothing and get the live field.
  */
 @Composable
-fun LobbyBackground(modifier: Modifier = Modifier, active: Boolean = true) {
+fun LobbyBackground(
+    modifier: Modifier = Modifier,
+    active: Boolean = true,
+    fixedPieces: List<FallingPiece>? = null,
+) {
     val field = remember { FallingPieceField() }
     // One reusable Path for every hex cell of every particle — avoids a per-cell
     // per-frame Path allocation (drawn and clipped after each rewind/rebuild).
@@ -47,8 +57,9 @@ fun LobbyBackground(modifier: Modifier = Modifier, active: Boolean = true) {
 
     // Keyed on size + active: the loop cancels and restarts when either changes,
     // so flipping `active` false stops the animation (mirror tvOS lobby gating).
-    LaunchedEffect(size, active) {
-        if (size == IntSize.Zero || !active) return@LaunchedEffect
+    // A frozen fixture skips the loop outright — the shot must not race an animation.
+    LaunchedEffect(size, active, fixedPieces != null) {
+        if (fixedPieces != null || size == IntSize.Zero || !active) return@LaunchedEffect
         field.resize(size.width.toFloat(), size.height.toFloat())
         var last = 0L
         while (isActive) {
@@ -67,7 +78,33 @@ fun LobbyBackground(modifier: Modifier = Modifier, active: Boolean = true) {
     ) {
         tick.value // read so the draw phase re-runs each frame
         drawLobbyGlow()
-        for (p in field.pool) drawFallingPiece(p, scratchPath)
+        if (fixedPieces != null) drawFixedPieces(fixedPieces, scratchPath)
+        else for (p in field.pool) drawFallingPiece(p, scratchPath)
+    }
+}
+
+/** Reference space the fixture pieces are authored in (matches the web/tvOS gallery). */
+private const val REF_W = 1920f
+private const val REF_H = 1080f
+
+/** Paint the frozen fixture pieces, scaling positions + hex size from the 1920x1080
+ *  reference space to the actual canvas (scale 1 at the 1080p gallery viewport). */
+private fun DrawScope.drawFixedPieces(pieces: List<FallingPiece>, path: Path) {
+    val sx = size.width / REF_W
+    val sy = size.height / REF_H
+    for (p in pieces) {
+        drawFallingPiece(
+            FallingPiece(
+                cells = p.cells,
+                blockSize = p.blockSize * sx,
+                speed = 0f,
+                opacity = p.opacity,
+                colorArgb = p.colorArgb,
+                x = p.x * sx,
+                y = p.y * sy,
+            ),
+            path,
+        )
     }
 }
 

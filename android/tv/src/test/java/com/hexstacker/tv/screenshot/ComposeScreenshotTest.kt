@@ -1,6 +1,13 @@
 package com.hexstacker.tv.screenshot
 
+import android.graphics.Bitmap
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -17,12 +24,20 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
  * Screenshot coverage for the Compose-for-TV chrome ([LobbyScreen], [ResultsScreen],
  * and the [CountdownOverlay] / [PauseOverlay] / [ConnectionOverlay] overlays).
+ *
+ * All content data comes from the canonical cross-platform [GalleryFixtures] (the
+ * same `HexCore.GalleryFixtures` the web and Apple TV galleries use, run through
+ * QuickJS), so every platform's screenshots render byte-identical rosters, join
+ * data, and results. The countdown / pause / disconnect states composite the real
+ * board layer ([BoardFixtureRenderer]) behind the Compose overlay, mirroring how
+ * `MainActivity` layers `BoardSurfaceView` under the chrome.
  *
  * Runs headless on the JVM (no emulator) via Robolectric's NATIVE graphics mode +
  * Roborazzi. Rendered at the 1280x720 TV design viewport the previews use, but at
@@ -47,6 +62,8 @@ class ComposeScreenshotTest {
     @get:Rule
     val compose = createComposeRule()
 
+    private val app get() = RuntimeEnvironment.getApplication()
+
     private fun shoot(name: String, settleMs: Long = 1_800L, content: @Composable () -> Unit) {
         compose.mainClock.autoAdvance = false
         compose.setContent(content)
@@ -55,82 +72,171 @@ class ComposeScreenshotTest {
         compose.onRoot().captureRoboImage("$OUT/$name.png")
     }
 
-    @Test
-    fun lobby() = shoot("lobby") {
-        val url = "https://play.hexstacker.com/WXYZ"
-        LobbyScreen(
-            data = LobbyData(
-                joinHost = "play.hexstacker.com/",
-                joinCode = "WXYZ",
-                joinUrl = url,
-                players = listOf(
-                    LobbyPlayer(peerIndex = 0, name = "ALEX", colorIndex = 0, level = 3),
-                    LobbyPlayer(peerIndex = 1, name = "SAM", colorIndex = 4, level = 1),
-                    LobbyPlayer(peerIndex = 2, name = "JORDAN", colorIndex = 6, level = 5),
+    // ── Lobby ────────────────────────────────────────────────────────────────
+
+    private fun lobbyShot(name: String, count: Int) {
+        val join = GalleryFixtures.join
+        val players = if (count == 0) emptyList() else GalleryFixtures.roster(count).map {
+            LobbyPlayer(peerIndex = it.id, name = it.name, colorIndex = it.slot, level = it.level)
+        }
+        val ambient = GalleryFixtures.ambientPieces()
+        shoot(name) {
+            LobbyScreen(
+                data = LobbyData(
+                    joinHost = join.host,
+                    joinCode = join.code,
+                    joinUrl = join.qrText,
+                    players = players,
+                    hostColorIndex = if (players.isEmpty()) null else 0, // host is roster slot 0
                 ),
-                hostColorIndex = 0,
-            ),
-            onStart = {},
-            // Inject a deterministic QR so the shot never races the async generator.
-            qrOverride = QrRenderer.render(url, 480), // crisp at 1080p
+                onStart = {},
+                // Inject a deterministic QR so the shot never races the async generator.
+                qrOverride = QrRenderer.render(join.qrText, 480), // crisp at 1080p
+                // Freeze the ambient background to the shared fixture so the four lobby
+                // shots (and the web/tvOS galleries) show identical falling pieces.
+                backgroundPieces = ambient,
+            )
+        }
+    }
+
+    @Test fun lobby() = lobbyShot("lobby", 4)
+    @Test fun lobby2p() = lobbyShot("lobby_2p", 2)
+    @Test fun lobby8p() = lobbyShot("lobby_8p", 8)
+    @Test fun lobbyWaiting() = lobbyShot("lobby_waiting", 0)
+
+    // ── Results ──────────────────────────────────────────────────────────────
+
+    private fun ResultsFixture.cards(): List<ResultCard> = entries.map {
+        ResultCard(
+            playerId = it.playerId,
+            rank = it.rank,
+            name = it.playerName,
+            colorIndex = it.colorIndex,
+            lines = it.lines,
+            level = it.level,
         )
     }
 
+    // Results/connection shots composite the board layer the same way production
+    // does: MainActivity keeps BoardSurfaceView VISIBLE for every screen except
+    // the lobby, and these overlays draw the translucent (0.88) overlayBg scrim,
+    // so the frozen boards show through faintly — matching web/tvOS's
+    // frosted-glass backdrop (minus their blur, which a SurfaceView can't get).
     @Test
-    fun lobbyEmpty() = shoot("lobby_waiting") {
-        val url = "https://play.hexstacker.com/WXYZ"
-        LobbyScreen(
-            data = LobbyData(
-                joinHost = "play.hexstacker.com/",
-                joinCode = "WXYZ",
-                joinUrl = url,
-                players = emptyList(),
-                hostColorIndex = null,
-            ),
-            onStart = {},
-            qrOverride = QrRenderer.render(url, 480), // crisp at 1080p
-        )
+    fun results() {
+        val board = boardLayer("lv1")
+        shoot("results") {
+            OverlayOnBoard(board) {
+                ResultsScreen(
+                    results = GalleryFixtures.results(4).cards(),
+                    hostColorIndex = 0,
+                    onPlayAgain = {},
+                    onNewGame = {},
+                )
+            }
+        }
     }
 
     @Test
-    fun results() = shoot("results") {
-        ResultsScreen(
-            results = listOf(
-                ResultCard(playerId = 0, rank = 1, name = "ALEX", colorIndex = 0, lines = 12, level = 4),
-                ResultCard(playerId = 1, rank = 2, name = "SAM", colorIndex = 4, lines = 8, level = 3),
-                ResultCard(playerId = 2, rank = 3, name = "KAI", colorIndex = 2, lines = 5, level = 2),
-                ResultCard(playerId = 3, rank = null, name = "JORDAN", colorIndex = 6, lines = null, level = null, newPlayer = true),
-            ),
-            hostColorIndex = 0,
-            onPlayAgain = {},
-            onNewGame = {},
-        )
+    fun resultsSolo() {
+        val board = boardLayer("solo")
+        shoot("results_solo") {
+            OverlayOnBoard(board) {
+                ResultsScreen(
+                    results = GalleryFixtures.results(1).cards(),
+                    hostColorIndex = 0,
+                    onPlayAgain = {},
+                    onNewGame = {},
+                )
+            }
+        }
+    }
+
+    // ── Countdown / pause (Compose overlay over the real board layer) ─────────
+
+    /** Pre-game (empty) boards for the countdown seats, or a live variant snapshot. */
+    private fun boardLayer(variant: String?): Bitmap {
+        if (variant == null) {
+            val seats = BoardFixtureRenderer.seats(GalleryFixtures.roster(4)) // fresh boards, lobby levels
+            return BoardFixtureRenderer.render(app, seats)
+        }
+        val fx = GalleryFixtures.game(variant)
+        val seats = BoardFixtureRenderer.seats(GalleryFixtures.roster(fx.variant.players), fx.variant.levels)
+        return BoardFixtureRenderer.render(app, seats, fx.snapshot)
+    }
+
+    @Composable
+    private fun OverlayOnBoard(board: Bitmap, overlay: @Composable () -> Unit) {
+        Box(Modifier.fillMaxSize()) {
+            Image(
+                bitmap = board.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.FillBounds,
+            )
+            overlay()
+        }
     }
 
     @Test
-    fun countdown() = shoot("countdown") {
-        CountdownOverlay(3)
+    fun countdown() {
+        val board = boardLayer(null) // 4 fresh/empty boards, roster(4) seat names
+        shoot("countdown") { OverlayOnBoard(board) { CountdownOverlay(3) } }
     }
 
     @Test
-    fun pause() = shoot("pause") {
-        PauseOverlay(
-            hostColorIndex = 4,
-            musicOn = true,
-            onToggleMusic = {},
-            onContinue = {},
-            onNewGame = {},
-        )
+    fun pause() {
+        val board = boardLayer("lv1")
+        shoot("pause") {
+            OverlayOnBoard(board) {
+                PauseOverlay(
+                    hostColorIndex = 0,
+                    musicOn = true,
+                    onToggleMusic = {},
+                    onContinue = {},
+                    onNewGame = {},
+                )
+            }
+        }
+    }
+
+    // Real focus events can't fire here (Robolectric's headless compose host never
+    // gains window focus), so this seeds the switch's focused state through the
+    // shot-only override — the same `focused` boolean the focus system drives, so
+    // the styling is the genuine focused visual.
+    @Test
+    fun pauseMusic() {
+        val board = boardLayer("lv1")
+        shoot("pause_music") {
+            OverlayOnBoard(board) {
+                PauseOverlay(
+                    hostColorIndex = 0,
+                    musicOn = true,
+                    onToggleMusic = {},
+                    onContinue = {},
+                    onNewGame = {},
+                    musicFocusedForShot = true,
+                )
+            }
+        }
+    }
+
+    // ── Connection overlays (display's own relay link) ────────────────────────
+
+    @Test
+    fun connectionReconnecting() {
+        val board = boardLayer("lv1")
+        shoot("connection_reconnecting") {
+            OverlayOnBoard(board) { ConnectionOverlay(disconnected = false, onReconnect = {}) }
+        }
     }
 
     @Test
-    fun connectionReconnecting() = shoot("connection_reconnecting") {
-        ConnectionOverlay(disconnected = false, onReconnect = {})
-    }
-
-    @Test
-    fun connectionDisconnected() = shoot("connection_disconnected") {
-        ConnectionOverlay(disconnected = true, onReconnect = {})
+    fun connectionDisconnected() {
+        val board = boardLayer("lv1")
+        shoot("connection_disconnected") {
+            OverlayOnBoard(board) { ConnectionOverlay(disconnected = true, onReconnect = {}) }
+        }
     }
 
     private companion object {

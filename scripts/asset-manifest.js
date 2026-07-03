@@ -60,6 +60,7 @@ const DISPLAY_SCRIPTS = [
   '/engine/PlayerBoard.js',
   '/engine/Game.js',
   '/engine/PartyCore.js',
+  '/engine/GalleryFixtures.js',
   '/partyplug/PartyConnection.js',
   '/partyplug/PartyFastlane.js',
   '/partyplug/AirConsoleAdapter.js',

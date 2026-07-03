@@ -35,6 +35,7 @@ const PORTABLE_MODULES = [
   'server/Piece.js',
   'server/PlayerBoard.js',
   'server/PartyCore.js',
+  'server/GalleryFixtures.js',
   'partyplug/RoomFlow.js',
 ];
 

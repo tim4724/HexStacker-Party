@@ -51,6 +51,9 @@ fun LobbyScreen(
     onStart: () -> Unit,
     modifier: Modifier = Modifier,
     qrOverride: androidx.compose.ui.graphics.ImageBitmap? = null,
+    // Non-null only for the screenshot gallery: a frozen ambient-piece background
+    // (see LobbyBackground) so the shot matches the web/tvOS lobby columns.
+    backgroundPieces: List<FallingPiece>? = null,
 ) {
     val startFocus = remember { FocusRequester() }
     val generatedQr by rememberQrBitmap(data.joinUrl) // called unconditionally (Compose rule)
@@ -62,7 +65,7 @@ fun LobbyScreen(
     }
 
     Box(modifier.fillMaxSize().background(Tokens.bgPrimary)) {
-        LobbyBackground(Modifier.fillMaxSize(), active = true)
+        LobbyBackground(Modifier.fillMaxSize(), active = true, fixedPieces = backgroundPieces)
 
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val vp = Vp(maxWidth.value, maxHeight.value)

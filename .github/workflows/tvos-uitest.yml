@@ -89,19 +89,7 @@ jobs:
           name: tvos-screenshots
           path: appletv/screenshots
           if-no-files-found: warn
-      # Surface the artifact with a one-click link in a sticky PR comment (updated
-      # in place each run), since GitHub buries run artifacts under the run summary.
-      # Same-repo PRs only: a fork PR's GITHUB_TOKEN is read-only regardless of the
-      # job's `permissions:` block, so the comment API would 403 and fail the job.
-      - name: Comment screenshots link on the PR
-        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        uses: ./.github/actions/sticky-comment
-        with:
-          marker: '<!-- tvos-screenshots -->'
-          pr-number: ${{ github.event.pull_request.number }}
-          body: |
-            ### 📺 tvOS screenshots
-
-            ${{ steps.upload.outputs.artifact-url != '' && format('**[Download screenshots]({0})** · [workflow run]({1}/{2}/actions/runs/{3})', steps.upload.outputs.artifact-url, github.server_url, github.repository, github.run_id) || format('Screenshots artifact not available this run. [workflow run]({0}/{1}/actions/runs/{2})', github.server_url, github.repository, github.run_id) }}
-
-            Captured on the Apple TV Simulator (per-screen). Note: `home-topshelf` blurs on the headless CI runner; it renders crisply on a local Simulator.
+      # No sticky PR comment here: the TV Gallery workflow consumes this
+      # artifact and posts the one gallery comment (browsable web/tvOS/Android
+      # comparison at <preview-host>/tv-gallery/), which supersedes the old
+      # per-platform screenshot links.

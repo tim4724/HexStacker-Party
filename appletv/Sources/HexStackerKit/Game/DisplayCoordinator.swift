@@ -8,7 +8,10 @@ public enum CountdownValue: Equatable { case number(Int), go }
 /// SwiftUI); tests provide a fake to assert behavior headlessly.
 public protocol DisplayOutput: AnyObject {
     func showScreen(_ screen: DisplayScreen)
-    func roomReady(room: String, joinURL: String)
+    /// The room is open: show the lobby with `joinURL` as the displayed host/code
+    /// and `qrText` as the QR payload. In production the two are identical (the QR
+    /// encodes the join URL); the screen gallery's JOIN fixture makes them differ.
+    func roomReady(room: String, joinURL: String, qrText: String)
     func updateLobby(players: [PlayerRecord], hostPeerIndex: Int?)
     func showCountdown(_ value: CountdownValue)
     func renderSnapshot(_ snapshot: GameSnapshot)
@@ -16,6 +19,9 @@ public protocol DisplayOutput: AnyObject {
     func showResults(_ results: [[String: Any]])
     /// Show (joinURL != nil) or clear (nil) a per-board disconnect/rejoin overlay.
     func setDisconnected(playerId: Int, joinURL: String?)
+    /// Freeze the lobby's ambient falling-piece background to these fixture pieces
+    /// (screen-gallery shots only); production keeps its live animation. Optional.
+    func setLobbyAmbient(_ pieces: [AmbientPiece])
     /// Show/hide the paused overlay (driven by the remote or a controller).
     func setPaused(_ paused: Bool)
     /// The display mute changed (remote toggle or the host phone's Game Music
@@ -32,6 +38,7 @@ public extension DisplayOutput {
     // Visual-only hooks are optional.
     func handleGameEvent(_ event: GameEvent) {}
     func setDisconnected(playerId: Int, joinURL: String?) {}
+    func setLobbyAmbient(_ pieces: [AmbientPiece]) {}
     func setPaused(_ paused: Bool) {}
     func setDisplayMuted(_ muted: Bool) {}
 }
@@ -157,7 +164,8 @@ public final class DisplayCoordinator {
     private func onCreated(room: String, instance: String?) {
         self.room = room
         self.instance = instance
-        output?.roomReady(room: room, joinURL: joinURL(room: room, instance: instance))
+        let url = joinURL(room: room, instance: instance)
+        output?.roomReady(room: room, joinURL: url, qrText: url)   // production QR == join URL
         output?.showScreen(.lobby)
     }
 
@@ -806,113 +814,156 @@ public final class DisplayCoordinator {
         beginCountdown()
     }
 
-    /// Populate the lobby with fake players (no relay) so the lobby UI — filled
-    /// player cards, colors, levels, host tint — can be exercised/screenshotted.
+    /// Populate the lobby from the canonical roster + JOIN fixtures (no relay) so
+    /// the lobby UI — filled player cards, colors, levels, host tint, join card —
+    /// can be exercised/screenshotted. Shared by the HEXLOBBY dev mode and the
+    /// gallery `lobby` shot.
     public func startLobbyDemo(playerCount: Int = 3) {
-        output?.roomReady(room: "DEMO42", joinURL: "\(Protocol.controllerBaseURL)/DEMO42")
-        let names = ["Alex", "Sam", "Riley", "Jordan", "Casey", "Max", "Lee", "Robin"]
-        for i in 1...max(1, min(playerCount, EngineConstants.maxPlayers)) {
-            let slot = flow.lowestFreeSlot()
-            _ = flow.addPlayer(peerIndex: i, playerName: names[(i - 1) % names.count],
-                               colorSlot: max(0, slot), startLevel: min(15, i + 2))
-        }
-        output?.updateLobby(players: flow.list(), hostPeerIndex: flow.host)
-        output?.showScreen(.lobby)
+        showGalleryLobby(players: max(1, min(playerCount, EngineConstants.maxPlayers)))
     }
 
     // MARK: - Screenshot capture (gallery)
 
-    /// Render one display state, frozen, with fake data — for the screenshot
-    /// gallery (HEXSHOT). No relay, no live tick: the caller must stop ticking
-    /// the coordinator so the state holds still for a capture.
+    /// Render one display state, frozen, from the canonical cross-platform
+    /// GalleryFixtures data (the SAME roster / board snapshots / results the web
+    /// and Android TV galleries render, so a difference between gallery columns is
+    /// always a renderer difference). No relay, no live tick: the caller stops
+    /// ticking the coordinator so the state holds still for a capture. HEXPLAYERS
+    /// drives the roster-based states; the named board variants (game-2p/3p/4p)
+    /// fix their own player count.
     public func renderShot(_ state: String, playerCount: Int = 4) {
         switch state {
         case "lobby":
-            startLobbyDemo(playerCount: playerCount)
+            showGalleryLobby(players: max(1, min(playerCount, EngineConstants.maxPlayers)))
         case "lobby-empty":
-            output?.roomReady(room: "DEMO42", joinURL: "\(Protocol.controllerBaseURL)/DEMO42")
-            output?.updateLobby(players: [], hostPeerIndex: nil)
-            output?.showScreen(.lobby)
+            showGalleryLobby(players: 0)
         case "countdown":
-            buildFrozenGame(playerCount: playerCount, level: 1, pieces: 0)  // boards fresh during 3-2-1
-            output?.showCountdown(.number(2))
+            showGalleryCountdown(players: max(1, min(playerCount, EngineConstants.maxPlayers)))
         case "game", "game-lv1":
-            buildFrozenGame(playerCount: playerCount, level: 1, pieces: 9)
+            showGalleryGame(variant: "lv1")
         case "game-lv8":
-            buildFrozenGame(playerCount: playerCount, level: 8, pieces: 9)
+            showGalleryGame(variant: "lv8")
         case "game-lv12":
-            buildFrozenGame(playerCount: playerCount, level: 12, pieces: 9)
+            showGalleryGame(variant: "lv12")
+        case "game-2p":
+            showGalleryGame(variant: "2p")
+        case "game-3p":
+            showGalleryGame(variant: "3p")
+        case "game-4p":
+            showGalleryGame(variant: "4p")
         case "pause":
-            buildFrozenGame(playerCount: playerCount, level: 1, pieces: 7)
+            showGalleryGame(variant: "lv1")
             output?.setPaused(true)
         case "disconnected", "disconnected-controller":
-            buildFrozenGame(playerCount: playerCount, level: 1, pieces: 7)
-            if let first = playerOrder.first {
-                output?.setDisconnected(playerId: first, joinURL: "\(Protocol.controllerBaseURL)/DEMO42?claim=\(first)")
+            showGalleryGame(variant: "lv1")
+            // Per-board rejoin QR for slot 1 (== id 1), encoding JOIN.qrText plus
+            // the production ?claim=<peerIndex> param (mirrors showDisconnectQR).
+            if let join = try? galleryFixtures()?.galleryJoin() {
+                output?.setDisconnected(playerId: 1, joinURL: galleryRejoinURL(join.qrText, claim: 1))
             }
         case "results":
-            renderFakeResults(playerCount: playerCount)
+            showGalleryResults(count: max(1, min(playerCount, EngineConstants.maxPlayers)))
         case "results-solo":
-            renderFakeResults(playerCount: 1)
+            showGalleryResults(count: 1)
         default:
-            startLobbyDemo(playerCount: playerCount)
+            showGalleryLobby(players: max(1, min(playerCount, EngineConstants.maxPlayers)))
         }
     }
 
-    /// Build the engine and drop `pieces` per player into spread-out columns so
-    /// the boards show a tidy, even, low stack (no top-outs), then render that
-    /// snapshot and freeze. `pieces: 0` leaves the boards at their fresh spawn
-    /// state (for the pre-game countdown).
-    private func buildFrozenGame(playerCount: Int, level: Int, pieces: Int) {
-        let names = ["Alex", "Sam", "Riley", "Jordan", "Casey", "Max", "Lee", "Robin"]
-        for i in 1...max(1, min(playerCount, EngineConstants.maxPlayers)) {
-            let slot = flow.lowestFreeSlot()
-            _ = flow.addPlayer(peerIndex: i, playerName: names[(i - 1) % names.count],
-                               colorSlot: max(0, slot), startLevel: level)
+    // MARK: - Gallery fixture rendering
+
+    /// A JavaScriptCore bridge used only to read the static GalleryFixtures data
+    /// (built lazily, reused across a shot). nil if the core bundle fails to load.
+    private var galleryBridge: EngineBridge?
+    private func galleryFixtures() -> EngineBridge? {
+        if galleryBridge == nil { galleryBridge = try? EngineBridge(engineDirectory: engineDirectory) }
+        return galleryBridge
+    }
+
+    /// Seed the RoomFlow roster from `roster(count)` (id == slot == colorIndex) so
+    /// board / card lookups resolve the canonical names, colors and levels. Returns
+    /// the fixture entries (the levels feed the pre-game countdown boards).
+    @discardableResult
+    private func seedGalleryRoster(count: Int) -> [GalleryRosterEntry] {
+        guard let roster = try? galleryFixtures()?.galleryRoster(count: count) else { return [] }
+        for e in roster {
+            flow.addPlayer(peerIndex: e.id, playerName: e.name, colorSlot: e.slot, startLevel: e.level)
         }
-        demoSeedOverride = 0xBADCAFE
-        beginCountdown()                 // builds engine + shows the game screen
-        _ = flow.transition(to: .playing)
-        // Deterministic placement: slam to the left wall, step right to a target
-        // column that cycles per drop+player, drop, then let the lock + next-piece
-        // spawn resolve. Spreading columns keeps the stack low and avoids KOs.
-        for d in 0..<max(0, pieces) {
-            for (i, id) in playerOrder.enumerated() {
-                for _ in 0..<10 { engine?.processInput(playerId: id, action: "left") }
-                let target = (d * 3 + i * 2) % 8
-                for _ in 0..<target { engine?.processInput(playerId: id, action: "right") }
-                if (d + i) % 2 == 0 { engine?.processInput(playerId: id, action: "rotate_cw") }
-                engine?.processInput(playerId: id, action: "hard_drop")
-            }
-            for _ in 0..<4 { engine?.update(deltaMs: 16.67) }   // resolve lock + spawn next
-            _ = try? engine?.drainEvents()
-            if engine?.isEnded == true { break }
+        return roster
+    }
+
+    /// Show the lobby with the JOIN fixture: displayed host/code from JOIN.host +
+    /// JOIN.code, QR from the (separate) JOIN.qrText, `players` roster cards.
+    private func showGalleryLobby(players: Int) {
+        guard let join = try? galleryFixtures()?.galleryJoin() else { return }
+        if players > 0 { seedGalleryRoster(count: players) }
+        // Reconstruct a URL splitJoinURL parses back to (JOIN.host, JOIN.code) for
+        // the displayed text; the QR encodes the distinct JOIN.qrText.
+        output?.roomReady(room: join.code, joinURL: "https://\(join.host)\(join.code)", qrText: join.qrText)
+        // Freeze the ambient background to the shared fixture (after roomReady's
+        // buildLobby seeds the live pool) so the lobby columns match across platforms.
+        if let ambient = try? galleryFixtures()?.galleryAmbient() {
+            output?.setLobbyAmbient(ambient)
         }
+        output?.showScreen(.lobby)
+    }
+
+    /// The pre-game 3-2-1 presentation: empty wells behind the countdown overlay,
+    /// carrying the roster's names/colors/levels. Empty boards aren't fixture data
+    /// (the fixture game snapshots hold dropped stacks), so build them here.
+    private func showGalleryCountdown(players: Int) {
+        let roster = seedGalleryRoster(count: players)
+        let boards = roster.map { emptyBoard(id: $0.id, level: $0.level) }
         output?.showScreen(.game)
-        // pieces == 0 is the pre-game countdown: render bare wells (no spawn piece,
-        // ghost, hold, or next queue), matching the live countdown path.
-        if let engine, let snap = try? engine.snapshot() {
-            output?.renderSnapshot(pieces == 0 ? snap.preGame() : snap)
-        }
+        output?.renderSnapshot(GameSnapshot(players: boards, elapsed: 0))
+        // Freeze at "3" — the first number of the sequence, matching the web
+        // harness's initial frame and the Android countdown shot.
+        output?.showCountdown(.number(3))
     }
 
-    /// Synthesize a finished-match results payload and show it over a frozen game.
-    private func renderFakeResults(playerCount: Int) {
-        let n = max(1, min(playerCount, EngineConstants.maxPlayers))
-        // Build a frozen mid-game first so the results overlay sits over the real
-        // (blurred) boards, exactly as a live end-of-match does.
-        buildFrozenGame(playerCount: n, level: 4, pieces: 9)
-        _ = flow.transition(to: .results)
-        var out: [[String: Any]] = []
-        for (i, rec) in flow.list().enumerated() {
-            out.append([
-                "playerId": rec.peerIndex, "alive": i == 0, "lines": max(0, 28 - i * 5),
-                "level": max(1, 6 - i), "rank": i + 1,
-                "playerName": rec.playerName, "colorIndex": rec.colorSlot,
-            ])
+    /// Render a named board-variant snapshot, seating the roster names/colors first.
+    private func showGalleryGame(variant: String) {
+        guard let snap = try? galleryFixtures()?.gallerySnapshot(variant: variant) else { return }
+        seedGalleryRoster(count: snap.players.count)
+        output?.showScreen(.game)
+        output?.renderSnapshot(snap)
+    }
+
+    /// The results overlay over the frozen (blurred) boards, exactly as a live
+    /// end-of-match: `count` lv1-equivalent boards behind, ranked by results(count).
+    private func showGalleryResults(count: Int) {
+        guard let fx = galleryFixtures() else { return }
+        if let snap = try? fx.gallerySnapshot(players: count, level: 1) {
+            seedGalleryRoster(count: snap.players.count)
+            output?.showScreen(.game)
+            output?.renderSnapshot(snap)
+        }
+        guard let bundle = try? fx.galleryResults(count: count) else { return }
+        let out: [[String: Any]] = bundle.results.map { r in
+            ["playerId": r.playerId, "playerName": r.playerName, "colorIndex": r.colorIndex,
+             "rank": r.rank, "lines": r.lines, "level": r.level]
         }
         output?.showResults(out)
         output?.showScreen(.results)
+    }
+
+    private func emptyBoard(id: Int, level: Int) -> PlayerSnapshot {
+        let grid = Array(repeating: Array(repeating: 0, count: EngineConstants.cols),
+                         count: EngineConstants.visibleRows)
+        return PlayerSnapshot(id: id, grid: grid, currentPiece: nil, ghost: nil, holdPiece: nil,
+                              nextPieces: [], level: level, lines: 0, alive: true,
+                              pendingGarbage: 0, clearingCells: nil, gridVersion: 1)
+    }
+
+    /// The cross-device rejoin URL a dropped board's QR encodes: `base` (JOIN.qrText)
+    /// with the production `?claim=<peerIndex>` spliced in before any fragment
+    /// (mirrors the web showDisconnectQR).
+    private func galleryRejoinURL(_ base: String, claim: Int) -> String {
+        let head: Substring, hash: Substring
+        if let h = base.firstIndex(of: "#") { head = base[..<h]; hash = base[h...] }
+        else { head = Substring(base); hash = "" }
+        let sep = head.contains("?") ? "&" : "?"
+        return "\(head)\(sep)claim=\(claim)\(hash)"
     }
 
     private func driveDemoInput() {

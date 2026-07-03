@@ -6,7 +6,7 @@ Multiplayer hex stacker where phones become controllers and a shared screen show
 
 **Play now at [hexstacker.com](https://hexstacker.com)**
 
-**Gallery**: [main.hexstacker.com/gallery.html](https://main.hexstacker.com/gallery.html) — reference pages for the display, the phone, and piece rotations
+**Gallery**: [main.hexstacker.com/gallery.html](https://main.hexstacker.com/gallery.html) — reference pages for the display, the phone, and piece rotations · cross-platform comparison (web vs tvOS vs Android TV): [main.hexstacker.com/tv-gallery/](https://main.hexstacker.com/tv-gallery/)
 
 ## Overview
 

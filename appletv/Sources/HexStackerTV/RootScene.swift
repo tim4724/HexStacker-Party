@@ -274,7 +274,8 @@ final class RootScene: SKScene, DisplayOutput {
         if screen != .lobby { lobbyEntranceDone = false }   // replay entrance on re-enter
     }
 
-    func roomReady(room: String, joinURL: String) {
+    func roomReady(room: String, joinURL: String, qrText: String) {
+        lobbyQRText = qrText
         buildLobby(room: room, joinURL: joinURL, players: coordinator.flow.list(), host: coordinator.flow.host)
     }
 
@@ -350,6 +351,10 @@ final class RootScene: SKScene, DisplayOutput {
 
     func setDisconnected(playerId: Int, joinURL: String?) {
         boardNodes[playerId]?.setDisconnected(joinURL)
+    }
+
+    func setLobbyAmbient(_ pieces: [AmbientPiece]) {
+        lobbyBg.freeze(pieces)   // gallery lobby shots: freeze the falling-piece background
     }
 
     func setPaused(_ paused: Bool) {
@@ -749,6 +754,10 @@ final class RootScene: SKScene, DisplayOutput {
 
     private var lobbyRoom: String?
     private var lobbyJoinURL: String?
+    // The QR payload. In production it equals lobbyJoinURL (the QR encodes the join
+    // URL); the screen-gallery JOIN fixture makes them differ (displayed code vs QR
+    // target), so the QR is threaded separately from the shown host/code.
+    private var lobbyQRText: String?
     private var lobbyEntranceDone = false   // entrance anim plays once per lobby entry
 
     private func buildLobby(room: String, joinURL: String, players: [PlayerRecord], host: Int?) {
@@ -928,7 +937,9 @@ final class RootScene: SKScene, DisplayOutput {
         qrBg.fillColor = .white
         qrBg.strokeColor = .clear
         node.addChild(qrBg)
-        if let qr = QRCode.image(for: joinURL) {
+        // The QR encodes lobbyQRText (== joinURL in production; a distinct target in
+        // the gallery JOIN fixture), while the pill below shows the joinURL host/code.
+        if let qr = QRCode.image(for: lobbyQRText ?? joinURL) {
             let sprite = SKSpriteNode(texture: SKTexture(image: qr))
             let inset = qrSide * 0.92
             sprite.size = CGSize(width: inset, height: inset)

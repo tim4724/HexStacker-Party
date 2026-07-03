@@ -332,14 +332,15 @@ Headless / verification modes:
 - `HEXLOBBY=1` — lobby populated with fake players (no relay) for UI capture.
 - `HEXSNAP=1` — static fixture render for visual-parity capture.
 - `HEXSHOT=<state>` — render one display state frozen with fake data, for the
-  screen gallery (`HEXPLAYERS=<n>`). See `scripts/gallery/`.
+  screen gallery (`HEXPLAYERS=<n>`). See the repo-root `scripts/gallery/`.
 
-Screen gallery (`scripts/gallery/`) — a screenshot mechanism modelled on the web
-`public/gallery.html`: `capture-tvos.sh` renders every display state via
-`HEXSHOT` and screenshots it from the Simulator; `capture-web.mjs` grabs the
-matching web reference via the display test harness; `gen-gallery.mjs` assembles
-`gallery.html` with web vs tvOS side by side for gap review. Shots + page are
-git-ignored (regenerable).
+Screen gallery (repo-root `scripts/gallery/`) — the cross-platform screenshot
+mechanism modelled on the web `public/gallery.html`: `capture-tvos.sh` renders
+every state in `scenarios.json` via `HEXSHOT` and screenshots it from the
+Simulator; `capture-web.mjs` and the Android Roborazzi tests supply the other
+columns; `gen-gallery.mjs` assembles `gallery.html` with web vs tvOS vs
+Android TV side by side for gap review. Shots + page are git-ignored
+(regenerable); CI assembles the same page via the `TV Gallery` workflow.
 
 ## Next steps
 
