@@ -14,7 +14,14 @@ on:
       - 'appletv/**'
       - 'server/**'
       - 'public/shared/**'
+      # RoomFlow.js ships inside the core bundle and PartyFastlane is natively
+      # mirrored, so partyplug changes can move what the simulator renders.
+      - 'partyplug/**'
+      - 'scripts/build.js'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/tvos-uitest.yml'
+      - '.github/actions/sticky-comment/**'
   workflow_dispatch:
 
 concurrency:
@@ -88,33 +95,13 @@ jobs:
       # job's `permissions:` block, so the comment API would 403 and fail the job.
       - name: Comment screenshots link on the PR
         if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/github-script@v9
-        env:
-          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+        uses: ./.github/actions/sticky-comment
         with:
-          script: |
-            const marker = '<!-- tvos-screenshots -->';
-            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const artifactUrl = process.env.ARTIFACT_URL;
-            const link = artifactUrl
-              ? `**[Download screenshots](${artifactUrl})** · [workflow run](${runUrl})`
-              : `Screenshots artifact not available this run. [workflow run](${runUrl})`;
-            const body = [
-              marker,
-              '### 📺 tvOS screenshots',
-              '',
-              link,
-              '',
-              'Captured on the Apple TV Simulator (per-screen). Note: `home-topshelf` blurs on the headless CI runner; it renders crisply on a local Simulator.',
-            ].join('\n');
-            const { owner, repo } = context.repo;
-            const issue_number = context.issue.number;
-            // Paginate: on a long PR thread the marker comment falls off page 1
-            // and a non-paginated lookup would post duplicates instead of updating.
-            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number, per_page: 100 });
-            const existing = comments.find((c) => c.body && c.body.includes(marker));
-            if (existing) {
-              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
-            } else {
-              await github.rest.issues.createComment({ owner, repo, issue_number, body });
-            }
+          marker: '<!-- tvos-screenshots -->'
+          pr-number: ${{ github.event.pull_request.number }}
+          body: |
+            ### 📺 tvOS screenshots
+
+            ${{ steps.upload.outputs.artifact-url != '' && format('**[Download screenshots]({0})** · [workflow run]({1}/{2}/actions/runs/{3})', steps.upload.outputs.artifact-url, github.server_url, github.repository, github.run_id) || format('Screenshots artifact not available this run. [workflow run]({0}/{1}/actions/runs/{2})', github.server_url, github.repository, github.run_id) }}
+
+            Captured on the Apple TV Simulator (per-screen). Note: `home-topshelf` blurs on the headless CI runner; it renders crisply on a local Simulator.

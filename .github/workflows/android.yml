@@ -1,8 +1,25 @@
 name: Android TV
 
+# Path-filtered to the inputs that can affect the port (mirroring tvos.yml):
+# the port itself, the engine + shared render/protocol sources it mirrors,
+# the core-bundle build config, and the conformance driver + golden that
+# :core:jvmTest replays in QuickJS. Web-only UI changes skip the Gradle job.
 on:
   push:
     branches: ['**']
+    paths:
+      - 'android/**'
+      - 'server/**'
+      - 'public/shared/**'
+      - 'partyplug/**'
+      - 'scripts/build.js'
+      - 'scripts/build-conformance-bundle.js'
+      - 'tests/helpers/**'
+      - 'tests/fixtures/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/android.yml'
+      - '.github/actions/sticky-comment/**'
   workflow_dispatch:
 
 concurrency:
@@ -30,7 +47,7 @@ jobs:
       - run: npm ci
       - name: Build engine bundles (QuickJS core + conformance golden driver)
         run: |
-          npm run build
+          npm run build:core
           node scripts/build-conformance-bundle.js
 
       - uses: actions/setup-java@v5
@@ -61,58 +78,19 @@ jobs:
 
       # Post (or update in place) a sticky PR comment linking the screenshot
       # artifact, so reviewers reach the 1920x1080 renders without opening the
-      # run summary. Runs on push, so it resolves the PR from the branch head.
+      # run summary. Runs on push, so the action resolves the PR from the branch.
       - name: Comment screenshot download link on the PR
         if: always() && github.ref != 'refs/heads/main' && steps.screenshots.outputs.artifact-url != ''
-        uses: actions/github-script@v9
-        env:
-          ARTIFACT_URL: ${{ steps.screenshots.outputs.artifact-url }}
+        uses: ./.github/actions/sticky-comment
         with:
-          script: |
-            const marker = '<!-- tv-screenshots -->';
-            const body = [
-              marker,
-              '### 📸 TV screenshots',
-              '',
-              `[**Download \`tv-screenshots\`**](${process.env.ARTIFACT_URL}): every screen rendered this run at **1920×1080**.`,
-              'Compose lobby / results / overlays plus the Canvas board for 2/3/4 players, captured headless via Robolectric (record-only, for review).',
-              '',
-              '_Requires being signed in to GitHub; the link expires when the run artifacts do._',
-            ].join('\n');
-            const branch = context.ref.replace('refs/heads/', '');
-            const { data: prs } = await github.rest.pulls.list({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              head: `${context.repo.owner}:${branch}`,
-              state: 'open',
-            });
-            if (prs.length === 0) {
-              core.info(`No open PR for ${branch}; skipping screenshot comment.`);
-              return;
-            }
-            for (const pr of prs) {
-              const { data: comments } = await github.rest.issues.listComments({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: pr.number,
-              });
-              const existing = comments.find((c) => c.body.includes(marker));
-              if (existing) {
-                await github.rest.issues.updateComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  comment_id: existing.id,
-                  body,
-                });
-              } else {
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: pr.number,
-                  body,
-                });
-              }
-            }
+          marker: '<!-- tv-screenshots -->'
+          body: |
+            ### 📸 TV screenshots
+
+            [**Download `tv-screenshots`**](${{ steps.screenshots.outputs.artifact-url }}): every screen rendered this run at **1920×1080**.
+            Compose lobby / results / overlays plus the Canvas board for 2/3/4 players, captured headless via Robolectric (record-only, for review).
+
+            _Requires being signed in to GitHub; the link expires when the run artifacts do._
 
       - name: Upload test reports
         if: always()

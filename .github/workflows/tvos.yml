@@ -1,0 +1,98 @@
+name: tvOS
+
+# Guards the native tvOS port against silent drift from the web source. Runs on
+# macOS (10x Linux billing), so it is path-filtered to the inputs that can
+# actually affect the port: the port itself, the engine + shared render/protocol
+# sources it mirrors (server/**, public/shared/**, partyplug/** — RoomFlow.js
+# ships inside the core bundle and PartyFastlane is natively mirrored), the
+# core-bundle build config, and the conformance driver + golden the kit suite
+# replays. Everything else (controller/display web UI, docs, artwork) cannot
+# break the port and skips these jobs.
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'appletv/**'
+      - 'server/**'
+      - 'public/shared/**'
+      - 'partyplug/**'
+      - 'scripts/build.js'
+      - 'scripts/build-conformance-bundle.js'
+      - 'tests/helpers/**'
+      - 'tests/fixtures/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/tvos.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: tvos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tvos-core:
+    # `swift test` runs the kit suites: cross-engine render parity (ParityTests
+    # asserts the Swift render math is byte-identical to the canonical web JS run in
+    # JavaScriptCore), frame-golden conformance (the V8-recorded golden replayed in
+    # JSC), engine determinism + full game loop + coordinator/fastlane wiring
+    # (EngineBridgeTests/DisplayCoordinatorTests), fastlane receiver netcode
+    # (FastlaneTests), room/host FSM + geometry (KitTests), localization, and the
+    # REAL RelayClient over a loopback WebSocket (RelayClientLiveTests) covering the
+    # URLSession socket path the headless FakeTransport can't reach. None of this
+    # runs on the Linux jobs, so a web-side change to server/** or public/shared/**
+    # that breaks the native renderer/decoder would otherwise pass CI unnoticed.
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'npm'
+      - run: npm ci   # esbuild + node for build:core, which the suite rebuilds via TestSupport
+      - name: Build the tvOS Swift package
+        working-directory: appletv
+        run: swift build
+      - name: Kit test suites (render parity, frame-golden conformance, engine determinism + game loop, netcode, room/host, localization, live relay socket)
+        working-directory: appletv
+        run: swift test
+
+  tvos-app:
+    # Compile + link the tvOS APP target (SpriteKit/UIKit/AVFoundation +
+    # LiveKitWebRTC). `swift build` above only builds the platform-agnostic kit;
+    # the app-target sources (RootScene, BoardNode, WebRTCFastlane, …) are NOT in
+    # the SwiftPM package, so this is the only job that guards them from drift.
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'npm'
+      - run: npm ci   # the pre-build phase runs build:core to bundle the engine JS
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate the Xcode project
+        working-directory: appletv
+        run: xcodegen generate
+      # Cache the resolved SPM artifacts (LiveKitWebRTC is a large binary
+      # xcframework) so we don't re-download it on every run.
+      - name: Cache SPM artifacts
+        uses: actions/cache@v6
+        with:
+          path: appletv/.build-xcode/SourcePackages
+          key: spm-${{ runner.os }}-${{ hashFiles('appletv/project.yml') }}
+          # A project.yml edit shouldn't re-download the whole LiveKitWebRTC
+          # xcframework: restore the previous cache and let SPM re-resolve.
+          restore-keys: spm-${{ runner.os }}-
+      - name: Build the tvOS app for the Simulator SDK
+        working-directory: appletv
+        run: |
+          xcodebuild \
+            -project HexStacker.xcodeproj \
+            -scheme HexStackerTV \
+            -sdk appletvsimulator \
+            -destination 'generic/platform=tvOS Simulator' \
+            -derivedDataPath .build-xcode \
+            build

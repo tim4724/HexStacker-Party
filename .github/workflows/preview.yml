@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - '**'
+    # The image contains only the web app + relay; native-port-only pushes
+    # would rebuild and redeploy an identical image.
+    paths-ignore:
+      - 'android/**'
+      - 'appletv/**'
 
 concurrency:
   group: preview-${{ github.ref }}
