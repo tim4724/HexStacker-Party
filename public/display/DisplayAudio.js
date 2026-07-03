@@ -17,7 +17,7 @@ function playCountdownBeep(isGo) {
   if (muted) return;
   if (!music || !music.ctx) return;
   var actx = music.ctx;
-  if (actx.state === 'suspended') actx.resume();
+  if (actx.state === 'suspended') actx.resume().catch(function () {});
 
   var osc = actx.createOscillator();
   var gain = actx.createGain();

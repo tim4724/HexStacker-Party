@@ -12,7 +12,7 @@ var ControllerAudio = (function () {
       noiseBuffer = null; // buffer is context-specific, must regenerate
     }
     if (audioCtx.state === 'suspended') {
-      audioCtx.resume();
+      audioCtx.resume().catch(function () {});
     }
     return audioCtx;
   }
