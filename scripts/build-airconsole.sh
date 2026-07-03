@@ -83,6 +83,14 @@ rm -f "$BUILD_DIR/shared/legal.css"
 rm -f "$BUILD_DIR/partyplug/PartyConnection.js"
 rm -f "$BUILD_DIR/partyplug/PartyFastlane.js"
 
+# Down-level all shipped JS to ES2017. The AC ZIP loads raw source as individual
+# <script> tags, so ES2020 syntax (optional chaining / nullish coalescing) would
+# reach older AirConsole client engines and throw SyntaxError. Mirrors the web
+# bundle target in scripts/build.js. Runs last so only files that actually ship
+# (post-copy, post-removal) are touched.
+echo "Transpiling shipped JS to ES2017..."
+node "$SCRIPT_DIR/transpile-dir.js" "$BUILD_DIR"
+
 # Create ZIP
 cd "$BUILD_DIR"
 rm -f "$ZIP_FILE"
