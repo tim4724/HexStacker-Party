@@ -30,10 +30,10 @@ jobs:
       pull-requests: write   # post/update the screenshots-link PR comment
       issues: write          # PR comments go through the issues API
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
       - run: npm ci   # the app pre-build phase runs build:core to bundle the engine JS
       - name: Install XcodeGen + xcparse
@@ -44,7 +44,7 @@ jobs:
       # Cache the resolved SPM artifacts (LiveKitWebRTC is a large binary
       # xcframework) so we don't re-download it every run.
       - name: Cache SPM artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: appletv/.build-xcode/SourcePackages
           key: spm-${{ runner.os }}-${{ hashFiles('appletv/project.yml') }}
@@ -77,7 +77,7 @@ jobs:
       - name: Upload screenshots
         id: upload
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tvos-screenshots
           path: appletv/screenshots
@@ -88,7 +88,7 @@ jobs:
       # job's `permissions:` block, so the comment API would 403 and fail the job.
       - name: Comment screenshots link on the PR
         if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
         with:
