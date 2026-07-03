@@ -11,6 +11,7 @@
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const zlib = require('zlib');
 const esbuild = require('esbuild');
 const { ROOT, CONTROLLER_SCRIPTS, DISPLAY_SCRIPTS, resolveAsset } = require('./asset-manifest.js');
 
@@ -114,8 +115,25 @@ async function buildApp(name, scripts) {
   for (const f of fs.readdirSync(dir)) {
     if (stale.test(f)) fs.rmSync(path.join(dir, f));
   }
-  fs.writeFileSync(path.join(dir, file), result.code + '\n//# sourceMappingURL=' + file + '.map\n');
-  fs.writeFileSync(path.join(dir, file + '.map'), result.map);
+  const js = result.code + '\n//# sourceMappingURL=' + file + '.map\n';
+  const jsPath = path.join(dir, file);
+  fs.writeFileSync(jsPath, js);
+  fs.writeFileSync(jsPath + '.map', result.map);
+  // Pre-compressed siblings for the immutable bundle. server/index.js negotiates
+  // these via Accept-Encoding, so a browser downloads ~1/4 the bytes with zero
+  // per-request CPU. This is a build-time one-shot on a content-hashed artifact,
+  // so we spend max effort (brotli 11 / gzip 9). Only the .js is compressed — the
+  // .map is a rare, devtools-only fetch. The stale-sweep regex above already
+  // matches these (they share the `<name>.<hash>.js` prefix), so old ones are
+  // cleaned on rebuild alongside the .js/.map.
+  const jsBuf = Buffer.from(js);
+  fs.writeFileSync(jsPath + '.br', zlib.brotliCompressSync(jsBuf, {
+    params: {
+      [zlib.constants.BROTLI_PARAM_QUALITY]: 11,
+      [zlib.constants.BROTLI_PARAM_SIZE_HINT]: jsBuf.length,
+    },
+  }));
+  fs.writeFileSync(jsPath + '.gz', zlib.gzipSync(jsBuf, { level: 9 }));
   return file;
 }
 
