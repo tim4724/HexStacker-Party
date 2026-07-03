@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Artwork Gallery — HexStacker Party</title>
+<link rel="stylesheet" href="/shared/theme.css?v=__APP_V__">
+<link rel="stylesheet" href="/gallery.css?v=__APP_V__">
+<style>
+  /* Brand-asset grid layered on the shared gallery chrome (gallery.css header +
+     nav). Colours track gallery.css (#06060f page, #0b0b1a cards) so this reads
+     as a sibling of the Display/Phone/Rotations pages. */
+  .art-body { padding: 18px 20px 80px; }
+  .art-intro { color: #9a9ac0; max-width: 920px; margin: 0 0 8px; font-size: 13px; line-height: 1.55; }
+  .art-intro strong { color: #cfcfe8; }
+  .art-intro code, .art-regen code, figcaption code {
+    background: #13132a; padding: 1px 5px; border-radius: 3px;
+    font: 12px/1.5 ui-monospace, Menlo, monospace; color: #7BED6F;
+  }
+  .art-body h2 {
+    font-size: 14px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    color: #fff; margin: 40px 0 4px;
+  }
+  .art-regen { color: #8888aa; font-size: 13px; margin: 0 0 16px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 18px;
+  }
+  figure {
+    margin: 0;
+    background: #0b0b1a;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 12px;
+    min-width: 0;
+  }
+  figure.wide { grid-column: 1 / -1; }
+  /* The mat is deliberately LIGHTER than every shipped asset's dark-plum
+     background (they cluster around #171324–#241E38), and the 12px padding
+     keeps a strip of it visible around even full-bleed art, so each graphic's
+     outer edge reads instead of blending into the card. */
+  .frame {
+    border-radius: 6px;
+    overflow: hidden;
+    background: #34344a;
+    border: 1px solid rgba(255,255,255,0.12);
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60px;
+  }
+  /* Checkerboard behind alpha assets so transparency is visible; same light
+     mat underneath. */
+  .frame.alpha {
+    background:
+      repeating-conic-gradient(rgba(255,255,255,0.16) 0% 25%, transparent 0% 50%)
+      0 0 / 24px 24px, #34344a;
+  }
+  .frame.light { background: #F7F1E8; }
+  img, video { display: block; max-width: 100%; height: auto; border-radius: 2px; }
+  figcaption { margin-top: 10px; font-size: 13px; color: #cfcfe8; }
+  figcaption .path {
+    display: block;
+    color: #8888aa;
+    font: 11px/1.6 ui-monospace, Menlo, monospace;
+    word-break: break-all;
+  }
+  figcaption .note { display: block; color: #8888aa; margin-top: 2px; }
+  figure.missing .frame { min-height: 90px; }
+  figure.missing .frame::after {
+    content: "not generated — run the command above";
+    color: #8888aa;
+    font-size: 12px;
+    text-align: center;
+  }
+  figure.missing img { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>HEX STACKER · ARTWORK</h1>
+  <nav data-gallery-nav></nav>
+</header>
+
+<main class="art-body">
+<p class="art-intro">
+  Every brand asset that ships (or generates what ships), in one page. Checked-in
+  assets always render; cards from the git-ignored preview folders — and, on the
+  deployed host, the tvOS/Android source dirs the game image doesn't bundle —
+  appear once their generator has run (otherwise they show a "not generated"
+  hint). The brand mark is the <strong>piece badge</strong>: the game's
+  <code>d</code> piece (grid rotation 5) in the party colorway.
+</p>
+
+<h2>tvOS App Icon</h2>
+<p class="art-regen">regen: <code>node artwork/generate-tvos-icons.js</code> — layered 2-deep (Back = plum + shadow, Front = badge) for the Home Screen parallax</p>
+<div class="grid">
+  <figure>
+    <div class="frame"><img src="/gallery-assets/appletv/Sources/HexStackerTV/Assets.xcassets/App%20Icon%20%26%20Top%20Shelf%20Image.brandassets/App%20Icon.imagestack/Back.imagestacklayer/Content.imageset/back-800x480.png" alt="tvOS icon back layer"></div>
+    <figcaption>Back layer (opaque) — flat plum + badge drop shadow
+      <span class="path">appletv/…/App Icon.imagestack/Back.imagestacklayer (800x480 @2x)</span>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame alpha"><img src="/gallery-assets/appletv/Sources/HexStackerTV/Assets.xcassets/App%20Icon%20%26%20Top%20Shelf%20Image.brandassets/App%20Icon.imagestack/Front.imagestacklayer/Content.imageset/front-800x480.png" alt="tvOS icon front layer"></div>
+    <figcaption>Front layer (alpha) — the badge; floats over its shadow in parallax
+      <span class="path">appletv/…/App Icon.imagestack/Front.imagestacklayer (800x480 @2x)</span>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame"><img src="/gallery-assets/appletv/Sources/HexStackerTV/Assets.xcassets/App%20Icon%20%26%20Top%20Shelf%20Image.brandassets/App%20Icon%20-%20App%20Store.imagestack/Front.imagestacklayer/Content.imageset/appstore-front-1280x768.png" alt="App Store icon front layer" style="background:#241E38"></div>
+    <figcaption>App Store icon — same composition at 1280x768
+      <span class="path">appletv/…/App Icon - App Store.imagestack</span>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame"><img src="/gallery-assets/artwork/tvos-preview/icon-5x3.png" alt="tvOS icon flattened preview"></div>
+    <figcaption>Flattened composite (preview)
+      <span class="path">artwork/tvos-preview/icon-5x3.png</span>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame"><img src="/gallery-assets/artwork/tvos-preview/icon-unfocused.png" alt="tvOS icon at unfocused size"></div>
+    <figcaption>True unfocused shelf size, 300x180 (preview)
+      <span class="path">artwork/tvos-preview/icon-unfocused.png</span>
+    </figcaption>
+  </figure>
+  <figure class="wide">
+    <div class="frame"><img src="/gallery-assets/artwork/tvos-preview/icon-parallax.png" alt="tvOS icon parallax strip"></div>
+    <figcaption>Parallax strip — back/front composed at three focus tilts (preview)
+      <span class="path">artwork/tvos-preview/icon-parallax.png</span>
+    </figcaption>
+  </figure>
+</div>
+
+<h2>tvOS Top Shelf</h2>
+<p class="art-regen">regen: <code>node artwork/generate-tvos-topshelf.js</code> — gameplay key art per Apple's HIG (rich art on the shelf, simple logo on the icon)</p>
+<div class="grid">
+  <figure>
+    <div class="frame"><img src="/gallery-assets/appletv/Sources/HexStackerTV/Assets.xcassets/App%20Icon%20%26%20Top%20Shelf%20Image.brandassets/Top%20Shelf%20Image.imageset/topshelf-1920x720.png" alt="Top Shelf image"></div>
+    <figcaption>Top Shelf (1920x720 @1x)
+      <span class="path">appletv/…/Top Shelf Image.imageset</span>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame"><img src="/gallery-assets/appletv/Sources/HexStackerTV/Assets.xcassets/App%20Icon%20%26%20Top%20Shelf%20Image.brandassets/Top%20Shelf%20Image%20Wide.imageset/topshelfwide-2320x720.png" alt="Top Shelf wide image"></div>
+    <figcaption>Top Shelf Wide (2320x720 @1x)
+      <span class="path">appletv/…/Top Shelf Image Wide.imageset</span>
+    </figcaption>
+  </figure>
+</div>
+
+<h2>Android TV</h2>
+<p class="art-regen">regen: <code>node artwork/generate-android-vectors.js</code> (adaptive-icon foreground vector) + <code>node artwork/generate-android-icons.js</code> (legacy mipmaps, leanback banner — needs <code>cwebp</code>)</p>
+<div class="grid">
+  <figure>
+    <div class="frame"><img src="/gallery-assets/android/tv/src/main/res/mipmap-xxxhdpi/app_banner.webp" alt="Leanback banner"></div>
+    <figcaption>Leanback banner — Orbitron wordmark + falling-piece motif (Google requires the app name in-banner, checklist TV-BN)
+      <span class="path">android/tv/src/main/res/mipmap-*/app_banner.webp (16:9, 5 densities)</span>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame alpha"><img src="/gallery-assets/android/tv/src/main/res/mipmap-xxxhdpi/ic_launcher.webp" alt="Launcher icon (square)" style="width:192px"></div>
+    <figcaption>Legacy launcher icon, square mask (192px xxxhdpi)
+      <span class="path">android/tv/src/main/res/mipmap-*/ic_launcher.webp</span>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame alpha"><img src="/gallery-assets/android/tv/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp" alt="Launcher icon (round)" style="width:192px"></div>
+    <figcaption>Legacy launcher icon, round mask (192px xxxhdpi)
+      <span class="path">android/tv/src/main/res/mipmap-*/ic_launcher_round.webp</span>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame" style="padding:16px; text-align:center; justify-content:flex-start;">
+      <span style="color:#9a9ac0; font-size:13px; line-height:1.6;">Adaptive icon = VectorDrawables (no browser render):<br>
+      <code>drawable/ic_launcher_foreground.xml</code> — the badge, generated<br>
+      <code>drawable/ic_launcher_background.xml</code> — plum radial, hand-authored<br>
+      The legacy webps above mirror them 1:1.</span>
+    </div>
+    <figcaption>Adaptive icon vectors (API 26+ path, what devices actually show)
+      <span class="path">android/tv/src/main/res/drawable/ic_launcher_*.xml + mipmap-anydpi-v26/</span>
+    </figcaption>
+  </figure>
+</div>
+
+<h2>Web &amp; store art</h2>
+<p class="art-regen">regen: <code>node artwork/generate-favicon-svg.js</code> · <code>node artwork/generate-social.js</code> · <code>node artwork/generate-cover.js</code> · trailer via <code>artwork/ad-clip/</code></p>
+<div class="grid">
+  <figure>
+    <div class="frame" style="padding:28px"><img src="/favicon.svg" alt="Favicon" style="width:96px"></div>
+    <figcaption>Favicon — single brand-red pillow hex
+      <span class="path">public/favicon.svg (+ favicon.ico)</span>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame"><img src="/artwork/social-preview.png" alt="Social preview"></div>
+    <figcaption>Social preview — full lockup with piece clusters
+      <span class="path">public/artwork/social-preview.png</span>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame"><img src="/gallery-assets/artwork/cover-art.png" alt="Cover art"></div>
+    <figcaption>Cover art
+      <span class="path">artwork/cover-art.png</span>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame"><img src="/gallery-assets/artwork/gameplay-2x1.png" alt="Gameplay key art 2:1"></div>
+    <figcaption>Gameplay key art 2:1 — source of the Top Shelf and web banner
+      <span class="path">artwork/gameplay-2x1.png (served: public/artwork/gameplay-2x1.webp/.jpg)</span>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame"><img src="/gallery-assets/artwork/gameplay-16x9.png" alt="Gameplay key art 16:9"></div>
+    <figcaption>Gameplay key art 16:9
+      <span class="path">artwork/gameplay-16x9.png</span>
+    </figcaption>
+  </figure>
+  <figure>
+    <div class="frame"><video src="/artwork/trailer.mp4" controls muted playsinline preload="metadata"></video></div>
+    <figcaption>Trailer
+      <span class="path">public/artwork/trailer.mp4</span>
+    </figcaption>
+  </figure>
+</div>
+</main>
+
+<script src="/gallery-nav.js"></script>
+<script src="/gallery-artwork.js"></script>
+</body>
+</html>

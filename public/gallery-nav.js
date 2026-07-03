@@ -11,6 +11,7 @@ var PAGES = [
   { href: '/gallery', label: 'Display' },
   { href: '/gallery-controller', label: 'Phone' },
   { href: '/gallery-rotations', label: 'Rotations' },
+  { href: '/gallery-artwork', label: 'Artwork' },
   { href: '/tv-gallery/', label: 'TV' }
 ];
 
