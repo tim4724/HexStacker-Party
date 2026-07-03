@@ -165,6 +165,25 @@ jobs:
           # image by .dockerignore; this image is their home).
           mkdir -p scripts/gallery/webshell
           cp public/gallery* scripts/gallery/webshell/
+          # Stage the brand assets the artwork gallery (gallery-artwork.html)
+          # loads via /gallery-assets/*. The pod's /gallery PathPrefix captures
+          # those requests, and the game image ships none of these repo dirs, so
+          # without this they 404 on the preview. Committed files only, path
+          # preserved to match the page's URLs; gitignored local previews
+          # (artwork/tvos-preview/*) stay "not generated".
+          ASSET_ROOT=scripts/gallery/webshell/gallery-assets
+          mkdir -p "$ASSET_ROOT"
+          # tvOS icon + Top Shelf source imagesets (whole brandassets tree).
+          find appletv -type d -name '*.brandassets' -print0 |
+            while IFS= read -r -d '' d; do cp -R --parents "$d" "$ASSET_ROOT/"; done
+          # Android leanback banner + legacy launcher (xxxhdpi, what it shows).
+          cp --parents \
+            android/tv/src/main/res/mipmap-xxxhdpi/app_banner.webp \
+            android/tv/src/main/res/mipmap-xxxhdpi/ic_launcher.webp \
+            android/tv/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp \
+            "$ASSET_ROOT/"
+          # Web/store key art.
+          cp --parents artwork/cover-art.png artwork/gameplay-2x1.png artwork/gameplay-16x9.png "$ASSET_ROOT/"
           echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
           REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           TAG="ghcr.io/${REPO_LC}-tv-gallery:${{ steps.host.outputs.safe_branch }}-${HEAD_SHA:0:12}"
