@@ -198,7 +198,7 @@ jobs:
 
             **https://${{ steps.host.outputs.host }}/tv-gallery/** — every display state side by side, one row per scenario, with explicit gaps where a platform hasn't captured. Deploys right after this comment updates (same host as the app preview; the live web gallery is at `/gallery`).
 
-            Assembled for `${{ github.event.workflow_run.head_sha }}` from the latest `tv-screenshots` (Android, Roborazzi) and `tvos-screenshots` (Simulator) artifacts plus fresh web-harness references. Fallback if the deploy failed: [download the `tv-gallery` artifact](${{ steps.gallery.outputs.artifact-url }}) (signed-in only, expires with the run) and open `gallery.html`.
+            Assembled for `${{ github.event.workflow_run.head_sha || github.sha }}` from the latest `tv-screenshots` (Android, Roborazzi) and `tvos-screenshots` (Simulator) artifacts plus fresh web-harness references. Fallback if the deploy failed: [download the `tv-gallery` artifact](${{ steps.gallery.outputs.artifact-url }}) (signed-in only, expires with the run) and open `gallery.html`.
 
   # Serve the assembled gallery next to the app preview: a tiny nginx
   # deployment in the same per-branch namespace (cg-<branch>), path-routed on
