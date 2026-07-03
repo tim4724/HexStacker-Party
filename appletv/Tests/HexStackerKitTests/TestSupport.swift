@@ -7,16 +7,33 @@ import Foundation
 /// honest: it exercises the shipped artifact regenerated from the canonical
 /// modules, not a stale checkout. `static let` => built exactly once, lazily.
 enum EngineFixture {
+    static let repoRoot: URL = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()   // HexStackerKitTests
+        .deletingLastPathComponent()   // Tests
+        .deletingLastPathComponent()   // appletv
+        .deletingLastPathComponent()   // <repo>
+
     static let coreBundleDir: URL = {
-        let repo = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()   // HexStackerKitTests
-            .deletingLastPathComponent()   // Tests
-            .deletingLastPathComponent()   // appletv
-            .deletingLastPathComponent()   // <repo>
+        run(["npm", "run", "--silent", "build:core"])
+        return repoRoot.appendingPathComponent("dist")
+    }()
+
+    /// The frame-golden conformance driver (globalThis.HexFrameTest), bundled
+    /// from the same tests/helpers/partycore-frame-script.js the Node golden
+    /// test replays. Built once per run, like coreBundleDir.
+    static let frameTestBundle: URL = {
+        run(["node", "scripts/build-conformance-bundle.js"])
+        return repoRoot.appendingPathComponent("dist/partycore-frame-test.js")
+    }()
+
+    /// The committed V8-recorded golden the conformance test byte-compares against.
+    static let frameGolden = repoRoot.appendingPathComponent("tests/fixtures/partycore-frame-golden.json")
+
+    private static func run(_ arguments: [String]) {
         let proc = Process()
-        proc.currentDirectoryURL = repo
+        proc.currentDirectoryURL = repoRoot
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        proc.arguments = ["npm", "run", "--silent", "build:core"]
+        proc.arguments = arguments
         var env = ProcessInfo.processInfo.environment
         // `swift test` from Xcode runs with a minimal PATH; add the usual node homes.
         env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + (env["PATH"] ?? "")
@@ -24,14 +41,14 @@ enum EngineFixture {
         let pipe = Pipe()
         proc.standardOutput = pipe
         proc.standardError = pipe
+        let label = arguments.joined(separator: " ")
         do { try proc.run(); proc.waitUntilExit() }
-        catch { fatalError("build:core failed to launch (npm on PATH?): \(error)") }
+        catch { fatalError("\(label) failed to launch (node/npm on PATH?): \(error)") }
         if proc.terminationStatus != 0 {
             let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            fatalError("npm run build:core failed (status \(proc.terminationStatus)):\n\(out)")
+            fatalError("\(label) failed (status \(proc.terminationStatus)):\n\(out)")
         }
-        return repo.appendingPathComponent("dist")
-    }()
+    }
 }
 
 /// In-memory `RelayTransport`: records sends/broadcasts and lets a test drive the
