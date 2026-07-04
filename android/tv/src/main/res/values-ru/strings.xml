@@ -29,6 +29,7 @@
     <string name="reconnecting">ПЕРЕПОДКЛЮЧЕНИЕ</string>
     <string name="disconnected">ОТКЛЮЧЕНО</string>
     <string name="connection_lost">Соединение потеряно...</string>
+    <string name="attempt_n_of_m">Попытка %1$d из %2$d</string>
     <string name="reconnect">ПЕРЕПОДКЛЮЧИТЬСЯ</string>
 
     <string name="player">Игрок</string>

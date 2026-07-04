@@ -11,23 +11,18 @@ final class MenuButton: SKNode, Focusable {
     let enabled: Bool
 
     private let primary: Bool
-    private let tint: UIColor
-    private let secondaryTint: Bool
     private let ring = SKShapeNode()
     private let label = SKLabelNode()
     private let labelText: String
     private let labelSize: CGFloat
 
-    /// `secondaryTint` gives a secondary button a `tint`-colored outline + label
-    /// (instead of the neutral border/text), tying it to an identity color while
-    /// staying visually distinct from a filled primary button.
+    /// `tint` colors the filled primary gradient; it is unused for the neutral
+    /// secondary (card fill + rim), which reads the same for every caller.
     init(text: String, width: CGFloat, height: CGFloat, primary: Bool,
-         tint: UIColor, secondaryTint: Bool = false, enabled: Bool = true, action: @escaping () -> Void) {
+         tint: UIColor, enabled: Bool = true, action: @escaping () -> Void) {
         self.action = action
         self.enabled = enabled
         self.primary = primary
-        self.tint = tint
-        self.secondaryTint = secondaryTint
         self.labelText = text
         self.labelSize = height * 0.36
         super.init()
@@ -66,9 +61,8 @@ final class MenuButton: SKNode, Focusable {
     func activate() { action() }
 
     func setFocused(_ focused: Bool) {
-        let secondaryText: UIColor = secondaryTint ? tint : SKTheme.textPrimary()
         let textColor: UIColor = !enabled ? SKTheme.textSecondary
-            : (primary ? SKTheme.btnPrimaryText : secondaryText)
+            : (primary ? SKTheme.btnPrimaryText : SKTheme.textPrimary())
         label.setStyledText(labelText, font: AppFont.name, size: labelSize, color: textColor, tracking: 0.08)
 
         guard enabled else {
@@ -79,10 +73,9 @@ final class MenuButton: SKNode, Focusable {
             ring.strokeColor = focused ? .white : .clear
             ring.lineWidth = focused ? 4 : 0
         } else {
-            // Tinted secondary: a host-colored outline (2px) so the color reads;
-            // neutral secondary keeps the 1px strong border. Focus overrides to white.
-            ring.strokeColor = focused ? .white : (secondaryTint ? tint : SKTheme.borderStrong)
-            ring.lineWidth = focused ? 4 : (secondaryTint ? 2 : 1)
+            // Neutral secondary: 1px strong border; focus overrides to a white ring.
+            ring.strokeColor = focused ? .white : SKTheme.borderStrong
+            ring.lineWidth = focused ? 4 : 1
         }
         setScale(focused ? 1.06 : 1.0)
     }

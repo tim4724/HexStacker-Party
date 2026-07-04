@@ -29,6 +29,7 @@
     <string name="reconnecting">再接続中...</string>
     <string name="disconnected">切断された</string>
     <string name="connection_lost">接続が切れた...</string>
+    <string name="attempt_n_of_m">再試行 %1$d/%2$d</string>
     <string name="reconnect">再接続</string>
 
     <string name="player">プレイヤー</string>

@@ -85,8 +85,8 @@ class MainActivity : ComponentActivity() {
         // Surface the display's own relay link state: drives the RECONNECTING / DISCONNECTED
         // overlay AND tells the coordinator to pause/resume the running game on link loss
         // (coordinator is assigned just below; the first callback can't fire before connect()).
-        relay.onConnectionState = { state ->
-            ui.setConnectionState(state)
+        relay.onConnectionState = { state, reconnectAttempt ->
+            ui.setConnectionState(state, reconnectAttempt)
             coordinator.onLinkStateChanged(state)
         }
         // Slot-0 eviction (relay close 4000): another display took over this room.
@@ -230,6 +230,8 @@ data class UiModel(
     val paused: Boolean = false,
     val muted: Boolean = false,
     val connection: RelayTransport.ConnectionState = RelayTransport.ConnectionState.IDLE,
+    // Current retry number while RECONNECTING, for the "Attempt N of M" status (web parity).
+    val reconnectAttempt: Int = 0,
     // Terminal slot-0 eviction: another display took over this room. Distinguishes a
     // "replaced" CLOSED (no reconnect affordance) from an ordinary give-up CLOSED.
     val replaced: Boolean = false,
@@ -355,12 +357,13 @@ class TvDisplayOutput(
         _state.value = _state.value.copy(muted = muted)
     }
 
-    fun setConnectionState(state: RelayTransport.ConnectionState) {
+    fun setConnectionState(state: RelayTransport.ConnectionState, reconnectAttempt: Int = 0) {
         // Any non-CLOSED transition (a fresh/re-established link) clears a stale terminal
         // "replaced" flag. onReplaced sets it right after this posts CLOSED, so a CLOSED
         // transition preserves whatever was there.
         _state.value = _state.value.copy(
             connection = state,
+            reconnectAttempt = reconnectAttempt,
             replaced = if (state == RelayTransport.ConnectionState.CLOSED) _state.value.replaced else false,
         )
     }
@@ -441,7 +444,12 @@ private fun HexStackerApp(
         // connection to the relay drops).
         when (model.connection) {
             RelayTransport.ConnectionState.RECONNECTING ->
-                ConnectionOverlay(disconnected = false, onReconnect = onReconnect)
+                ConnectionOverlay(
+                    disconnected = false,
+                    onReconnect = onReconnect,
+                    attempt = model.reconnectAttempt,
+                    maxAttempts = RelayConfig.MAX_RECONNECT_ATTEMPTS,
+                )
             RelayTransport.ConnectionState.CLOSED ->
                 // A "replaced" eviction is terminal: show DISCONNECTED with no RECONNECT
                 // button (re-arming reconnect would only be evicted again), mirroring the

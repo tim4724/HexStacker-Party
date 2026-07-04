@@ -35,8 +35,13 @@ const KEY_MAP = {
 };
 
 // Web {placeholder} templates -> the Android positional arg used in strings.xml.
+// Single-arg strings use %1$d/%1$s; attempt_n_of_m is the one two-arg string
+// ({attempt} first, {max} second).
 function normalizeWebValue(v) {
-  return v.replace(/\{(count|n|level)\}/g, '%1$d').replace(/\{name\}/g, '%1$s');
+  return v
+    .replace(/\{(count|n|level|attempt)\}/g, '%1$d')
+    .replace(/\{max\}/g, '%2$d')
+    .replace(/\{name\}/g, '%1$s');
 }
 
 function unescapeAndroid(v) {

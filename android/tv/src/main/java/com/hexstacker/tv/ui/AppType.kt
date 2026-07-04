@@ -55,6 +55,7 @@ object AppType {
     val countdownNumber = style(900, 0.05f) // "3/2/1/GO" (#countdown-overlay)
     val pauseTitle = style(900, 0.15f) // "PAUSED"
     val musicLabel = style(600, 0.05f) // "Game Music"
+    val musicCredit = style(400, 0.02f) // "Music by …" footer — Orbitron Regular, matches tvOS
     val connHeading = style(900, 0.12f) // "RECONNECTING" / "DISCONNECTED"
     val connStatus = style(700, 0.08f) // "Connection lost..."
     val wordmarkMain = style(900, 0.08f) // "HEX STACKER"

@@ -81,11 +81,9 @@ object Theme {
     object Font {
         const val nameScale = 0.7
         const val labelScale = 0.48
-        const val timerScale = 0.65
         const val miniScale = 0.6
         const val nameMinPx = 18.0
         const val labelMinPx = 14.0
-        const val timerMinPx = 16.0
     }
 
     enum class StyleTier { NORMAL, PILLOW, NEON_FLAT }

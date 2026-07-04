@@ -112,10 +112,13 @@ fun LobbyScreen(
                         tint = hostTint(data.hostColorIndex),
                         enabled = hasPlayers,
                         focusRequester = startFocus,
-                        fontSize = vp.vhSp(16f, 2f, 25.6f), // clamp(1rem,2vh,1.6rem)
+                        // Height matches the overlay action buttons (same font +
+                        // vertical padding) so every button is a uniform height; the
+                        // wider horizontal padding keeps the CTA a roomy pill.
+                        fontSize = vp.vhSp(17.6f, 2.4f, 27.2f), // clamp(1.1rem,2.4vh,1.7rem)
                         contentPadding = PaddingValues(
                             horizontal = vp.vwDp(32f, 4f, 96f), // clamp(2rem,4vw,6rem)
-                            vertical = vp.vhDp(11.2f, 1.4f, 20.8f), // clamp(0.7rem,1.4vh,1.3rem)
+                            vertical = vp.vhDp(14.4f, 2f, 27.2f), // clamp(0.9rem,2vh,1.7rem)
                         ),
                         onClick = onStart,
                     )
@@ -127,8 +130,8 @@ fun LobbyScreen(
             // small, low-emphasis, pinned to the title-safe bottom edge.
             Text(
                 text = stringResource(R.string.music_by),
-                style = AppType.musicLabel.copy(
-                    fontSize = vp.vwSp(13f, 1.5f, 16f), // clamp(13px,1.5vw,16px)
+                style = AppType.musicCredit.copy(
+                    fontSize = vp.vwSp(10f, 1f, 12f), // Orbitron Regular, ~18px like tvOS min(H*0.022,18)
                     color = Tokens.textSecondary,
                 ),
                 maxLines = 1,
