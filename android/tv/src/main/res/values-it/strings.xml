@@ -33,6 +33,9 @@
 
     <string name="player">Giocatore</string>
 
+    <string name="privacy">Privacy</string>
+    <string name="imprint">Note legali</string>
+
     <plurals name="start_n_players">
         <item quantity="one">AVVIA (%1$d giocatore)</item>
         <item quantity="other">AVVIA (%1$d giocatori)</item>

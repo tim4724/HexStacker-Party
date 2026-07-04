@@ -11,10 +11,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.hexstacker.tv.ui.AboutScreen
 import com.hexstacker.tv.ui.ConnectionOverlay
 import com.hexstacker.tv.ui.CountdownOverlay
 import com.hexstacker.tv.ui.LicenseEntry
 import com.hexstacker.tv.ui.LicensesScreen
+import com.hexstacker.tv.ui.assembleLicenseList
 import com.hexstacker.tv.ui.LobbyData
 import com.hexstacker.tv.ui.LobbyPlayer
 import com.hexstacker.tv.ui.LobbyScreen
@@ -108,22 +110,35 @@ class ComposeScreenshotTest {
 
     // ── Licenses ───────────────────────────────────────────────────────────────
 
-    // Fixed fixture entries (not the generated AboutLibraries report) so the shot is
-    // deterministic and needs no build-time metadata on the test classpath. Covers
-    // the four distinct license shapes the real screen renders.
+    // The fixture supplies only the dependency DATA (not the generated AboutLibraries
+    // report, so the shot is deterministic and needs no build-time metadata on the
+    // classpath). The display ORDER comes from the app's real assembleLicenseList, so
+    // this shot renders through the same ordering the app runs — music + font lead,
+    // deps sort alphabetically, QuickJS trails — and can't drift from it. The deps are
+    // passed unsorted on purpose, to exercise that sort.
     @Test
     fun licenses() = shoot("licenses") {
+        val deps = listOf(
+            LicenseEntry("WebRTC SDK", "The WebRTC project authors", "The 3-Clause BSD License", null, "Copyright (c) 2011, The WebRTC project authors."),
+            LicenseEntry("Compose UI", "The Android Open Source Project", "Apache License 2.0", null, "Apache License 2.0\n\n(full text...)"),
+        )
         LicensesScreen(
-            entries = listOf(
-                LicenseEntry("Compose UI", "The Android Open Source Project", "Apache License 2.0", null, "Apache License 2.0\n\n(full text...)"),
-                LicenseEntry("WebRTC SDK", "The WebRTC project authors", "The 3-Clause BSD License", null, "Copyright (c) 2011, The WebRTC project authors."),
-                LicenseEntry("QuickJS", "Fabrice Bellard, Charlie Gordon et al.", "MIT License", null, "MIT License\n\n(full text...)"),
-                LicenseEntry("Orbitron", "The Orbitron Project Authors", "SIL Open Font License 1.1", null, "Copyright 2018 The Orbitron Project Authors"),
-                LicenseEntry("Lunar Joyride", "FoxSynergy", "CC BY 3.0", "https://creativecommons.org/licenses/by/3.0/", null),
+            entries = assembleLicenseList(
+                deps = deps,
+                music = LicenseEntry("Lunar Joyride", "FoxSynergy", "CC BY 3.0", "https://creativecommons.org/licenses/by/3.0/", null),
+                font = LicenseEntry("Orbitron", "The Orbitron Project Authors", "SIL Open Font License 1.1", null, "Copyright 2018 The Orbitron Project Authors"),
+                quickJs = LicenseEntry("QuickJS", "Fabrice Bellard, Charlie Gordon et al.", "MIT License", null, "MIT License\n\n(full text...)"),
             ),
             onClose = {},
         )
     }
+
+    // ── About ────────────────────────────────────────────────────────────────
+
+    // The lobby ⓘ opens this: two QR cards (Privacy / Imprint) + the licenses drill-in.
+    // No fixture data needed — the QR URLs are constants and labels come from resources.
+    @Test
+    fun about() = shoot("about") { AboutScreen(onOpenLicenses = {}) }
 
     // ── Results ──────────────────────────────────────────────────────────────
 

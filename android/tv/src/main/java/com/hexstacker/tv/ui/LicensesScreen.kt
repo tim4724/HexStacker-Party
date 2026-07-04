@@ -33,7 +33,6 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -86,10 +85,9 @@ fun LicensesScreen(
             Column(Modifier.fillMaxSize().padding(horizontal = overscanH, vertical = overscanV)) {
                 Text(
                     text = stringResource(R.string.licenses_title),
-                    style = AppType.wordmarkSub.copy(
+                    style = AppType.wordmarkMain.copy(
                         fontSize = vp.vhSp(22f, 3f, 34f),
                         color = Tokens.textPrimary,
-                        fontWeight = FontWeight(900),
                     ),
                 )
                 Text(

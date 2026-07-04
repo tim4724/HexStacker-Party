@@ -38,6 +38,7 @@ import com.hexstacker.tv.audio.MusicPlayer
 import com.hexstacker.tv.net.WebRtcFastlane
 import com.hexstacker.tv.render.BoardSurfaceView
 import com.hexstacker.tv.render.SeatMeta
+import com.hexstacker.tv.ui.AboutScreen
 import com.hexstacker.tv.ui.ConnectionOverlay
 import com.hexstacker.tv.ui.CountdownOverlay
 import com.hexstacker.tv.ui.LicensesScreen
@@ -411,16 +412,22 @@ private fun HexStackerApp(
     onMenu: () -> Boolean,
     onReconnect: () -> Unit,
 ) {
-    // Open Source Licenses is a lobby-only local overlay (not a coordinator screen):
-    // opened from the lobby footer, closed with Back. Force it shut whenever the game
-    // leaves the lobby so it can't linger over a countdown/results.
+    // About + Open Source Licenses are lobby-only local screens (not coordinator
+    // screens): About opens from the lobby ⓘ, Licenses drills in from About. Force
+    // both shut whenever the game leaves the lobby so neither lingers over a
+    // countdown/results.
+    var showAbout by remember { mutableStateOf(false) }
     var showLicenses by remember { mutableStateOf(false) }
-    LaunchedEffect(model.screen) { if (model.screen != DisplayScreen.LOBBY) showLicenses = false }
-    // Back closes the overlay via the OnBackPressedDispatcher, which consumes the press.
-    // A manual Compose Back key handler instead let one Back both close the screen (on
-    // KeyDown) AND finish the Activity (the dispatcher fires on KeyUp) — a double-back
-    // straight out to the launcher.
-    BackHandler(enabled = showLicenses) { showLicenses = false }
+    LaunchedEffect(model.screen) {
+        if (model.screen != DisplayScreen.LOBBY) { showLicenses = false; showAbout = false }
+    }
+    // Back steps back one level (Licenses -> About -> Lobby) via the
+    // OnBackPressedDispatcher, which consumes the press. A manual Compose Back key
+    // handler instead let one Back both close the screen (on KeyDown) AND finish the
+    // Activity (the dispatcher fires on KeyUp) — a double-back straight to the launcher.
+    BackHandler(enabled = showAbout || showLicenses) {
+        if (showLicenses) showLicenses = false else showAbout = false
+    }
 
     Box(
         modifier = Modifier
@@ -431,15 +438,18 @@ private fun HexStackerApp(
         AndroidView(factory = { board }, modifier = Modifier.fillMaxSize())
 
         when (model.screen) {
-            // The licenses screen replaces the lobby chrome (rather than layering over
-            // it) so D-pad focus can't escape back to the lobby buttons underneath.
+            // About / Licenses each replace the lobby chrome (rather than layering over
+            // it) so D-pad focus can't escape back to the buttons underneath.
             DisplayScreen.LOBBY ->
-                if (showLicenses) {
-                    LicensesScreen(entries = rememberLicenseEntries(), onClose = { showLicenses = false })
-                } else {
-                    model.lobby?.let {
-                        LobbyScreen(data = it, onStart = onStart, onOpenLicenses = { showLicenses = true })
-                    }
+                when {
+                    showLicenses ->
+                        LicensesScreen(entries = rememberLicenseEntries(), onClose = { showLicenses = false })
+                    showAbout ->
+                        AboutScreen(onOpenLicenses = { showLicenses = true })
+                    else ->
+                        model.lobby?.let {
+                            LobbyScreen(data = it, onStart = onStart, onOpenAbout = { showAbout = true })
+                        }
                 }
             DisplayScreen.RESULTS -> ResultsScreen(
                 results = model.results,

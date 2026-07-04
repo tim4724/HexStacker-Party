@@ -33,6 +33,9 @@
 
     <string name="player">Oyuncu</string>
 
+    <string name="privacy">Gizlilik</string>
+    <string name="imprint">Künye</string>
+
     <plurals name="start_n_players">
         <item quantity="one">BAŞLAT (%1$d oyuncu)</item>
         <item quantity="other">BAŞLAT (%1$d oyuncu)</item>

@@ -53,12 +53,10 @@ private fun buildLicenseEntries(context: Context): List<LicenseEntry> {
             url = license?.url,
             body = license?.licenseContent ?: fallbackBody(context, license?.name),
         )
-    }.sortedBy { it.name.lowercase() }
+    }
 
     // Attributions that are not Gradle dependencies (so AboutLibraries never sees
-    // them) but whose code / assets do ship in the APK. The music and font are the
-    // app's most visible/audible credits, so they lead the list; the MIT QuickJS
-    // engine (bundled in quickjs-kt's native lib) trails the alphabetical deps.
+    // them) but whose code / assets do ship in the APK.
     val music = LicenseEntry(
         name = "Lunar Joyride",
         author = "FoxSynergy",
@@ -80,8 +78,24 @@ private fun buildLicenseEntries(context: Context): List<LicenseEntry> {
         url = "https://github.com/quickjs-ng/quickjs",
         body = rawText(context, R.raw.license_mit_quickjs),
     )
-    return listOf(music, font) + deps + quickJs
+    return assembleLicenseList(deps, music, font, quickJs)
 }
+
+/**
+ * Final display order for the Open Source Licenses screen: the app's most
+ * audible/visible credits lead — [music] then [font] — followed by the Gradle
+ * [deps] sorted alphabetically, with the bundled MIT QuickJS engine ([quickJs])
+ * trailing. Pure (no Android context) so the ordering is unit-testable and the
+ * screenshot fixture renders through the same code the app runs, rather than a
+ * hand-copied order that can silently drift.
+ */
+internal fun assembleLicenseList(
+    deps: List<LicenseEntry>,
+    music: LicenseEntry,
+    font: LicenseEntry,
+    quickJs: LicenseEntry,
+): List<LicenseEntry> =
+    listOf(music, font) + deps.sortedBy { it.name.lowercase() } + quickJs
 
 /** Bundled full text for licenses the AboutLibraries report couldn't embed itself. */
 private fun fallbackBody(context: Context, licenseName: String?): String? {

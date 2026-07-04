@@ -37,6 +37,15 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Back arrow lives here, not in the link text: the shared i18n overwrites the
+   element's textContent with t('back') on load, which would otherwise drop an
+   inline "← " and leave a bare label. As generated content it also survives that
+   swap in every locale and keeps the baked-in text equal to i18n.js `back` (see
+   tests/legal-html-i18n.test.js). */
+.back-link::before {
+  content: "←\00a0";
+}
+
 .back-link:hover,
 .back-link:focus-visible,
 .back-link:active {
@@ -59,6 +68,11 @@ h1 {
 
 h1.gradient-title {
   display: inline-block;
+}
+
+.intro {
+  margin-bottom: clamp(1.5rem, 3vh, 2rem);
+  animation: fadeUp 0.5s 0.1s ease-out both;
 }
 
 dl {

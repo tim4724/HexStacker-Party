@@ -34,6 +34,9 @@
 
     <string name="player">玩家</string>
 
+    <string name="privacy">隐私</string>
+    <string name="imprint">法律声明</string>
+
     <plurals name="start_n_players">
         <item quantity="other">开始 (%1$d 位玩家)</item>
     </plurals>

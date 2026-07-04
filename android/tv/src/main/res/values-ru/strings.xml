@@ -34,6 +34,9 @@
 
     <string name="player">Игрок</string>
 
+    <string name="privacy">Конфиденциальность</string>
+    <string name="imprint">Выходные данные</string>
+
     <plurals name="start_n_players">
         <item quantity="one">СТАРТ (%1$d игрок)</item>
         <item quantity="few">СТАРТ (%1$d игрока)</item>
