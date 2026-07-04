@@ -164,7 +164,7 @@ var popstateNavigating = false;
 var suppressPopstate = false;
 
 // Pre-created room state (ready before user clicks "New Game")
-var preCreatedRoom = null;  // { roomCode, joinUrl, qrMatrix }
+var preCreatedRoom = null;  // { roomCode, joinUrl }
 
 // Mute
 var muted = false;

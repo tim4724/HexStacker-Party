@@ -147,12 +147,7 @@ function onRoomCreated(partyRoomCode, instance) {
 
   // If still on welcome screen, cache the room for instant use later
   if (currentScreen === SCREEN.WELCOME) {
-    preCreatedRoom = { roomCode: partyRoomCode, joinUrl: newJoinUrl, qrMatrix: null };
-    fetchQR(newJoinUrl, function(qrMatrix) {
-      if (preCreatedRoom && preCreatedRoom.roomCode === partyRoomCode) {
-        preCreatedRoom.qrMatrix = qrMatrix;
-      }
-    });
+    preCreatedRoom = { roomCode: partyRoomCode, joinUrl: newJoinUrl };
     return;
   }
 
@@ -248,10 +243,11 @@ function applyRoomCreated(partyRoomCode, newJoinUrl) {
   updateStartButton();
   startLivenessCheck();
 
-  // Fetch QR from HTTP server
-  fetchQR(joinUrl, function(qrMatrix) {
-    requestAnimationFrame(function() { renderQR(qrCode, qrMatrix); });
-  });
+  // Generate + paint the QR synchronously so it's on screen the instant the
+  // lobby is revealed — reading the canvas box inside renderQR forces the one
+  // layout it needs, so there's no blank first frame. Generation is a sub-ms
+  // in-browser encode, so there's nothing worth deferring.
+  renderQR(qrCode, buildQRMatrix(joinUrl));
 }
 
 function onDisplayRejoined(partyRoomCode, peers) {
@@ -333,9 +329,7 @@ function onDisplayRejoined(partyRoomCode, peers) {
   if (roomState === ROOM_STATE.LOBBY) {
     showScreen(SCREEN.LOBBY);
     updateStartButton();
-    fetchQR(joinUrl, function(qrMatrix) {
-      requestAnimationFrame(function() { renderQR(qrCode, qrMatrix); });
-    });
+    renderQR(qrCode, buildQRMatrix(joinUrl));
   }
 }
 
@@ -680,11 +674,29 @@ function fetchBaseUrl() {
     .catch(function() { /* fall back to window.location.origin */ });
 }
 
-function fetchQR(text, callback) {
-  fetch('/api/qr?text=' + encodeURIComponent(text))
-    .then(function(r) { return r.json(); })
-    .then(callback)
-    .catch(function(err) { console.error('QR fetch failed:', err); });
+// Build the join-QR module matrix in-browser via the vendored qrcode-generator
+// (EC level L, 1-module quiet zone — same shape the server used to return over
+// /api/qr). Returns { size, modules } where modules[row*size+col] & 1 is a dark
+// module, or null on failure so callers/renderQR degrade to a blank QR. The
+// AirConsole entry overrides this to null (players join via the AC app, not a scan).
+function buildQRMatrix(text) {
+  try {
+    var qr = qrcode(0, 'L'); // typeNumber 0 = smallest version that fits
+    qr.addData(text);
+    qr.make();
+    var count = qr.getModuleCount();
+    var quiet = 1;
+    var size = count + quiet * 2;
+    var modules = new Array(size * size).fill(0);
+    for (var row = 0; row < count; row++) {
+      for (var col = 0; col < count; col++) {
+        if (qr.isDark(row, col)) modules[(row + quiet) * size + (col + quiet)] = 1;
+      }
+    }
+    return { size: size, modules: modules };
+  } catch (e) {
+    return null;
+  }
 }
 
 function showDisconnectQR(peerIndex) {
@@ -702,16 +714,14 @@ function showDisconnectQR(peerIndex) {
   var hash = hashIdx >= 0 ? joinUrl.slice(hashIdx) : '';
   var sep = base.indexOf('?') >= 0 ? '&' : '?';
   var rejoinUrl = base + sep + 'claim=' + encodeURIComponent(peerIndex) + hash;
-  fetchQR(rejoinUrl, function(qrMatrix) {
-    if (!players.has(peerIndex)) return;
-    if (!qrMatrix) {
-      disconnectedQRs.set(peerIndex, null);
-      return;
-    }
-    var offscreen = document.createElement('canvas');
-    renderQR(offscreen, qrMatrix, 512);
-    disconnectedQRs.set(peerIndex, offscreen);
-  });
+  var qrMatrix = buildQRMatrix(rejoinUrl);
+  if (!qrMatrix) {
+    disconnectedQRs.set(peerIndex, null);
+    return;
+  }
+  var offscreen = document.createElement('canvas');
+  renderQR(offscreen, qrMatrix, 512);
+  disconnectedQRs.set(peerIndex, offscreen);
 }
 
 // renderQR() lives in DisplayUI.js (rendering helper)

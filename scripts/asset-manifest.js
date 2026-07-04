@@ -79,6 +79,9 @@ const DISPLAY_SCRIPTS = [
   '/shared/theme.js',
   '/shared/WelcomeBackground.js',
   '/shared/share-helper.js',
+  // Client-side QR encoder (display only — the controller renders no QR). Must
+  // precede DisplayConnection.js, which calls its global `qrcode` in buildQRMatrix.
+  '/shared/qrcode-generator.js',
   '/display/BoardRenderer.js',
   '/display/UIRenderer.js',
   '/display/Animations.js',

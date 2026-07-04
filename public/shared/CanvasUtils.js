@@ -46,12 +46,6 @@ var _addRoundRectSubPath = _hasNativeRoundRect
       ctx.closePath();
     };
 
-// Begin a new path + add a rounded rect (replaces old roundRect).
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  _addRoundRectSubPath(ctx, x, y, w, h, r);
-}
-
 var _lightenCache = new Map();
 function lightenColor(hex, percent) {
   const key = hex + '_' + percent;

@@ -20,9 +20,7 @@
     "ad:max": "AD_MAX=1 npm run ad",
     "ad:max:clean": "AD_MAX=1 AD_VARIANT=clean npm run ad"
   },
-  "dependencies": {
-    "qrcode": "^1.5.4"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "esbuild": "^0.28.1"

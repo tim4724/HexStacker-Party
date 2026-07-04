@@ -4,7 +4,6 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const QRCode = require('qrcode');
 
 const PORT = parseInt(process.env.PORT, 10) || 4000;
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -129,41 +128,9 @@ function pickEncoding(acceptEncoding) {
   return null;
 }
 
-function generateQRMatrix(text) {
-  const qr = QRCode.create(text, { errorCorrectionLevel: 'L' });
-  const size = qr.modules.size;
-  const modules = Array.from(qr.modules.data);
-  const quiet = 1;
-  const padded = size + quiet * 2;
-  const paddedModules = new Array(padded * padded).fill(0);
-  for (let row = 0; row < size; row++) {
-    for (let col = 0; col < size; col++) {
-      paddedModules[(row + quiet) * padded + (col + quiet)] = modules[row * size + col];
-    }
-  }
-  return { size: padded, modules: paddedModules };
-}
-
 // --- HTTP Server ---
 const server = http.createServer((req, res) => {
   let urlPath = req.url.split('?')[0];
-
-  // QR code endpoint
-  if (urlPath === '/api/qr' && req.method === 'GET') {
-    const url = new URL(req.url, `http://${req.headers.host}`);
-    const text = url.searchParams.get('text');
-    if (!text || text.length > 2048) {
-      sendJson(res, 400, { error: !text ? 'Missing text parameter' : 'Text too long' });
-      return;
-    }
-    try {
-      const qrMatrix = generateQRMatrix(text);
-      sendJson(res, 200, qrMatrix);
-    } catch (err) {
-      sendJson(res, 500, { error: 'QR generation failed' });
-    }
-    return;
-  }
 
   // Serve game engine modules to browser
   if (urlPath.startsWith('/engine/')) {

@@ -343,21 +343,14 @@ function renderQR(canvas, qrMatrix, targetCssSize) {
   qrCtx.fillStyle = THEME.color.text.white;
   qrCtx.fillRect(0, 0, totalPx, totalPx);
 
-  var inset = Math.max(0.5, cellPx * 0.03);
-  var radius = Math.max(1, cellPx * 0.15);
-
-  qrCtx.fillStyle = THEME.color.bg.card;
+  // Unstyled: standard black square modules, edge-to-edge, for maximum scan
+  // reliability (no rounded corners / inset gap / brand tint).
+  qrCtx.fillStyle = '#000000';
   for (var row = 0; row < size; row++) {
     for (var col = 0; col < size; col++) {
       var idx = row * size + col;
       if (!(modules[idx] & 1)) continue;
-
-      var x = col * cellPx + inset;
-      var y = row * cellPx + inset;
-      var s = cellPx - inset * 2;
-
-      roundRect(qrCtx, x, y, s, s, radius);
-      qrCtx.fill();
+      qrCtx.fillRect(col * cellPx, row * cellPx, cellPx, cellPx);
     }
   }
 }

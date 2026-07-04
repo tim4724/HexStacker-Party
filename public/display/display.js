@@ -209,10 +209,8 @@ newGameBtn.addEventListener('click', function() {
   if (preCreatedRoom) {
     var pre = preCreatedRoom;
     preCreatedRoom = null;
+    // applyRoomCreated shows the lobby and paints the QR synchronously.
     applyRoomCreated(pre.roomCode, pre.joinUrl);
-    if (pre.qrMatrix) {
-      requestAnimationFrame(function() { renderQR(qrCode, pre.qrMatrix); });
-    }
   } else {
     // Relay hasn't responded yet — show lobby so onRoomCreated
     // applies the room immediately instead of pre-caching it.

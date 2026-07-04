@@ -142,10 +142,9 @@ connectAndCreateRoom = function() {
   if (_cachedAcReadyCode !== undefined) airconsole.onReady(_cachedAcReadyCode);
 };
 
-// No /api/qr in AirConsole — short-circuit so callers see qrMatrix=null
-// instead of a doomed fetch + console.error. fetchBaseUrl already returns
-// early outside of localhost; renderQR already null-guards on its own.
-fetchQR = function(text, cb) { if (cb) cb(null); };
+// AirConsole players join via the AC app, not by scanning — suppress the QR so
+// callers see qrMatrix=null (renderQR already null-guards on its own).
+buildQRMatrix = function() { return null; };
 
 // Init music when game starts — AirConsole's iframe has allow="autoplay" so we
 // don't need a user gesture. In standalone mode, initMusic() is called on button click.
