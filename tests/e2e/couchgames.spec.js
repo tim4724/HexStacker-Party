@@ -123,6 +123,18 @@ test.describe('Couch Games shell contract', () => {
     await controller.evaluate(() =>
       document.documentElement.style.setProperty('--cg-safe-top', '60px'));
     await expect.poll(barPadTop).toBeGreaterThanOrEqual(60);
+
+    // Same for the horizontal edges: launcher chrome can float on the right
+    // (e.g. a vertical LEAVE bar), so the bar's right padding must expand to
+    // clear it rather than resting on the 12px floor. The lobby bar's flush-
+    // right settings button is the reachable case here; the same idiom guards
+    // the game bar's pause icon (both pushed right via margin-left:auto).
+    const barPadRight = () => controller.evaluate(() =>
+      parseFloat(getComputedStyle(document.querySelector('#lobby-top-bar')).paddingRight));
+    expect(await barPadRight()).toBeLessThan(60);
+    await controller.evaluate(() =>
+      document.documentElement.style.setProperty('--cg-safe-right', '60px'));
+    await expect.poll(barPadRight).toBeGreaterThanOrEqual(60);
   });
 
   test('in-game player name is hidden (the launcher renders it)', async ({ page, context }) => {
