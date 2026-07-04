@@ -125,6 +125,15 @@ function connect() {
         type: MSG.HELLO,
         name: playerName,
         autoName: !!playerNameIsAuto,
+        // Persisted preferred color rides along so the display can honor it
+        // at registration time; the first WELCOME then already carries it
+        // and reclaimPreferredColor's post-WELCOME SET_COLOR round trip
+        // no-ops. Omitted after an in-session swatch pick (the live pick
+        // outranks the persisted one, mirroring reclaimPreferredColor's
+        // userPickedColor gate) and while the AC storage shim is unhydrated
+        // (readStoredColorIndex returns null; the onLoad reclaim in
+        // controller-airconsole.js covers that case).
+        colorIndex: userPickedColor ? null : readStoredColorIndex(),
         rejoinId: legacyRejoinId,
         rejoinToken: rejoinToken
       });
