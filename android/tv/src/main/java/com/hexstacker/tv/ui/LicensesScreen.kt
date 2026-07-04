@@ -66,13 +66,14 @@ fun LicensesScreen(
         modifier
             .fillMaxSize()
             .background(Tokens.bgPrimary)
-            // Back / Menu always closes, regardless of which row holds focus. Preview
-            // phase so it wins before a focused row's own key handling; DPAD/select
-            // fall through (return false) to the native focus engine + row clickable.
+            // Menu closes the screen; Back is owned by the app-level BackHandler (see
+            // MainActivity) so it routes through the OnBackPressedDispatcher — a manual
+            // Back key handler here double-fired and finished the Activity. Preview phase
+            // so Menu wins before a focused row; DPAD/select fall through to the row.
             .onPreviewKeyEvent { ev ->
                 if (ev.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (ev.key) {
-                    Key.Back, Key.Menu -> { onClose(); true }
+                    Key.Menu -> { onClose(); true }
                     else -> false
                 }
             },

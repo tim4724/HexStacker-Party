@@ -33,8 +33,6 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -154,9 +152,10 @@ fun LobbyScreen(
 }
 
 /**
- * Bottom music credit. With [onOpenLicenses] it is a focusable button (subtle focus
- * ring, D-pad reachable below Start) that opens the licenses screen; without it, a
- * plain non-focusable credit. Either way it renders the same low-emphasis text.
+ * Bottom "Open Source Licenses" link. With [onOpenLicenses] it is a focusable button
+ * (subtle focus ring, D-pad reachable below Start) that opens the licenses screen;
+ * without it, plain non-focusable text (previews/screenshot fixtures). The music
+ * credit that used to live here now lives inside the licenses screen.
  */
 @Composable
 private fun LobbyFooter(
@@ -164,9 +163,9 @@ private fun LobbyFooter(
     onOpenLicenses: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    val credit: @Composable (Modifier) -> Unit = { textMod ->
+    val link: @Composable (Modifier) -> Unit = { textMod ->
         Text(
-            text = stringResource(R.string.music_by),
+            text = stringResource(R.string.licenses_title),
             style = AppType.musicCredit.copy(fontSize = creditFontSize, color = Tokens.textSecondary),
             maxLines = 1,
             modifier = textMod,
@@ -174,14 +173,13 @@ private fun LobbyFooter(
     }
 
     if (onOpenLicenses == null) {
-        credit(modifier)
+        link(modifier)
         return
     }
 
     var focused by remember { mutableStateOf(false) }
     val shape = androidx.compose.foundation.shape.RoundedCornerShape(Tokens.radiusSm)
-    val label = stringResource(R.string.licenses_open)
-    credit(
+    link(
         modifier
             .clip(shape)
             .border(
@@ -191,7 +189,6 @@ private fun LobbyFooter(
             )
             .onFocusChanged { focused = it.isFocused }
             .clickable { onOpenLicenses() }
-            .semantics { contentDescription = label }
             .padding(horizontal = 12.dp, vertical = 6.dp),
     )
 }

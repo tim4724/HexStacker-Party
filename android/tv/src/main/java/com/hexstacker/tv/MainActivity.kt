@@ -6,6 +6,7 @@ import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -411,10 +412,15 @@ private fun HexStackerApp(
     onReconnect: () -> Unit,
 ) {
     // Open Source Licenses is a lobby-only local overlay (not a coordinator screen):
-    // opened from the lobby footer, closed with Back/Menu. Force it shut whenever the
-    // game leaves the lobby so it can't linger over a countdown/results.
+    // opened from the lobby footer, closed with Back. Force it shut whenever the game
+    // leaves the lobby so it can't linger over a countdown/results.
     var showLicenses by remember { mutableStateOf(false) }
     LaunchedEffect(model.screen) { if (model.screen != DisplayScreen.LOBBY) showLicenses = false }
+    // Back closes the overlay via the OnBackPressedDispatcher, which consumes the press.
+    // A manual Compose Back key handler instead let one Back both close the screen (on
+    // KeyDown) AND finish the Activity (the dispatcher fires on KeyUp) — a double-back
+    // straight out to the launcher.
+    BackHandler(enabled = showLicenses) { showLicenses = false }
 
     Box(
         modifier = Modifier
