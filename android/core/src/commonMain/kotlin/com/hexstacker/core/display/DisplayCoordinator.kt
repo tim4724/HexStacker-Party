@@ -374,7 +374,18 @@ class DisplayCoordinator(
         if (flow.state != RoomState.PLAYING) return // don't auto-pause during COUNTDOWN
         if (!flow.allParticipantsDisconnected()) return
         if (flow.graceTick(nowWallMs())) { returnToLobby(); return }
-        if (paused) return
+        if (paused) {
+            // Already manually paused when the last player dropped: convert the
+            // manual pause into a silent auto-pause and hide the stranded overlay.
+            // resumeGame is gated shut while everyone is gone, so a manual pause
+            // left showing could never be dismissed. A reconnect auto-resumes.
+            // Web DisplayGame.js dismissAutoPausedOverlay.
+            if (!autoPaused) {
+                autoPaused = true
+                output.setPaused(false)
+            }
+            return
+        }
         paused = true
         autoPaused = true
         engine?.pause()

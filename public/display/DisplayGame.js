@@ -187,7 +187,14 @@ function checkAllPlayersDisconnected() {
     return;
   }
 
-  if (paused) return;
+  if (paused) {
+    // Already manually paused when the last player dropped: convert the manual
+    // pause into a silent auto-pause and hide the stranded overlay. Continue is
+    // gated shut while everyone is gone (canResumeGame is false), so a manual
+    // pause left showing could never be dismissed. A reconnect auto-resumes.
+    if (!autoPaused) dismissAutoPausedOverlay();
+    return;
+  }
   // Silent pause — no overlay, no broadcast (all controllers are gone)
   paused = true;
   setAutoPaused(true);

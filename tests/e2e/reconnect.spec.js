@@ -82,6 +82,35 @@ test.describe('Reconnection', () => {
     expect(await page.evaluate(() => disconnectedQRs.size)).toBe(1);
   });
 
+  test('manual pause then all players disconnect hides the stranded overlay', async ({ page, context }) => {
+    const { roomCode } = await createRoom(page);
+    const controller = await joinController(context, roomCode, 'Alice');
+
+    await waitForDisplayPlayers(page, 1);
+    await controller.click('#start-btn');
+    await waitForDisplayGame(page);
+
+    // Host manually pauses WHILE the player is still connected: overlay up,
+    // manual (not auto) pause. Nudge the cursor first so the toolbar isn't
+    // auto-hidden behind the game canvas.
+    await page.mouse.move(10, 10);
+    await page.click('#pause-btn');
+    await expect(page.locator('#pause-overlay')).toBeVisible();
+    expect(await page.evaluate(() => paused)).toBe(true);
+    expect(await page.evaluate(() => autoPaused)).toBe(false);
+
+    // Now the sole player disconnects. The manual pause must convert into a
+    // silent auto-pause and the stranded overlay must hide again (Continue is
+    // gated shut while everyone is gone, so it could otherwise never be
+    // dismissed — the reported bug).
+    await controller.close();
+
+    await expect(page.locator('#pause-overlay')).toBeHidden();
+    expect(await page.evaluate(() => paused)).toBe(true);
+    expect(await page.evaluate(() => autoPaused)).toBe(true);
+    expect(await page.evaluate(() => disconnectedQRs.size)).toBe(1);
+  });
+
   test('single player: controller disconnecting during countdown shows disconnect overlay', async ({ page, context }) => {
     const { roomCode } = await createRoom(page);
     const controller = await joinController(context, roomCode, 'Alice');
