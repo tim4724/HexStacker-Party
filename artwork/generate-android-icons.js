@@ -10,8 +10,7 @@
 //     approximate
 // Encodes lossless webp via cwebp (brew install webp).
 //
-//   node artwork/generate-android-icons.js          # write mipmaps + previews
-//   node artwork/generate-android-icons.js --preview-only
+//   node artwork/generate-android-icons.js
 
 const { chromium } = require('playwright');
 const { execFileSync } = require('child_process');
@@ -22,9 +21,6 @@ const fs = require('fs');
 const ROOT = path.resolve(__dirname, '..');
 const PAGE = path.resolve(__dirname, 'tvos-icon.html');
 const RES = path.resolve(ROOT, 'android/tv/src/main/res');
-const PREVIEW_DIR = path.resolve(__dirname, 'android-preview');
-
-const PREVIEW_ONLY = process.argv.includes('--preview-only');
 
 // Standard 48dp launcher ladder.
 const DENSITIES = [['mdpi', 48], ['hdpi', 72], ['xhdpi', 96], ['xxhdpi', 144], ['xxxhdpi', 192]];
@@ -61,32 +57,22 @@ function writeDataUrl(dataUrl, dest) {
   const toWebp = (png, dest) => execFileSync('cwebp', ['-lossless', '-z', '9', '-quiet', png, '-o', dest]);
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'hexicons-'));
 
-  if (!PREVIEW_ONLY) {
-    for (const [density, size] of DENSITIES) {
-      for (const [shape, name] of SHAPES) {
-        const png = path.join(tmp, `${name}-${density}.png`);
-        writeDataUrl(await render({ size, shape }), png);
-        const dest = path.join(RES, `mipmap-${density}`, `${name}.webp`);
-        toWebp(png, dest);
-        console.log('asset  ', path.relative(ROOT, dest));
-      }
-    }
-    for (const [density, w, h] of BANNERS) {
-      const png = path.join(tmp, `app_banner-${density}.png`);
-      writeDataUrl(await renderBanner(w, h), png);
-      const dest = path.join(RES, `mipmap-${density}`, 'app_banner.webp');
+  for (const [density, size] of DENSITIES) {
+    for (const [shape, name] of SHAPES) {
+      const png = path.join(tmp, `${name}-${density}.png`);
+      writeDataUrl(await render({ size, shape }), png);
+      const dest = path.join(RES, `mipmap-${density}`, `${name}.webp`);
       toWebp(png, dest);
       console.log('asset  ', path.relative(ROOT, dest));
     }
   }
-  fs.mkdirSync(PREVIEW_DIR, { recursive: true });
-  for (const [shape, name] of SHAPES) {
-    const dest = path.join(PREVIEW_DIR, `${name}-192.png`);
-    writeDataUrl(await render({ size: 192, shape }), dest);
-    console.log('preview', path.relative(ROOT, dest));
+  for (const [density, w, h] of BANNERS) {
+    const png = path.join(tmp, `app_banner-${density}.png`);
+    writeDataUrl(await renderBanner(w, h), png);
+    const dest = path.join(RES, `mipmap-${density}`, 'app_banner.webp');
+    toWebp(png, dest);
+    console.log('asset  ', path.relative(ROOT, dest));
   }
-  writeDataUrl(await renderBanner(640, 360), path.join(PREVIEW_DIR, 'app_banner-640.png'));
-  console.log('preview', path.relative(ROOT, path.join(PREVIEW_DIR, 'app_banner-640.png')));
   fs.rmSync(tmp, { recursive: true, force: true });
 
   await browser.close();
