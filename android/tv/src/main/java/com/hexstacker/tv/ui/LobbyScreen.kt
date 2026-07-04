@@ -93,7 +93,7 @@ fun LobbyScreen(
                             joinCode = data.joinCode,
                             qrBitmap = qrBitmap,
                             vp = vp,
-                            modifier = Modifier.width(vp.vminDp(160f, 32f, 320f)),
+                            modifier = Modifier.width(vp.vminDp(180f, 36f, 360f)),
                         )
                         PlayerGrid(players = data.players, vp = vp)
                     }

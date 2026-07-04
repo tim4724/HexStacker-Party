@@ -16,9 +16,9 @@ import kotlinx.coroutines.withContext
 import kotlin.math.max
 
 /**
- * Renders a join URL into a rounded-cell QR [ImageBitmap], mirroring the web
- * `renderQR` (DisplayUI.js) look — rounded plum (`--bg-card`) modules on white —
- * and `QRCode.swift` semantics (EC level **L**, 1-module quiet zone).
+ * Renders a join URL into a QR [ImageBitmap], mirroring the web `renderQR`
+ * (DisplayUI.js) and `QRCode.swift` — unstyled black square modules on white,
+ * EC level **L**, 1-module quiet zone.
  *
  * Pure ZXing (`com.google.zxing:core`), no Android dependency in the encode step.
  * Generate ONCE per join URL (cached); never on the recomposition path — use
@@ -26,8 +26,8 @@ import kotlin.math.max
  */
 object QrRenderer {
 
-    /** `--bg-card` rgb(42,37,64) — the web `fillStyle` for QR modules. */
-    private const val DARK = 0xFF2A2540.toInt()
+    /** Standard QR dark-module color — plain black, for maximum scan reliability. */
+    private const val DARK = 0xFF000000.toInt()
     private const val LIGHT = 0xFFFFFFFF.toInt()
 
     fun render(content: String, sizePx: Int, dark: Int = DARK, light: Int = LIGHT): ImageBitmap {
@@ -47,17 +47,16 @@ object QrRenderer {
         val canvas = Canvas(bmp)
         canvas.drawColor(light) // white background, full bleed
 
-        val inset = max(0.5f, cell * 0.03f) // renderQR inset = cellPx*0.03
-        val radius = max(1f, cell * 0.15f) // renderQR radius = cellPx*0.15
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = dark }
+        // Unstyled: standard black square modules, edge-to-edge (no inset gap /
+        // rounded corners), matching the web renderQR — maximizes scan reliability.
+        val paint = Paint().apply { color = dark }
 
         for (y in 0 until n) {
             for (x in 0 until n) {
                 if (matrix.get(x, y).toInt() != 1) continue
-                val px = (x + quiet) * cell + inset
-                val py = (y + quiet) * cell + inset
-                val s = cell - inset * 2
-                canvas.drawRoundRect(px, py, px + s, py + s, radius, radius, paint)
+                val px = ((x + quiet) * cell).toFloat()
+                val py = ((y + quiet) * cell).toFloat()
+                canvas.drawRect(px, py, px + cell, py + cell, paint)
             }
         }
         return bmp.asImageBitmap()

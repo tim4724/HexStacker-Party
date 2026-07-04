@@ -381,7 +381,7 @@ html:not(.in-session) #relay-status-bar { display: none; }
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   padding: clamp(8px, 1.5vmin, 18px);
-  width: clamp(160px, 32vmin, 320px);
+  width: clamp(180px, 36vmin, 360px);
   max-width: 90vw;
   overflow: hidden;
 }

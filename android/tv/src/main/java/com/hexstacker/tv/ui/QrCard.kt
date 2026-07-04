@@ -28,7 +28,7 @@ import com.hexstacker.tv.R
  * Lobby QR card — QR image + "SCAN TO JOIN" + join-url pill (host over code).
  * Mirrors web `#qr-container`/`#qr-info`/`#join-url` and tvOS `buildQRCard`.
  * The caller sizes the card width via [modifier] (the lobby clamps it to
- * `clamp(160dp, 32vmin, 320dp)`); pass the pre-rendered [qrBitmap] (cached).
+ * `clamp(180dp, 36vmin, 360dp)`); pass the pre-rendered [qrBitmap] (cached).
  */
 @Composable
 fun QrCard(

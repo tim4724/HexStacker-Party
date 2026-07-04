@@ -895,7 +895,7 @@ final class RootScene: SKScene, DisplayOutput {
         let gapMid = min(vmin * 0.032, 40)
 
         var cardW = min(vmin * 0.255, 290)            // web card clamp(150, 24vmin, 280)
-        var qrW = min(vmin * 0.34, 340)               // web QR  clamp(160, 32vmin, 320)
+        var qrW = min(vmin * 0.38, 380)               // web QR  clamp(180, 36vmin, 360)
         qrW = min(qrW, bandH * 0.98 / Self.qrAspect)  // keep the QR card within the band height
         // Horizontal fit: shrink proportionally if the widest row would overflow.
         let rowWidth = qrW + gapMid + CGFloat(cols) * cardW + CGFloat(cols - 1) * cardGap

@@ -434,10 +434,7 @@ function _fakeLobbyQR() {
       joinUrlEl.textContent = JOIN.host + JOIN.code;
     }
   }
-  fetch('/api/qr?text=' + encodeURIComponent(qrTarget))
-    .then(function(r) { return r.json(); })
-    .then(function(matrix) { if (qrCode) renderQR(qrCode, matrix); })
-    .catch(function() { /* gallery works without QR — ignore */ });
+  if (qrCode) renderQR(qrCode, buildQRMatrix(qrTarget));
 }
 
 // =====================================================================
