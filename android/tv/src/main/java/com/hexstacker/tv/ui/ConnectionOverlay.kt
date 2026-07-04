@@ -3,6 +3,7 @@ package com.hexstacker.tv.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -58,19 +59,29 @@ fun ConnectionOverlay(
                 color = Tokens.textPrimary,
                 fontSize = vp.vwSp(20.8f, 6f, 28.8f), // web .game-overlay h1: clamp(1.3rem,6vw,1.8rem)
             )
-            Spacer(Modifier.height(14.dp))
-            Text(
-                text = stringResource(R.string.connection_lost),
-                style = AppType.connStatus,
-                color = Tokens.textSecondary,
-                fontSize = 14.sp, // web .game-overlay__status: fixed 14px
-            )
+            // Status line only while reconnecting (web/tvOS show none in the terminal
+            // disconnected state — that screen is just heading + RECONNECT button).
+            if (!disconnected) {
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = stringResource(R.string.connection_lost),
+                    style = AppType.connStatus,
+                    color = Tokens.textSecondary,
+                    fontSize = 14.sp, // web .game-overlay__status: fixed 14px
+                )
+            }
             if (disconnected && showReconnect) {
                 Spacer(Modifier.height(40.dp))
                 ChromeButton(
                     text = stringResource(R.string.reconnect),
                     primary = true,
                     tint = Tokens.accentPrimary,
+                    fontSize = vp.vhSp(17.6f, 2.4f, 27.2f),
+                    contentPadding = PaddingValues(
+                        horizontal = vp.vwDp(24f, 3f, 48f),
+                        vertical = vp.vhDp(14.4f, 2f, 27.2f),
+                    ),
+                    minWidth = vp.vhDp(220f, 26f, 340f),
                     onClick = onReconnect,
                     focusRequester = focus,
                 )

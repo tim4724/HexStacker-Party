@@ -48,12 +48,12 @@ fun PauseOverlay(
 
     BoxWithConstraints(modifier.fillMaxSize().background(Tokens.overlayBg)) {
         val vp = Vp(maxWidth.value, maxHeight.value)
-        val btnMin = vp.vhDp(180f, 22f, 280f) // #pause-continue-btn min-width clamp(180px,22vh,280px)
-        val btnGap = vp.vwDp(12.8f, 1.5f, 24f) // #pause-buttons gap clamp(0.8rem,1.5vw,1.5rem)
-        val btnFont = vp.vhSp(13.6f, 1.6f, 19.2f) // clamp(0.85rem,1.6vh,1.2rem)
+        val btnMin = vp.vhDp(220f, 26f, 340f) // #pause-continue-btn min-width clamp(220px,26vh,340px)
+        val btnGap = vp.vwDp(16f, 2f, 32f) // #pause-buttons gap clamp(1rem,2vw,2rem)
+        val btnFont = vp.vhSp(17.6f, 2.4f, 27.2f) // clamp(1.1rem,2.4vh,1.7rem)
         val btnPad = PaddingValues(
-            horizontal = vp.vwDp(16f, 2f, 32f),
-            vertical = vp.vhDp(9.6f, 1.2f, 19.2f),
+            horizontal = vp.vwDp(24f, 3f, 48f),
+            vertical = vp.vhDp(14.4f, 2f, 27.2f),
         )
 
         Column(

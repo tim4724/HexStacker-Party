@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.math.floor
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 /** Per-seat presentation metadata supplied by the coordinator (NOT engine state). */
@@ -446,8 +447,9 @@ class BoardSurfaceView @JvmOverloads constructor(
         }
         val timeStr = timerCachedStr
 
-        val cs = renderers.firstOrNull()?.cellSize ?: 30f
-        val timerSize = max(Theme.Font.timerMinPx.toFloat(), cs * Theme.Font.timerScale.toFloat())
+        // Fixed size relative to view height, not cell size, so the clock reads the
+        // same regardless of board count and matches the web/tvOS renderers.
+        val timerSize = max(24f, min(surfaceH * 0.04f, 60f))
         val labelSize = timerSize.roundToInt().toFloat()
         val digitAdvance = labelSize * 0.92f
         val colonAdvance = labelSize * 0.52f

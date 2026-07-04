@@ -157,13 +157,11 @@ const THEME = Object.freeze({
     cellScale: Object.freeze({
       name:  0.7,
       label: 0.48,
-      timer: 0.65,
       mini:  0.6,
     }),
     minPx: Object.freeze({
       name:  18,
       label: 14,
-      timer: 16,
     }),
   }),
 

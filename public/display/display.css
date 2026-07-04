@@ -593,11 +593,13 @@ body.airconsole #qr-container,
   font-variant-numeric: tabular-nums;
 }
 
-/* Shared sizing for welcome + lobby primary CTAs. */
+/* Shared sizing for welcome + lobby primary CTAs. Vertical padding + font match
+   the overlay action buttons so every button is the same height across screens;
+   the wider horizontal padding keeps the lobby CTA a roomy pill. */
 #new-game-btn,
 #start-btn {
-  padding: clamp(0.7rem, 1.4vh, 1.3rem) clamp(2rem, 4vw, 6rem);
-  font-size: clamp(1rem, 2vh, 1.6rem);
+  padding: clamp(0.9rem, 2vh, 1.7rem) clamp(2rem, 4vw, 6rem);
+  font-size: clamp(1.1rem, 2.4vh, 1.7rem);
   letter-spacing: 0.08em;
   text-align: center;
 }
@@ -748,18 +750,19 @@ body.airconsole #qr-container,
 /* No misclick gate on the display — it's a TV/monitor, not a phone. */
 #pause-buttons {
   display: flex;
-  gap: clamp(0.8rem, 1.5vw, 1.5rem);
+  gap: clamp(1rem, 2vw, 2rem);
 }
 
-/* Overlay action buttons — pause/reconnect/results share one sizing scale. */
+/* Overlay action buttons — pause/reconnect/results share one sizing scale.
+   Sized large for couch/TV legibility, matching the tvOS overlay buttons. */
 #pause-continue-btn,
 #pause-newgame-btn,
 #reconnect-btn,
 #play-again-btn,
 #new-game-results-btn {
-  min-width: clamp(180px, 22vh, 280px);
-  padding: clamp(0.6rem, 1.2vh, 1.2rem) clamp(1rem, 2vw, 2rem);
-  font-size: clamp(0.85rem, 1.6vh, 1.2rem);
+  min-width: clamp(260px, 34vh, 420px);
+  padding: clamp(0.9rem, 2vh, 1.7rem) clamp(1.5rem, 3vw, 3rem);
+  font-size: clamp(1.1rem, 2.4vh, 1.7rem);
   letter-spacing: 0.06em;
   text-align: center;
 }
@@ -800,18 +803,18 @@ body.airconsole #qr-container,
 #results-list {
   display: flex;
   flex-direction: column;
-  gap: clamp(0.4rem, 0.8vh, 0.8rem);
+  gap: clamp(0.5rem, 1vh, 1rem);
   width: 90%;
-  max-width: 700px;
+  max-width: 860px;
 }
 
 .result-row {
-  gap: 1rem;
-  padding: clamp(0.6rem, 1.2vh, 1.2rem) clamp(1rem, 2vw, 2rem) clamp(0.6rem, 1.2vh, 1.2rem) clamp(0.5rem, 1vw, 1rem);
+  gap: 1.25rem;
+  padding: clamp(0.8rem, 1.6vh, 1.5rem) clamp(1.2rem, 2.4vw, 2.4rem) clamp(0.8rem, 1.6vh, 1.5rem) clamp(0.7rem, 1.3vw, 1.3rem);
 }
 
 .result-rank {
-  font-size: clamp(1.2rem, 2.5vh, 2.2rem);
+  font-size: clamp(1.5rem, 3vh, 2.8rem);
 }
 
 .result-info {
@@ -823,7 +826,7 @@ body.airconsole #qr-container,
 }
 
 .result-name {
-  font-size: clamp(1.2rem, 2.5vh, 2.2rem);
+  font-size: clamp(1.5rem, 3vh, 2.8rem);
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -834,7 +837,7 @@ body.airconsole #qr-container,
 .result-stats {
   display: flex;
   gap: 1.5rem;
-  font-size: clamp(1rem, 2.2vh, 1.8rem);
+  font-size: clamp(1.2rem, 2.6vh, 2.2rem);
   color: var(--text-secondary);
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
@@ -849,12 +852,13 @@ body.airconsole #qr-container,
   display: flex;
   gap: clamp(0.8rem, 1.5vw, 1.5rem);
   margin-top: clamp(1.5rem, 3vh, 3rem);
-  pointer-events: none;
-  animation: resultsButtonsEnter 0.4s ease 1.5s both;
+  /* No anti-misclick gate on the display (a TV/monitor, not a phone): the
+     buttons fade in with the rows instead of appearing 1.5s later. */
+  animation: resultsButtonsEnter 0.4s ease 0.3s both;
 }
 
-/* Skip the 1.5s anti-misclick gate when returning to a tab that was
-   already on the results screen. */
+/* Skip even the short fade when returning to a tab already on the results
+   screen. */
 #results-screen.results-screen--ready #results-buttons {
   animation: none;
   pointer-events: auto;

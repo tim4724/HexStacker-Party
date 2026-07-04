@@ -278,11 +278,20 @@ final class BoardNode: SKNode {
         disconnectLayer.addChild(dim)
 
         let center = CGPoint(x: boardW / 2, y: boardH / 2)
+        // Match web drawDisconnectedOverlay: a name-scale "scan to rejoin" label
+        // (cs·0.7, not the smaller label scale) below the QR, with the whole
+        // QR-plus-label group vertically centered on the board.
+        let rejoinLabelSize = max(16, cs * 0.7)
         if let qr = QRCode.image(for: url) {
             let side = min(boardW, boardH) * 0.5
             let pad = side * 0.06
-            let card = SKShapeNode(rect: CGRect(x: center.x - side / 2 - pad, y: center.y - side / 2 - pad,
-                                                width: side + pad * 2, height: side + pad * 2),
+            let outerSize = side + pad * 2
+            let labelGap = rejoinLabelSize * 1.2
+            let totalH = outerSize + labelGap + rejoinLabelSize
+            let qrCenterY = center.y + totalH / 2 - outerSize / 2
+            let labelCenterY = center.y - totalH / 2 + rejoinLabelSize / 2
+            let card = SKShapeNode(rect: CGRect(x: center.x - side / 2 - pad, y: qrCenterY - side / 2 - pad,
+                                                width: outerSize, height: outerSize),
                                    cornerRadius: side * 0.08)
             card.fillColor = .white; card.strokeColor = UIColor(accent, alpha: 0.5)
             card.lineWidth = 2
@@ -290,14 +299,15 @@ final class BoardNode: SKNode {
             disconnectLayer.addChild(card)
             let sprite = SKSpriteNode(texture: SKTexture(image: qr))
             sprite.size = CGSize(width: side, height: side)
-            sprite.position = center
+            sprite.position = CGPoint(x: center.x, y: qrCenterY)
             sprite.zPosition = 2   // the QR must sit above the white card
             disconnectLayer.addChild(sprite)
             let label = SKLabelNode()
             label.zPosition = 2
-            label.setStyledText(tr("scan_to_rejoin"), font: AppFont.semibold, size: labelSize,
+            label.verticalAlignmentMode = .center
+            label.setStyledText(tr("scan_to_rejoin"), font: AppFont.semibold, size: rejoinLabelSize,
                                 color: UIColor(accent), tracking: 0.10)
-            label.position = CGPoint(x: center.x, y: center.y - side / 2 - labelSize * 1.8)
+            label.position = CGPoint(x: center.x, y: labelCenterY)
             disconnectLayer.addChild(label)
         } else {
             let label = SKLabelNode()

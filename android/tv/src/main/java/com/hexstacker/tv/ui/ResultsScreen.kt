@@ -38,6 +38,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -116,8 +118,11 @@ fun ResultsScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Column(
-                Modifier.widthIn(max = 700.dp).fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(vp.vhDp(6.4f, 0.8f, 12.8f)),
+                // Web #results-list is width:90% capped at 860px (~45% of a 1080p
+                // TV). An absolute dp cap renders ~1.5x wider at the gallery's hdpi
+                // density, so cap at a viewport fraction like the rest of the lobby.
+                Modifier.widthIn(max = vp.vwDp(420f, 45f, 640f)).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(vp.vhDp(8f, 1f, 16f)),
             ) {
                 sorted.forEachIndexed { i, res ->
                     // Keyed like LobbyScreen's PlayerGrid: late joiners append to `sorted` at
@@ -130,7 +135,7 @@ fun ResultsScreen(
 
             Row(
                 Modifier.alpha(if (revealed) 1f else 0f),
-                horizontalArrangement = Arrangement.spacedBy(vp.vwDp(12.8f, 1.5f, 24f)),
+                horizontalArrangement = Arrangement.spacedBy(vp.vwDp(16f, 2f, 32f)),
             ) {
                 ChromeButton(
                     text = stringResource(R.string.play_again),
@@ -138,12 +143,12 @@ fun ResultsScreen(
                     tint = hostTint(hostColorIndex), // web tints the primary CTA with the host color (applyHostTint)
                     enabled = revealed,
                     focusRequester = playAgainFocus,
-                    fontSize = vp.vhSp(13.6f, 1.6f, 19.2f),
+                    fontSize = vp.vhSp(17.6f, 2.4f, 27.2f),
                     contentPadding = PaddingValues(
-                        horizontal = vp.vwDp(16f, 2f, 32f),
-                        vertical = vp.vhDp(9.6f, 1.2f, 19.2f),
+                        horizontal = vp.vwDp(24f, 3f, 48f),
+                        vertical = vp.vhDp(14.4f, 2f, 27.2f),
                     ),
-                    minWidth = vp.vhDp(180f, 22f, 280f),
+                    minWidth = vp.vhDp(220f, 26f, 340f),
                     onClick = onPlayAgain,
                 )
                 ChromeButton(
@@ -151,12 +156,12 @@ fun ResultsScreen(
                     primary = false,
                     tint = Tokens.accentPrimary,
                     enabled = revealed,
-                    fontSize = vp.vhSp(13.6f, 1.6f, 19.2f),
+                    fontSize = vp.vhSp(17.6f, 2.4f, 27.2f),
                     contentPadding = PaddingValues(
-                        horizontal = vp.vwDp(16f, 2f, 32f),
-                        vertical = vp.vhDp(9.6f, 1.2f, 19.2f),
+                        horizontal = vp.vwDp(24f, 3f, 48f),
+                        vertical = vp.vhDp(14.4f, 2f, 27.2f),
                     ),
-                    minWidth = vp.vhDp(180f, 22f, 280f),
+                    minWidth = vp.vhDp(220f, 26f, 340f),
                     onClick = onNewGame,
                 )
             }
@@ -171,9 +176,14 @@ private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, vp: Vp) {
     val lateJoinerRank = stringResource(R.string.late_joiner_rank) // DisplayUI '–' rank
     val playerFallback = stringResource(R.string.player)
     val playerCol = res.colorIndex?.let { playerColor(it) }
-    val rankSize = vp.vhSp(19.2f, 2.5f, 35.2f) // clamp(1.2rem,2.5vh,2.2rem)
-    val statsSize = vp.vhSp(16f, 2.2f, 28.8f) // clamp(1rem,2.2vh,1.8rem)
-    val gap = 16.dp // .result-row gap 1rem
+    // Web is 3vh / 2.6vh (uncapped on a TV). Lo/hi caps are px, which render ~1.5x
+    // large as .sp at the gallery density, so scale the caps to let the vh % govern.
+    val rankSize = vp.vhSp(16f, 3f, 30f) // web result name/rank ~3vh (32px @1080)
+    val statsSize = vp.vhSp(13f, 2.6f, 24f) // web result stats ~2.6vh (28px @1080)
+    // Web's .result-stats has no font-family override — it inherits the plain
+    // system font (Roboto), unlike the Orbitron name/rank. Match that.
+    val statsStyle = AppType.resultStats.copy(fontFamily = FontFamily.Default, fontWeight = FontWeight.Medium)
+    val gap = 20.dp // .result-row gap 1.25rem
 
     // Stagger entrance: fade + slide up, delay 0.2 + i*0.08 s.
     val enter = remember(index) { Animatable(0f) }
@@ -213,10 +223,10 @@ private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, vp: Vp) {
     Row(
         bordered.padding(
             PaddingValues(
-                start = vp.vwDp(8f, 1f, 16f),
-                end = vp.vwDp(16f, 2f, 32f),
-                top = vp.vhDp(9.6f, 1.2f, 19.2f),
-                bottom = vp.vhDp(9.6f, 1.2f, 19.2f),
+                start = vp.vwDp(11.2f, 1.3f, 20.8f),
+                end = vp.vwDp(19.2f, 2.4f, 38.4f),
+                top = vp.vhDp(12.8f, 1.6f, 24f),
+                bottom = vp.vhDp(12.8f, 1.6f, 24f),
             ),
         ),
         verticalAlignment = Alignment.CenterVertically,
@@ -240,17 +250,17 @@ private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, vp: Vp) {
         if (res.newPlayer) {
             Text(
                 text = stringResource(R.string.new_player),
-                style = AppType.resultStats.copy(fontSize = statsSize, color = Tokens.textSecondary),
+                style = statsStyle.copy(fontSize = statsSize, color = Tokens.textSecondary),
             )
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) { // .result-stats gap 1.5rem
                 Text(
                     text = pluralStringResource(R.plurals.n_lines, res.lines ?: 0, res.lines ?: 0),
-                    style = AppType.resultStats.copy(fontSize = statsSize, color = Tokens.textSecondary),
+                    style = statsStyle.copy(fontSize = statsSize, color = Tokens.textSecondary),
                 )
                 Text(
                     text = stringResource(R.string.level_n, res.level ?: 1),
-                    style = AppType.resultStats.copy(fontSize = statsSize, color = Tokens.textSecondary),
+                    style = statsStyle.copy(fontSize = statsSize, color = Tokens.textSecondary),
                 )
             }
         }

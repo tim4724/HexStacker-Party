@@ -433,8 +433,9 @@ function drawTimer(elapsedMs) {
   var timeStr = String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
 
   var font = getDisplayFont();
-  var cs = (boardRenderers.length > 0 ? boardRenderers[0].cellSize : 30);
-  var timerSize = Math.max(THEME.font.minPx.timer, cs * THEME.font.cellScale.timer);
+  // Fixed size relative to screen height, not cell size, so the clock reads the
+  // same regardless of board count and matches the tvOS/Android renderers.
+  var timerSize = Math.max(24, Math.min(cachedH * 0.04, 60));
 
   var labelSize = Math.round(timerSize);
   var digitAdvance = labelSize * 0.92;

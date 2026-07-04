@@ -51,7 +51,6 @@ final class RootScene: SKScene, DisplayOutput {
     private var boardNodes: [Int: BoardNode] = [:]
     private var currentPlayerCount = -1
     private var lastBoardIds: [Int] = []   // the player-id set the boards were built for
-    private var lastCellSize: CGFloat = 30
     private var lastTime: TimeInterval = 0
     private var shotMode = false   // HEXSHOT: render one frozen state, no live tick
     private var relayStarted = false   // false in the offline harness modes
@@ -427,10 +426,11 @@ final class RootScene: SKScene, DisplayOutput {
 
             let cont = MenuButton(text: trUpper("continue_btn"), width: btnW, height: btnH, primary: true,
                                   tint: hostColor) { [weak self] in self?.coordinator?.remoteTogglePause() }
-            // Secondary, but host-colored outline so it ties to the host identity
-            // (Continue is the filled host CTA; New Game is the host-tinted outline).
+            // Neutral secondary (card fill + 1px rim, cream label) — matches the web
+            // `.btn-secondary` and the results "New Game", so no secondary reads as
+            // an accent/host color. Continue is the sole filled host CTA.
             let ng = MenuButton(text: trUpper("new_game"), width: btnW, height: btnH, primary: false,
-                                tint: hostColor, secondaryTint: true) { [weak self] in self?.coordinator?.remoteReturnToLobby() }
+                                tint: hostColor) { [weak self] in self?.coordinator?.remoteReturnToLobby() }
             cont.position = CGPoint(x: cx - btnW / 2 - gap / 2, y: cy - rowSpacing)
             ng.position = CGPoint(x: cx + btnW / 2 + gap / 2, y: cy - rowSpacing)
             // Above pauseDim (see buildPauseOverlay: equal-z order is undefined
@@ -570,7 +570,9 @@ final class RootScene: SKScene, DisplayOutput {
     private func updateTimer(elapsedMs: Double) {
         let total = Int(elapsedMs / 1000)
         let str = String(format: "%02d:%02d", total / 60, total % 60)
-        let fs = max(28, lastCellSize * 0.65)
+        // Fixed size relative to scene height, not cell size, so the clock reads
+        // the same regardless of board count and matches the web/Android renderers.
+        let fs = max(24, min(size.height * 0.04, 60))
         // The text changes once a second; skip the per-frame glyph
         // re-rasterization (setStyledText re-runs layout + texture upload)
         // unless something that feeds the render actually changed.
@@ -775,7 +777,6 @@ final class RootScene: SKScene, DisplayOutput {
 
         let layout = LayoutEngine.layout(playerCount: snapshot.players.count,
                                          viewportW: playRect.width, viewportH: playRect.height)
-        lastCellSize = CGFloat(layout.geometry.cellSize)
         for (i, placement) in layout.placements.enumerated() where i < snapshot.players.count {
             let player = snapshot.players[i]
             let rec = coordinator.flow.player(player.id)
@@ -814,8 +815,9 @@ final class RootScene: SKScene, DisplayOutput {
         let animateEntrance = !lobbyEntranceDone
         lobbyEntranceDone = true
 
-        // --- Title (baked gradient wordmark + PARTY subtitle).
-        let mainSize = max(44, min(H * 0.105, 130))
+        // --- Title (baked gradient wordmark + PARTY subtitle). Sized to ~7.5% of
+        // the play height to match the web wordmark (clamp(1.6rem, 7vmin, 5rem)).
+        let mainSize = max(44, min(H * 0.075, 84))
         let titleImg = TitleTexture.make(mainSize: mainSize)
         let title = SKSpriteNode(texture: SKTexture(image: titleImg))
         title.size = titleImg.size
@@ -827,7 +829,9 @@ final class RootScene: SKScene, DisplayOutput {
         // plus padding (web .btn is content-width, not a fixed wide pill).
         // Lifted off the bottom edge so the button, the credit line below it,
         // and the screen edge each get breathing room instead of stacking tight.
-        let pillH = max(48, H * 0.06)
+        // Same height as the overlay action buttons (pause/results/reconnect all
+        // use H*0.075) so every button on tvOS is a uniform height across screens.
+        let pillH = max(48, H * 0.075)
         let pillY = margin * 1.8 + pillH / 2
         let hasPlayers = !players.isEmpty
         let hostColor = host.flatMap { h in players.first { $0.peerIndex == h }?.colorSlot }
@@ -1133,15 +1137,21 @@ final class RootScene: SKScene, DisplayOutput {
             let glow = SKSpriteNode(texture: Self.radialTexture(diameter: d, color: SKTheme.player(slot: slot), centerAlpha: 0.10))
             glow.size = CGSize(width: d, height: d)
             glow.position = CGPoint(x: W / 2, y: H * 0.70)   // web --winner-glow at 50% 30%
+            // Behind the rows + buttons (z0). Without this it shares z0 with them
+            // and, under ignoresSiblingOrder, paints OVER the opaque cards — tinting
+            // the row backgrounds (and the solo NEW GAME button) warmer/lighter.
+            glow.zPosition = -0.5
             resultsLayer.addChild(glow)
         }
 
         // No heading: the web results screen has no title (and the port mirrors the
         // web copy). The frosted boards + ranked rows carry the screen.
         let solo = sorted.count == 1
-        let rowW = min(W * 0.6, 760)
-        let rowH = max(56, H * 0.075)
-        let rowGap: CGFloat = 12
+        let rowW = min(W * 0.62, 880)   // web #results-list max-width 860px
+        // Snug rows like the web/Android list (name + web-scale vertical padding),
+        // not the taller block the earlier pass produced.
+        let rowH = max(60, H * 0.072)
+        let rowGap: CGFloat = 14
         let rowsBlockH = CGFloat(sorted.count) * rowH + CGFloat(max(0, sorted.count - 1)) * rowGap
 
         // Action-button metrics (needed up-front to balance the group).
@@ -1210,7 +1220,7 @@ final class RootScene: SKScene, DisplayOutput {
         if !solo {
             let rank = SKLabelNode(text: isNew ? "–" : "\(res["rank"] as? Int ?? 0)")
             rank.fontName = AppFont.black           // same size as the name; heavier weight reads the rank
-            rank.fontSize = h * 0.34
+            rank.fontSize = h * 0.44
             rank.fontColor = isNew ? SKTheme.textSecondary : (color ?? SKTheme.textSecondary)
             rank.verticalAlignmentMode = .center
             rank.horizontalAlignmentMode = .center
@@ -1222,7 +1232,7 @@ final class RootScene: SKScene, DisplayOutput {
 
         let name = SKLabelNode(text: (res["playerName"] as? String) ?? tr("player"))
         name.fontName = AppFont.name
-        name.fontSize = h * 0.34
+        name.fontSize = h * 0.44
         name.fontColor = color ?? SKTheme.textSecondary   // web fallback for unnamed players
         name.verticalAlignmentMode = .center
         name.horizontalAlignmentMode = .left
@@ -1237,10 +1247,13 @@ final class RootScene: SKScene, DisplayOutput {
             let n = res["lines"] as? Int ?? 0
             statsText = "\(tr("n_lines", ["count": n]))   \(tr("level_n", ["level": res["level"] as? Int ?? 1]))"
         }
-        let stats = SKLabelNode(text: statsText)
-        stats.fontName = AppFont.name
-        stats.fontSize = h * 0.22
-        stats.fontColor = SKTheme.textSecondary
+        // Web's .result-stats has no font-family override, so it inherits the plain
+        // system-ui font (not Orbitron); match that with the tvOS system font.
+        let stats = SKLabelNode()
+        stats.attributedText = NSAttributedString(string: statsText, attributes: [
+            .font: UIFont.systemFont(ofSize: h * 0.38, weight: .medium),   // web stats:name ratio (2.6vh : 3vh)
+            .foregroundColor: SKTheme.textSecondary,
+        ])
         stats.verticalAlignmentMode = .center
         stats.horizontalAlignmentMode = .right
         stats.zPosition = 1
