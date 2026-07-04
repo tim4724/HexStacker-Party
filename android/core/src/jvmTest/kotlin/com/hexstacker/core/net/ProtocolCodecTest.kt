@@ -94,6 +94,24 @@ class ProtocolCodecTest {
     }
 
     @Test
+    fun createFrameCarriesUrlTemplateAndOmitsNull() {
+        // The relay rejects the whole create on an invalid template, so a frame
+        // without one must omit the field entirely (explicitNulls = false), not
+        // send "url": null.
+        val bare = RelayJson.encodeToString(CreateFrame.serializer(), CreateFrame(clientId = "display", maxClients = 9))
+        assertTrue(!bare.contains("\"url\""), "null url must be omitted from the wire")
+
+        val templated = RelayJson.encodeToString(
+            CreateFrame.serializer(),
+            CreateFrame(clientId = "display", maxClients = 9, url = RelayConfig.CONTROLLER_URL_TEMPLATE),
+        )
+        assertTrue(
+            templated.contains("\"url\":\"${RelayConfig.CONTROLLER_URL_TEMPLATE}\""),
+            "create carries the controller-URL template",
+        )
+    }
+
+    @Test
     fun sendFrameSerializesTypeFirst() {
         // The relay `send` envelope must encode `type` first to match the web byte layout.
         val json = RelayJson.encodeToString(SendFrame.serializer(), SendFrame(data = buildJsonObject { put("k", 1) }, to = 2))

@@ -91,7 +91,7 @@ new PartyConnection(relayUrl, { clientId?, maxReconnectAttempts = 5 })
 | Method | Purpose |
 | --- | --- |
 | `connect()` | Open the socket (auto-reconnects up to max) |
-| `create(maxClients)` | Create a room (display, slot 0) |
+| `create(maxClients, url?)` | Create a room (display, slot 0). `url` is an optional controller-URL template (`{room}`/`{instance}` placeholders) the relay resolves for clients that hold only the room code (in `created`/`joined` and via `GET /room/:code`). Absolute https only, or the relay rejects the create; omit it on non-https origins |
 | `join(room)` | Join a room by code (controller) |
 | `pinInstance(baseUrl, room, instance)` | Pin auto-reconnect to a relay shard (rebuilds the sharded URL) |
 | `sendTo(to, data)` | Send to one slot |

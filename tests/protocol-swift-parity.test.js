@@ -98,3 +98,11 @@ test('the controller base URL matches the Android mirror', () => {
   assert.ok(kt, 'Kotlin const CONTROLLER_BASE_URL not found');
   assert.strictEqual(swiftStringConsts(swiftEnum('Protocol')).controllerBaseURL, kt[1]);
 });
+
+test('the controller-URL template registered on create mirrors the web shape', () => {
+  // Same guard as tests/protocol-android-parity.test.js: every display flavor
+  // registers <base>/{room}#{instance} on create so a code-only join resolves
+  // to the same controller page regardless of which display hosts the room.
+  const proto = swiftStringConsts(swiftEnum('Protocol'));
+  assert.strictEqual(proto.controllerURLTemplate, `${proto.controllerBaseURL}/{room}#{instance}`);
+});

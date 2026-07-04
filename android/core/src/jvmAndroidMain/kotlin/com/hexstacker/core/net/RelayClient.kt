@@ -153,7 +153,17 @@ class RelayClient(
         if (room != null) {
             sendEnvelope(RelayJson.encodeToString(JoinFrame(clientId = clientId, room = room)))
         } else {
-            sendEnvelope(RelayJson.encodeToString(CreateFrame(clientId = clientId, maxClients = maxClients)))
+            // The create registers the controller-URL template so clients holding
+            // only the room code can resolve the controller page from the relay.
+            sendEnvelope(
+                RelayJson.encodeToString(
+                    CreateFrame(
+                        clientId = clientId,
+                        maxClients = maxClients,
+                        url = RelayConfig.CONTROLLER_URL_TEMPLATE,
+                    ),
+                ),
+            )
         }
         emitState(RelayTransport.ConnectionState.OPEN)
     }

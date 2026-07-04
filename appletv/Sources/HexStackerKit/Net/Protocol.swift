@@ -17,6 +17,12 @@ public enum Protocol {
     /// Where phone controllers load the web controller (the QR target). The
     /// join URL is `<base>/<room>#<instance>`, matching the web display.
     public static let controllerBaseURL = "https://hexstacker.com"
+
+    /// Controller-URL template sent with `create`. The relay fills
+    /// {room}/{instance} and hands the result to clients that hold only the
+    /// room code (`joined`, `GET /room/:code`). Same shape as the QR join URL
+    /// the web display registers (controllerUrlTemplate in DisplayConnection.js).
+    public static let controllerURLTemplate = "https://hexstacker.com/{room}#{instance}"
 }
 
 /// Transport abstraction the coordinator drives. `RelayClient` is the live

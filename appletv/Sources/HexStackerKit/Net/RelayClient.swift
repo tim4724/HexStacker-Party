@@ -328,10 +328,13 @@ public final class RelayClient: NSObject, RelayTransport {
 
     private func onSocketOpened() {
         // Reconnect path sends join (clientId restores slot 0); first send creates.
+        // The create registers the controller-URL template so clients holding
+        // only the room code can resolve the controller page from the relay.
         if let room = lastRoom {
             sendEnvelope(["type": "join", "clientId": clientId, "room": room])
         } else {
-            sendEnvelope(["type": "create", "clientId": clientId, "maxClients": maxClients])
+            sendEnvelope(["type": "create", "clientId": clientId, "maxClients": maxClients,
+                          "url": Protocol.controllerURLTemplate])
         }
         startHandshakeTimeout()
         setState(.open)

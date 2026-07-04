@@ -53,6 +53,8 @@ import Foundation
         #expect(waitUntil { !server.receivedEnvelopes(type: "create").isEmpty }, "server saw a create")
         #expect(server.receivedEnvelopes(type: "create").first?["clientId"] as? String == "display",
                 "create carries the display clientId")
+        #expect(server.receivedEnvelopes(type: "create").first?["url"] as? String == HexStackerKit.Protocol.controllerURLTemplate,
+                "create registers the controller-URL template for code-only joins")
 
         // Inbound peer_joined + message frames are decoded and dispatched.
         server.pushPeerJoined(1)

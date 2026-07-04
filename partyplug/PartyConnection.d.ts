@@ -11,8 +11,13 @@ declare class PartyConnection {
   readonly connected: boolean;
 
   connect(): void;
-  /** Create a room (display, slot 0). */
-  create(maxClients: number): void;
+  /**
+   * Create a room (display, slot 0). `url` is an optional controller-URL
+   * template ({room}/{instance} placeholders) the relay resolves for clients
+   * that hold only the room code. Must be absolute https or the relay rejects
+   * the create; omit it on non-https origins.
+   */
+  create(maxClients: number, url?: string): void;
   /** Join a room by code (controller). */
   join(room: string): void;
   /** Pin auto-reconnect to a relay shard by rebuilding the sharded URL. */

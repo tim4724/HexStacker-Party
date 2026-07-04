@@ -28,6 +28,14 @@ object RelayConfig {
     /** Where phones load the controller (QR target). Join URL = "<base>/<room>#<instance>". */
     const val CONTROLLER_BASE_URL = "https://hexstacker.com"
 
+    /**
+     * Controller-URL template sent with `create`. The relay fills {room}/{instance}
+     * and hands the result to clients that hold only the room code (`joined`,
+     * `GET /room/:code`). Same shape as the QR join URL the web display registers
+     * (controllerUrlTemplate in DisplayConnection.js).
+     */
+    const val CONTROLLER_URL_TEMPLATE = "https://hexstacker.com/{room}#{instance}"
+
     const val MAX_RECONNECT_ATTEMPTS = 5
     const val RECONNECT_BASE_MS = 1000L
     const val RECONNECT_FACTOR = 1.5
@@ -103,7 +111,13 @@ internal val RelayJson = Json {
 
 // ---- Outbound frames (serialized to text and sent). `type` first so encoded bytes match the web. ----
 @Serializable
-data class CreateFrame(val type: String = "create", val clientId: String, val maxClients: Int)
+data class CreateFrame(
+    val type: String = "create",
+    val clientId: String,
+    val maxClients: Int,
+    /** Controller-URL template ({room}/{instance}); omitted from the wire when null (explicitNulls = false). */
+    val url: String? = null,
+)
 
 @Serializable
 data class JoinFrame(val type: String = "join", val clientId: String, val room: String)
