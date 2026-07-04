@@ -258,8 +258,8 @@ html, body {
 #new-game-btn {
   width: 100%;
   max-width: 320px;
-  padding: 16px 18px;
-  font-size: 1.05rem;
+  padding: 20px 18px;
+  font-size: 1.1rem;
   letter-spacing: 0.1em;
   text-align: center;
 }
@@ -1227,8 +1227,8 @@ html, body {
 
 #settings-close {
   width: 100%;
-  padding: 16px 18px;
-  font-size: 1.05rem;
+  padding: 20px 18px;
+  font-size: 1.1rem;
   letter-spacing: 0.1em;
 }
 
