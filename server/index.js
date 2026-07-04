@@ -184,18 +184,18 @@ const server = http.createServer((req, res) => {
 
   // Cross-platform TV gallery (scripts/gallery), so the gallery nav's TV link
   // works in local dev after a local capture/assemble. Deployed hosts never
-  // reach this route: Traefik path-routes /tv-gallery to the static gallery
+  // reach this route: Traefik path-routes /gallery-tv to the static gallery
   // pod, and the game image ships without these files anyway (404s here).
-  if (urlPath === '/tv-gallery') {
+  if (urlPath === '/gallery-tv') {
     // Redirect to the slash form so the page's relative shots/ paths resolve.
-    res.writeHead(301, { Location: '/tv-gallery/' });
+    res.writeHead(301, { Location: '/gallery-tv/' });
     res.end();
     return;
   }
-  if (urlPath.startsWith('/tv-gallery/')) {
-    const rest = urlPath === '/tv-gallery/'
+  if (urlPath.startsWith('/gallery-tv/')) {
+    const rest = urlPath === '/gallery-tv/'
       ? 'gallery.html'
-      : urlPath.slice('/tv-gallery/'.length);
+      : urlPath.slice('/gallery-tv/'.length);
     if (rest.includes('..')) { res.writeHead(400); res.end('Bad Request'); return; }
     const tvGalleryPath = path.join(__dirname, '..', 'scripts', 'gallery', rest);
     fs.readFile(tvGalleryPath, (err, data) => {

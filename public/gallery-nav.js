@@ -12,7 +12,7 @@ var PAGES = [
   { href: '/gallery-controller', label: 'Phone' },
   { href: '/gallery-rotations', label: 'Rotations' },
   { href: '/gallery-artwork', label: 'Artwork' },
-  { href: '/tv-gallery/', label: 'TV' }
+  { href: '/gallery-tv/', label: 'TV' }
 ];
 
 exports.PAGES = PAGES;

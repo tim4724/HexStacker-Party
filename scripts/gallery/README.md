@@ -48,7 +48,7 @@ bash scripts/gallery/capture-tvos.sh
 # assemble the page
 node scripts/gallery/gen-gallery.mjs
 # view via the dev server (nav links resolve there; plain `open` works too)
-open http://localhost:8770/tv-gallery/
+open http://localhost:8770/gallery-tv/
 ```
 
 Any subset works — the page renders explicit gaps for platforms you skipped.
@@ -65,8 +65,8 @@ page.
 
 It ships two ways (the PR's preview comment carries the links):
 
-- **Browsable deployment**: `https://<preview-host>/tv-gallery/` (i.e.
-  `preview-<branch>.hexstacker.com/tv-gallery/`, `main.hexstacker.com/tv-gallery/`
+- **Browsable deployment**: `https://<preview-host>/gallery-tv/` (i.e.
+  `preview-<branch>.hexstacker.com/gallery-tv/`, `main.hexstacker.com/gallery-tv/`
   for main). A tiny static nginx image (`Dockerfile` here) path-routed onto
   the preview host from the same `cg-<branch>` Kubernetes namespace, so builds
   stay decoupled from the app image. Torn down with the namespace by the

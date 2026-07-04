@@ -103,5 +103,5 @@ jobs:
           if-no-files-found: warn
       # No sticky PR comment here: the TV Gallery workflow consumes this
       # artifact and posts the one gallery comment (browsable web/tvOS/Android
-      # comparison at <preview-host>/tv-gallery/), which supersedes the old
+      # comparison at <preview-host>/gallery-tv/), which supersedes the old
       # per-platform screenshot links.
