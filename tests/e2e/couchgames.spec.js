@@ -125,6 +125,27 @@ test.describe('Couch Games shell contract', () => {
     await expect.poll(barPadTop).toBeGreaterThanOrEqual(60);
   });
 
+  test('in-game player name is hidden (the launcher renders it)', async ({ page, context }) => {
+    const { roomCode } = await createRoom(page);
+    const controller = await joinCouchController(context, roomCode, 'Ada');
+    await controller.waitForSelector('#player-identity:not(.hidden)', { timeout: 10000 });
+
+    // The launcher owns the name in its own chrome, so both in-game surfaces
+    // must stay blank: the portrait top-bar label and the landscape overlay.
+    await controller.evaluate(() =>
+      document.getElementById('touch-area').setAttribute('data-player-name', 'Ada'));
+
+    // Portrait: the top-bar label is suppressed.
+    await controller.setViewportSize({ width: 390, height: 780 });
+    expect(await controller.evaluate(() =>
+      getComputedStyle(document.getElementById('player-name')).display)).toBe('none');
+
+    // Landscape: the center-top touch-area overlay has no rendered content.
+    await controller.setViewportSize({ width: 780, height: 390 });
+    expect(await controller.evaluate(() =>
+      getComputedStyle(document.getElementById('touch-area'), '::after').content)).toBe('none');
+  });
+
   test('unknown room surfaces room_not_found through gameEnded', async ({ context }) => {
     const controller = await context.newPage();
     await controller.addInitScript(() => {
