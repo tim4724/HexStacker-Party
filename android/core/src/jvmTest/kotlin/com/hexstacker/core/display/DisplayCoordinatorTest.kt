@@ -786,7 +786,7 @@ class DisplayCoordinatorTest {
         override var onRelayError: ((message: String) -> Unit)? = null
         override var onState: ((data: JsonElement) -> Unit)? = null
         override var onReplaced: (() -> Unit)? = null
-        override var onConnectionState: ((RelayTransport.ConnectionState) -> Unit)? = null
+        override var onConnectionState: ((RelayTransport.ConnectionState, Int) -> Unit)? = null
 
         override fun connect() {}
         override fun disconnect() {}

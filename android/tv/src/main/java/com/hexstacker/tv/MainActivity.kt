@@ -85,8 +85,8 @@ class MainActivity : ComponentActivity() {
         // Surface the display's own relay link state: drives the RECONNECTING / DISCONNECTED
         // overlay AND tells the coordinator to pause/resume the running game on link loss
         // (coordinator is assigned just below; the first callback can't fire before connect()).
-        relay.onConnectionState = { state ->
-            ui.setConnectionState(state, relay.reconnectAttempt)
+        relay.onConnectionState = { state, reconnectAttempt ->
+            ui.setConnectionState(state, reconnectAttempt)
             coordinator.onLinkStateChanged(state)
         }
         // Slot-0 eviction (relay close 4000): another display took over this room.

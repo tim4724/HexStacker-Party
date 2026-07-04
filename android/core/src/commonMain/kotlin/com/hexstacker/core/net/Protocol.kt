@@ -254,7 +254,11 @@ interface RelayTransport {
     var onRelayError: ((message: String) -> Unit)?
     var onState: ((data: JsonElement) -> Unit)?
     var onReplaced: (() -> Unit)?
-    var onConnectionState: ((ConnectionState) -> Unit)?
+    // reconnectAttempt is the current retry count, snapshotted at emission time (see
+    // RelayClient.emitState) so the UI's "Attempt N of M" matches the delivered state
+    // instead of a later read of the transport's still-mutating counter. Only
+    // meaningful for RECONNECTING; other states pass whatever the counter reads.
+    var onConnectionState: ((ConnectionState, reconnectAttempt: Int) -> Unit)?
 
     enum class ConnectionState { IDLE, CONNECTING, OPEN, RECONNECTING, CLOSED }
 }

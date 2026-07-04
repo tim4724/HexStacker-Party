@@ -48,7 +48,7 @@ class RelayClient(
     override var onRelayError: ((String) -> Unit)? = null
     override var onState: ((kotlinx.serialization.json.JsonElement) -> Unit)? = null
     override var onReplaced: (() -> Unit)? = null
-    override var onConnectionState: ((RelayTransport.ConnectionState) -> Unit)? = null
+    override var onConnectionState: ((RelayTransport.ConnectionState, Int) -> Unit)? = null
 
     private val ops = ScheduledThreadPoolExecutor(1).apply {
         removeOnCancelPolicy = true
@@ -58,9 +58,7 @@ class RelayClient(
     @Volatile private var webSocket: WebSocket? = null
     private var lastRoom: String? = null
     private var lastInstance: String? = null
-    // Readable so the UI can surface "Attempt N of M" on the reconnect overlay (web parity).
-    var reconnectAttempt = 0
-        private set
+    private var reconnectAttempt = 0
     private var shouldReconnect = true
     private var dropHandled = false
     private var reconnectFuture: ScheduledFuture<*>? = null
@@ -292,7 +290,14 @@ class RelayClient(
         webSocket?.send(text)
     }
 
-    private fun emitState(s: RelayTransport.ConnectionState) = emit { onConnectionState?.invoke(s) }
+    private fun emitState(s: RelayTransport.ConnectionState) {
+        // Snapshot the attempt on the ops thread. The callback is posted to the main
+        // thread and reconnectAttempt keeps mutating here (next drop increments it, a
+        // successful reconnect resets it to 0), so reading it lazily on the main thread
+        // could describe a different transition than the one being delivered.
+        val attempt = reconnectAttempt
+        emit { onConnectionState?.invoke(s, attempt) }
+    }
     private fun emit(block: () -> Unit) = callbackPoster(block)
 
     private val listener = object : WebSocketListener() {
