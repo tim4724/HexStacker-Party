@@ -19,7 +19,7 @@ jobs:
             const airConsoleUrl = `https://www.airconsole.com/#${previewUrl}`;
             const simulatorUrl = `https://www.airconsole.com/simulator/#${previewUrl}`;
             const galleryUrl = `${previewUrl}/gallery`;
-            const tvGalleryUrl = `${previewUrl}/tv-gallery/`;
+            const tvGalleryUrl = `${previewUrl}/gallery-tv/`;
             const commentBody = `${previewUrl}\n\nAirConsole: ${airConsoleUrl}\n\nSimulator: ${simulatorUrl}\n\nGallery: ${galleryUrl}\n\nTV gallery: ${tvGalleryUrl}`;
 
             const { data: comments } = await github.rest.issues.listComments({

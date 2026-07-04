@@ -11,7 +11,7 @@ name: TV Gallery
 #
 # The assembled page ships two ways: an artifact (download fallback) and a
 # browsable deployment on the app preview's own host at
-# https://<preview-host>/tv-gallery/ — a tiny static nginx pod path-routed in
+# https://<preview-host>/gallery-tv/ — a tiny static nginx pod path-routed in
 # the same cg-<branch> namespace. It can't ride the app image build because
 # the native shots only exist after the platform toolchains ran (macOS
 # simulator, Robolectric) — hence a separate image built here, after assembly.
@@ -142,7 +142,7 @@ jobs:
           if-no-files-found: error
 
       # Static gallery image, deployed below onto the app preview's host under
-      # /tv-gallery/ (path-routed to its own tiny nginx pod). The shots exist
+      # /gallery-tv/ (path-routed to its own tiny nginx pod). The shots exist
       # only after the platform toolchains ran (Simulator on macOS,
       # Robolectric), so this can't ride the app image build — it's its own
       # image built from the just-assembled files.
@@ -165,6 +165,12 @@ jobs:
           # image by .dockerignore; this image is their home).
           mkdir -p scripts/gallery/webshell
           cp public/gallery* scripts/gallery/webshell/
+          # Stage the assets the gallery pages load via /gallery-assets/* so the
+          # pod serves them (its /gallery PathPrefix routes those requests here;
+          # the game image ships none of these repo dirs). The script parses the
+          # pages themselves, so adding a gallery asset never needs a change here;
+          # sources missing from the checkout (gitignored previews) are skipped.
+          node scripts/gallery/stage-assets.mjs
           echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
           REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           TAG="ghcr.io/${REPO_LC}-tv-gallery:${{ steps.host.outputs.safe_branch }}-${HEAD_SHA:0:12}"
@@ -173,14 +179,14 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       # No PR comment here: the Preview Comment workflow's single comment
-      # carries the /gallery and /tv-gallery/ links (the URLs are deterministic
+      # carries the /gallery and /gallery-tv/ links (the URLs are deterministic
       # from the branch name, so it can post them at PR open before this
       # workflow has deployed anything). The artifact link stays reachable via
       # the run summary.
 
   # Serve the assembled gallery next to the app preview: a tiny nginx
   # deployment in the same per-branch namespace (cg-<branch>), path-routed on
-  # the preview's own host at https://<host>/tv-gallery/ (Traefik's longer
+  # the preview's own host at https://<host>/gallery-tv/ (Traefik's longer
   # PathPrefix rule outranks the app's host-only rule, and the route works even
   # on native-only branches where no app preview exists). The namespace
   # boilerplate mirrors preview.yml and is applied idempotently — a native-only
@@ -345,7 +351,7 @@ jobs:
             entryPoints:
               - websecure
             routes:
-              - match: Host(\`${HOST}\`) && (PathPrefix(\`/tv-gallery\`) || PathPrefix(\`/gallery\`))
+              - match: Host(\`${HOST}\`) && PathPrefix(\`/gallery\`)
                 kind: Rule
                 services:
                   - name: tv-gallery
@@ -361,7 +367,7 @@ jobs:
             entryPoints:
               - web
             routes:
-              - match: Host(\`${HOST}\`) && (PathPrefix(\`/tv-gallery\`) || PathPrefix(\`/gallery\`))
+              - match: Host(\`${HOST}\`) && PathPrefix(\`/gallery\`)
                 kind: Rule
                 services:
                   - name: tv-gallery
@@ -371,4 +377,4 @@ jobs:
           EOF2
 
           echo "### TV Gallery" >> "$GITHUB_STEP_SUMMARY"
-          echo "- URL: https://${HOST}/tv-gallery/" >> "$GITHUB_STEP_SUMMARY"
+          echo "- URL: https://${HOST}/gallery-tv/" >> "$GITHUB_STEP_SUMMARY"

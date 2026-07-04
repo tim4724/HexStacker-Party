@@ -184,18 +184,18 @@ const server = http.createServer((req, res) => {
 
   // Cross-platform TV gallery (scripts/gallery), so the gallery nav's TV link
   // works in local dev after a local capture/assemble. Deployed hosts never
-  // reach this route: Traefik path-routes /tv-gallery to the static gallery
+  // reach this route: Traefik path-routes /gallery-tv to the static gallery
   // pod, and the game image ships without these files anyway (404s here).
-  if (urlPath === '/tv-gallery') {
+  if (urlPath === '/gallery-tv') {
     // Redirect to the slash form so the page's relative shots/ paths resolve.
-    res.writeHead(301, { Location: '/tv-gallery/' });
+    res.writeHead(301, { Location: '/gallery-tv/' });
     res.end();
     return;
   }
-  if (urlPath.startsWith('/tv-gallery/')) {
-    const rest = urlPath === '/tv-gallery/'
+  if (urlPath.startsWith('/gallery-tv/')) {
+    const rest = urlPath === '/gallery-tv/'
       ? 'gallery.html'
-      : urlPath.slice('/tv-gallery/'.length);
+      : urlPath.slice('/gallery-tv/'.length);
     if (rest.includes('..')) { res.writeHead(400); res.end('Bad Request'); return; }
     const tvGalleryPath = path.join(__dirname, '..', 'scripts', 'gallery', rest);
     fs.readFile(tvGalleryPath, (err, data) => {
@@ -206,6 +206,36 @@ const server = http.createServer((req, res) => {
       }
       const type = rest.endsWith('.png') ? 'image/png' : 'text/html; charset=utf-8';
       res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' });
+      res.end(data);
+    });
+    return;
+  }
+
+  // Brand-asset gallery (public/gallery-artwork.html) shows icons/key art that
+  // live OUTSIDE public/: the tvOS + Android icon sources and the artwork/ tree.
+  // Expose just those three repo dirs, image files only, read-only — allowlisted
+  // by top-level dir + extension so source code stays unreachable. Dev-only in
+  // practice: the prod image ships none of these dirs, so the cards 404 and the
+  // page's onerror handler marks them "not generated". urlPath is un-decoded
+  // (req.url), and the appletv paths carry %20/%26, so decode before resolving.
+  if (urlPath.startsWith('/gallery-assets/')) {
+    let rest;
+    try { rest = decodeURIComponent(urlPath.slice('/gallery-assets/'.length)); }
+    catch (e) { res.writeHead(400); res.end('Bad Request'); return; }
+    const repoRoot = path.join(__dirname, '..');
+    const assetPath = path.join(repoRoot, rest);
+    const allowed =
+      !rest.includes('..') &&
+      /^(appletv|android|artwork)\//.test(rest) &&
+      /\.(png|jpe?g|webp|svg)$/i.test(rest) &&
+      assetPath.startsWith(repoRoot + path.sep);
+    if (!allowed) { res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('Not Found'); return; }
+    fs.readFile(assetPath, (err, data) => {
+      if (err) { res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('Not Found'); return; }
+      res.writeHead(200, {
+        'Content-Type': MIME_TYPES[path.extname(assetPath).toLowerCase()] || 'application/octet-stream',
+        'Cache-Control': 'no-store',
+      });
       res.end(data);
     });
     return;
@@ -250,7 +280,7 @@ const server = http.createServer((req, res) => {
     urlPath = '/privacy.html';
   } else if (urlPath === '/imprint') {
     urlPath = '/imprint.html';
-  } else if (urlPath === '/gallery' || urlPath === '/gallery-controller' || urlPath === '/gallery-rotations') {
+  } else if (urlPath === '/gallery' || urlPath === '/gallery-controller' || urlPath === '/gallery-rotations' || urlPath === '/gallery-artwork') {
     // Extensionless gallery URLs (matching /privacy and /imprint style), carved
     // out ahead of the room-code catch below. Deployed hosts never get here:
     // Traefik routes /gallery* to the static gallery pod, whose nginx does the

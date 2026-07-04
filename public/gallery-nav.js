@@ -11,7 +11,8 @@ var PAGES = [
   { href: '/gallery', label: 'Display' },
   { href: '/gallery-controller', label: 'Phone' },
   { href: '/gallery-rotations', label: 'Rotations' },
-  { href: '/tv-gallery/', label: 'TV' }
+  { href: '/gallery-artwork', label: 'Artwork' },
+  { href: '/gallery-tv/', label: 'TV' }
 ];
 
 exports.PAGES = PAGES;

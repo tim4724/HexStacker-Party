@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>HexStacker — tvOS brand-asset renderer</title>
+  <title>HexStacker — TV brand-asset renderer</title>
   <link rel="stylesheet" href="../public/shared/fonts/orbitron.css">
   <style>
     html, body { margin: 0; background: #06060f; }
@@ -15,16 +15,17 @@
   <script>
   'use strict';
   // ============================================================
-  // tvOS brand-asset renderer. Draws the HexStacker brand (radial plum
-  // background, colorful pillow-style party hex pieces, gradient Orbitron
-  // wordmark) into layered tvOS App Icon / Top Shelf artwork. Reuses the
-  // exact PARTY_PALETTE from public/shared/theme.js and the same hex/cell
-  // geometry as artwork/builder.html so the TV brand never drifts from web.
+  // TV brand-asset renderer. The app icon is the "piece badge": the game's
+  // 'd' piece at grid rotation 5 (spine on the 30° diagonal, nub top-right)
+  // in the party colorway, drawn as in-game pillow cells over a flat brand
+  // plum, floating above a soft drop shadow. Cell render matches
+  // CanvasUtils._stampHexPillow 1:1 so the icon never drifts from the game.
   //
-  // Layers (for parallax): 'back'  = background + soft depth pieces;
-  //                        'front' = crisp pieces + wordmark on transparency;
-  //                        'flat'  = everything (single-image top shelf).
+  // Layers (for parallax): 'back'  = flat plum + the badge's drop shadow;
+  //                        'front' = the badge cells on transparency;
+  //                        'flat'  = both (previews / single images).
   // window.renderHexBrandLayer(spec) -> PNG data URL (alpha preserved).
+  // window.renderLauncherIcon(spec)  -> Android legacy launcher icon PNG.
   // ============================================================
   const SQRT3 = Math.sqrt(3);
   function hexPath(ctx, cx, cy, r) {
@@ -36,11 +37,6 @@
     }
     ctx.closePath();
   }
-  function hexToRgb(hex){const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);return m?{r:+('0x'+m[1]),g:+('0x'+m[2]),b:+('0x'+m[3])}:null;}
-  function clamp255(v){return Math.max(0,Math.min(255,Math.round(v)));}
-  function lighten(hex,pct){const c=hexToRgb(hex);if(!c)return hex;const f=1+pct/100;return `rgb(${clamp255(c.r*f)},${clamp255(c.g*f)},${clamp255(c.b*f)})`;}
-  function darken(hex,pct){const c=hexToRgb(hex);if(!c)return hex;const f=1-pct/100;return `rgb(${clamp255(c.r*f)},${clamp255(c.g*f)},${clamp255(c.b*f)})`;}
-  function rgba(hex,a){const c=hexToRgb(hex);if(!c)return hex;return `rgba(${c.r},${c.g},${c.b},${a})`;}
 
   const HEX_UNIT_VERTICES = [];
   for (let _i = 0; _i < 6; _i++) { const _a = Math.PI / 3 * _i; HEX_UNIT_VERTICES.push(Math.cos(_a), Math.sin(_a)); }
@@ -57,8 +53,8 @@
     ctx.closePath();
   }
 
-  // Pillow tier — ported 1:1 from CanvasUtils _stampHexPillow (matches the
-  // cover-art cellStyle). Rounded corners + radial sheen + bottom shade line.
+  // Pillow cell — ported 1:1 from CanvasUtils _stampHexPillow (the level 6-10
+  // style tier). Rounded corners + radial sheen + bottom shade line.
   function stampPillow(ctx, cx, cy, r, color) {
     const size = r * SQRT3;
     const cornerR = r * 0.15;
@@ -83,65 +79,103 @@
     ctx.stroke();
   }
 
-  // Piece geometry — mirrors server/Piece.js + builder.html.
-  const PIECES = {
-    I3: [[-1,0],[0,0],[1,0]],
-    V3: [[-1,0],[0,0],[0,1]],
-    T3: [[1,0],[0,0],[0,1]],
-    o:  [[-1,0],[0,0],[0,-1],[1,-1]],
-    d:  [[0,-1],[0,0],[0,1],[1,0]],
-    b:  [[0,-1],[0,0],[0,1],[-1,0]],
-  };
-  const PIECE_SLOT = { I3: 0, V3: 1, T3: 2, o: 3, d: 4, b: 5 };
-  const PAL = (typeof PARTY_PALETTE !== 'undefined') ? PARTY_PALETTE.slice() : ['#FF5C5C'];
-  function pieceColor(type){ return PAL[PIECE_SLOT[type]] || '#FF5C5C'; }
-
-  function rotateAxialCW(q, r) { return [-r, q + r]; }
-  function rotatedCells(type, rot) {
-    const n = ((rot | 0) % 6 + 6) % 6;
-    let cells = PIECES[type].map(c => c.slice());
-    for (let i = 0; i < n; i++) cells = cells.map(([q, r]) => rotateAxialCW(q, r));
-    return cells;
+  // ============================================================
+  // The piece badge — 'd' at grid rotation 5 (server/Piece.js geometry).
+  // Cell order: left, center, bottom-right, top-nub. Party colorway from
+  // PARTY_PALETTE: magenta, teal, red, honey — kept in sync with the Android
+  // adaptive-icon / banner vectors via artwork/generate-android-vectors.js.
+  // ============================================================
+  const BADGE_CELLS = [[-1, 0], [0, 0], [1, 0], [1, -1]];
+  const PAL = (typeof PARTY_PALETTE !== 'undefined') ? PARTY_PALETTE.slice() : [];
+  function badgeColors() {
+    return [PAL[5] || '#F178D8', PAL[1] || '#4ECDC4', PAL[0] || '#FF6B6B', PAL[2] || '#FFE066'];
   }
   function axialToOffset(q, r) { return { col: q, row: r + ((q - (q & 1)) >> 1) }; }
-  function pieceHexCenter(bx, by, col, row, hexSize) {
-    const colW = 1.5 * hexSize, hexH = SQRT3 * hexSize;
-    return [bx + colW * col + hexSize, by + hexH * (row + 0.5 * (col & 1)) + hexH / 2];
+  // Cell centers relative to the badge's bounding-box center (which is what
+  // gets pinned to the icon center — centroid centering reads off-balance
+  // because of the asymmetric nub).
+  function badgeCellCenters(s) {
+    const R = s * 0.95;
+    const pts = BADGE_CELLS.map(([q, r]) => {
+      const o = axialToOffset(q, r);
+      return [1.5 * s * o.col, SQRT3 * s * (o.row + 0.5 * (o.col & 1))];
+    });
+    const minX = Math.min(...pts.map((p) => p[0])) - R;
+    const maxX = Math.max(...pts.map((p) => p[0])) + R;
+    const minY = Math.min(...pts.map((p) => p[1])) - SQRT3 / 2 * R;
+    const maxY = Math.max(...pts.map((p) => p[1])) + SQRT3 / 2 * R;
+    const mx = (minX + maxX) / 2, my = (minY + maxY) / 2;
+    return pts.map(([x, y]) => [x - mx, y - my]);
   }
-  // Center a piece on (cx, cy): compute the cell centroid offset and subtract it.
-  function pieceCentroidOffset(type, hexSize, rot) {
-    const cells = rotatedCells(type, rot);
-    let sx = 0, sy = 0;
-    for (const [q, r] of cells) {
-      const off = axialToOffset(q, r);
-      const [hx, hy] = pieceHexCenter(0, 0, off.col, off.row, hexSize);
-      sx += hx; sy += hy;
-    }
-    return [sx / cells.length, sy / cells.length];
+  function drawBadge(ctx, cx, cy, s, colors) {
+    const cols = colors || badgeColors();
+    badgeCellCenters(s).forEach(([x, y], i) => stampPillow(ctx, cx + x, cy + y, s * 0.95, cols[i]));
   }
-  function drawPiece(ctx, cx, cy, type, hexSize, rot, color) {
-    const cells = rotatedCells(type, rot);
-    const [ox, oy] = pieceCentroidOffset(type, hexSize, rot);
-    const col = color || pieceColor(type);
-    for (const [q, r] of cells) {
-      const off = axialToOffset(q, r);
-      const [hx, hy] = pieceHexCenter(cx - ox, cy - oy, off.col, off.row, hexSize);
-      stampPillow(ctx, hx, hy, hexSize * 0.95, col);
-    }
-  }
-  // Soft glow stamp of a piece (for the back/depth layer).
-  function drawPieceGlow(ctx, cx, cy, type, hexSize, rot, alpha, blur) {
+  // Soft drop shadow below the badge — the floating-sticker depth cue. On
+  // tvOS it lives on the back layer so the piece hovers over it in parallax.
+  function drawBadgeShadow(ctx, cx, cy, s) {
     ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.filter = `blur(${blur}px)`;
-    drawPiece(ctx, cx, cy, type, hexSize, rot, pieceColor(type));
+    ctx.globalAlpha = 0.5;
+    ctx.filter = `blur(${s * 0.30}px)`;
+    ctx.fillStyle = '#0A0714';
+    for (const [x, y] of badgeCellCenters(s)) {
+      hexPathRounded(ctx, cx + x, cy + y + s * 0.22, s * 0.95, s * 0.95 * 0.18);
+      ctx.fill();
+    }
     ctx.restore();
   }
 
-  // ============================================================
-  // Background — radial plum, identical palette to artwork/builder.html
-  // paintBackground('radial'), scaled to any aspect.
-  // ============================================================
+  // Brand wordmark gradient — a diagonal 135° sweep across the wordmark BLOCK
+  // (both lines), mirroring .gradient-title (theme.css) as one cohesive run
+  // instead of restarting per line. Pass the block's bounding box.
+  function blockGradient(ctx, x0, y0, x1, y1) {
+    const g = ctx.createLinearGradient(x0, y0, x1, y1);
+    const stops = ['#FF6B6B', '#FF8C42', '#FFE066', '#7BED6F', '#4ECDC4', '#5B7FFF', '#A78BFA', '#F178D8'];
+    stops.forEach((c, i) => g.addColorStop(i / (stops.length - 1), c));
+    return g;
+  }
+
+  // --- Banner falling-piece motif (same pillow vocabulary as the badge) ---
+  function hexToRgba(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; }
+  // Centered cell layout for an arbitrary hex piece (axial cells) — the badge's
+  // badgeCellCenters generalized to any footprint.
+  function pieceCellCenters(cells, s) {
+    const R = s * 0.95;
+    const pts = cells.map(([q, r]) => { const o = axialToOffset(q, r); return [1.5 * s * o.col, SQRT3 * s * (o.row + 0.5 * (o.col & 1))]; });
+    const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+    const mx = (Math.min(...xs) - R + Math.max(...xs) + R) / 2;
+    const my = (Math.min(...ys) - SQRT3 / 2 * R + Math.max(...ys) + SQRT3 / 2 * R) / 2;
+    return pts.map(([x, y]) => [x - mx, y - my]);
+  }
+  // Downward motion trail behind a falling piece — the social-preview streak.
+  function drawTrail(ctx, cx, yTop, yBot, w, color, alpha) {
+    ctx.save();
+    const g = ctx.createLinearGradient(0, yBot, 0, yTop);
+    g.addColorStop(0, hexToRgba(color, alpha)); g.addColorStop(1, hexToRgba(color, 0));
+    ctx.fillStyle = g; ctx.filter = `blur(${w * 0.22}px)`;
+    ctx.beginPath(); ctx.roundRect(cx - w / 2, yTop, w, yBot - yTop, w / 2); ctx.fill();
+    ctx.restore();
+  }
+  const BANNER_SHAPES = { tri: [[0, 0], [1, 0], [0, 1]], line: [[-1, 0], [0, 0], [1, 0]], ell: [[0, 0], [1, 0], [1, 1]], badge: BADGE_CELLS };
+  // One single-colour falling cluster + its trail.
+  function drawCluster(ctx, cx, cy, s, shape, color, alpha, trail, trailA) {
+    if (trail) drawTrail(ctx, cx, cy - trail, cy + s, s * 1.5, color, trailA);
+    ctx.save(); ctx.globalAlpha = alpha;
+    pieceCellCenters(BANNER_SHAPES[shape], s).forEach(([x, y]) => stampPillow(ctx, cx + x, cy + y, s * 0.95, color));
+    ctx.restore();
+  }
+  function fitFontSize(ctx, text, targetSize, maxWidth) {
+    let size = targetSize;
+    ctx.font = `900 ${size}px Orbitron, sans-serif`;
+    let safety = 120;
+    while (ctx.measureText(text).width > maxWidth && size > 8 && safety-- > 0) {
+      size = Math.max(8, size * 0.96);
+      ctx.font = `900 ${Math.round(size)}px Orbitron, sans-serif`;
+    }
+    return Math.round(size);
+  }
+
+  // Radial plum backdrop — used by the Top Shelf key art.
   function paintRadial(ctx, W, H) {
     const R = Math.max(W, H) * 0.85;
     const g = ctx.createRadialGradient(W/2, H*0.42, 0, W/2, H*0.5, R);
@@ -152,109 +186,11 @@
   }
 
   // ============================================================
-  // Wordmark — gradient Orbitron, mirrors .gradient-title (theme.css) and
-  // builder.html titleGradient. Renders 1 or 2 lines, auto-fit to maxWidth.
-  // ============================================================
-  function titleGradient(ctx, x0, x1) {
-    const g = ctx.createLinearGradient(x0, 0, x1, 0);
-    const stops = ['#FF6B6B', '#FF8C42', '#FFE066', '#7BED6F', '#4ECDC4', '#5B7FFF', '#A78BFA', '#F178D8'];
-    stops.forEach((c, i) => g.addColorStop(i / (stops.length - 1), c));
-    return g;
-  }
-  function fitFontSize(ctx, text, targetSize, maxWidth, weight) {
-    let size = targetSize; const w = weight || '900';
-    ctx.font = `${w} ${size}px Orbitron, sans-serif`;
-    let safety = 120;
-    while (ctx.measureText(text).width > maxWidth && size > 8 && safety-- > 0) {
-      size = Math.max(8, size * 0.96);
-      ctx.font = `${w} ${Math.round(size)}px Orbitron, sans-serif`;
-    }
-    return Math.round(size);
-  }
-  function drawWordmark(ctx, W, wm) {
-    const lines = wm.lines;
-    const maxW = W * (wm.maxWidthFrac ?? 0.84);
-    const target = wm.sizeFrac * (wm.refH || W);
-    // Fit every line to the same size (smallest that fits all).
-    let size = target;
-    for (const ln of lines) size = Math.min(size, fitFontSize(ctx, ln, target, maxW, '900'));
-    ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `900 ${size}px Orbitron, sans-serif`;
-    const lineH = size * (wm.lineHeight ?? 1.02);
-    const totalH = (lines.length - 1) * lineH;
-    const cy = wm.cy;
-    ctx.shadowColor = 'rgba(0,0,0,0.55)';
-    ctx.shadowBlur = size * 0.14;
-    ctx.shadowOffsetY = Math.max(2, size * 0.04);
-    // gradient spans the widest line's extent, centered
-    let widest = 0;
-    for (const ln of lines) widest = Math.max(widest, ctx.measureText(ln).width);
-    const gx0 = W/2 - widest/2, gx1 = W/2 + widest/2;
-    ctx.fillStyle = titleGradient(ctx, gx0, gx1);
-    for (let i = 0; i < lines.length; i++) {
-      ctx.fillText(lines[i], W/2, cy - totalH/2 + i * lineH);
-    }
-    ctx.restore();
-  }
-
-  // Letter-spaced subtitle ("PARTY") — mirrors builder.html drawSubtitle
-  // 'letterSpaced' / the social-preview lockup.
-  function drawSubtitleSpaced(ctx, W, text, cy, size, color) {
-    ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `700 ${size}px Orbitron, sans-serif`;
-    ctx.fillStyle = color || 'rgba(247,241,232,0.88)';
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = size * 0.2;
-    const letters = text.split('');
-    let maxLetterW = 0;
-    for (const ch of letters) maxLetterW = Math.max(maxLetterW, ctx.measureText(ch).width);
-    const spacing = Math.max(size * 0.95, maxLetterW * 1.45);
-    const baseX = W / 2 - spacing * (letters.length - 1) / 2;
-    for (let i = 0; i < letters.length; i++) ctx.fillText(letters[i], baseX + i * spacing, cy);
-    ctx.restore();
-  }
-
-  // Downward motion trail behind a falling piece — ported from builder.html
-  // drawPieceTrail, adapted to centroid-centered piece coords.
-  function drawPieceTrail(ctx, cx, cy, type, hexSize, rot, length) {
-    if (!length) return;
-    const color = pieceColor(type);
-    const cells = rotatedCells(type, rot);
-    const [ox, oy] = pieceCentroidOffset(type, hexSize, rot);
-    const topByX = new Map();
-    for (const [q, r] of cells) {
-      const off = axialToOffset(q, r);
-      const [hx, hy] = pieceHexCenter(cx - ox, cy - oy, off.col, off.row, hexSize);
-      const key = Math.round(hx);
-      const prev = topByX.get(key);
-      if (!prev || hy < prev[1]) topByX.set(key, [hx, hy]);
-    }
-    const hexH = SQRT3 * hexSize, flatWidth = hexSize, intensity = 0.30, blurPx = hexSize * 0.18;
-    for (const [hx, hy] of topByX.values()) {
-      const headY = hy - hexH / 2, tailY = headY - length;
-      ctx.save();
-      ctx.filter = `blur(${blurPx}px)`;
-      const grad = ctx.createLinearGradient(0, tailY, 0, headY);
-      grad.addColorStop(0, rgba(color, 0));
-      grad.addColorStop(0.75, rgba(color, intensity * 0.25));
-      grad.addColorStop(1, rgba(color, intensity));
-      ctx.fillStyle = grad;
-      ctx.fillRect(hx - flatWidth / 2, tailY, flatWidth, length);
-      ctx.restore();
-    }
-  }
-
-  // ============================================================
-  // Layout interpreter. spec = {
-  //   w, h, layer:'back'|'front'|'flat', refForSize,
-  //   backPieces:[{type,nx,ny,sizeFrac,rot,alpha,blurFrac}],
-  //   pieces:[{type,nx,ny,sizeFrac,rot}],
-  //   wordmark:{lines, ncy, sizeFrac, maxWidthFrac, lineHeight} | null
-  // }  nx/ny are 0..1 of w/h; sizeFrac is hex circumradius / h.
+  // Icon layer renderer. spec = {
+  //   w, h, layer: 'back'|'front'|'flat',
+  //   bg: css color (back layer fill — flat brand plum),
+  //   badge: { nx, ny, sizeFrac, colors? }   nx/ny in 0..1; sizeFrac = s / h
+  // }
   // ============================================================
   function renderHexBrandLayer(spec) {
     const W = spec.w, H = spec.h;
@@ -262,38 +198,15 @@
     canvas.width = W; canvas.height = H;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, W, H);
-    const drawBack = spec.layer === 'back' || spec.layer === 'flat';
-    const drawFront = spec.layer === 'front' || spec.layer === 'flat';
-
-    if (drawBack) {
-      paintRadial(ctx, W, H);
-      for (const p of (spec.backPieces || [])) {
-        drawPieceGlow(ctx, p.nx * W, p.ny * H, p.type, p.sizeFrac * H, p.rot || 0,
-                      p.alpha ?? 0.5, (p.blurFrac ?? 0.04) * H);
-      }
+    const b = spec.badge;
+    const cx = b.nx * W, cy = b.ny * H, s = b.sizeFrac * H;
+    if (spec.layer === 'back' || spec.layer === 'flat') {
+      ctx.fillStyle = spec.bg;
+      ctx.fillRect(0, 0, W, H);
+      drawBadgeShadow(ctx, cx, cy, s);
     }
-    if (drawFront) {
-      // trails first so the pieces render on top
-      for (const p of (spec.pieces || [])) {
-        if (p.trailFrac) drawPieceTrail(ctx, p.nx * W, p.ny * H, p.type, p.sizeFrac * H, p.rot || 0, p.trailFrac * H);
-      }
-      for (const p of (spec.pieces || [])) {
-        drawPiece(ctx, p.nx * W, p.ny * H, p.type, p.sizeFrac * H, p.rot || 0);
-      }
-      if (spec.wordmark) {
-        drawWordmark(ctx, W, {
-          lines: spec.wordmark.lines,
-          cy: (spec.wordmark.ncy ?? 0.5) * H,
-          sizeFrac: spec.wordmark.sizeFrac,
-          refH: H,
-          maxWidthFrac: spec.wordmark.maxWidthFrac,
-          lineHeight: spec.wordmark.lineHeight,
-        });
-        if (spec.wordmark.subtitle) {
-          const st = spec.wordmark.subtitle;
-          drawSubtitleSpaced(ctx, W, st.text, (st.ncy ?? 0.66) * H, st.sizeFrac * H, st.color);
-        }
-      }
+    if (spec.layer === 'front' || spec.layer === 'flat') {
+      drawBadge(ctx, cx, cy, s, b.colors);
     }
     return canvas.toDataURL('image/png');
   }
@@ -321,6 +234,90 @@
     });
   }
   window.renderTopShelf = renderTopShelf;
+
+  // Android legacy launcher icon (pre-adaptive fallback mipmaps). Mirrors the
+  // adaptive icon exactly: the ic_launcher_background.xml radial mapped to the
+  // 72dp visible crop of the 108dp grid, the badge at the adaptive foreground's
+  // size (cell s = 10.8dp of the 72dp crop), masked to the legacy shape. No
+  // drop shadow — VectorDrawables can't blur, so the adaptive icon has none
+  // and the raster fallbacks match it.
+  // spec = { size, shape: 'square'|'round' } -> PNG data URL.
+  function renderLauncherIcon(spec) {
+    const N = spec.size;
+    const canvas = document.getElementById('stage');
+    canvas.width = N; canvas.height = N;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, N, N);
+    ctx.save();
+    ctx.beginPath();
+    if (spec.shape === 'round') ctx.arc(N / 2, N / 2, N * 0.49, 0, Math.PI * 2);
+    else ctx.roundRect(N * 0.04, N * 0.04, N * 0.92, N * 0.92, N * 0.12);
+    ctx.clip();
+    const g = ctx.createRadialGradient(0.361 * N, 0.333 * N, 0, 0.361 * N, 0.333 * N, 1.278 * N);
+    g.addColorStop(0, '#2A2540');
+    g.addColorStop(0.62, '#1E1A2B');
+    g.addColorStop(1, '#15121F');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, N, N);
+    drawBadge(ctx, N / 2, N / 2, (10.8 / 72) * N);
+    ctx.restore();
+    return canvas.toDataURL('image/png');
+  }
+  window.renderLauncherIcon = renderLauncherIcon;
+
+  // Android TV leanback banner (16:9, rendered natively at every density).
+  // Google requires the logo with the app name, so this is the brand lockup in
+  // the social-preview family: a centred two-line Orbitron wordmark with one
+  // cohesive diagonal gradient (mirrors .gradient-title), on the plum radial,
+  // framed by scattered single-colour "falling" pieces + motion trails in the
+  // same pillow vocabulary as the app icon. All geometry is fractional so each
+  // density renders natively (never downscaled). Raster on purpose — the
+  // wordmark uses the real brand font a VectorDrawable can only approximate.
+  // spec = { w, h } -> PNG data URL.
+  function renderBanner(spec) {
+    const W = spec.w, H = spec.h;
+    const canvas = document.getElementById('stage');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    // Plum radial backdrop.
+    const RR = Math.max(W, H) * 0.85;
+    const bg = ctx.createRadialGradient(W / 2, H * 0.42, 0, W / 2, H * 0.5, RR);
+    bg.addColorStop(0, '#2E2748'); bg.addColorStop(1, '#161226');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    // Scattered falling pieces around the wordmark (fx, fy, fs as fractions of
+    // W/H; colours span PARTY_PALETTE).
+    const CLUSTERS = [
+      [0.10, 0.19, 0.045, 'ell',  PAL[3]],
+      [0.31, 0.13, 0.040, 'tri',  PAL[2]],
+      [0.70, 0.13, 0.040, 'line', PAL[5]],
+      [0.90, 0.18, 0.045, 'tri',  PAL[1]],
+      [0.11, 0.82, 0.045, 'badge', PAL[4]],
+      [0.33, 0.87, 0.040, 'tri',  PAL[7]],
+      [0.66, 0.86, 0.042, 'line', PAL[0]],
+      [0.89, 0.82, 0.045, 'ell',  PAL[6]],
+    ];
+    for (const [fx, fy, fs, shape, color] of CLUSTERS) {
+      drawCluster(ctx, fx * W, fy * H, fs * H, shape, color, 0.88, 0.16 * H, 0.42);
+    }
+    // Centred two-line wordmark, one diagonal gradient across the block.
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const size = fitFontSize(ctx, 'STACKER', 0.25 * H, 0.70 * W);
+    ctx.font = `900 ${size}px Orbitron, sans-serif`;
+    const step = size * 1.05, firstY = H / 2 - step / 2;
+    const blockW = ctx.measureText('STACKER').width;
+    const yT = firstY - size / 2, yB = firstY + step + size / 2;
+    ctx.shadowColor = 'rgba(0,0,0,0.55)';
+    ctx.shadowBlur = size * 0.14;
+    ctx.shadowOffsetY = Math.max(1, size * 0.04);
+    ctx.fillStyle = blockGradient(ctx, W / 2 - blockW / 2, yT, W / 2 + blockW / 2, yB);
+    ctx.fillText('HEX', W / 2, firstY);
+    ctx.fillText('STACKER', W / 2, firstY + step);
+    ctx.restore();
+    return canvas.toDataURL('image/png');
+  }
+  window.renderBanner = renderBanner;
   window.__TVOS_READY__ = true;
   </script>
 </body>
