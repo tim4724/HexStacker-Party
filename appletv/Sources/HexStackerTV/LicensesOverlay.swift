@@ -1,0 +1,326 @@
+import SpriteKit
+import HexStackerKit
+
+/// Full-screen "Open Source Licenses" overlay for the tvOS display, reached from
+/// the lobby footer link. Lists the third-party components the app actually bundles
+/// with their full license text, scrolled with the Siri Remote d-pad (Up/Down);
+/// Menu returns to the lobby.
+///
+/// The list is short by design: unlike Android (which bundles the whole AndroidX /
+/// Compose Apache stack), the tvOS app runs on Apple system frameworks
+/// (JavaScriptCore, SpriteKit, SwiftUI, Foundation) which are Apple-provided and
+/// need no attribution. What DOES ship third-party is the WebRTC binary (BSD-3),
+/// the Orbitron font (OFL 1.1), and the lobby music (CC BY 3.0).
+///
+/// English-only, like the Android screen: this is TV-only chrome the web has no
+/// equivalent for, so there is no shared i18n.js string to mirror via `tr()`.
+final class LicensesOverlay {
+
+    let node = SKNode()
+    private(set) var isOpen = false
+
+    private let crop = SKCropNode()
+    private let content = SKNode()
+    private var contentTopY: CGFloat = 0   // scene y of the content's top row at scrollY 0
+    private var scrollY: CGFloat = 0
+    private var maxScroll: CGFloat = 0
+    private var viewportHeight: CGFloat = 0
+    private var built = false
+
+    private struct Entry {
+        let name: String
+        let author: String
+        let license: String
+        let body: String
+    }
+
+    init() {
+        node.zPosition = 140   // above connection (130), pause (90), countdown (80)
+        node.isHidden = true
+    }
+
+    /// Build the (static) overlay once the scene has its size + safe area. Cheap to
+    /// rebuild on a resize; `built` guards the common no-op re-entry.
+    func configure(size: CGSize, playRect: CGRect) {
+        guard !built || node.parent == nil else { return }
+        built = true
+        node.removeAllChildren()
+
+        // Opaque brand background — this replaces the lobby while open, so d-pad
+        // focus behind it is never visible (matches the Android full-screen swap).
+        let bg = SKSpriteNode(color: UIColor(Theme.bgPrimary), size: size)
+        bg.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        bg.zPosition = 0
+        node.addChild(bg)
+
+        let margin = playRect.height * 0.05
+        let titleSize = max(30, min(playRect.height * 0.05, 52))
+
+        let title = SKLabelNode()
+        title.horizontalAlignmentMode = .left
+        title.verticalAlignmentMode = .top
+        title.setStyledText("Open Source Licenses", font: AppFont.black,
+                            size: titleSize, color: SKTheme.textPrimary(), tracking: 0.08)
+        title.position = CGPoint(x: playRect.minX, y: playRect.maxY - margin)
+        title.zPosition = 1
+        node.addChild(title)
+
+        let hint = SKLabelNode()
+        hint.horizontalAlignmentMode = .left
+        hint.verticalAlignmentMode = .top
+        hint.setStyledText("Press Menu to return", font: AppFont.psName(.regular),
+                           size: max(14, min(playRect.height * 0.02, 20)),
+                           color: SKTheme.textFaint, tracking: 0.02)
+        hint.position = CGPoint(x: playRect.minX, y: title.position.y - title.frame.height - margin * 0.3)
+        hint.zPosition = 1
+        node.addChild(hint)
+
+        // Scroll viewport: from below the hint down to the bottom safe edge.
+        let viewportTop = hint.position.y - hint.frame.height - margin * 0.5
+        let viewportBottom = playRect.minY + margin
+        viewportHeight = viewportTop - viewportBottom
+        contentTopY = viewportTop
+
+        let mask = SKSpriteNode(color: .white,
+                                size: CGSize(width: playRect.width, height: viewportHeight))
+        mask.position = CGPoint(x: playRect.midX, y: (viewportTop + viewportBottom) / 2)
+        crop.maskNode = mask
+        crop.zPosition = 1
+        node.addChild(crop)
+
+        crop.addChild(content)
+        let contentHeight = buildContent(width: playRect.width, leftX: playRect.minX)
+        maxScroll = max(0, contentHeight - viewportHeight)
+    }
+
+    /// Lay the attributions out top-to-bottom in `content` (local y 0 at the top,
+    /// descending). Returns the total stack height.
+    private func buildContent(width: CGFloat, leftX: CGFloat) -> CGFloat {
+        content.removeAllChildren()
+        var y: CGFloat = 0
+        let bodyWidth = width
+        let gap = width * 0.018
+
+        for (i, e) in Self.entries.enumerated() {
+            if i > 0 { y -= gap * 1.6 }
+
+            let header = SKLabelNode()
+            header.horizontalAlignmentMode = .left
+            header.verticalAlignmentMode = .top
+            header.setStyledText("\(e.name)   —   \(e.license)", font: AppFont.name,
+                                size: max(18, min(width * 0.016, 30)),
+                                color: SKTheme.textPrimary(), tracking: 0.04)
+            header.position = CGPoint(x: leftX, y: y)
+            content.addChild(header)
+            y -= header.frame.height + gap * 0.3
+
+            let author = SKLabelNode()
+            author.horizontalAlignmentMode = .left
+            author.verticalAlignmentMode = .top
+            author.setStyledText(e.author, font: AppFont.psName(.regular),
+                                size: max(13, min(width * 0.011, 20)),
+                                color: SKTheme.textFaint, tracking: 0.02)
+            author.position = CGPoint(x: leftX, y: y)
+            content.addChild(author)
+            y -= author.frame.height + gap
+
+            let body = multilineLabel(e.body, width: bodyWidth)
+            body.position = CGPoint(x: leftX, y: y)
+            content.addChild(body)
+            y -= body.frame.height
+        }
+        return -y
+    }
+
+    /// A left-aligned, top-anchored monospace paragraph. License text is
+    /// pre-wrapped, so `numberOfLines = 0` just honours the embedded newlines; the
+    /// wide `preferredMaxLayoutWidth` guards the rare over-long line.
+    private func multilineLabel(_ text: String, width: CGFloat) -> SKLabelNode {
+        let label = SKLabelNode()
+        label.horizontalAlignmentMode = .left
+        label.verticalAlignmentMode = .top
+        label.numberOfLines = 0
+        label.preferredMaxLayoutWidth = width
+        let size: CGFloat = 20
+        let mono = UIFont(name: "Menlo", size: size) ?? .monospacedSystemFont(ofSize: size, weight: .regular)
+        label.attributedText = NSAttributedString(string: text, attributes: [
+            .font: mono,
+            .foregroundColor: SKTheme.textSecondary,
+        ])
+        return label
+    }
+
+    func open() {
+        node.isHidden = false
+        isOpen = true
+        scrollY = 0
+        content.position = CGPoint(x: 0, y: contentTopY)
+    }
+
+    func close() {
+        node.isHidden = true
+        isOpen = false
+    }
+
+    /// Scroll by a fraction of a viewport per press; positive scrolls down (reveals
+    /// lower text). Clamped to the content extent.
+    func scroll(pages: CGFloat) {
+        guard isOpen else { return }
+        scrollY = min(max(0, scrollY + pages * viewportHeight * 0.5), maxScroll)
+        content.position = CGPoint(x: 0, y: contentTopY + scrollY)
+    }
+
+    // MARK: - Attribution data (English-only license text, embedded verbatim)
+
+    private static let entries: [Entry] = [
+        Entry(
+            name: "WebRTC",
+            author: "The WebRTC project authors, Google Inc.",
+            license: "BSD-3-Clause",
+            body: bsd3Clause),
+        Entry(
+            name: "Orbitron",
+            author: "The Orbitron Project Authors",
+            license: "SIL Open Font License 1.1",
+            body: ofl11),
+        Entry(
+            name: "Lunar Joyride",
+            author: "FoxSynergy",
+            license: "CC BY 3.0",
+            body: """
+            "Lunar Joyride" by FoxSynergy
+            Licensed under Creative Commons Attribution 3.0 Unported (CC BY 3.0)
+            https://creativecommons.org/licenses/by/3.0/
+            """),
+    ]
+
+    private static let bsd3Clause = """
+    Copyright (c) 2011, The WebRTC project authors. All rights reserved.
+    Copyright (c) 2011, Google Inc. All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
+
+      * Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+
+      * Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in
+        the documentation and/or other materials provided with the
+        distribution.
+
+      * Neither the name of Google nor the names of its contributors may
+        be used to endorse or promote products derived from this software
+        without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    HOLDERS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+    """
+
+    // SIL Open Font License 1.1 for Orbitron (verbatim from the repo's OFL.txt,
+    // which also ships next to the font on web).
+    private static let ofl11 = """
+    Copyright 2018 The Orbitron Project Authors (https://github.com/theleagueof/orbitron), with Reserved Font Name: "Orbitron"
+
+    This Font Software is licensed under the SIL Open Font License, Version 1.1.
+    This license is copied below, and is also available with a FAQ at:
+    http://scripts.sil.org/OFL
+
+    -----------------------------------------------------------
+    SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
+    -----------------------------------------------------------
+
+    PREAMBLE
+    The goals of the Open Font License (OFL) are to stimulate worldwide
+    development of collaborative font projects, to support the font creation
+    efforts of academic and linguistic communities, and to provide a free and
+    open framework in which fonts may be shared and improved in partnership
+    with others.
+
+    The OFL allows the licensed fonts to be used, studied, modified and
+    redistributed freely as long as they are not sold by themselves. The
+    fonts, including any derivative works, can be bundled, embedded,
+    redistributed and/or sold with any software provided that any reserved
+    names are not used by derivative works. The fonts and derivatives,
+    however, cannot be released under any other type of license. The
+    requirement for fonts to remain under this license does not apply
+    to any document created using the fonts or their derivatives.
+
+    DEFINITIONS
+    "Font Software" refers to the set of files released by the Copyright
+    Holder(s) under this license and clearly marked as such. This may
+    include source files, build scripts and documentation.
+
+    "Reserved Font Name" refers to any names specified as such after the
+    copyright statement(s).
+
+    "Original Version" refers to the collection of Font Software components as
+    distributed by the Copyright Holder(s).
+
+    "Modified Version" refers to any derivative made by adding to, deleting,
+    or substituting -- in part or in whole -- any of the components of the
+    Original Version, by changing formats or by porting the Font Software to a
+    new environment.
+
+    "Author" refers to any designer, engineer, programmer, technical
+    writer or other person who contributed to the Font Software.
+
+    PERMISSION & CONDITIONS
+    Permission is hereby granted, free of charge, to any person obtaining
+    a copy of the Font Software, to use, study, copy, merge, embed, modify,
+    redistribute, and sell modified and unmodified copies of the Font
+    Software, subject to the following conditions:
+
+    1) Neither the Font Software nor any of its individual components,
+    in Original or Modified Versions, may be sold by itself.
+
+    2) Original or Modified Versions of the Font Software may be bundled,
+    redistributed and/or sold with any software, provided that each copy
+    contains the above copyright notice and this license. These can be
+    included either as stand-alone text files, human-readable headers or
+    in the appropriate machine-readable metadata fields within text or
+    binary files as long as those fields can be easily viewed by the user.
+
+    3) No Modified Version of the Font Software may use the Reserved Font
+    Name(s) unless explicit written permission is granted by the corresponding
+    Copyright Holder. This restriction only applies to the primary font name as
+    presented to the users.
+
+    4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font
+    Software shall not be used to promote, endorse or advertise any
+    Modified Version, except to acknowledge the contribution(s) of the
+    Copyright Holder(s) and the Author(s) or with their explicit written
+    permission.
+
+    5) The Font Software, modified or unmodified, in part or in whole,
+    must be distributed entirely under this license, and must not be
+    distributed under any other license. The requirement for fonts to
+    remain under this license does not apply to any document created
+    using the Font Software.
+
+    TERMINATION
+    This license becomes null and void if any of the above conditions are
+    not met.
+
+    DISCLAIMER
+    THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
+    OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
+    COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+    INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
+    DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
+    OTHER DEALINGS IN THE FONT SOFTWARE.
+    """
+}
