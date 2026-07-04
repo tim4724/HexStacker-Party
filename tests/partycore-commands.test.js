@@ -3,8 +3,8 @@
 // PartyCore command-VOCABULARY golden test.
 //
 // The shared frame() golden (partycore-frame.test.js) runs at level 1 with
-// single-line clears, so it never emits three host-effect commands: musicSpeed,
-// garbageCancelled, and garbageSent. This dedicated golden pins them with small
+// single-line clears, so it never emits two host-effect commands:
+// garbageCancelled and garbageSent. This dedicated golden pins them with small
 // hermetic scenarios (tests/helpers/partycore-commands-script.js) and:
 //   (1) replays each scenario's per-frame { deltaMs, events, commands } against a
 //       committed fixture with exact deep-equality;
@@ -52,8 +52,8 @@ test('command-vocabulary driver is internally deterministic (record == replay)',
   assert.deepStrictEqual(runCommandVocabularyScript(), runCommandVocabularyScript());
 });
 
-test('command-vocabulary golden covers musicSpeed, garbageCancelled, and garbageSent', () => {
-  // Coverage gate: these three are exactly the commands the shared frame() golden
+test('command-vocabulary golden covers garbageCancelled and garbageSent', () => {
+  // Coverage gate: these two are exactly the commands the shared frame() golden
   // cannot reach. If any stops being emitted, this corpus must fail loudly.
   const { scenarios } = runCommandVocabularyScript();
   const seen = new Set();
@@ -62,7 +62,7 @@ test('command-vocabulary golden covers musicSpeed, garbageCancelled, and garbage
       for (const cmd of step.commands) seen.add(cmd.type);
     }
   }
-  for (const type of ['musicSpeed', 'garbageCancelled', 'garbageSent']) {
+  for (const type of ['garbageCancelled', 'garbageSent']) {
     assert.ok(seen.has(type), 'corpus must emit a ' + type + ' command');
   }
 });

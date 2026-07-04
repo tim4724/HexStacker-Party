@@ -3,7 +3,7 @@
 // UMD: works in Node.js (require) and browser (window.GameConstants)
 (function(exports) {
 
-const MAX_SPEED_LEVEL = 15;    // Gravity and music speed cap at this level
+const MAX_SPEED_LEVEL = 15;    // Gravity cap at this level
 const SOFT_DROP_MULTIPLIER = 20;
 const LOCK_DELAY_MS = 500;
 const MAX_LOCK_RESETS = 10;

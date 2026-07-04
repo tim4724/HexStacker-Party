@@ -12,7 +12,6 @@ var MAX_FRAME_DELTA_MS = GameConstants.MAX_FRAME_DELTA_MS;
 var IDLE_FRAME_INTERVAL_MS = 250;
 
 var lastThrottled = null;
-var lastMusicLevel = 0;
 var _NO_SHAKE = Object.freeze({ x: 0, y: 0 });
 
 // Returns all effects if any is still active; otherwise clears the map entry and returns [].
@@ -73,18 +72,6 @@ function renderLoop(timestamp) {
     // Recalculate layout if player count changed
     if (gameState.players && boardRenderers.length !== gameState.players.length) {
       calculateLayout();
-    }
-    // Update music speed (only when max level changes)
-    if (music && music.playing && gameState.players && gameState.players.length > 0) {
-      var maxLevel = 1;
-      for (var ml = 0; ml < gameState.players.length; ml++) {
-        var pl = gameState.players[ml].level || 1;
-        if (pl > maxLevel) maxLevel = pl;
-      }
-      if (maxLevel !== lastMusicLevel) {
-        lastMusicLevel = maxLevel;
-        music.setSpeed(maxLevel);
-      }
     }
 
     prevFrameTime = timestamp;

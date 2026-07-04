@@ -37,7 +37,7 @@ data class GameEvent(
  * Host command (camelCase `type`), in `_toCommands` emission order. FLAT model.
  *
  * Types: pieceLock | lineClear | playerState | playerKO | playerEliminated |
- *        garbageCancelled | garbageSent | gameEnd | musicSpeed
+ *        garbageCancelled | garbageSent | gameEnd
  */
 @Serializable
 data class Command(
@@ -49,7 +49,7 @@ data class Command(
     val lines: Int? = null,              // lineClear / playerState(full) / garbage*
     val blocks: List<Cell>? = null,      // pieceLock
     val clearCells: List<Cell>? = null,  // lineClear
-    val level: Int? = null,              // playerState(full) / musicSpeed
+    val level: Int? = null,              // playerState(full)
     val alive: Boolean? = null,          // playerState
     val garbageIncoming: Int? = null,    // playerState(full)
     val elapsed: Double? = null,         // gameEnd
@@ -76,7 +76,7 @@ object EventType {
     val ALL = setOf(PIECE_LOCK, LINE_CLEAR, PLAYER_KO, GARBAGE_CANCELLED, GARBAGE_SENT, GAME_END)
 }
 
-/** Known command `type` strings (`PartyCore._toCommands` + frame()'s musicSpeed). */
+/** Known command `type` strings (`PartyCore._toCommands`). */
 object CommandType {
     const val PIECE_LOCK = "pieceLock"
     const val LINE_CLEAR = "lineClear"
@@ -86,9 +86,8 @@ object CommandType {
     const val GARBAGE_CANCELLED = "garbageCancelled"
     const val GARBAGE_SENT = "garbageSent"
     const val GAME_END = "gameEnd"
-    const val MUSIC_SPEED = "musicSpeed"
     val ALL = setOf(
         PIECE_LOCK, LINE_CLEAR, PLAYER_STATE, PLAYER_KO, PLAYER_ELIMINATED,
-        GARBAGE_CANCELLED, GARBAGE_SENT, GAME_END, MUSIC_SPEED,
+        GARBAGE_CANCELLED, GARBAGE_SENT, GAME_END,
     )
 }

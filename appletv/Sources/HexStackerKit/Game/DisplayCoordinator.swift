@@ -564,8 +564,7 @@ public final class DisplayCoordinator {
 
     /// Map PartyCore's normalized host-effect commands to controller sends and
     /// the match-end transition. Board animations are driven separately from the
-    /// frame's `events`; the snapshot already carries the music level
-    /// (renderSnapshot), so the `musicSpeed` command is a no-op here. Mirrors the
+    /// frame's `events`. Mirrors the
     /// web DisplayGame onEvent/onGameEnd handlers, now single-sourced through the
     /// command vocabulary (see server/PartyCore.d.ts).
     private func dispatchCommands(_ commands: [HostCommand]) {
@@ -593,7 +592,7 @@ public final class DisplayCoordinator {
                 endGame(results: c.results ?? [], elapsed: c.elapsed ?? 0)
             default:
                 // pieceLock / lineClear / playerKO / garbageCancelled / garbageSent
-                // are rendered from `events`; musicSpeed is handled by renderSnapshot.
+                // are rendered from `events`.
                 break
             }
         }

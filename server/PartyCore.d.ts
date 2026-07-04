@@ -130,10 +130,7 @@ declare class PartyCore {
    * MUST call this whenever it leaves the active loop (pause, results) — without
    * it, the first `frame()` after a gap (app resume, results screen) would feed a
    * huge elapsed delta (still capped at MAX_FRAME_DELTA_MS, but a full ~50ms jump)
-   * into the engine. Mirrors the web DisplayRender prevFrameTime=0 reset. Does NOT
-   * reset the music level: the first `frame()` after construction emits a
-   * `musicSpeed` at the current level (the initial music), and after
-   * `resetFrameClock()` the next `frame()` re-emits `musicSpeed` only on a change.
+   * into the engine. Mirrors the web DisplayRender prevFrameTime=0 reset.
    */
   resetFrameClock(): void;
 
@@ -305,8 +302,7 @@ declare namespace PartyCore {
     | PlayerEliminatedCommand
     | GarbageCancelledCommand
     | GarbageSentCommand
-    | GameEndCommand
-    | MusicSpeedCommand;
+    | GameEndCommand;
 
   interface PieceLockCommand {
     type: 'pieceLock';
@@ -368,10 +364,5 @@ declare namespace PartyCore {
     type: 'gameEnd';
     elapsed: number;
     results: ResultEntry[];
-  }
-  /** Emitted only when the max player level changes. */
-  interface MusicSpeedCommand {
-    type: 'musicSpeed';
-    level: number;
   }
 }

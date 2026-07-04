@@ -9,10 +9,8 @@ import androidx.annotation.MainThread
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
-import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import com.hexstacker.core.model.EngineConstants
 import com.hexstacker.tv.R
 
 /**
@@ -20,11 +18,7 @@ import com.hexstacker.tv.R
  *
  * Mirrors `public/display/Music.js` + `public/display/DisplayAudio.js` and the proven
  * appletv `MusicPlayer.swift`:
- *  - loops `lunar-joyride.mp3` at [MASTER_VOLUME] (0.50),
- *  - scales TEMPO 0.95x..1.35x with the match's highest level while holding pitch
- *    CONSTANT (ExoPlayer `PlaybackParameters(speed, pitch = 1.0)` — Media3's Sonic
- *    time-stretcher gives the same net effect as the web's `playbackRate` + `detune`
- *    compensation pair and the Swift `AVAudioUnitTimePitch.rate`),
+ *  - loops `lunar-joyride.mp3` at [MASTER_VOLUME] (0.50) at a constant rate,
  *  - and synthesized square-wave countdown beeps (see [BeepSynth]) that bypass the
  *    music volume.
  *
@@ -74,7 +68,6 @@ class MusicPlayer(context: Context) {
     private val beeps = BeepSynth() // precomputes TICK + GO PCM buffers once
 
     private var muted = false
-    private var lastLevel = 0
 
     // Mirrors Music.js `playing`/`_paused`: pause() only takes effect while the loop runs,
     // resume() only reverses a pause() — so a pause/resume during the pre-GO countdown
@@ -131,17 +124,15 @@ class MusicPlayer(context: Context) {
     val isMuted: Boolean get() = muted
 
     /**
-     * Start (or restart) the loop from the top at rate 1.0. Starts even while muted (at
+     * Start (or restart) the loop from the top. Starts even while muted (at
      * volume 0), so the loop is already running and a later unmute is instantly audible —
      * matching the web keeping its audio graph alive when muted. Web `start` sets the gain
      * immediately (no fade-in), so we do too.
      */
     fun start() {
         cancelFade()
-        lastLevel = 0
         playing = true
         pausedByOverlay = false
-        player.playbackParameters = PlaybackParameters(1.0f, 1.0f)
         player.volume = targetVolume()
         player.seekTo(0L)
         player.playWhenReady = true
@@ -176,20 +167,6 @@ class MusicPlayer(context: Context) {
         player.playWhenReady = true
         player.volume = 0f
         fadeTo(targetVolume(), PAUSE_FADE_MS)
-    }
-
-    /**
-     * Tempo tracks the highest level in the match; pitch held constant.
-     *
-     * `rate = 0.95 + (min(level, 15) - 1) * (0.4 / 14)` -> 0.95 (level 1) .. 1.35 (level >= 15).
-     * Driven by `frame()`'s `musicSpeed` command (already de-duped by the engine), so a
-     * level change is rare; the no-op gate matches `MusicPlayer.swift.setLevel`.
-     */
-    fun setLevel(level: Int) {
-        if (level == lastLevel) return
-        lastLevel = level
-        // Pure mapping lives in :core (EngineConstants.musicRateFor) so it is unit-testable.
-        player.playbackParameters = PlaybackParameters(EngineConstants.musicRateFor(level), 1.0f)
     }
 
     /**

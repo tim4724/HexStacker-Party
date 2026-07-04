@@ -36,8 +36,8 @@ data class ResultEntry(
  * `:tv` app provides a concrete implementation (Canvas/SurfaceView renderer +
  * Media3 music + Compose screen switch); tests provide a fake recorder.
  *
- * Visual-only hooks ([handleGameEvent], [setDisconnected], [setPaused],
- * [setMusicLevel]) have no-op defaults so a screenshot/test impl need only
+ * Visual-only hooks ([handleGameEvent], [setDisconnected], [setPaused])
+ * have no-op defaults so a screenshot/test impl need only
  * implement the screen/render/audio hooks (mirrors the Swift optional-protocol
  * extension).
  */
@@ -62,9 +62,6 @@ interface DisplayOutput {
 
     /** Show/hide the paused overlay. */
     fun setPaused(paused: Boolean) {}
-
-    /** Adjust music tempo to the current level (the snapshot also carries the level). */
-    fun setMusicLevel(level: Int) {}
 
     /** Silence (true) or restore (false) the display's music. Driven by the host's
      *  "Game Music" toggle from either a controller (set_display_mute) or the TV remote. */
