@@ -3,26 +3,24 @@ name: TV Gallery
 # Assembles the cross-platform screen gallery (web reference vs tvOS vs
 # Android TV, one row per state in scripts/gallery/scenarios.json) from the
 # screenshot artifacts the two TV workflows publish, plus freshly captured
-# web-harness references. Runs whenever either TV workflow finishes; the two
-# firings per push race benignly — each assembles from whatever both platforms
-# have published so far, and the later one (with the concurrency group
-# cancelling the earlier if still running) ships the complete page. The sticky
-# PR comment is updated in place either way.
+# web-harness references. The sticky PR comment is updated in place.
+#
+# Driven by push (plus manual dispatch). Because push events are commit-ordered,
+# a branch-keyed concurrency group with cancel-in-progress always leaves the
+# newest commit as the survivor. The native columns come from the TV workflows'
+# artifacts: the Download step waits for this commit's TV runs if they're still
+# in flight, and falls back to the branch's latest for platforms this push didn't
+# touch.
 #
 # The assembled page ships two ways: an artifact (download fallback) and a
 # browsable deployment on the app preview's own host at
-# https://<preview-host>/gallery-tv/ — a tiny static nginx pod path-routed in
-# the same cg-<branch> namespace. It can't ride the app image build because
+# https://<preview-host>/gallery-tv/ (a tiny static nginx pod path-routed in
+# the same cg-<branch> namespace). It can't ride the app image build because
 # the native shots only exist after the platform toolchains ran (macOS
-# simulator, Robolectric) — hence a separate image built here, after assembly.
+# simulator, Robolectric), hence a separate image built here, after assembly.
 on:
-  workflow_run:
-    workflows: ['Android TV', 'tvOS']
-    types: [completed]
-  # The gallery pod also serves the LIVE web gallery (/gallery.html), which the
-  # game image no longer ships — so web-display-only pushes (which never fire
-  # the TV workflows) must deploy it too. On these runs the native columns fall
-  # back to the branch's latest screenshot artifacts, or show explicit gaps.
+  # Any change that can alter a rendered column: the web harness/engine (public,
+  # server, partyplug, scripts, deps) and the native apps (android, appletv).
   push:
     branches: ['**']
     paths:
@@ -30,13 +28,17 @@ on:
       - 'server/**'
       - 'partyplug/**'
       - 'scripts/**'
+      - 'android/**'
+      - 'appletv/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/tv-gallery.yml'
   workflow_dispatch:
 
 concurrency:
-  group: tv-gallery-${{ github.event.workflow_run.head_branch || github.ref_name }}
+  # push is commit-ordered, so a branch-keyed group + cancel-in-progress always
+  # leaves the newest commit's run as the survivor.
+  group: tv-gallery-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -52,12 +54,12 @@ jobs:
       safe_branch: ${{ steps.host.outputs.safe_branch }}
       host: ${{ steps.host.outputs.host }}
     env:
-      HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
-      HEAD_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+      HEAD_SHA: ${{ github.sha }}
+      HEAD_BRANCH: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.sha }}
 
       - uses: actions/setup-node@v6
         with:
@@ -76,14 +78,13 @@ jobs:
           done
           node scripts/gallery/capture-web.mjs http://localhost:8788
 
-      # Pull the native screenshot artifacts for this commit. A push-triggered
-      # run usually starts BEFORE the TV workflows finish for the same SHA
-      # (and pre-merge, workflow_run can't re-fire this workflow), so if a run
-      # for this SHA exists but hasn't completed, WAIT for it instead of
-      # shipping empty columns. Fallback: if a TV workflow never triggered for
-      # this SHA (its path filter skipped it), the newest completed run on the
-      # branch is still accurate — that platform's render is unchanged by
-      # definition of the filter.
+      # Pull the native screenshot artifacts for this commit. This run starts on
+      # push, usually BEFORE the TV workflows finish for the same SHA, so if a run
+      # for this SHA exists but hasn't completed, WAIT for it instead of shipping
+      # empty columns. Fallback: if a TV workflow never triggered for this SHA (its
+      # path filter skipped it), the newest completed run on the branch is still
+      # accurate, since that platform's render is unchanged by definition of the
+      # filter.
       - name: Download native screenshot artifacts
         env:
           GH_TOKEN: ${{ github.token }}
