@@ -128,7 +128,8 @@
     },
     {
       "key": "licenses",
-      "title": "Open Source Licenses (Android TV only)",
+      "title": "Open Source Licenses",
+      "tvos": { "shot": "licenses", "players": 0 },
       "android": { "file": "licenses" }
     }
   ]

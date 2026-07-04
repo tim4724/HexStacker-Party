@@ -241,6 +241,9 @@ final class RootScene: SKScene, DisplayOutput {
         case "disconnected-display":
             coordinator.renderShot("game", playerCount: pc)
             showConnectionOverlay(reconnecting: false)
+        case "licenses":      // full-screen Open Source Licenses overlay (scrolled to top)
+            coordinator.renderShot("lobby-empty", playerCount: pc)
+            openLicenses()
         default:
             coordinator.renderShot(shot, playerCount: pc)
         }
