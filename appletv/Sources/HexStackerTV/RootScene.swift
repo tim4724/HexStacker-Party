@@ -480,25 +480,33 @@ final class RootScene: SKScene, DisplayOutput {
     private var savedMenuRows: [[Focusable]]?
     private var savedFocusRC: (r: Int, c: Int) = (0, 0)
 
-    private func setMenu(_ rows: [[Focusable]], focus: (Int, Int)? = nil) {
+    // Sentinel focus for a menu that starts unfocused (`autoFocus: false`): no item
+    // is highlighted until the first d-pad press, which lands on firstEnabled().
+    private static let noFocus = (-1, -1)
+
+    private func setMenu(_ rows: [[Focusable]], focus: (Int, Int)? = nil, autoFocus: Bool = true) {
         // While the connection overlay is up it owns the live menu. A screen
         // rebuilding underneath (roster change in the lobby, results, pause)
         // must land in the stash instead; otherwise hideConnectionOverlay
         // would restore the old, since-detached rows and strand focus on nodes
         // no longer in the scene.
+        let f = autoFocus ? focus : RootScene.noFocus
         if savedMenuRows != nil {
             savedMenuRows = rows
-            savedFocusRC = focus ?? (0, 0)
+            savedFocusRC = f ?? (0, 0)
             return
         }
-        applyMenu(rows, focus: focus)
+        applyMenu(rows, focus: f)
     }
 
     /// Install `rows` as the live menu, bypassing the overlay stash; only the
-    /// connection overlay's own show/hide paths call this.
+    /// connection overlay's own show/hide paths call this. A `focus` of
+    /// `noFocus` seats nothing (see `setMenu(autoFocus:)`).
     private func applyMenu(_ rows: [[Focusable]], focus: (Int, Int)? = nil) {
         menuRows = rows
-        if let f = focus, rows.indices.contains(f.0), rows[f.0].indices.contains(f.1), rows[f.0][f.1].enabled {
+        if let f = focus, f == RootScene.noFocus {
+            focusRC = RootScene.noFocus
+        } else if let f = focus, rows.indices.contains(f.0), rows[f.0].indices.contains(f.1), rows[f.0][f.1].enabled {
             focusRC = f
         } else {
             focusRC = firstEnabled() ?? (0, 0)
@@ -520,7 +528,12 @@ final class RootScene: SKScene, DisplayOutput {
     }
 
     private func moveFocus(dRow: Int, dCol: Int) {
-        guard menuRows.indices.contains(focusRC.r) else { return }
+        // From the unfocused state (autoFocus: false), any d-pad press just seats
+        // focus on the first enabled item rather than moving relative to nothing.
+        guard menuRows.indices.contains(focusRC.r) else {
+            if let f = firstEnabled() { focusRC = f; refreshFocus() }
+            return
+        }
         if dCol != 0 {
             let row = menuRows[focusRC.r]
             if row.count > 1 {
@@ -865,7 +878,13 @@ final class RootScene: SKScene, DisplayOutput {
         // Same height as the overlay action buttons (pause/results/reconnect all
         // use H*0.075) so every button on tvOS is a uniform height across screens.
         let pillH = max(48, H * 0.075)
-        let pillY = margin * 1.8 + pillH / 2
+        // The lobby stacks two buttons: Start on top, the secondary "Open Source
+        // Licenses" link below. Lay the link out at the bottom of the band first,
+        // then lift Start above it with a clear gap so the two never overlap.
+        let linkH = max(30, pillH * 0.58)
+        let stackGap = margin * 0.6
+        let licensesCenterY = margin * 0.7 + linkH / 2
+        let pillY = licensesCenterY + linkH / 2 + stackGap + pillH / 2
         let hasPlayers = !players.isEmpty
         let hostColor = host.flatMap { h in players.first { $0.peerIndex == h }?.colorSlot }
             .map { SKTheme.player(slot: $0) }
@@ -887,13 +906,12 @@ final class RootScene: SKScene, DisplayOutput {
         // attribution (and the CC-BY notice the web conveys via its OpenGameArt
         // link) now lives inside the licenses screen this opens.
         let linkText = "Open Source Licenses"
-        let linkH = max(34, pillH * 0.62)
         let linkProbe = SKLabelNode()
         linkProbe.setStyledText(linkText, font: AppFont.name, size: linkH * 0.36, color: .white, tracking: 0.08)
         let linkW = linkProbe.frame.width + min(W * 0.03, 56) * 2
         let licensesBtn = MenuButton(text: linkText, width: linkW, height: linkH,
                                      primary: false, tint: .clear) { [weak self] in self?.openLicenses() }
-        licensesBtn.position = CGPoint(x: W / 2, y: margin * 0.9 + linkH / 2)
+        licensesBtn.position = CGPoint(x: W / 2, y: licensesCenterY)
         lobbyContent.addChild(licensesBtn)
 
         // Only take over the focus menu when the lobby is the active screen.
@@ -901,8 +919,10 @@ final class RootScene: SKScene, DisplayOutput {
         // changes during RESULTS — without this guard it would clobber the results
         // menu and break its Left/Right navigation. Start is row 0, the licenses
         // link row 1 (d-pad Down reaches it; it is the only focusable while Start
-        // is disabled waiting for players).
-        if coordinator?.state == .lobby { setMenu([[startBtn], [licensesBtn]]) }
+        // is disabled waiting for players). Don't seat focus on an empty lobby:
+        // with Start disabled, autoFocus would land on the licenses link, which
+        // reads as odd before anyone has joined — the first d-pad press picks it up.
+        if coordinator?.state == .lobby { setMenu([[startBtn], [licensesBtn]], autoFocus: hasPlayers) }
         if animateEntrance {
             playEntrance(startBtn, fromDy: -16, delay: 0.45)   // fadeUp
             licensesBtn.alpha = 0
