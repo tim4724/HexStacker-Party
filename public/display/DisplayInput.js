@@ -133,7 +133,16 @@ function onHello(fromId, msg) {
     // (fired on every WELCOME) would have requested one round trip later.
     var preferredColor = helloPreferredColor(fromId, msg);
     var colorChanged = preferredColor != null && existing.playerIndex !== preferredColor;
-    if (colorChanged) existing.playerIndex = preferredColor;
+    if (colorChanged) {
+      existing.playerIndex = preferredColor;
+      // Retint the start button (and other host-tinted CTAs) in the same
+      // paint as the roster card. broadcastLobbyUpdate below also applies
+      // the tint, but its 400ms throttle turns the trailing call into a
+      // visible lag: the card recolors instantly, the button up to 400ms
+      // later. Idempotent; when the sender isn't the host it re-applies
+      // the host's unchanged color.
+      applyHostTint();
+    }
     // The host's name reaches other controllers only via LOBBY_UPDATE's
     // hostName, and onPeerJoined already broadcast the auto HX- fallback. When
     // the host's HELLO upgrades that to a real name (AC nickname applied after
@@ -326,6 +335,9 @@ function onSetColor(fromId, msg) {
 
   player.playerIndex = idx;
   updatePlayerList();
+  // Same rationale as onHello's colorChanged branch: don't let the host's
+  // start-button tint trail the card recolor by the broadcast throttle.
+  applyHostTint();
   broadcastLobbyUpdate();
 }
 
