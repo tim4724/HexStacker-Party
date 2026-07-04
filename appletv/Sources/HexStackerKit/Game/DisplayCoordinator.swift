@@ -662,10 +662,18 @@ public final class DisplayCoordinator {
     }
 
     /// Silent auto-pause when every participant has disconnected: no overlay, no
-    /// broadcast (all controllers are gone). Never overrides a manual pause.
+    /// broadcast (all controllers are gone). Absorbs an in-progress manual pause
+    /// (converting it and hiding its overlay) so the overlay isn't stranded.
     private func autoPauseAllDisconnected() {
-        guard flow.state == .playing, !pausedAuto, !pausedManual else { return }
-        let was = paused; pausedAuto = true; reconcilePause(wasPaused: was)
+        guard flow.state == .playing, !pausedAuto else { return }
+        let was = paused
+        // If the host had already manually paused, convert that into the auto-pause
+        // and hide the stranded overlay: resumeGame is gated shut while everyone is
+        // gone, so a manual pause left showing could never be dismissed via Continue.
+        // A reconnect auto-resumes. Web DisplayGame.js dismissAutoPausedOverlay.
+        if pausedManual { pausedManual = false; output?.setPaused(false) }
+        pausedAuto = true
+        reconcilePause(wasPaused: was)
     }
 
     /// A participant returned — lift the all-disconnected auto-pause.

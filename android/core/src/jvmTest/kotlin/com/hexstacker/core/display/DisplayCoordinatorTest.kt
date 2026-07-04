@@ -175,16 +175,27 @@ class DisplayCoordinatorTest {
             assertFalse(out.pausedFlag)
             assertTrue(t.sent.any { it.first == -1 && type(it.second) == Msg.GAME_RESUMED })
 
-            // pause again, disconnect everyone, then a DISPLAY-remote resume is blocked
-            // (a controller resume would reconnect the sender first; the remote does not).
+            // Pause again, then everyone disconnects. The manual pause converts into a
+            // silent auto-pause: the stranded overlay hides (Continue can't be reached
+            // while everyone is gone, so a shown overlay could never be dismissed), but
+            // the game stays paused. A DISPLAY-remote resume is still blocked (a
+            // controller resume would reconnect the sender first; the remote does not).
             t.deliver(1, simple(Msg.PAUSE_GAME)); coord.awaitIdle()
-            assertTrue(out.pausedFlag)
+            assertTrue(out.pausedFlag, "manual pause shows the overlay")
             t.peerLeft(1); t.peerLeft(2); coord.awaitIdle()
             assertEquals(0, coord.flow.connectedCount)
+            assertFalse(out.pausedFlag, "overlay hides when the last player drops during a manual pause")
+
             t.sent.clear()
+            val resumesBefore = out.musicResumes
             coord.remoteTogglePause()
-            assertTrue(out.pausedFlag, "resume blocked while everyone is disconnected")
+            assertFalse(out.pausedFlag, "overlay stays hidden; resume blocked while everyone is disconnected")
+            assertEquals(resumesBefore, out.musicResumes, "game stays paused (no resume) while everyone is disconnected")
             assertFalse(t.sent.any { type(it.second) == Msg.GAME_RESUMED })
+
+            // A participant reconnecting lifts the converted auto-pause.
+            t.deliver(1, simple(Msg.PING)); coord.awaitIdle()
+            assertTrue(out.musicResumes > resumesBefore, "reconnect resumes the game")
 
             coord.stop()
         } finally {

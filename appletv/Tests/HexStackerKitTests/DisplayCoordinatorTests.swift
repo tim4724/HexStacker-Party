@@ -82,6 +82,35 @@ import Foundation
         #expect(fo.renderCount > frozen, "auto-resumed: engine advancing again")
     }
 
+    @Test func manualPauseThenAllDisconnectHidesStrandedOverlay() {
+        let clock = Clock()
+        let (coord, ft, fo) = makeLobby(players: 2, clock: clock)
+        coord.remoteStartMatch(); runCountdown(coord)
+        #expect(coord.state == .playing)
+
+        // Host manually pauses while the players are still connected: overlay up.
+        ft.onMessage?(1, ["type": "pause_game"])
+        #expect(fo.paused == true, "manual pause shows the overlay")
+
+        // Both controllers then go silent past the liveness window. The manual
+        // pause converts into a silent auto-pause: the stranded overlay hides
+        // (Continue is gated shut while everyone is gone, so a shown overlay
+        // could never be dismissed), but the sim stays frozen.
+        clock.ms = 10_000
+        coord.tick(deltaMs: 16)
+        #expect(coord.flow.allParticipantsDisconnected)
+        #expect(fo.paused == false, "overlay hides when the last player drops during a manual pause")
+        let frozen = fo.renderCount
+        coord.tick(deltaMs: 16); coord.tick(deltaMs: 16)
+        #expect(fo.renderCount == frozen, "game stays paused (engine frozen) while everyone is gone")
+
+        // A controller message returns → auto-resume, sim advances again.
+        ft.onMessage?(1, ["type": "input", "action": "left"])
+        #expect(!coord.flow.allParticipantsDisconnected)
+        coord.tick(deltaMs: 16)
+        #expect(fo.renderCount > frozen, "auto-resumed: engine advancing again")
+    }
+
     // MARK: - Cross-device mid-game rejoin (?claim=)
 
     @Test func claimRejoinReclaimsDroppedBoard() {
