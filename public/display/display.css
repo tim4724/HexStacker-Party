@@ -861,7 +861,6 @@ body.airconsole #qr-container,
    screen. */
 #results-screen.results-screen--ready #results-buttons {
   animation: none;
-  pointer-events: auto;
 }
 
 /* Device-choice visibility on cramped viewports. Styles in

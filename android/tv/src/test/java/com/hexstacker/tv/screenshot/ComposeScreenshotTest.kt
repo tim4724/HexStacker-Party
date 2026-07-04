@@ -227,7 +227,10 @@ class ComposeScreenshotTest {
     fun connectionReconnecting() {
         val board = boardLayer("lv1")
         shoot("connection_reconnecting") {
-            OverlayOnBoard(board) { ConnectionOverlay(disconnected = false, onReconnect = {}) }
+            // attempt/max mirror the web gallery ("Attempt 2 of 5").
+            OverlayOnBoard(board) {
+                ConnectionOverlay(disconnected = false, onReconnect = {}, attempt = 2, maxAttempts = 5)
+            }
         }
     }
 

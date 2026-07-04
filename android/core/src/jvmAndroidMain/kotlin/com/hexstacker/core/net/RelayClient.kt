@@ -58,7 +58,9 @@ class RelayClient(
     @Volatile private var webSocket: WebSocket? = null
     private var lastRoom: String? = null
     private var lastInstance: String? = null
-    private var reconnectAttempt = 0
+    // Readable so the UI can surface "Attempt N of M" on the reconnect overlay (web parity).
+    var reconnectAttempt = 0
+        private set
     private var shouldReconnect = true
     private var dropHandled = false
     private var reconnectFuture: ScheduledFuture<*>? = null

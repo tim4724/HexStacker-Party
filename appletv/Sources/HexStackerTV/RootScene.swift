@@ -225,6 +225,9 @@ final class RootScene: SKScene, DisplayOutput {
         case "reconnecting":  // full-screen display-disconnect overlay over a game
             coordinator.renderShot("game", playerCount: pc)
             showConnectionOverlay(reconnecting: true)
+            // Gallery parity with web (DisplayTestHarness shows "Attempt 2 of 5"):
+            // the live retry tick that would set this never fires in a static shot.
+            updateReconnectStatus(attempt: 2, max: 5)
         case "disconnected-display":
             coordinator.renderShot("game", playerCount: pc)
             showConnectionOverlay(reconnecting: false)
@@ -287,7 +290,7 @@ final class RootScene: SKScene, DisplayOutput {
     private func layoutLobbyGlow() {
         guard size.width > 0, size.height > 0 else { return }
         let d = max(size.width, size.height) * 1.15
-        lobbyGlow.texture = Self.radialTexture(diameter: d, color: SKTheme.accentPrimary, centerAlpha: 0.06)
+        lobbyGlow.texture = Self.radialTexture(color: SKTheme.accentPrimary, centerAlpha: 0.06)
         lobbyGlow.size = CGSize(width: d, height: d)
         lobbyGlow.position = CGPoint(x: size.width / 2, y: size.height * 0.7)   // 30% from the top
     }
@@ -630,7 +633,7 @@ final class RootScene: SKScene, DisplayOutput {
 
         // Soft red radial glow behind the number (web radial-gradient tint).
         let glowD = min(size.width, size.height) * 0.7
-        let glow = SKSpriteNode(texture: Self.radialTexture(diameter: glowD, color: SKTheme.accentPrimary, centerAlpha: 0.08))
+        let glow = SKSpriteNode(texture: Self.radialTexture(color: SKTheme.accentPrimary, centerAlpha: 0.08))
         glow.size = CGSize(width: glowD, height: glowD)
         glow.position = CGPoint(x: size.width / 2, y: size.height / 2)
         countdownLayer.addChild(glow)
@@ -644,15 +647,20 @@ final class RootScene: SKScene, DisplayOutput {
         countdownLayer.addChild(countdownNumber)
     }
 
-    /// Baked radial gradient (centerAlpha at center → transparent at edge).
-    private static func radialTexture(diameter d: CGFloat, color: UIColor, centerAlpha: CGFloat) -> SKTexture {
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: d, height: d))
+    /// Baked radial gradient (centerAlpha at center → transparent at edge). The caller
+    /// sizes the sprite; this bakes at a modest fixed resolution and lets the GPU's
+    /// bilinear magnification interpolate between the 8-bit alpha levels, which turns
+    /// the hard concentric steps (visible banding on the dark bg at a full-res bake)
+    /// into a continuous ramp.
+    private static func radialTexture(color: UIColor, centerAlpha: CGFloat) -> SKTexture {
+        let px: CGFloat = 256
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: px, height: px))
         let image = renderer.image { rctx in
             let cs = CGColorSpaceCreateDeviceRGB()
             let colors = [color.withAlphaComponent(centerAlpha).cgColor, color.withAlphaComponent(0).cgColor] as CFArray
             if let grad = CGGradient(colorsSpace: cs, colors: colors, locations: [0, 1]) {
-                rctx.cgContext.drawRadialGradient(grad, startCenter: CGPoint(x: d / 2, y: d / 2), startRadius: 0,
-                                                  endCenter: CGPoint(x: d / 2, y: d / 2), endRadius: d / 2, options: [])
+                rctx.cgContext.drawRadialGradient(grad, startCenter: CGPoint(x: px / 2, y: px / 2), startRadius: 0,
+                                                  endCenter: CGPoint(x: px / 2, y: px / 2), endRadius: px / 2, options: [])
             }
         }
         return SKTexture(image: image)
@@ -711,7 +719,7 @@ final class RootScene: SKScene, DisplayOutput {
         connHeading.setStyledText(reconnecting ? tr("reconnecting") : tr("disconnected"),
                                   font: AppFont.black, size: min(size.height * 0.045, 64),
                                   color: SKTheme.textPrimary(), tracking: 0.12)
-        connHeading.position = CGPoint(x: cx, y: cy + playRect.height * (reconnecting ? 0.04 : 0.08))
+        connHeading.position = CGPoint(x: cx, y: cy + playRect.height * (reconnecting ? 0.04 : 0.05))
         // Web shows the status line only while reconnecting; the lost state is
         // just heading + RECONNECT.
         connStatus.isHidden = !reconnecting
@@ -730,7 +738,9 @@ final class RootScene: SKScene, DisplayOutput {
                                  tint: SKTheme.accentPrimary) { [weak self] in
                 self?.relay?.reconnectNow(); self?.hideConnectionOverlay()
             }
-            btn.position = CGPoint(x: cx, y: cy - playRect.height * 0.12)
+            // Sit just below the heading (web stacks them tightly); symmetric with the
+            // heading's +0.05 keeps the heading+button group centered on the board.
+            btn.position = CGPoint(x: cx, y: cy - playRect.height * 0.05)
             btn.zPosition = 1   // above connDim, like the heading/status labels
             connLayer.addChild(btn)
             connButton = btn
@@ -1133,8 +1143,11 @@ final class RootScene: SKScene, DisplayOutput {
 
         // Winner glow: one soft radial over the tint (web --winner-glow).
         if let slot = sorted.first?["colorIndex"] as? Int {
-            let d = max(W, H) * 1.2
-            let glow = SKSpriteNode(texture: Self.radialTexture(diameter: d, color: SKTheme.player(slot: slot), centerAlpha: 0.10))
+            // Match web's radius (0.6 × distance to the farthest corner from the 50%/30%
+            // center) and alpha (0.08) so the glow is as contained + faint as the browser's,
+            // not a broad wash over the whole screen.
+            let d = 1.2 * hypot(W / 2, H * 0.7)
+            let glow = SKSpriteNode(texture: Self.radialTexture(color: SKTheme.player(slot: slot), centerAlpha: 0.08))
             glow.size = CGSize(width: d, height: d)
             glow.position = CGPoint(x: W / 2, y: H * 0.70)   // web --winner-glow at 50% 30%
             // Behind the rows + buttons (z0). Without this it shares z0 with them

@@ -54,6 +54,7 @@
     <string name="reconnecting">RECONNECTING</string>
     <string name="disconnected">DISCONNECTED</string>
     <string name="connection_lost">Connection lost...</string>
+    <string name="attempt_n_of_m">Attempt %1$d of %2$d</string>
     <string name="reconnect">RECONNECT</string>
 
     <!-- Unnamed-player fallback (i18n player). -->

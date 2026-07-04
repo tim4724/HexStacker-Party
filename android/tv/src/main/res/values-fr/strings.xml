@@ -28,6 +28,7 @@
     <string name="reconnecting">RECONNEXION</string>
     <string name="disconnected">DÉCONNECTÉ</string>
     <string name="connection_lost">Connexion perdue...</string>
+    <string name="attempt_n_of_m">Tentative %1$d sur %2$d</string>
     <string name="reconnect">SE RECONNECTER</string>
 
     <string name="player">Joueur</string>

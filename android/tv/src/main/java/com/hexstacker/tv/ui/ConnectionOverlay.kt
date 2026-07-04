@@ -34,6 +34,10 @@ fun ConnectionOverlay(
     disconnected: Boolean,
     onReconnect: () -> Unit = {},
     showReconnect: Boolean = true,
+    // Current retry / max, shown as "Attempt N of M" while reconnecting (web parity).
+    // attempt <= 0 falls back to the static "Connection lost..." (the first tick).
+    attempt: Int = 0,
+    maxAttempts: Int = 0,
     modifier: Modifier = Modifier,
 ) {
     val focus = remember { FocusRequester() }
@@ -64,7 +68,13 @@ fun ConnectionOverlay(
             if (!disconnected) {
                 Spacer(Modifier.height(14.dp))
                 Text(
-                    text = stringResource(R.string.connection_lost),
+                    // "Attempt N of M" once retries begin (web clamps N to M); the static
+                    // "Connection lost..." is the fallback until the first retry tick.
+                    text = if (attempt > 0) {
+                        stringResource(R.string.attempt_n_of_m, attempt.coerceAtMost(maxAttempts), maxAttempts)
+                    } else {
+                        stringResource(R.string.connection_lost)
+                    },
                     style = AppType.connStatus,
                     color = Tokens.textSecondary,
                     fontSize = 14.sp, // web .game-overlay__status: fixed 14px
