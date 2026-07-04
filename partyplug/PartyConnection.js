@@ -17,11 +17,11 @@
  * (e.g. in localStorage) and pass it in.
  *
  * Party-Server protocol:
- *   Client → PS:  create { clientId, maxClients }
+ *   Client → PS:  create { clientId, maxClients, url? }
  *   Client → PS:  join   { clientId, room }
  *   Client → PS:  send   { data, to? }            // to is a peer index (number)
- *   PS → Client:  created      { room, index: 0, instance?, region? }
- *   PS → Client:  joined       { room, index, peers: number[] }
+ *   PS → Client:  created      { room, index: 0, instance?, region?, url? }
+ *   PS → Client:  joined       { room, index, peers: number[], url? }
  *   PS → Client:  peer_joined  { index }
  *   PS → Client:  peer_left    { index }
  *   PS → Client:  message      { from, data }     // from is a peer index (number)
@@ -135,8 +135,17 @@ class PartyConnection {
     }
   }
 
-  create(maxClients) {
-    this._send({ type: 'create', clientId: this.clientId, maxClients: maxClients });
+  // Create a room. `url` is an optional controller-URL template the relay
+  // retains on the room and hands (with {room}/{instance} filled in) to anyone
+  // who holds only the room code — in `created`/`joined` replies and via
+  // GET /room/:code — so a code-only client can resolve which page to load.
+  // The relay only accepts absolute https templates and rejects the whole
+  // create on an invalid one, so callers must omit it rather than send a
+  // non-https URL (e.g. a plain-http dev origin).
+  create(maxClients, url) {
+    var msg = { type: 'create', clientId: this.clientId, maxClients: maxClients };
+    if (url) msg.url = url;
+    this._send(msg);
   }
 
   join(room) {

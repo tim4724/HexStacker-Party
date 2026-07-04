@@ -45,7 +45,7 @@ function connectAndCreateRoom() {
     if (lastRoomCode) {
       party.join(lastRoomCode);
     } else {
-      party.create(9);
+      party.create(9, controllerUrlTemplate());
     }
   };
 
@@ -660,6 +660,19 @@ function collectTakenColorIndices() {
 
 function getBaseUrl() {
   return baseUrlOverride || window.location.origin;
+}
+
+// Controller-URL template registered with the relay on room create. The relay
+// fills {room}/{instance} and hands the result to anyone holding only the
+// room code (native shells via GET /room/:code, controllers in `joined`), so
+// a code-only join can still resolve which page to load. Mirrors the QR join
+// URL shape: instance in the fragment, kept out of request logs. The relay
+// accepts only absolute https templates and rejects the whole create on an
+// invalid one, so plain-http origins (local dev, e2e) register none.
+function controllerUrlTemplate() {
+  var base = getBaseUrl().replace(/\/+$/, '');
+  if (base.indexOf('https://') !== 0) return undefined;
+  return base + '/{room}#{instance}';
 }
 
 function fetchBaseUrl() {

@@ -81,8 +81,25 @@ test('relay endpoints and limits mirror the web', () => {
   // in its create call.
   assert.strictEqual(kotlinConst(KOTLIN.protocol, 'MAX_CLIENTS'), constants.MAX_PLAYERS + 1);
   assert.ok(
-    read('public/display/DisplayConnection.js').includes(`party.create(${constants.MAX_PLAYERS + 1})`),
+    read('public/display/DisplayConnection.js').includes(`party.create(${constants.MAX_PLAYERS + 1},`),
     'web display create() no longer matches MAX_PLAYERS + 1',
+  );
+});
+
+test('the controller-URL template registered on create mirrors the web shape', () => {
+  // The web display derives the template from its origin at runtime
+  // (controllerUrlTemplate in DisplayConnection.js); the native mirror
+  // hardcodes the prod origin. Both must register the same
+  // <base>/{room}#{instance} shape or a code-only join resolves to
+  // different pages depending on which display hosts the room.
+  const base = kotlinConst(KOTLIN.protocol, 'CONTROLLER_BASE_URL');
+  assert.strictEqual(
+    kotlinConst(KOTLIN.protocol, 'CONTROLLER_URL_TEMPLATE'),
+    `${base}/{room}#{instance}`,
+  );
+  assert.ok(
+    read('public/display/DisplayConnection.js').includes("'/{room}#{instance}'"),
+    'web display no longer builds the /{room}#{instance} template',
   );
 });
 
