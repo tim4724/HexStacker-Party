@@ -142,7 +142,7 @@ public struct PlayerResult: Decodable, Equatable {
 /// different subset. The host maps `type` -> MSG / sendTo / animation; see the
 /// `HostCommand` union in server/PartyCore.d.ts.
 public struct HostCommand: Decodable, Equatable {
-    public let type: String        // pieceLock | lineClear | playerState | playerKO | playerEliminated | garbageCancelled | garbageSent | gameEnd | musicSpeed
+    public let type: String        // pieceLock | lineClear | playerState | playerKO | playerEliminated | garbageCancelled | garbageSent | gameEnd
     public let playerId: Int?
     public let senderId: Int?      // garbageSent
     public let toId: Int?          // garbageSent
@@ -150,7 +150,7 @@ public struct HostCommand: Decodable, Equatable {
     public let lines: Int?         // lineClear / playerState / garbageCancelled / garbageSent
     public let blocks: [Cell]?     // pieceLock
     public let clearCells: [Cell]? // lineClear
-    public let level: Int?         // playerState (full) / musicSpeed
+    public let level: Int?         // playerState (full)
     public let alive: Bool?        // playerState
     public let garbageIncoming: Int?    // playerState (full form)
     public let elapsed: Double?         // gameEnd

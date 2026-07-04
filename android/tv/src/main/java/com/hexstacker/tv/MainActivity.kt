@@ -295,10 +295,6 @@ class TvDisplayOutput(
 
     override fun renderSnapshot(snapshot: GameSnapshot) {
         board.submitSnapshot(snapshot)
-        // Drive the level-based music tempo (0.95x..1.35x). The coordinator carries
-        // musicSpeed on the snapshot (it no-ops the musicSpeed command), so the host
-        // derives the max level per frame, mirroring the web + Apple TV.
-        music.setLevel(snapshot.players.maxOfOrNull { it.level } ?: 1)
         // Real gameplay frames mean the 3/2/1/GO sequence is over, so dismiss the
         // overlay. (During COUNTDOWN the engine isn't ticked, so the only snapshot
         // pushed is the one static frame at countdown start, which precedes the
@@ -333,7 +329,6 @@ class TvDisplayOutput(
     override fun stopMusic() = music.stop()
     override fun pauseMusic() = music.pause()
     override fun resumeMusic() = music.resume()
-    override fun setMusicLevel(level: Int) = music.setLevel(level)
 
     override fun setMuted(muted: Boolean) {
         music.setMuted(muted)

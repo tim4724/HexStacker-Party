@@ -1,22 +1,18 @@
 import AVFoundation
-import HexStackerKit
 
 /// Music + countdown beeps via AVAudioEngine. Mirrors public/display/Music.js and
-/// DisplayAudio.js: looping track at 0.50 master volume, tempo scales 0.95x..1.35x
-/// with level while pitch stays constant (AVAudioUnitTimePitch.rate), and square
-/// -wave countdown beeps that bypass the music volume.
+/// DisplayAudio.js: looping track at 0.50 master volume at a constant rate, and
+/// square-wave countdown beeps that bypass the music volume.
 final class MusicPlayer {
 
     private let engine = AVAudioEngine()
     private let musicPlayer = AVAudioPlayerNode()
-    private let timePitch = AVAudioUnitTimePitch()
     private let musicMixer = AVAudioMixerNode()   // carries the 0.50 master volume
     private let beepPlayer = AVAudioPlayerNode()
 
     private var buffer: AVAudioPCMBuffer?
     private var isPlaying = false
     private var isPaused = false
-    private var lastLevel = 0
     private var configChangeObserver: NSObjectProtocol?
 
     private static let masterVolume: Float = 0.50
@@ -27,19 +23,17 @@ final class MusicPlayer {
 
     init() {
         engine.attach(musicPlayer)
-        engine.attach(timePitch)
         engine.attach(musicMixer)
         engine.attach(beepPlayer)
 
         // Load the track first so the music chain is connected with the buffer's
-        // own format (player/effect formats must match the scheduled buffer).
+        // own format (player format must match the scheduled buffer).
         loadTrack()
         let musicFormat = buffer?.format
             ?? AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2)!
 
-        // Music chain: player -> timePitch -> musicMixer(0.5) -> main mixer.
-        engine.connect(musicPlayer, to: timePitch, format: musicFormat)
-        engine.connect(timePitch, to: musicMixer, format: musicFormat)
+        // Music chain: player -> musicMixer(0.5) -> main mixer.
+        engine.connect(musicPlayer, to: musicMixer, format: musicFormat)
         engine.connect(musicMixer, to: engine.mainMixerNode, format: nil)
         // Beeps go straight to the main mixer (not attenuated by music volume).
         engine.connect(beepPlayer, to: engine.mainMixerNode, format: beepFormat)
@@ -74,14 +68,12 @@ final class MusicPlayer {
     func start() {
         guard let buffer else { return }
         startEngineIfNeeded()
-        timePitch.rate = 1.0
         musicMixer.outputVolume = Self.masterVolume
         musicPlayer.stop()
         musicPlayer.scheduleBuffer(buffer, at: nil, options: [.loops])
         musicPlayer.play()
         isPlaying = true
         isPaused = false
-        lastLevel = 0
     }
 
     func stop() {
@@ -98,14 +90,6 @@ final class MusicPlayer {
         isPaused = false
         startEngineIfNeeded()
         if isPlaying { musicPlayer.play() }
-    }
-
-    /// Tempo tracks the highest level in the match; pitch held constant.
-    func setLevel(_ level: Int) {
-        guard level != lastLevel else { return }
-        lastLevel = level
-        let clamped = min(level, EngineConstants.maxSpeedLevel)
-        timePitch.rate = Float(0.95 + Double(clamped - 1) * (0.4 / 14.0))   // 0.95..1.35
     }
 
     /// Countdown beep. Tick: 440Hz square 0.12s; Go: 600->1200Hz sweep 0.3s.

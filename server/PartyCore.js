@@ -79,7 +79,6 @@ function PartyCore(players, seed) {
   var self = this;
   this._buf = [];
   this._prevNowMs = null;
-  this._lastMusicLevel = 0;
   // Game pushes synchronously into our buffer; we surface it on the next drain.
   // This inverts the host-callback push into a PULL-ONLY drained array, folding
   // the SEPARATE onGameEnd terminal callback into the same ordered buffer.
@@ -169,27 +168,13 @@ PartyCore.prototype.frame = function(nowMs) {
   var events = this.drainEvents();
   var snapshot = this.snapshot();
   var commands = PartyCore._toCommands(events, snapshot);
-  // Snapshot-derived music speed: emit only when the max player level changes.
-  // Appended AFTER the event commands (mirroring the web order) and kept here,
-  // not in the now-pure _toCommands, because it's the one bit of cross-frame
-  // state (_lastMusicLevel) a stateless mapping can't track.
-  var maxLevel = 1;
-  for (var k = 0; k < snapshot.players.length; k++) {
-    var lvl = snapshot.players[k].level || 1;
-    if (lvl > maxLevel) maxLevel = lvl;
-  }
-  if (snapshot.players.length > 0 && maxLevel !== this._lastMusicLevel) {
-    this._lastMusicLevel = maxLevel;
-    commands.push({ type: 'musicSpeed', level: maxLevel });
-  }
   return { events: events, snapshot: snapshot, commands: commands };
 };
 
 // Normalize this frame's events + value-copy snapshot into a serializable
 // host-effect list. PURE: depends only on its args (no instance, no cross-frame
-// state); the snapshot-derived musicSpeed lives in frame(). Ordering within an
-// event mirrors the web DisplayGame handler so a host replaying commands in array
-// order reproduces today's effects. garbageIncoming is pre-resolved from the
+// state). Ordering within an event mirrors the web DisplayGame handler so a host
+// replaying commands in array order reproduces today's effects. garbageIncoming is pre-resolved from the
 // snapshot (board-pending + delayed GarbageManager queue), removing the host's
 // mid-event getSnapshot.
 PartyCore._toCommands = function(events, snapshot) {

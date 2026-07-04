@@ -111,7 +111,7 @@ test('_toCommands maps each engine event type to the host-effect vocabulary', ()
     ],
     elapsed: 1000,
   };
-  // _toCommands is pure: no instance/core arg, no musicSpeed (that lives in frame()).
+  // _toCommands is pure: no instance/core arg.
 
   // garbage_sent carries senderId/toId, NOT playerId
   assert.deepStrictEqual(
@@ -149,37 +149,6 @@ test('_toCommands maps each engine event type to the host-effect vocabulary', ()
   assert.deepStrictEqual(
     PartyCore._toCommands([{ type: 'game_end', elapsed: 1234, results: [{ playerId: 'p1', rank: 1 }] }], snapshot),
     [{ type: 'gameEnd', elapsed: 1234, results: [{ playerId: 'p1', rank: 1 }] }]);
-});
-
-test('frame() emits musicSpeed only when the snapshot max level changes, after the event commands', () => {
-  // musicSpeed is the one bit of cross-frame state frame() owns (_toCommands is
-  // pure and never emits it). Drive frame() over a stubbed snapshot so the max
-  // level steps deterministically; deltaMs stays 0 (prevNowMs primed) so the
-  // engine never ticks and the only commands are the snapshot-derived music.
-  let level = 1;
-  let pending = [];
-  const fake = {
-    _prevNowMs: 0,
-    _lastMusicLevel: 0,
-    game: { update() { throw new Error('engine must not tick on a zero delta'); } },
-    drainEvents() { const e = pending; pending = []; return e; },
-    snapshot() {
-      return { players: [{ id: 'p1', level, lines: 0, alive: true, pendingGarbage: 0 }], elapsed: 0 };
-    },
-  };
-  const frame = (t) => PartyCore.prototype.frame.call(fake, t).commands;
-
-  // First frame: level 1 (changed from the 0 seed) emits musicSpeed; with an
-  // event also present, the music command must come AFTER the event command.
-  pending = [{ type: 'piece_lock', playerId: 'p1', blocks: [[0, 0]], typeId: 5 }];
-  assert.deepStrictEqual(frame(0), [
-    { type: 'pieceLock', playerId: 'p1', blocks: [[0, 0]], typeId: 5 },
-    { type: 'musicSpeed', level: 1 },
-  ]);
-  assert.equal(fake._lastMusicLevel, 1);
-  assert.deepStrictEqual(frame(0), []); // unchanged level, no events -> nothing
-  level = 3;
-  assert.deepStrictEqual(frame(0), [{ type: 'musicSpeed', level: 3 }]);
 });
 
 test('snapshot pendingGarbage and line_clear garbageIncoming include the delayed GarbageManager queue', () => {

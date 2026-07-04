@@ -3,9 +3,9 @@
 // Deterministic PartyCore command-VOCABULARY driver.
 //
 // The shared buildTimeline (engine-golden-script.js) deliberately stays at
-// level 1 / single-line clears, so it never exercises three host-effect
-// commands: musicSpeed (level-boundary crossing), garbageCancelled (defence),
-// and garbageSent (multi-line attack). This driver pins those three with a set
+// level 1 / single-line clears, so it never exercises two host-effect
+// commands: garbageCancelled (defence) and garbageSent (multi-line attack).
+// This driver pins those two with a set
 // of small, hermetic scenarios — each a FRESH PartyCore so clear-animation /
 // garbage-delay timers never bleed across scenarios — recording per frame the
 // { deltaMs, events, commands } that frame() produced. The matching test
@@ -66,13 +66,13 @@ function seatClearPiece(board, fillRows, piece) {
   board.currentPiece = piece;
 }
 
-// Run one scenario on a fresh PartyCore: prime the frame clock (the prime frame's
-// baseline musicSpeed is intentionally NOT recorded), let `build` drive inputs +
+// Run one scenario on a fresh PartyCore: prime the frame clock (the prime frame
+// is intentionally NOT recorded), let `build` drive inputs +
 // record frames, and return the recorded steps.
 function runScenario(build) {
   const pc = new PartyCore(newRoster(), SEED);
   pc.init();
-  pc.frame(0); // prime clock (0 delta) + baseline musicSpeed level 1; unrecorded
+  pc.frame(0); // prime clock (0 delta); unrecorded
   const steps = [];
   const recordFrame = (deltaMs) => {
     const f = pc.frame(deltaMs);
@@ -80,19 +80,6 @@ function runScenario(build) {
   };
   build(pc, recordFrame);
   return steps;
-}
-
-// musicSpeed: getLevel() = floor(lines/10) + startLevel. Pre-set p1 to 9 lines
-// (still level 1) so a single clear pushes lines to 10 -> level 2, and frame()'s
-// snapshot-derived music block emits musicSpeed level 2. A trailing frame proves
-// the emit-once invariant (the held level 2 re-fires nothing).
-function buildMusicSpeed(pc, recordFrame) {
-  const board = pc.game.boards.get('p1');
-  board.lines = 9;
-  seatClearPiece(board, [FLOOR_ROW], placedPiece('V3', 0, 3, FLOOR_ROW));
-  pc.processInput('p1', 'hard_drop');
-  recordFrame(16);   // line_clear -> level 1->2 -> musicSpeed level 2
-  recordFrame(16);   // clear animation still running; level holds -> no musicSpeed
 }
 
 // garbageCancelled: queue board-pending garbage (the same addPendingGarbage entry
@@ -122,7 +109,6 @@ function runCommandVocabularyScript() {
     seed: SEED,
     players: PLAYER_IDS.slice(),
     scenarios: [
-      { name: 'musicSpeed', steps: runScenario(buildMusicSpeed) },
       { name: 'garbageCancelled', steps: runScenario(buildGarbageCancelled) },
       { name: 'garbageSent', steps: runScenario(buildGarbageSent) },
     ],

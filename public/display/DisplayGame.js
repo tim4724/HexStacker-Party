@@ -307,7 +307,6 @@ function runGameLocallyWithSeed(seed) {
   stopDisplayGame();
   countdownOverlay.classList.add('hidden');
   countdownNumber.textContent = '';
-  lastMusicLevel = 0;
 
   var Game = window.GameEngine.Game;
   // Sort by join time so game engine order matches the lobby's board

@@ -728,7 +728,7 @@ class DisplayCoordinator(
                 CommandType.GAME_END -> endGame(c.results ?: emptyList(), c.elapsed ?: 0.0)
                 else -> {
                     // pieceLock / lineClear / playerKO / garbageCancelled / garbageSent are rendered
-                    // from events; musicSpeed is carried by renderSnapshot.
+                    // from events.
                 }
             }
         }

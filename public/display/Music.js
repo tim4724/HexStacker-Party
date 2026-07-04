@@ -1,6 +1,6 @@
 'use strict';
 
-// Music player — loops an audio track with playback rate scaling by level.
+// Music player — loops an audio track at a constant rate.
 // Track: "Lunar Joyride" by FoxSynergy (CC-BY 3.0)
 
 const MASTER_VOLUME = 0.50;
@@ -15,7 +15,6 @@ class Music {
     this.buffer = null;
     this.generation = 0;
     this._loaded = false;
-    this._rate = 1.0;
     this._paused = false;
   }
 
@@ -71,8 +70,6 @@ class Music {
     const source = this.ctx.createBufferSource();
     source.buffer = this.buffer;
     source.loop = true;
-    source.playbackRate.value = this._rate;
-    source.detune.value = -Math.log2(this._rate) * 1200;
     source.connect(this.masterGain);
     source.start(0);
     this.source = source;
@@ -121,7 +118,6 @@ class Music {
     this.generation++;
     this.playing = true;
     this._paused = false;
-    this._rate = 1.0;
 
     this.masterGain.gain.cancelScheduledValues(this.ctx.currentTime);
     this.masterGain.gain.setValueAtTime(this.muted ? 0 : MASTER_VOLUME, this.ctx.currentTime);
@@ -190,16 +186,6 @@ class Music {
 
     if (this.ctx.state === 'suspended') {
       this._addRetryListeners();
-    }
-  }
-
-  setSpeed(level) {
-    const maxLevel = GameConstants.MAX_SPEED_LEVEL;
-    const clamped = Math.min(level, maxLevel);
-    this._rate = 0.95 + (clamped - 1) * (0.4 / 14);
-    if (this.source) {
-      this.source.playbackRate.setTargetAtTime(this._rate, this.ctx.currentTime, 0.1);
-      this.source.detune.setTargetAtTime(-Math.log2(this._rate) * 1200, this.ctx.currentTime, 0.1);
     }
   }
 }

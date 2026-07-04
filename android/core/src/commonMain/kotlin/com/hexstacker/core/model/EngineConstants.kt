@@ -37,14 +37,4 @@ object EngineConstants {
 
     // GARBAGE_TABLE: single -> 0, double -> 1, triple -> 3.
     val GARBAGE_TABLE = mapOf(1 to 0, 2 to 1, 3 to 3)
-
-    /**
-     * Level -> music playback rate: `0.95 + (min(level,15)-1) * (0.4/14)` -> 0.95 (Lv1)..1.35
-     * (Lv>=15). Mirrors `public/display/Music.js` setSpeed. Extracted here (pure) so the
-     * mapping is unit-testable without ExoPlayer. (Level<=0 clamps to the Lv1 floor.)
-     */
-    fun musicRateFor(level: Int): Float {
-        val clamped = level.coerceIn(1, MAX_SPEED_LEVEL)
-        return (0.95 + (clamped - 1) * (0.4 / 14.0)).toFloat()
-    }
 }

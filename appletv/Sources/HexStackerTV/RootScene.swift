@@ -359,12 +359,9 @@ final class RootScene: SKScene, DisplayOutput {
 
     func renderSnapshot(_ snapshot: GameSnapshot) {
         ensureBoards(for: snapshot)
-        var maxLevel = 1
         for p in snapshot.players {
             boardNodes[p.id]?.update(with: p)
-            maxLevel = max(maxLevel, p.level)
         }
-        music.setLevel(maxLevel)
         updateTimer(elapsedMs: snapshot.elapsed)
     }
 
