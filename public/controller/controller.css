@@ -50,10 +50,10 @@ html, body {
 /* Shell screens (name, lobby, gameover) — single source of safe-area */
 .controller-shell {
   padding:
-    max(env(safe-area-inset-top), 8px)
-    max(env(safe-area-inset-right), 12px)
-    calc(env(safe-area-inset-bottom) + 16px)
-    max(env(safe-area-inset-left), 12px);
+    max(var(--safe-top), 8px)
+    max(var(--safe-right), 12px)
+    calc(var(--safe-bottom) + 16px)
+    max(var(--safe-left), 12px);
   background: none;
 }
 
@@ -121,7 +121,7 @@ html, body {
 
 .join-url-hint {
   position: absolute;
-  bottom: max(env(safe-area-inset-bottom), 8px);
+  bottom: max(var(--safe-bottom), 8px);
   left: 12px;
   right: 12px;
   font-size: clamp(1rem, 4.5vw, 1.2rem);
@@ -133,7 +133,7 @@ html, body {
 
 .legal-links {
   position: absolute;
-  bottom: calc(env(safe-area-inset-bottom) + 8px);
+  bottom: calc(var(--safe-bottom) + 8px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -175,7 +175,7 @@ html, body {
   display: flex;
   align-items: center;
   padding: 12px;
-  padding-top: max(env(safe-area-inset-top), 12px);
+  padding-top: max(var(--safe-top), 12px);
   z-index: 1;
   /* Empty middle strip is full-width and z-index:1 so it would otherwise
      swallow clicks aimed at content beneath — most visibly the top of
@@ -432,8 +432,8 @@ html, body {
 
 .picker-close {
   position: absolute;
-  top: max(env(safe-area-inset-top), 12px);
-  right: max(env(safe-area-inset-right), 12px);
+  top: max(var(--safe-top), 12px);
+  right: max(var(--safe-right), 12px);
   /* Starts non-interactive (matches the overlay + rose cells); the
      pickerEnableInteractive animation flips it back to "auto" after
      the fade. Without this, the close button's default auto would
@@ -656,7 +656,7 @@ html, body {
   gap: 10px;
   width: 100%;
   padding: 12px;
-  padding-top: max(env(safe-area-inset-top), 12px);
+  padding-top: max(var(--safe-top), 12px);
   flex-shrink: 0;
   background: var(--bg-board);
 }
@@ -794,7 +794,7 @@ html, body {
   display: flex;
   justify-content: flex-end;
   padding: 1px 12px;
-  padding-bottom: max(env(safe-area-inset-bottom), 12px);
+  padding-bottom: max(var(--safe-bottom), 12px);
   flex-shrink: 0;
   background: var(--bg-board);
 }
@@ -980,9 +980,9 @@ html, body {
    to pause/reconnect's single-CTA layout); the settings panel has its own
    internal padding already. */
 #settings-overlay {
-  padding-left: max(env(safe-area-inset-left), 8px);
-  padding-right: max(env(safe-area-inset-right), 8px);
-  padding-bottom: max(env(safe-area-inset-bottom), 8px);
+  padding-left: max(var(--safe-left), 8px);
+  padding-right: max(var(--safe-right), 8px);
+  padding-bottom: max(var(--safe-bottom), 8px);
 }
 
 .settings-panel {
@@ -1558,10 +1558,10 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
     column-gap: 8px;
     align-items: stretch;
     padding:
-      env(safe-area-inset-top)
-      env(safe-area-inset-right)
-      env(safe-area-inset-bottom)
-      env(safe-area-inset-left);
+      var(--safe-top)
+      var(--safe-right)
+      var(--safe-bottom)
+      var(--safe-left);
     background: var(--bg-board);
   }
 

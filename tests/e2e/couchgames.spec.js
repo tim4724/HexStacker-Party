@@ -105,6 +105,26 @@ test.describe('Couch Games shell contract', () => {
     await expect.poll(metaMatchesPlayerColor).toBe(true);
   });
 
+  test('safe zone honors the launcher --cg-safe-* vars (CONTRACT §5)', async ({ page, context }) => {
+    const { roomCode } = await createRoom(page);
+    const controller = await joinCouchController(context, roomCode, 'Uma');
+    await controller.waitForSelector('#player-identity:not(.hidden)', { timeout: 10000 });
+
+    // The lobby's top chrome (#lobby-top-bar) folds the authoritative launcher
+    // vars with env() safe-area: max(var(--safe-top), 12px). Headless has no
+    // notch, so with no launcher vars set it rests on the 12px floor.
+    const barPadTop = () => controller.evaluate(() =>
+      parseFloat(getComputedStyle(document.querySelector('#lobby-top-bar')).paddingTop));
+    expect(await barPadTop()).toBeLessThan(60);
+
+    // The launcher publishes the safe zone on documentElement; the controller
+    // chrome must expand to clear it (covers the split-screen case where the
+    // synthetic display cutout bails and only the vars carry the extent).
+    await controller.evaluate(() =>
+      document.documentElement.style.setProperty('--cg-safe-top', '60px'));
+    await expect.poll(barPadTop).toBeGreaterThanOrEqual(60);
+  });
+
   test('unknown room surfaces room_not_found through gameEnded', async ({ context }) => {
     const controller = await context.newPage();
     await controller.addInitScript(() => {

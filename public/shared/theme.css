@@ -6,6 +6,21 @@
 
 :root {
   /*
+   * Couch Games shell safe zone (CONTRACT v1, section 5).
+   * The launcher hosts the controller edge-to-edge and floats its chrome
+   * (status strip + LEAVE bar) on top, publishing the safe zone two ways:
+   * a synthetic display cutout (env safe-area) and authoritative --cg-safe-*
+   * vars on documentElement that also cover cases the cutout bails on
+   * (e.g. split-screen). Fold both so one declaration is correct inside the
+   * shell AND in a plain browser. Outside the shell (and on the display)
+   * --cg-safe-* is unset, so these collapse to plain env().
+   */
+  --safe-top: max(var(--cg-safe-top, 0px), env(safe-area-inset-top, 0px));
+  --safe-right: max(var(--cg-safe-right, 0px), env(safe-area-inset-right, 0px));
+  --safe-bottom: max(var(--cg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px));
+  --safe-left: max(var(--cg-safe-left, 0px), env(safe-area-inset-left, 0px));
+
+  /*
    * Color tokens
    *
    * Tokens that can appear inside rgba() (for translucent variants)
@@ -427,10 +442,10 @@
   justify-content: center;
   gap: 20px;
   padding:
-    max(env(safe-area-inset-top), 8px)
-    max(env(safe-area-inset-right), 12px)
-    calc(env(safe-area-inset-bottom) + 16px)
-    max(env(safe-area-inset-left), 12px);
+    max(var(--safe-top), 8px)
+    max(var(--safe-right), 12px)
+    calc(var(--safe-bottom) + 16px)
+    max(var(--safe-left), 12px);
   background: var(--overlay-bg);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
