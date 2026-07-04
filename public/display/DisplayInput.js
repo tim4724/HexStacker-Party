@@ -94,6 +94,21 @@ function cleanInboundName(raw) {
     : '';
 }
 
+// Preferred color carried on HELLO (the controller's persisted favorite).
+// Returns a valid, un-taken palette index or null. Mirrors onSetColor's
+// validation: silently skip collisions, the WELCOME/LOBBY_UPDATE carries the
+// truth either way. Honoring it here (instead of waiting for the controller's
+// post-WELCOME SET_COLOR reclaim) removes a full round trip during which both
+// the TV and the controller showed the default slot color.
+function helloPreferredColor(fromId, msg) {
+  var idx = parseInt(msg.colorIndex, 10);
+  if (isNaN(idx) || idx < 0 || idx >= PLAYER_COLORS.length) return null;
+  for (const entry of players) {
+    if (entry[0] !== fromId && entry[1].playerIndex === idx) return null;
+  }
+  return idx;
+}
+
 function onHello(fromId, msg) {
   var name = cleanInboundName(msg.name);
   var claimedReconnect = claimReconnectPeer(fromId, msg);
@@ -111,6 +126,22 @@ function onHello(fromId, msg) {
       // collision checks.
       var requestedName = name || existing.playerName;
       existing.playerName = sanitizePlayerName(requestedName, fromId, msg.autoName === true);
+    }
+    // Honor the preferred color before the WELCOME below is built, so it
+    // answers with the color the controller will actually keep. Applies on
+    // reconnects too, matching what the controller's reclaimPreferredColor
+    // (fired on every WELCOME) would have requested one round trip later.
+    var preferredColor = helloPreferredColor(fromId, msg);
+    var colorChanged = preferredColor != null && existing.playerIndex !== preferredColor;
+    if (colorChanged) {
+      existing.playerIndex = preferredColor;
+      // Retint the start button (and other host-tinted CTAs) in the same
+      // paint as the roster card. broadcastLobbyUpdate below also applies
+      // the tint, but its 400ms throttle turns the trailing call into a
+      // visible lag: the card recolors instantly, the button up to 400ms
+      // later. Idempotent; when the sender isn't the host it re-applies
+      // the host's unchanged color.
+      applyHostTint();
     }
     // The host's name reaches other controllers only via LOBBY_UPDATE's
     // hostName, and onPeerJoined already broadcast the auto HX- fallback. When
@@ -170,14 +201,17 @@ function onHello(fromId, msg) {
     if (claimedReconnect) {
       broadcastLobbyUpdate();
       if (autoPaused) checkAutoResume();
-    } else if (hostNameChanged) {
+    } else if (hostNameChanged || colorChanged) {
       broadcastLobbyUpdate();
     }
     return;
   }
 
-  // New player joining
-  var index = nextAvailableSlot();
+  // New player joining. Their preferred color wins over the default slot when
+  // it's free; a free color implies a free slot, so the room-full check only
+  // guards the fallback.
+  var index = helloPreferredColor(fromId, msg);
+  if (index == null) index = nextAvailableSlot();
   if (index < 0) {
     party.sendTo(fromId, { type: MSG.ERROR, message: 'Room is full' });
     return;
@@ -301,6 +335,9 @@ function onSetColor(fromId, msg) {
 
   player.playerIndex = idx;
   updatePlayerList();
+  // Same rationale as onHello's colorChanged branch: don't let the host's
+  // start-button tint trail the card recolor by the broadcast throttle.
+  applyHostTint();
   broadcastLobbyUpdate();
 }
 
