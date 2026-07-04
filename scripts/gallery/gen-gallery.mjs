@@ -18,6 +18,19 @@ const PLATFORMS = [
 
 const shotPath = (platform, key) => join(here, 'shots', platform, `${key}.png`);
 
+// Where a native column's shots came from, written by the gallery workflow when
+// it reused an artifact from another commit/branch (e.g. "main @ abc1234").
+// Empty for freshly-captured columns and local runs.
+const shotSource = (platform) => {
+  const p = join(here, 'shots', platform, '.source');
+  return existsSync(p) ? readFileSync(p, 'utf8').trim() : '';
+};
+
+const hasShots = (platform) => {
+  const dir = join(here, 'shots', platform);
+  return existsSync(dir) && readdirSync(dir).some((f) => f.endsWith('.png'));
+};
+
 // Pick up any captured states not in the manifest, so nothing is silently dropped.
 const known = new Set(scenarios.map((s) => s.key));
 const rows = [...scenarios];
@@ -52,6 +65,16 @@ const sections = rows
   })
   .join('\n');
 
+// Per-column provenance strip: which commit each native column's shots came
+// from, shown only when the workflow reused an artifact (any .source present).
+// The web column is captured fresh in the gallery job, so it's excluded.
+const nativePlatforms = PLATFORMS.filter(([p]) => p !== 'web');
+const provenance = nativePlatforms.some(([p]) => shotSource(p))
+  ? nativePlatforms
+      .map(([p, label]) => `${label}: <b>${shotSource(p) || (hasShots(p) ? 'this run' : 'not captured')}</b>`)
+      .join(' &nbsp;·&nbsp; ')
+  : '';
+
 // Header, nav, and base styling come from the shared gallery chrome
 // (/gallery.css + /gallery-nav.js), so this page is a visual sibling of the
 // live Display/Phone/Rotations galleries; only the comparison grid below is
@@ -83,6 +106,7 @@ const html = `<!doctype html>
   <nav data-gallery-nav></nav>
 </header>
 <p class="legend">Web reference vs native tvOS vs native Android TV, one frozen row per display state (fixtures: <code>server/GalleryFixtures.js</code>, scenario map: <code>scripts/gallery/scenarios.json</code>). Regenerate per <code>scripts/gallery/README.md</code>.</p>
+${provenance ? `<p class="legend">Native shot source — ${provenance}. Web reference is captured fresh each run.</p>` : ''}
 <main>
 ${sections}
 </main>

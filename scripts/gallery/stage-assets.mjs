@@ -6,8 +6,8 @@
 // Driven by the pages themselves — every /gallery-assets/<path> reference is
 // parsed out and its committed source copied to the matching path — so adding a
 // gallery asset never needs a change here. Sources that don't exist in the
-// checkout (gitignored local previews like artwork/tvos-preview/*) are skipped;
-// those cards fall back to the page's "not generated" hint.
+// checkout (e.g. gitignored local-only art) are skipped; those cards fall back
+// to the page's "not generated" hint.
 import { readFileSync, existsSync, mkdirSync, copyFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 

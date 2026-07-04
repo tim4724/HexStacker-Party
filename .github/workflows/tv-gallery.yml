@@ -89,15 +89,27 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           WAIT_DEADLINE=$((SECONDS + 2100))   # shared across both workflows
+          # Resolve the freshest usable run for a platform, then record where its
+          # shots came from in <dest>/.source so the gallery can label a reused
+          # column. Resolution order, most- to least-specific:
+          #   1. a run for THIS commit  (wait for it if it's still in flight)
+          #   2. latest completed run on THIS branch
+          #   3. latest completed run on main
+          # Steps 2-3 are correct, not stale: the TV workflows' path filters mean
+          # a run is absent for this commit/branch only when native sources didn't
+          # change, so the last-known-good render is byte-identical to what this
+          # ref would produce. This keeps the native columns populated on a
+          # brand-new web-only branch instead of showing empty gaps.
           lookup () { # $1 workflow file, $2 artifact name, $3 dest dir
-            local run_id status
+            local run_id status sha scope
+            run_id=""; scope=""
             while :; do
-              run_id=""; status=""
-              read -r run_id status < <(gh api -X GET "repos/${{ github.repository }}/actions/workflows/$1/runs" \
+              status=""; sha=""
+              read -r run_id status sha < <(gh api -X GET "repos/${{ github.repository }}/actions/workflows/$1/runs" \
                 -f head_sha="$HEAD_SHA" -f per_page=1 \
-                --jq '.workflow_runs[0] // empty | "\(.id) \(.status)"') || true
+                --jq '.workflow_runs[0] // empty | "\(.id) \(.status) \(.head_sha)"') || true
               [ -z "$run_id" ] && break                      # never triggered for this SHA
-              [ "$status" = "completed" ] && break
+              [ "$status" = "completed" ] && scope="this commit" && break
               if [ $SECONDS -ge $WAIT_DEADLINE ]; then
                 echo "timed out waiting for $1 (run $run_id still $status)"
                 run_id=""
@@ -107,14 +119,23 @@ jobs:
               sleep 30
             done
             if [ -z "$run_id" ]; then
-              run_id=$(gh api -X GET "repos/${{ github.repository }}/actions/workflows/$1/runs" \
-                         -f branch="$HEAD_BRANCH" -f status=completed -f per_page=1 \
-                         --jq '.workflow_runs[0].id // empty')
-              [ -n "$run_id" ] && echo "no completed $1 run for $HEAD_SHA; using latest on $HEAD_BRANCH (run $run_id)"
+              read -r run_id sha < <(gh api -X GET "repos/${{ github.repository }}/actions/workflows/$1/runs" \
+                -f branch="$HEAD_BRANCH" -f status=completed -f per_page=1 \
+                --jq '.workflow_runs[0] // empty | "\(.id) \(.head_sha)"') || true
+              [ -n "$run_id" ] && scope="latest on $HEAD_BRANCH @ ${sha:0:7}" \
+                && echo "no completed $1 run for $HEAD_SHA; using $scope (run $run_id)"
             fi
-            if [ -n "$run_id" ]; then
-              gh run download "$run_id" --name "$2" --dir "$3" \
-                || echo "artifact $2 not found on run $run_id; that column stays empty"
+            if [ -z "$run_id" ] && [ "$HEAD_BRANCH" != "main" ]; then
+              read -r run_id sha < <(gh api -X GET "repos/${{ github.repository }}/actions/workflows/$1/runs" \
+                -f branch=main -f status=completed -f per_page=1 \
+                --jq '.workflow_runs[0] // empty | "\(.id) \(.head_sha)"') || true
+              [ -n "$run_id" ] && scope="main @ ${sha:0:7}" \
+                && echo "no $1 run on $HEAD_BRANCH; falling back to $scope (run $run_id)"
+            fi
+            if [ -n "$run_id" ] && gh run download "$run_id" --name "$2" --dir "$3"; then
+              printf '%s' "$scope" > "$3/.source"
+            elif [ -n "$run_id" ]; then
+              echo "artifact $2 not found on run $run_id; that column stays empty"
             else
               echo "no completed $1 run found; that column stays empty"
             fi

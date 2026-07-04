@@ -61,6 +61,19 @@
   }
   .frame.light { background: #F7F1E8; }
   img, video { display: block; max-width: 100%; height: auto; border-radius: 2px; }
+  /* Live composites of the shipped icon layers (Back opaque + Front on alpha),
+     stacked in the browser so the gallery shows the real assembled pixels rather
+     than a separately-baked preview PNG that could drift from the layers. */
+  .composite { position: relative; width: 100%; aspect-ratio: 5 / 3; }
+  .composite.small { width: 300px; max-width: 100%; }   /* true 300x180 unfocused size */
+  .composite > img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 0; }
+  /* Parallax review: the two layers at three focus tilts (the deeper Back shifts
+     and scales less than Front), each clipped with the tvOS rounded-corner mask. */
+  .parallax { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 100%; }
+  .parallax .tile { position: relative; aspect-ratio: 5 / 3; overflow: hidden; border-radius: 3.6%; }
+  .parallax .tile > img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 0; }
+  .parallax .tile > img.back  { transform: scale(1.03) translateX(calc(var(--t) * 0.63%)); }
+  .parallax .tile > img.front { transform: scale(1.10) translateX(calc(var(--t) * 2%)); }
   figcaption { margin-top: 10px; font-size: 13px; color: #cfcfe8; }
   figcaption .path {
     display: block;
@@ -88,10 +101,10 @@
 <main class="art-body">
 <p class="art-intro">
   Every brand asset that ships (or generates what ships), in one page. Checked-in
-  assets always render; cards from the git-ignored preview folders — and, on the
-  deployed host, the tvOS/Android source dirs the game image doesn't bundle —
-  appear once their generator has run (otherwise they show a "not generated"
-  hint). The brand mark is the <strong>piece badge</strong>: the game's
+  assets always render; on the deployed host, the tvOS/Android source dirs the
+  game image doesn't bundle are served by the gallery pod. The tvOS icon cards
+  composite the shipped Back/Front layers live, so they show the real assembled
+  pixels. The brand mark is the <strong>piece badge</strong>: the game's
   <code>d</code> piece (grid rotation 5) in the party colorway.
 </p>
 
@@ -117,21 +130,46 @@
     </figcaption>
   </figure>
   <figure>
-    <div class="frame"><img src="/gallery-assets/artwork/tvos-preview/icon-5x3.png" alt="tvOS icon flattened preview"></div>
-    <figcaption>Flattened composite (preview)
-      <span class="path">artwork/tvos-preview/icon-5x3.png</span>
+    <div class="frame">
+      <div class="composite">
+        <img src="/gallery-assets/appletv/Sources/HexStackerTV/Assets.xcassets/App%20Icon%20%26%20Top%20Shelf%20Image.brandassets/App%20Icon.imagestack/Back.imagestacklayer/Content.imageset/back-800x480.png" alt="">
+        <img src="/gallery-assets/appletv/Sources/HexStackerTV/Assets.xcassets/App%20Icon%20%26%20Top%20Shelf%20Image.brandassets/App%20Icon.imagestack/Front.imagestacklayer/Content.imageset/front-800x480.png" alt="tvOS icon, Back and Front layers composited">
+      </div>
+    </div>
+    <figcaption>Flattened composite — the shipped Back + Front layers, stacked live
+      <span class="path">appletv/…/App Icon.imagestack · Back + Front (800x480 @2x)</span>
     </figcaption>
   </figure>
   <figure>
-    <div class="frame"><img src="/gallery-assets/artwork/tvos-preview/icon-unfocused.png" alt="tvOS icon at unfocused size"></div>
-    <figcaption>True unfocused shelf size, 300x180 (preview)
-      <span class="path">artwork/tvos-preview/icon-unfocused.png</span>
+    <div class="frame">
+      <div class="composite small">
+        <img src="/gallery-assets/appletv/Sources/HexStackerTV/Assets.xcassets/App%20Icon%20%26%20Top%20Shelf%20Image.brandassets/App%20Icon.imagestack/Back.imagestacklayer/Content.imageset/back-800x480.png" alt="">
+        <img src="/gallery-assets/appletv/Sources/HexStackerTV/Assets.xcassets/App%20Icon%20%26%20Top%20Shelf%20Image.brandassets/App%20Icon.imagestack/Front.imagestacklayer/Content.imageset/front-800x480.png" alt="tvOS icon at the unfocused shelf size">
+      </div>
+    </div>
+    <figcaption>True unfocused shelf size, 300x180 — same layers, live
+      <span class="path">appletv/…/App Icon.imagestack · Back + Front</span>
     </figcaption>
   </figure>
   <figure class="wide">
-    <div class="frame"><img src="/gallery-assets/artwork/tvos-preview/icon-parallax.png" alt="tvOS icon parallax strip"></div>
-    <figcaption>Parallax strip — back/front composed at three focus tilts (preview)
-      <span class="path">artwork/tvos-preview/icon-parallax.png</span>
+    <div class="frame">
+      <div class="parallax">
+        <div class="tile" style="--t:-1">
+          <img class="back" src="/gallery-assets/appletv/Sources/HexStackerTV/Assets.xcassets/App%20Icon%20%26%20Top%20Shelf%20Image.brandassets/App%20Icon.imagestack/Back.imagestacklayer/Content.imageset/back-800x480.png" alt="">
+          <img class="front" src="/gallery-assets/appletv/Sources/HexStackerTV/Assets.xcassets/App%20Icon%20%26%20Top%20Shelf%20Image.brandassets/App%20Icon.imagestack/Front.imagestacklayer/Content.imageset/front-800x480.png" alt="">
+        </div>
+        <div class="tile" style="--t:0">
+          <img class="back" src="/gallery-assets/appletv/Sources/HexStackerTV/Assets.xcassets/App%20Icon%20%26%20Top%20Shelf%20Image.brandassets/App%20Icon.imagestack/Back.imagestacklayer/Content.imageset/back-800x480.png" alt="">
+          <img class="front" src="/gallery-assets/appletv/Sources/HexStackerTV/Assets.xcassets/App%20Icon%20%26%20Top%20Shelf%20Image.brandassets/App%20Icon.imagestack/Front.imagestacklayer/Content.imageset/front-800x480.png" alt="">
+        </div>
+        <div class="tile" style="--t:1">
+          <img class="back" src="/gallery-assets/appletv/Sources/HexStackerTV/Assets.xcassets/App%20Icon%20%26%20Top%20Shelf%20Image.brandassets/App%20Icon.imagestack/Back.imagestacklayer/Content.imageset/back-800x480.png" alt="">
+          <img class="front" src="/gallery-assets/appletv/Sources/HexStackerTV/Assets.xcassets/App%20Icon%20%26%20Top%20Shelf%20Image.brandassets/App%20Icon.imagestack/Front.imagestacklayer/Content.imageset/front-800x480.png" alt="">
+        </div>
+      </div>
+    </div>
+    <figcaption>Parallax — Back/Front at three focus tilts (live composite of the shipped layers)
+      <span class="path">appletv/…/App Icon.imagestack · Back + Front</span>
     </figcaption>
   </figure>
 </div>

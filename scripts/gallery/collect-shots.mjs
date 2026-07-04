@@ -60,4 +60,11 @@ for (const s of scenarios) {
   copyFileSync(src, join(outDir, `${s.key}.png`));
   copied += 1;
 }
+
+// Carry the shot provenance (written into the artifact dir by the gallery
+// workflow's lookup: "this commit", "main @ abc1234", …) so gen-gallery.mjs can
+// label a reused column. Absent on local runs — the gallery just omits the note.
+const provenance = join(srcDir, '.source');
+if (existsSync(provenance)) copyFileSync(provenance, join(outDir, '.source'));
+
 console.log(`collected ${copied} ${platform} shot(s) -> ${outDir}`);

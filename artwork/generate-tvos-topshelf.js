@@ -20,7 +20,6 @@ const PAGE = path.resolve(__dirname, 'tvos-icon.html');
 const BANNER = path.resolve(__dirname, 'gameplay-2x1.png');
 const XC = path.resolve(ROOT,
   'appletv/Sources/HexStackerTV/Assets.xcassets/App Icon & Top Shelf Image.brandassets');
-const PREVIEW_DIR = path.resolve(__dirname, 'tvos-preview');
 
 const TS = path.join(XC, 'Top Shelf Image.imageset');
 const TSW = path.join(XC, 'Top Shelf Image Wide.imageset');
@@ -42,18 +41,12 @@ const ASSETS = [
 
   const render = (w, h) => page.evaluate((s) => window.renderTopShelf(s), { w, h, bannerDataUrl });
 
-  fs.mkdirSync(PREVIEW_DIR, { recursive: true });
   for (const [dest, w, h] of ASSETS) {
     const url = await render(w, h);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     fs.writeFileSync(dest, Buffer.from(url.replace(/^data:image\/png;base64,/, ''), 'base64'));
     console.log('topshelf', path.relative(ROOT, dest));
   }
-  // previews
-  fs.writeFileSync(path.join(PREVIEW_DIR, 'topshelf.png'),
-    Buffer.from((await render(1920, 720)).replace(/^data:image\/png;base64,/, ''), 'base64'));
-  fs.writeFileSync(path.join(PREVIEW_DIR, 'topshelf-wide.png'),
-    Buffer.from((await render(2320, 720)).replace(/^data:image\/png;base64,/, ''), 'base64'));
 
   await browser.close();
   console.log('\nDone.');
