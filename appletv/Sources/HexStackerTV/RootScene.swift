@@ -56,6 +56,16 @@ final class RootScene: SKScene, DisplayOutput {
     private var shotMode = false   // HEXSHOT: render one frozen state, no live tick
     private var relayStarted = false   // false in the offline harness modes
 
+    // Gallery carousel (GameViewController drives it): render a specific frozen
+    // state set programmatically instead of from the HEXSHOT env var, so ONE app
+    // launch can cycle through every state. `onShotRendered` fires shortly after
+    // the frame is on screen (labels/QR/board textures settled) so the UI test
+    // captures a complete screen without a fixed per-state sleep.
+    var shotOverride: (name: String, shot: String, playerCount: Int)?
+    var onShotRendered: ((String) -> Void)?
+    private var pendingReadyName: String?
+    private var shotStartTime: TimeInterval = 0
+
     // Player ids already shown in the lobby — used to fire the join-pop only on
     // newly arriving players, not on every roster rebuild.
     private var lobbyKnownPlayers: Set<Int> = []
@@ -164,25 +174,23 @@ final class RootScene: SKScene, DisplayOutput {
         }
 
         // Screenshot gallery: render one frozen state with fake data and stop
-        // ticking, so a screenshot captures exactly that screen. HEXSHOT=<state>
-        // (lobby, countdown, game[-lv8/-lv12], pause[-music], disconnected[-controller],
-        // reconnecting, disconnected-display, results[-solo]), HEXPLAYERS=<n>.
+        // ticking, so a screenshot captures exactly that screen. The state comes
+        // from the gallery carousel (shotOverride, one launch cycles through every
+        // state) or a single HEXSHOT=<state> launch (workflow_dispatch / local).
+        // States: lobby, lobby-empty, countdown, game[-lv8/-lv12/-2p/-3p/-4p],
+        // pause[-music], disconnected[-controller], reconnecting,
+        // disconnected-display, results[-solo]; HEXPLAYERS=<n>.
+        if let override = shotOverride {
+            shotMode = true
+            applyShot(override.shot, playerCount: override.playerCount)
+            pendingReadyName = override.name
+            return
+        }
         if let shot = ProcessInfo.processInfo.environment["HEXSHOT"] {
             shotMode = true
             let pc = ProcessInfo.processInfo.environment["HEXPLAYERS"].flatMap { Int($0) } ?? 4
-            switch shot {
-            case "pause-music":   // pause overlay with the MUSIC switch focused
-                coordinator.renderShot("pause", playerCount: pc)
-                remoteUp()
-            case "reconnecting":  // full-screen display-disconnect overlay over a game
-                coordinator.renderShot("game", playerCount: pc)
-                showConnectionOverlay(reconnecting: true)
-            case "disconnected-display":
-                coordinator.renderShot("game", playerCount: pc)
-                showConnectionOverlay(reconnecting: false)
-            default:
-                coordinator.renderShot(shot, playerCount: pc)
-            }
+            applyShot(shot, playerCount: pc)
+            pendingReadyName = shot
             return
         }
 
@@ -207,6 +215,25 @@ final class RootScene: SKScene, DisplayOutput {
         showScreen(.lobby)
     }
 
+    /// Render a single frozen gallery state. Shared by the HEXSHOT env launch and
+    /// the gallery carousel so both produce byte-identical screens; the special
+    /// cases layer an overlay / focus move on top of a base `renderShot`.
+    private func applyShot(_ shot: String, playerCount pc: Int) {
+        switch shot {
+        case "pause-music":   // pause overlay with the MUSIC switch focused
+            coordinator.renderShot("pause", playerCount: pc)
+            remoteUp()
+        case "reconnecting":  // full-screen display-disconnect overlay over a game
+            coordinator.renderShot("game", playerCount: pc)
+            showConnectionOverlay(reconnecting: true)
+        case "disconnected-display":
+            coordinator.renderShot("game", playerCount: pc)
+            showConnectionOverlay(reconnecting: false)
+        default:
+            coordinator.renderShot(shot, playerCount: pc)
+        }
+    }
+
     /// App returned to the foreground. Backgrounding broadcast DISPLAY_CLOSED
     /// (notifyDisplayClosing) but kept the socket, so after a quick Home-and-back
     /// nothing detects a drop and the controllers stay stranded on their end
@@ -226,6 +253,20 @@ final class RootScene: SKScene, DisplayOutput {
             lobbyBg.tick(dt: CGFloat(min(deltaMs, 50.0) / 1000.0))
         }
         if !shotMode { coordinator?.tick(deltaMs: deltaMs) }   // nil in HEXSNAP; frozen in HEXSHOT
+
+        // Gallery readiness: once a frozen state has been on screen briefly (so
+        // labels / QR / board textures have rasterized), report its name so the UI
+        // test can capture it and advance the carousel. Time-based off the scene
+        // clock; the process is already warm, so this is far cheaper than the old
+        // per-state cold launch + fixed sleep.
+        if let name = pendingReadyName {
+            if shotStartTime == 0 { shotStartTime = currentTime }
+            if currentTime - shotStartTime >= 0.8 {
+                pendingReadyName = nil
+                shotStartTime = 0
+                onShotRendered?(name)
+            }
+        }
     }
 
     /// Re-apply layout after the safe-area insets become known (they are zero

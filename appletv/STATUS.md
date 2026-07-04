@@ -333,13 +333,18 @@ Headless / verification modes:
 - `HEXSNAP=1` — static fixture render for visual-parity capture.
 - `HEXSHOT=<state>` — render one display state frozen with fake data, for the
   screen gallery (`HEXPLAYERS=<n>`). See the repo-root `scripts/gallery/`.
+- `HEXGALLERY=1` — carousel: present every gallery state in ONE launch, advancing
+  on Play/Pause. `GameViewController.galleryStates` is the ordered source of truth
+  and reports each rendered state's name via the `hexshot-marker` accessibility
+  element; the `ScreenshotTests` UI test drives it (one launch, not one per state).
 
 Screen gallery (repo-root `scripts/gallery/`) — the cross-platform screenshot
-mechanism modelled on the web `public/gallery.html`: `capture-tvos.sh` renders
-every state in `scenarios.json` via `HEXSHOT` and screenshots it from the
-Simulator; `capture-web.mjs` and the Android Roborazzi tests supply the other
-columns; `gen-gallery.mjs` assembles `gallery.html` with web vs tvOS vs
-Android TV side by side for gap review. Shots + page are git-ignored
+mechanism modelled on the web `public/gallery.html`: locally, `capture-tvos.sh`
+renders every state in `scenarios.json` via `HEXSHOT` and screenshots it from the
+Simulator; in CI the `tvOS` workflow's `ScreenshotTests` captures the same states
+via the `HEXGALLERY` carousel. `capture-web.mjs` and the Android Roborazzi tests
+supply the other columns; `gen-gallery.mjs` assembles `gallery.html` with web vs
+tvOS vs Android TV side by side for gap review. Shots + page are git-ignored
 (regenerable); CI assembles the same page via the `TV Gallery` workflow.
 
 ## Next steps

@@ -58,7 +58,7 @@ Captured PNGs and `gallery.html` are git-ignored (regenerable artifacts).
 
 The `TV Gallery` workflow (`.github/workflows/tv-gallery.yml`) assembles the
 same page on every PR that touches TV-relevant code: it runs whenever the
-`Android TV` or `tvOS UI Screenshots` workflow finishes, downloads their
+`Android TV` or `tvOS` workflow finishes, downloads their
 screenshot artifacts, captures fresh web references, and assembles the page.
 Whichever platform workflow finishes last produces the complete three-column
 page.

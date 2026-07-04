@@ -1,70 +1,58 @@
 import XCTest
 
-/// Launches the tvOS app into each frozen display state and captures a
-/// full-screen screenshot per state as a test attachment.
+/// Captures every frozen display state for the cross-platform gallery in a SINGLE
+/// app launch. The app (HEXGALLERY) presents a fresh scene per state and reports
+/// the rendered state's name through an accessibility marker; this test reads that
+/// name, captures the screen, and presses Play/Pause to advance. One launch (vs
+/// the old one cold launch per state) is the bulk of the macOS CI speed-up, and
+/// each captured screen still doubles as a "this state renders without crashing"
+/// check.
 ///
-/// State is selected through the app's existing `HEXSHOT` render hooks, set here
-/// via `launchEnvironment` — so the fixture/demo setup lives in this test target,
-/// not in a live relay session or extra production code. `HEXSHOT` renders fake
-/// fixture data and stops ticking, so each shot is a stable screen (no relay, no
-/// controllers).
-///
-/// The screenshots are the deliverable: extract them from the `.xcresult` in CI
-/// (`xcparse screenshots`) and publish them as an artifact / gallery. Each state
-/// also doubles as a launch smoke test — the app must reach the foreground
-/// without crashing on every screen.
+/// The app owns the ordered state list (`GameViewController.galleryStates`, which
+/// mirrors the `tvos` entries in scripts/gallery/scenarios.json) and reports each
+/// name, so attachment names can't drift out of order. The TV Gallery workflow
+/// matches attachments by that name.
 final class ScreenshotTests: XCTestCase {
 
-    /// name : HEXSHOT state : HEXPLAYERS — mirrors the `tvos` entries in the
-    /// repo-root scripts/gallery/scenarios.json (names must stay the canonical
-    /// scenario keys: the TV Gallery workflow matches attachments by that name).
-    private let states: [(name: String, shot: String, players: String)] = [
-        ("lobby", "lobby", "4"),
-        ("lobby-2p", "lobby", "2"),
-        ("lobby-8p", "lobby", "8"),
-        ("lobby-empty", "lobby-empty", "0"),
-        ("countdown", "countdown", "4"),
-        ("game", "game", "4"),
-        ("game-lv8", "game-lv8", "4"),
-        ("game-lv12", "game-lv12", "4"),
-        // Player count comes from the variant spec for these; HEXPLAYERS is passed
-        // for clarity only (the shot ignores it).
-        ("game-2p", "game-2p", "2"),
-        ("game-3p", "game-3p", "3"),
-        ("game-4p", "game-4p", "4"),
-        ("pause", "pause", "4"),
-        ("pause-music", "pause-music", "4"),
-        ("disconnected-controller", "disconnected-controller", "4"),
-        ("reconnecting", "reconnecting", "4"),
-        ("disconnected-display", "disconnected-display", "4"),
-        ("results", "results", "4"),
-        ("results-solo", "results-solo", "1"),
-    ]
-
     override func setUp() {
-        // Capture every state even if one screen regresses, so the gallery is
-        // always complete and a single bad screen doesn't hide the rest.
+        // One bad screen shouldn't hide the rest of the gallery.
         continueAfterFailure = true
     }
 
     func testCaptureEveryDisplayState() {
-        for state in states {
-            let app = XCUIApplication()
-            app.launchEnvironment["HEXSHOT"] = state.shot
-            app.launchEnvironment["HEXPLAYERS"] = state.players
-            app.launch()
+        let app = XCUIApplication()
+        app.launchEnvironment["HEXGALLERY"] = "1"
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20),
+                      "app did not reach the foreground")
 
-            XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20),
-                          "\(state.name): app did not reach the foreground")
-            // Let the scene present and render the frozen state before capturing.
-            Thread.sleep(forTimeInterval: 3.0)
+        // The render view exposes the carousel state: label = total count,
+        // value = currently-rendered state name ("pending" until the first frame).
+        let marker = app.descendants(matching: .any)
+            .matching(identifier: "hexshot-marker").firstMatch
+        XCTAssertTrue(marker.waitForExistence(timeout: 20), "gallery marker never appeared")
 
+        let total = Int(marker.label) ?? 0
+        XCTAssertGreaterThan(total, 0, "gallery reported no states (label=\(marker.label))")
+
+        var lastName = "pending"
+        for i in 0..<total {
+            // Wait for the marker's value to CHANGE to the next state's name (it
+            // holds the previous name through the scene swap, so a changed value
+            // means the new frozen frame is on screen and settled).
+            let changed = NSPredicate(format: "value != %@", lastName)
+            let exp = XCTNSPredicateExpectation(predicate: changed, object: marker)
+            XCTAssertEqual(XCTWaiter().wait(for: [exp], timeout: 15), .completed,
+                           "state \(i): app never signalled the next frozen frame")
+
+            let name = (marker.value as? String) ?? ""
             let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-            attachment.name = state.name
+            attachment.name = name
             attachment.lifetime = .keepAlways   // keep on success, not just failure
             add(attachment)
+            lastName = name
 
-            app.terminate()
+            if i < total - 1 { XCUIRemote.shared.press(.playPause) }
         }
     }
 }
