@@ -142,11 +142,6 @@ function onHello(fromId, msg) {
     // fires on a host *index* change, not a host *name* change.
     var hostNameChanged = existing.playerName !== prevName
       && fromId === getHostPeerIndex();
-    // Fresh joiner whose roster paint was deferred by onPeerJoined: the record
-    // now has its real name and color, so the paint (and the LOBBY_UPDATE that
-    // onPeerJoined skipped) is due here.
-    var joinPaintWasPending = cancelPendingJoinPaint(fromId);
-    if (joinPaintWasPending && roomState === ROOM_STATE.LOBBY) updateStartButton();
     updatePlayerList();
 
     // Late joiner: registered via onPeerJoined during active game but never
@@ -197,7 +192,7 @@ function onHello(fromId, msg) {
     if (claimedReconnect) {
       broadcastLobbyUpdate();
       if (autoPaused) checkAutoResume();
-    } else if (hostNameChanged || colorChanged || joinPaintWasPending) {
+    } else if (hostNameChanged || colorChanged) {
       broadcastLobbyUpdate();
     }
     return;

@@ -141,9 +141,6 @@ var lastResults = null;
 function resetRoomData() {
   if (music) music.stop();
   clearCountdownTimers();
-  // Deferred join paints (DisplayConnection.js) reference peers of the old
-  // room; also only safe after all scripts load.
-  clearPendingJoinPaints();
   countdown.callback = null;
   countdown.remaining = 0;
   // Resets flow's roster (the same Map `players` aliases), host slot, joinedAt

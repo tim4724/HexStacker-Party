@@ -333,30 +333,6 @@ function onDisplayRejoined(partyRoomCode, peers) {
   }
 }
 
-// Roster paints for a fresh peer_joined are deferred until the joiner's HELLO
-// lands (it carries the real name and preferred color) or this timeout fires,
-// whichever comes first. peer_joined precedes HELLO by one controller round
-// trip; painting immediately would flash the HX fallback name and the default
-// slot color on the TV. The timeout bounds the wait so a controller whose
-// HELLO stalls still shows up.
-var JOIN_PAINT_DEFER_MS = 500;
-var pendingJoinPaints = new Map();  // peerIndex -> timeout id
-
-// Cancel a deferred join paint. Returns whether one was pending, so onHello
-// knows it owns the paint (and the LOBBY_UPDATE that onPeerJoined skipped).
-function cancelPendingJoinPaint(peerIndex) {
-  var timer = pendingJoinPaints.get(peerIndex);
-  if (timer == null) return false;
-  clearTimeout(timer);
-  pendingJoinPaints.delete(peerIndex);
-  return true;
-}
-
-function clearPendingJoinPaints() {
-  for (const entry of pendingJoinPaints) clearTimeout(entry[1]);
-  pendingJoinPaints.clear();
-}
-
 function onPeerJoined(peerIndex) {
   if (players.has(peerIndex)) return;
   if (players.size >= GameConstants.MAX_PLAYERS) return;
@@ -378,25 +354,19 @@ function onPeerJoined(peerIndex) {
   // playerOrder is snapshotted at game start by runGameLocally().
   if (roomState === ROOM_STATE.LOBBY) {
     playerOrder.push(peerIndex);
-    // Paint + broadcast deferred to the joiner's HELLO (see the comment on
-    // pendingJoinPaints). The broadcast also tells existing controllers that
-    // a palette slot got claimed; onHello's joinPaintWasPending branch owns
-    // it when it cancels this timer.
-    pendingJoinPaints.set(peerIndex, setTimeout(function () {
-      pendingJoinPaints.delete(peerIndex);
-      if (roomState !== ROOM_STATE.LOBBY || !players.has(peerIndex)) return;
-      updatePlayerList();
-      updateStartButton();
-      broadcastLobbyUpdate();
-    }, JOIN_PAINT_DEFER_MS));
+    updatePlayerList();
+    updateStartButton();
+    // Notify existing controllers that a palette slot just got claimed.
+    // The subsequent HELLO from the joiner takes onHello's reconnect path
+    // (player already in the Map) and does NOT broadcast, so without this
+    // call the other pickers would keep showing the new player's color as
+    // available until the next unrelated LOBBY_UPDATE.
+    broadcastLobbyUpdate();
   }
 }
 
 function onPeerLeft(peerIndex) {
   if (fastlane) fastlane.close(peerIndex);
-  // A joiner can leave inside the deferred-paint window; removeLobbyPlayer
-  // below repaints anyway, so the pending paint must not fire afterwards.
-  cancelPendingJoinPaint(peerIndex);
   if (!players.has(peerIndex)) return;
 
   cleanupPlayerInput(peerIndex);
