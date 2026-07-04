@@ -24,6 +24,6 @@ scripts/parity/node_modules/
 scripts/parity/*.png
 
 # XCUITest result bundles + extracted screenshots (regenerable; CI publishes
-# them as an artifact — see .github/workflows/tvos-uitest.yml)
+# them as an artifact — see .github/workflows/tvos.yml)
 *.xcresult/
 shots/

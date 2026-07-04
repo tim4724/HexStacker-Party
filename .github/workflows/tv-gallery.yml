@@ -17,7 +17,7 @@ name: TV Gallery
 # simulator, Robolectric) — hence a separate image built here, after assembly.
 on:
   workflow_run:
-    workflows: ['Android TV', 'tvOS UI Screenshots']
+    workflows: ['Android TV', 'tvOS']
     types: [completed]
   # The gallery pod also serves the LIVE web gallery (/gallery.html), which the
   # game image no longer ships — so web-display-only pushes (which never fire
@@ -141,7 +141,7 @@ jobs:
             fi
           }
           lookup android.yml tv-screenshots /tmp/shots-android
-          lookup tvos-uitest.yml tvos-screenshots /tmp/shots-tvos
+          lookup tvos.yml tvos-screenshots /tmp/shots-tvos
 
       - name: Collect native shots into canonical names
         run: |
