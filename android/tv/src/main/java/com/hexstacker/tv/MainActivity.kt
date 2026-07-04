@@ -6,11 +6,16 @@ import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
@@ -35,9 +40,11 @@ import com.hexstacker.tv.render.BoardSurfaceView
 import com.hexstacker.tv.render.SeatMeta
 import com.hexstacker.tv.ui.ConnectionOverlay
 import com.hexstacker.tv.ui.CountdownOverlay
+import com.hexstacker.tv.ui.LicensesScreen
 import com.hexstacker.tv.ui.LobbyData
 import com.hexstacker.tv.ui.LobbyPlayer
 import com.hexstacker.tv.ui.LobbyScreen
+import com.hexstacker.tv.ui.rememberLicenseEntries
 import com.hexstacker.tv.ui.PauseOverlay
 import com.hexstacker.tv.ui.ResultCard
 import com.hexstacker.tv.ui.ResultsScreen
@@ -404,6 +411,17 @@ private fun HexStackerApp(
     onMenu: () -> Boolean,
     onReconnect: () -> Unit,
 ) {
+    // Open Source Licenses is a lobby-only local overlay (not a coordinator screen):
+    // opened from the lobby footer, closed with Back. Force it shut whenever the game
+    // leaves the lobby so it can't linger over a countdown/results.
+    var showLicenses by remember { mutableStateOf(false) }
+    LaunchedEffect(model.screen) { if (model.screen != DisplayScreen.LOBBY) showLicenses = false }
+    // Back closes the overlay via the OnBackPressedDispatcher, which consumes the press.
+    // A manual Compose Back key handler instead let one Back both close the screen (on
+    // KeyDown) AND finish the Activity (the dispatcher fires on KeyUp) — a double-back
+    // straight out to the launcher.
+    BackHandler(enabled = showLicenses) { showLicenses = false }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -413,7 +431,16 @@ private fun HexStackerApp(
         AndroidView(factory = { board }, modifier = Modifier.fillMaxSize())
 
         when (model.screen) {
-            DisplayScreen.LOBBY -> model.lobby?.let { LobbyScreen(data = it, onStart = onStart) }
+            // The licenses screen replaces the lobby chrome (rather than layering over
+            // it) so D-pad focus can't escape back to the lobby buttons underneath.
+            DisplayScreen.LOBBY ->
+                if (showLicenses) {
+                    LicensesScreen(entries = rememberLicenseEntries(), onClose = { showLicenses = false })
+                } else {
+                    model.lobby?.let {
+                        LobbyScreen(data = it, onStart = onStart, onOpenLicenses = { showLicenses = true })
+                    }
+                }
             DisplayScreen.RESULTS -> ResultsScreen(
                 results = model.results,
                 hostColorIndex = model.lobby?.hostColorIndex,

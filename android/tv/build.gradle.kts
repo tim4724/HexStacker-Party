@@ -6,6 +6,30 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.roborazzi)
+    // Collects dependency + license metadata into res/raw/aboutlibraries.json at
+    // build time (consumed by the Open Source Licenses screen). Auto-wired into the
+    // Android resource pipeline as long as the export output path is left default.
+    alias(libs.plugins.aboutlibraries)
+}
+
+// Open-source license report generation (res/raw/aboutlibraries.json, consumed by
+// the licenses screen). offlineMode is left off so the plugin embeds the full SPDX
+// license text (the Apache-2.0 body covering ~94 of the deps) into the report; it
+// does NOT enable the GitHub remote-license API (fetchRemoteLicense stays off), so
+// no per-repo network calls happen. Licenses the plugin can't resolve to embedded
+// text (the WebRTC BSD-3-Clause) and non-dependency attributions (Orbitron font,
+// lobby music, the MIT QuickJS engine bundled in quickjs-kt) are supplied by the
+// screen itself (see Licenses.kt) — if the plugin ever can't fetch a body, the
+// screen falls back to the license name + URL, so the build never hard-fails.
+// includePlatform=false drops the Compose BOM (a platform artifact, no code).
+aboutLibraries {
+    offlineMode = false
+    collect {
+        includePlatform = false
+    }
+    export {
+        prettyPrint = true
+    }
 }
 
 // Sync the canonical engine bundle (dist/partycore.js, the HexCore iife produced
@@ -99,6 +123,10 @@ configurations.matching { it.name.endsWith("UnitTestRuntimeClasspath") }.configu
 
 dependencies {
     implementation(project(":core"))
+
+    // Parses the generated res/raw/aboutlibraries.json for the licenses screen
+    // (data only — the screen renders its own TV-focusable list, not the M3 UI).
+    implementation(libs.aboutlibraries.core)
 
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)

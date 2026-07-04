@@ -35,6 +35,7 @@ final class GameViewController: UIViewController {
         ("disconnected-display", "disconnected-display", 4),
         ("results", "results", 4),
         ("results-solo", "results-solo", 1),
+        ("licenses", "licenses", 0),
     ]
     private var galleryIndex = 0
 

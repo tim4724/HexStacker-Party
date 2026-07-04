@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!--
       Default (English) UI strings for the :tv app. Values mirror
       `public/shared/i18n.js` `en` (the source of truth) EXACTLY — no TV-invented
@@ -59,6 +59,14 @@
 
     <!-- Unnamed-player fallback (i18n player). -->
     <string name="player">Player</string>
+
+    <!-- Open Source Licenses screen (reached from the lobby footer). Unlike the rest
+         of this file these are NOT mirrored from i18n.js: the web app ships no
+         licenses page, so there is no source string to mirror. Kept minimal and
+         factual; English-only for now (locales fall back until translated). -->
+    <!-- Doubles as the lobby entry-link label and the screen title. -->
+    <string name="licenses_title" tools:ignore="MissingTranslation">Open Source Licenses</string>
+    <string name="licenses_back_hint" tools:ignore="MissingTranslation">Press Back to return</string>
 
     <!-- Plurals (i18n start_n_players / n_lines). -->
     <plurals name="start_n_players">

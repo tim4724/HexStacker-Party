@@ -125,6 +125,12 @@
       "web": { "scenario": "results", "players": 1, "params": { "host": 0 } },
       "tvos": { "shot": "results-solo", "players": 1 },
       "android": { "file": "results_solo" }
+    },
+    {
+      "key": "licenses",
+      "title": "Open Source Licenses",
+      "tvos": { "shot": "licenses", "players": 0 },
+      "android": { "file": "licenses" }
     }
   ]
 }

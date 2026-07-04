@@ -5,6 +5,8 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -19,10 +21,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.pluralStringResource
@@ -54,6 +60,10 @@ fun LobbyScreen(
     // Non-null only for the screenshot gallery: a frozen ambient-piece background
     // (see LobbyBackground) so the shot matches the web/tvOS lobby columns.
     backgroundPieces: List<FallingPiece>? = null,
+    // When supplied, the footer music credit becomes a focusable button that opens
+    // the Open Source Licenses screen; null keeps it a plain, non-focusable credit
+    // (previews / screenshot fixtures that don't wire navigation).
+    onOpenLicenses: (() -> Unit)? = null,
 ) {
     val startFocus = remember { FocusRequester() }
     val generatedQr by rememberQrBitmap(data.joinUrl) // called unconditionally (Compose rule)
@@ -127,20 +137,60 @@ fun LobbyScreen(
 
             // Music attribution: CC-BY 3.0 credit for "Lunar Joyride" by
             // FoxSynergy (res/raw/lunar_joyride.mp3). Mirrors the web #lobby-footer:
-            // small, low-emphasis, pinned to the title-safe bottom edge.
-            Text(
-                text = stringResource(R.string.music_by),
-                style = AppType.musicCredit.copy(
-                    fontSize = vp.vwSp(10f, 1f, 12f), // Orbitron Regular, ~18px like tvOS min(H*0.022,18)
-                    color = Tokens.textSecondary,
-                ),
-                maxLines = 1,
+            // small, low-emphasis, pinned to the title-safe bottom edge. When
+            // navigation is wired it doubles as the entry to the licenses screen
+            // (the full music attribution lives there too), so it becomes focusable.
+            LobbyFooter(
+                creditFontSize = vp.vwSp(10f, 1f, 12f), // Orbitron Regular, ~18px like tvOS min(H*0.022,18)
+                onOpenLicenses = onOpenLicenses,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = overscanV),
             )
         }
     }
+}
+
+/**
+ * Bottom "Open Source Licenses" link. With [onOpenLicenses] it is a focusable button
+ * (subtle focus ring, D-pad reachable below Start) that opens the licenses screen;
+ * without it, plain non-focusable text (previews/screenshot fixtures). The music
+ * credit that used to live here now lives inside the licenses screen.
+ */
+@Composable
+private fun LobbyFooter(
+    creditFontSize: androidx.compose.ui.unit.TextUnit,
+    onOpenLicenses: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    val link: @Composable (Modifier) -> Unit = { textMod ->
+        Text(
+            text = stringResource(R.string.licenses_title),
+            style = AppType.musicCredit.copy(fontSize = creditFontSize, color = Tokens.textSecondary),
+            maxLines = 1,
+            modifier = textMod,
+        )
+    }
+
+    if (onOpenLicenses == null) {
+        link(modifier)
+        return
+    }
+
+    var focused by remember { mutableStateOf(false) }
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(Tokens.radiusSm)
+    link(
+        modifier
+            .clip(shape)
+            .border(
+                width = 1.dp,
+                color = if (focused) Tokens.white else androidx.compose.ui.graphics.Color.Transparent,
+                shape = shape,
+            )
+            .onFocusChanged { focused = it.isFocused }
+            .clickable { onOpenLicenses() }
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    )
 }
 
 /**
