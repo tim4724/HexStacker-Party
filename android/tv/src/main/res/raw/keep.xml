@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The Open Source Licenses screen reads these raw resources at runtime via
+  Resources.openRawResource(R.raw.X). R8 inlines the R.raw int constants into the
+  bytecode, after which the resource shrinker can no longer trace the reference and
+  drops the files from release APKs (verified via mapping/release/resources.txt:
+  "raw:aboutlibraries ... is not reachable"). Without these files the licenses screen
+  crashes with Resources.NotFoundException in release builds only. tools:keep pins
+  them so `isShrinkResources = true` keeps them. The generated aboutlibraries.json is
+  produced by the AboutLibraries Gradle plugin at build time.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/aboutlibraries,@raw/license_bsd_3_clause,@raw/license_mit_quickjs,@raw/license_ofl_1_1" />

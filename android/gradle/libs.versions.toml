@@ -1,4 +1,5 @@
 [versions]
+aboutlibraries = "15.0.3"
 androidGradlePlugin = "9.2.1"
 androidxCore = "1.19.0"
 androidxLifecycle = "2.11.0"
@@ -24,6 +25,11 @@ nav3Core = "1.1.4"
 lifecycleViewmodelNav3 = "2.11.0"
 
 [libraries]
+# Collects dependency + license metadata at build time (the plugin below emits
+# res/raw/aboutlibraries.json); the core module parses it at runtime for the
+# Open Source Licenses screen. Data-only: the prebuilt Compose UI modules are a
+# mobile/touch Material list, so :tv renders its own D-pad-focusable list instead.
+aboutlibraries-core = { module = "com.mikepenz:aboutlibraries-core", version.ref = "aboutlibraries" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivity" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "androidxComposeBom" }
@@ -65,6 +71,7 @@ androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", vers
 androidx-lifecycle-viewmodel-navigation3 = { module = "androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "lifecycleViewmodelNav3" }
 
 [plugins]
+aboutlibraries = { id = "com.mikepenz.aboutlibraries.plugin", version.ref = "aboutlibraries" }
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
 android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "androidGradlePlugin" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

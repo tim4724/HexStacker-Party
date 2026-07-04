@@ -13,6 +13,8 @@ import androidx.compose.ui.test.onRoot
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.hexstacker.tv.ui.ConnectionOverlay
 import com.hexstacker.tv.ui.CountdownOverlay
+import com.hexstacker.tv.ui.LicenseEntry
+import com.hexstacker.tv.ui.LicensesScreen
 import com.hexstacker.tv.ui.LobbyData
 import com.hexstacker.tv.ui.LobbyPlayer
 import com.hexstacker.tv.ui.LobbyScreen
@@ -103,6 +105,25 @@ class ComposeScreenshotTest {
     @Test fun lobby2p() = lobbyShot("lobby_2p", 2)
     @Test fun lobby8p() = lobbyShot("lobby_8p", 8)
     @Test fun lobbyWaiting() = lobbyShot("lobby_waiting", 0)
+
+    // ── Licenses ───────────────────────────────────────────────────────────────
+
+    // Fixed fixture entries (not the generated AboutLibraries report) so the shot is
+    // deterministic and needs no build-time metadata on the test classpath. Covers
+    // the four distinct license shapes the real screen renders.
+    @Test
+    fun licenses() = shoot("licenses") {
+        LicensesScreen(
+            entries = listOf(
+                LicenseEntry("Compose UI", "The Android Open Source Project", "Apache License 2.0", null, "Apache License 2.0\n\n(full text...)"),
+                LicenseEntry("WebRTC SDK", "The WebRTC project authors", "The 3-Clause BSD License", null, "Copyright (c) 2011, The WebRTC project authors."),
+                LicenseEntry("QuickJS", "Fabrice Bellard, Charlie Gordon et al.", "MIT License", null, "MIT License\n\n(full text...)"),
+                LicenseEntry("Orbitron", "The Orbitron Project Authors", "SIL Open Font License 1.1", null, "Copyright 2018 The Orbitron Project Authors"),
+                LicenseEntry("Lunar Joyride", "FoxSynergy", "CC BY 3.0", "https://creativecommons.org/licenses/by/3.0/", null),
+            ),
+            onClose = {},
+        )
+    }
 
     // ── Results ──────────────────────────────────────────────────────────────
 
