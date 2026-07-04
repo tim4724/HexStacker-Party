@@ -56,31 +56,31 @@ private fun buildLicenseEntries(context: Context): List<LicenseEntry> {
     }.sortedBy { it.name.lowercase() }
 
     // Attributions that are not Gradle dependencies (so AboutLibraries never sees
-    // them) but whose code / assets do ship in the APK.
-    val extras = listOf(
-        LicenseEntry(
-            name = "QuickJS",
-            author = "Fabrice Bellard, Charlie Gordon et al.",
-            license = "MIT License",
-            url = "https://github.com/quickjs-ng/quickjs",
-            body = rawText(context, R.raw.license_mit_quickjs),
-        ),
-        LicenseEntry(
-            name = "Orbitron",
-            author = "The Orbitron Project Authors",
-            license = "SIL Open Font License 1.1",
-            url = "https://github.com/theleagueof/orbitron",
-            body = rawText(context, R.raw.license_ofl_1_1),
-        ),
-        LicenseEntry(
-            name = "Lunar Joyride",
-            author = "FoxSynergy",
-            license = "CC BY 3.0",
-            url = "https://creativecommons.org/licenses/by/3.0/",
-            body = CC_BY_MUSIC,
-        ),
+    // them) but whose code / assets do ship in the APK. The music and font are the
+    // app's most visible/audible credits, so they lead the list; the MIT QuickJS
+    // engine (bundled in quickjs-kt's native lib) trails the alphabetical deps.
+    val music = LicenseEntry(
+        name = "Lunar Joyride",
+        author = "FoxSynergy",
+        license = "CC BY 3.0",
+        url = "https://creativecommons.org/licenses/by/3.0/",
+        body = CC_BY_MUSIC,
     )
-    return deps + extras
+    val font = LicenseEntry(
+        name = "Orbitron",
+        author = "The Orbitron Project Authors",
+        license = "SIL Open Font License 1.1",
+        url = "https://github.com/theleagueof/orbitron",
+        body = rawText(context, R.raw.license_ofl_1_1),
+    )
+    val quickJs = LicenseEntry(
+        name = "QuickJS",
+        author = "Fabrice Bellard, Charlie Gordon et al.",
+        license = "MIT License",
+        url = "https://github.com/quickjs-ng/quickjs",
+        body = rawText(context, R.raw.license_mit_quickjs),
+    )
+    return listOf(music, font) + deps + quickJs
 }
 
 /** Bundled full text for licenses the AboutLibraries report couldn't embed itself. */

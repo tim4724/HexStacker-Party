@@ -172,17 +172,9 @@ final class LicensesOverlay {
 
     // MARK: - Attribution data (English-only license text, embedded verbatim)
 
+    // Music and font lead the list (the app's most audible/visible credits); the
+    // WebRTC binary attribution follows.
     private static let entries: [Entry] = [
-        Entry(
-            name: "WebRTC",
-            author: "The WebRTC project authors, Google Inc.",
-            license: "BSD-3-Clause",
-            body: bsd3Clause),
-        Entry(
-            name: "Orbitron",
-            author: "The Orbitron Project Authors",
-            license: "SIL Open Font License 1.1",
-            body: ofl11),
         Entry(
             name: "Lunar Joyride",
             author: "FoxSynergy",
@@ -192,6 +184,16 @@ final class LicensesOverlay {
             Licensed under Creative Commons Attribution 3.0 Unported (CC BY 3.0)
             https://creativecommons.org/licenses/by/3.0/
             """),
+        Entry(
+            name: "Orbitron",
+            author: "The Orbitron Project Authors",
+            license: "SIL Open Font License 1.1",
+            body: ofl11),
+        Entry(
+            name: "WebRTC",
+            author: "The WebRTC project authors, Google Inc.",
+            license: "BSD-3-Clause",
+            body: bsd3Clause),
     ]
 
     private static let bsd3Clause = """
