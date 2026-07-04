@@ -76,6 +76,21 @@ function applyLocalPlayerName() {
   touchArea.setAttribute('data-player-name', shown);
 }
 
+// Shell-driven live rename, shared by the AirConsole profile-change path and
+// the Couch Games setName bridge. SET_NAME is a lightweight rename the display
+// accepts in any state (including mid-game) and answers with no WELCOME, so it
+// can't trigger the reconnect-restore path (initTouchInput teardown, screen
+// reset) that a re-sent HELLO would. The display relabels the roster and, if
+// we're the host, re-broadcasts so the other controllers' "Waiting for <host>"
+// banner updates.
+function applyShellRename(name) {
+  if (!name || name === playerName) return;
+  playerName = name;
+  playerNameIsAuto = false;
+  applyLocalPlayerName();
+  sendToDisplay(MSG.SET_NAME, { name: playerName });
+}
+
 function showLobbyUI() {
   playerIdentity.style.setProperty('--player-color', playerColor);
   playerIdentityName.textContent = playerName || t('player');

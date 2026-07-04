@@ -74,6 +74,8 @@ rm -f "$BUILD_DIR/controller/controller.html"
 # Drop test harnesses (gallery / Playwright only) and legal-page assets
 # (privacy.html / imprint.html aren't part of the AC zip).
 rm -f "$BUILD_DIR/controller/ControllerTestHarness.js"
+# Couch Games shell bootstrap — stripped from controller.html by the generator
+rm -f "$BUILD_DIR/controller/controller-couchgames.js"
 rm -f "$BUILD_DIR/display/DisplayTestHarness.js"
 rm -f "$BUILD_DIR/shared/legal-back.js"
 rm -f "$BUILD_DIR/shared/legal.css"
