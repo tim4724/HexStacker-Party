@@ -127,6 +127,12 @@
       "android": { "file": "results_solo" }
     },
     {
+      "key": "about",
+      "title": "About (Privacy / Imprint)",
+      "tvos": { "shot": "about", "players": 0 },
+      "android": { "file": "about" }
+    },
+    {
       "key": "licenses",
       "title": "Open Source Licenses",
       "tvos": { "shot": "licenses", "players": 0 },

@@ -93,41 +93,73 @@ final class LicensesOverlay {
         maxScroll = max(0, contentHeight - viewportHeight)
     }
 
-    /// Lay the attributions out top-to-bottom in `content` (local y 0 at the top,
-    /// descending). Returns the total stack height.
+    /// Lay the attributions out top-to-bottom as cards, matching the Android licenses
+    /// list: each entry is a rounded card (name left, license right, author subtitle,
+    /// full license text below). Content-local y starts at 0 and descends; returns the
+    /// total stack height for the scroll extent.
     private func buildContent(width: CGFloat, leftX: CGFloat) -> CGFloat {
         content.removeAllChildren()
         var y: CGFloat = 0
-        let bodyWidth = width
-        let gap = width * 0.018
+        let cardGap = width * 0.016
+        let padX = width * 0.022
+        let padY = width * 0.016
+        let innerW = width - padX * 2
+        let radius = width * 0.012
 
         for (i, e) in Self.entries.enumerated() {
-            if i > 0 { y -= gap * 1.6 }
+            if i > 0 { y -= cardGap }
+            let cardTop = y
+            var inner = cardTop - padY
 
-            let header = SKLabelNode()
-            header.horizontalAlignmentMode = .left
-            header.verticalAlignmentMode = .top
-            header.setStyledText("\(e.name)   —   \(e.license)", font: AppFont.name,
-                                size: max(18, min(width * 0.016, 30)),
-                                color: SKTheme.textPrimary(), tracking: 0.04)
-            header.position = CGPoint(x: leftX, y: y)
-            content.addChild(header)
-            y -= header.frame.height + gap * 0.3
+            // Header row: component name (left) + license name (right).
+            let name = SKLabelNode()
+            name.horizontalAlignmentMode = .left
+            name.verticalAlignmentMode = .top
+            name.zPosition = 1
+            name.setStyledText(e.name, font: AppFont.name, size: max(18, min(width * 0.015, 28)),
+                               color: SKTheme.textPrimary(), tracking: 0.02)
+            name.position = CGPoint(x: leftX + padX, y: inner)
+            content.addChild(name)
+
+            let license = SKLabelNode()
+            license.horizontalAlignmentMode = .right
+            license.verticalAlignmentMode = .top
+            license.zPosition = 1
+            license.setStyledText(e.license, font: AppFont.psName(.regular), size: max(13, min(width * 0.011, 20)),
+                                  color: SKTheme.textSecondary, tracking: 0.02)
+            license.position = CGPoint(x: leftX + width - padX, y: inner)
+            content.addChild(license)
+
+            inner -= name.frame.height + padY * 0.4
 
             let author = SKLabelNode()
             author.horizontalAlignmentMode = .left
             author.verticalAlignmentMode = .top
-            author.setStyledText(e.author, font: AppFont.psName(.regular),
-                                size: max(13, min(width * 0.011, 20)),
-                                color: SKTheme.textFaint, tracking: 0.02)
-            author.position = CGPoint(x: leftX, y: y)
+            author.zPosition = 1
+            author.setStyledText(e.author, font: AppFont.psName(.regular), size: max(12, min(width * 0.0095, 18)),
+                                 color: SKTheme.textFaint, tracking: 0.02)
+            author.position = CGPoint(x: leftX + padX, y: inner)
             content.addChild(author)
-            y -= author.frame.height + gap
+            inner -= author.frame.height + padY * 0.7
 
-            let body = multilineLabel(e.body, width: bodyWidth)
-            body.position = CGPoint(x: leftX, y: y)
+            let body = multilineLabel(e.body, width: innerW)
+            body.zPosition = 1
+            body.position = CGPoint(x: leftX + padX, y: inner)
             content.addChild(body)
-            y -= body.frame.height
+            inner -= body.frame.height
+
+            // Card background sized to the accumulated content, drawn behind it.
+            let cardBottom = inner - padY
+            let card = SKShapeNode(path: CGPath(roundedRect: CGRect(x: leftX, y: cardBottom, width: width,
+                                                                    height: cardTop - cardBottom),
+                                                cornerWidth: radius, cornerHeight: radius, transform: nil))
+            card.fillColor = SKTheme.bgSecondary
+            card.strokeColor = SKTheme.border
+            card.lineWidth = 1
+            card.zPosition = 0
+            content.addChild(card)
+
+            y = cardBottom
         }
         return -y
     }

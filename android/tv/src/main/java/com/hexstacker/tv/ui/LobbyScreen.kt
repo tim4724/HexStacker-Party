@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Text
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,10 +62,10 @@ fun LobbyScreen(
     // Non-null only for the screenshot gallery: a frozen ambient-piece background
     // (see LobbyBackground) so the shot matches the web/tvOS lobby columns.
     backgroundPieces: List<FallingPiece>? = null,
-    // When supplied, the footer music credit becomes a focusable button that opens
-    // the Open Source Licenses screen; null keeps it a plain, non-focusable credit
-    // (previews / screenshot fixtures that don't wire navigation).
-    onOpenLicenses: (() -> Unit)? = null,
+    // When supplied, the top-right ⓘ becomes a focusable button that opens the
+    // About screen (Privacy / Imprint QR + Open Source Licenses); null keeps it a
+    // plain, non-focusable glyph (previews / screenshot fixtures with no navigation).
+    onOpenAbout: (() -> Unit)? = null,
 ) {
     val startFocus = remember { FocusRequester() }
     val generatedQr by rememberQrBitmap(data.joinUrl) // called unconditionally (Compose rule)
@@ -135,62 +137,74 @@ fun LobbyScreen(
                 }
             }
 
-            // Music attribution: CC-BY 3.0 credit for "Lunar Joyride" by
-            // FoxSynergy (res/raw/lunar_joyride.mp3). Mirrors the web #lobby-footer:
-            // small, low-emphasis, pinned to the title-safe bottom edge. When
-            // navigation is wired it doubles as the entry to the licenses screen
-            // (the full music attribution lives there too), so it becomes focusable.
-            LobbyFooter(
-                creditFontSize = vp.vwSp(10f, 1f, 12f), // Orbitron Regular, ~18px like tvOS min(H*0.022,18)
-                onOpenLicenses = onOpenLicenses,
+            // Top-right ⓘ: the entry to the About screen (Privacy / Imprint QR +
+            // Open Source Licenses). Icon-only by design — no TV-only string to
+            // invent. When navigation is wired it is focusable (D-pad Up from Start
+            // reaches it); otherwise a plain glyph (previews / screenshot fixtures).
+            InfoButton(
+                onOpen = onOpenAbout,
+                diameter = vp.vminDp(34f, 6f, 52f),
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = overscanV),
+                    .align(Alignment.TopEnd)
+                    .padding(top = overscanV, end = overscanH),
             )
         }
     }
 }
 
 /**
- * Bottom "Open Source Licenses" link. With [onOpenLicenses] it is a focusable button
- * (subtle focus ring, D-pad reachable below Start) that opens the licenses screen;
- * without it, plain non-focusable text (previews/screenshot fixtures). The music
- * credit that used to live here now lives inside the licenses screen.
+ * Top-right ⓘ button — the lobby entry to the About screen. With [onOpen] it is a
+ * focusable circular button (white focus ring, D-pad reachable above Start); without
+ * it, a plain non-focusable glyph (previews / screenshot fixtures). Icon-only: the
+ * universal info affordance needs no text, so there is no TV-only copy to mirror.
  */
 @Composable
-private fun LobbyFooter(
-    creditFontSize: androidx.compose.ui.unit.TextUnit,
-    onOpenLicenses: (() -> Unit)?,
+private fun InfoButton(
+    onOpen: (() -> Unit)?,
+    diameter: Dp,
     modifier: Modifier = Modifier,
 ) {
-    val link: @Composable (Modifier) -> Unit = { textMod ->
-        Text(
-            text = stringResource(R.string.licenses_title),
-            style = AppType.musicCredit.copy(fontSize = creditFontSize, color = Tokens.textSecondary),
-            maxLines = 1,
-            modifier = textMod,
-        )
-    }
-
-    if (onOpenLicenses == null) {
-        link(modifier)
-        return
-    }
-
     var focused by remember { mutableStateOf(false) }
-    val shape = androidx.compose.foundation.shape.RoundedCornerShape(Tokens.radiusSm)
-    link(
+    val ringFocused = onOpen != null && focused
+    Box(
         modifier
-            .clip(shape)
+            .size(diameter)
+            .clip(CircleShape)
+            .background(Tokens.bgCard, CircleShape)
             .border(
-                width = 1.dp,
-                color = if (focused) Tokens.white else androidx.compose.ui.graphics.Color.Transparent,
-                shape = shape,
+                width = if (ringFocused) 3.dp else 1.dp,
+                color = if (ringFocused) Tokens.white else Tokens.borderStrong,
+                shape = CircleShape,
             )
-            .onFocusChanged { focused = it.isFocused }
-            .clickable { onOpenLicenses() }
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-    )
+            .then(
+                if (onOpen != null) {
+                    Modifier
+                        .onFocusChanged { focused = it.isFocused }
+                        .clickable(onClick = onOpen)
+                } else {
+                    Modifier
+                },
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        // Drawn info glyph (dot + rounded stem) rather than a font letter, so it reads
+        // as an icon and stays identical to the tvOS button regardless of the font.
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(diameter * 0.055f),
+        ) {
+            Box(
+                Modifier
+                    .size(diameter * 0.13f)
+                    .background(Tokens.textPrimary, CircleShape),
+            )
+            Box(
+                Modifier
+                    .size(width = diameter * 0.13f, height = diameter * 0.3f)
+                    .background(Tokens.textPrimary, RoundedCornerShape(percent = 50)),
+            )
+        }
+    }
 }
 
 /**

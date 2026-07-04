@@ -34,6 +34,9 @@
 
     <string name="player">プレイヤー</string>
 
+    <string name="privacy">プライバシー</string>
+    <string name="imprint">運営者情報</string>
+
     <plurals name="start_n_players">
         <item quantity="other">スタート (%1$d人)</item>
     </plurals>

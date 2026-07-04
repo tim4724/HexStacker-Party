@@ -56,6 +56,8 @@ const LOCALE_DISPLAY_KEYS = [
   'reconnecting', 'connection_lost', 'reconnect', 'attempt_n_of_m',
   // Results
   'play_again', 'n_lines', 'level_n', 'new_player', 'player',
+  // About screen legal links (Privacy / Imprint QR labels)
+  'privacy', 'imprint',
 ];
 
 // Emit dist/locale.json: the display key subset of every locale in i18n.js. The

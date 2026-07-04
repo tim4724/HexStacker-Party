@@ -11,6 +11,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.hexstacker.tv.ui.AboutScreen
 import com.hexstacker.tv.ui.ConnectionOverlay
 import com.hexstacker.tv.ui.CountdownOverlay
 import com.hexstacker.tv.ui.LicenseEntry
@@ -124,6 +125,13 @@ class ComposeScreenshotTest {
             onClose = {},
         )
     }
+
+    // ── About ────────────────────────────────────────────────────────────────
+
+    // The lobby ⓘ opens this: two QR cards (Privacy / Imprint) + the licenses drill-in.
+    // No fixture data needed — the QR URLs are constants and labels come from resources.
+    @Test
+    fun about() = shoot("about") { AboutScreen(onOpenLicenses = {}) }
 
     // ── Results ──────────────────────────────────────────────────────────────
 

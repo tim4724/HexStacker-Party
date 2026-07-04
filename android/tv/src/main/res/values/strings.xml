@@ -60,6 +60,11 @@
     <!-- Unnamed-player fallback (i18n player). -->
     <string name="player">Player</string>
 
+    <!-- About screen: QR-card labels for the web privacy / imprint pages
+         (mirrors i18n.js privacy / imprint; localized per-locale). -->
+    <string name="privacy">Privacy</string>
+    <string name="imprint">Imprint</string>
+
     <!-- Open Source Licenses screen (reached from the lobby footer). Unlike the rest
          of this file these are NOT mirrored from i18n.js: the web app ships no
          licenses page, so there is no source string to mirror. Kept minimal and

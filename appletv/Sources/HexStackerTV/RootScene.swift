@@ -48,9 +48,13 @@ final class RootScene: SKScene, DisplayOutput {
     private let connStatus = SKLabelNode()
     private weak var connButton: MenuButton?
 
-    // "Open Source Licenses" overlay, opened from the lobby footer link and
+    // "Open Source Licenses" overlay, drilled into from the About screen and
     // scrolled with the d-pad. Above every other overlay so it owns the remote.
     private let licenses = LicensesOverlay()
+
+    // About overlay (Privacy / Imprint QR + the Open Source Licenses drill-in),
+    // opened from the lobby ⓘ button. Sits just below the licenses overlay.
+    private let about = AboutOverlay()
 
     private var boardNodes: [Int: BoardNode] = [:]
     private var currentPlayerCount = -1
@@ -122,6 +126,9 @@ final class RootScene: SKScene, DisplayOutput {
         buildConnectionOverlay()
         licenses.configure(size: size, playRect: playRect)
         addChild(licenses.node)
+        about.configure(size: size, playRect: playRect)
+        about.onOpenLicenses = { [weak self] in self?.openLicenses() }
+        addChild(about.node)
         // Capture hook (mirrors HEXSHOT / HEXSNAP): open the licenses page straight
         // away so it can be screenshotted deterministically — the tvOS simulator has
         // no Siri-Remote CLI to navigate to it. Inert without the env var.
@@ -241,6 +248,9 @@ final class RootScene: SKScene, DisplayOutput {
         case "disconnected-display":
             coordinator.renderShot("game", playerCount: pc)
             showConnectionOverlay(reconnecting: false)
+        case "about":         // full-screen About overlay (Privacy / Imprint QR + Licenses drill-in)
+            coordinator.renderShot("lobby-empty", playerCount: pc)
+            openAbout()
         case "licenses":      // full-screen Open Source Licenses overlay (scrolled to top)
             coordinator.renderShot("lobby-empty", playerCount: pc)
             openLicenses()
@@ -311,9 +321,9 @@ final class RootScene: SKScene, DisplayOutput {
     // MARK: - DisplayOutput
 
     func showScreen(_ screen: DisplayScreen) {
-        // The licenses overlay is lobby-only; a match starting (from a controller
-        // while it is open) must not leave it stranded over the game.
-        if screen != .lobby { closeLicenses() }
+        // The About / licenses overlays are lobby-only; a match starting (from a
+        // controller while one is open) must not leave it stranded over the game.
+        if screen != .lobby { closeLicenses(); closeAbout() }
         lobbyLayer.isHidden = screen != .lobby
         // Results overlays the frozen, blurred boards (web frosted-glass look), so
         // the game layer stays visible underneath and the blur turns on for results.
@@ -562,33 +572,45 @@ final class RootScene: SKScene, DisplayOutput {
     }
 
     /// Select: activate the focused item. No-op during gameplay (no menu) and while
-    /// the licenses page is up (it is a document, not a menu).
+    /// the licenses page is up (it is a document, not a menu). While About is up it
+    /// drills into the licenses page (its single button is always the target).
     func remotePrimary() {
         if licenses.isOpen { return }
+        if about.isOpen { about.activate(); return }
         guard menuRows.indices.contains(focusRC.r), menuRows[focusRC.r].indices.contains(focusRC.c) else { return }
         let item = menuRows[focusRC.r][focusRC.c]
         if item.enabled { item.activate() }
     }
 
     /// Play/Pause: context toggle (start / play again / pause / continue). Inert
-    /// while the licenses page is up so a stray press can't start a match behind it.
-    func remotePlayPause() { if licenses.isOpen { return }; coordinator?.remotePlayPause() }
+    /// while the About / licenses pages are up so a stray press can't start a match
+    /// behind them.
+    func remotePlayPause() { if licenses.isOpen || about.isOpen { return }; coordinator?.remotePlayPause() }
 
-    // While the licenses page is up the d-pad scrolls it instead of moving focus.
-    func remoteLeft() { if licenses.isOpen { return }; moveFocus(dRow: 0, dCol: -1) }
-    func remoteRight() { if licenses.isOpen { return }; moveFocus(dRow: 0, dCol: 1) }
-    func remoteUp() { if licenses.isOpen { licenses.scroll(pages: -1); return }; moveFocus(dRow: -1, dCol: 0) }
-    func remoteDown() { if licenses.isOpen { licenses.scroll(pages: 1); return }; moveFocus(dRow: 1, dCol: 0) }
+    // While the licenses page is up the d-pad scrolls it instead of moving focus;
+    // About is a single screen, so the d-pad does nothing there.
+    func remoteLeft() { if licenses.isOpen || about.isOpen { return }; moveFocus(dRow: 0, dCol: -1) }
+    func remoteRight() { if licenses.isOpen || about.isOpen { return }; moveFocus(dRow: 0, dCol: 1) }
+    func remoteUp() { if licenses.isOpen { licenses.scroll(pages: -1); return }; if about.isOpen { return }; moveFocus(dRow: -1, dCol: 0) }
+    func remoteDown() { if licenses.isOpen { licenses.scroll(pages: 1); return }; if about.isOpen { return }; moveFocus(dRow: 1, dCol: 0) }
 
-    /// Menu button: closes the licenses page; else pause/resume during a game or the
-    /// 3-2-1 countdown; returns false otherwise so the system handles Menu normally
-    /// (exit at the top level).
+    /// Menu button: steps back one level (licenses -> About -> lobby); else
+    /// pause/resume during a game or the 3-2-1 countdown; returns false otherwise so
+    /// the system handles Menu normally (exit at the top level).
     func remoteMenu() -> Bool {
         if licenses.isOpen { closeLicenses(); return true }
+        if about.isOpen { closeAbout(); return true }
         guard let c = coordinator, c.state == .playing || c.state == .countdown else { return false }
         c.remoteTogglePause()
         return true
     }
+
+    private func openAbout() {
+        about.configure(size: size, playRect: playRect)
+        about.open()
+    }
+
+    private func closeAbout() { about.close() }
 
     private func openLicenses() {
         licenses.configure(size: size, playRect: playRect)
@@ -881,13 +903,9 @@ final class RootScene: SKScene, DisplayOutput {
         // Same height as the overlay action buttons (pause/results/reconnect all
         // use H*0.075) so every button on tvOS is a uniform height across screens.
         let pillH = max(48, H * 0.075)
-        // The lobby stacks two buttons: Start on top, the secondary "Open Source
-        // Licenses" link below. Lay the link out at the bottom of the band first,
-        // then lift Start above it with a clear gap so the two never overlap.
-        let linkH = max(30, pillH * 0.58)
-        let stackGap = margin * 0.6
-        let licensesCenterY = margin * 0.7 + linkH / 2
-        let pillY = licensesCenterY + linkH / 2 + stackGap + pillH / 2
+        // Start sits lifted off the bottom title-safe edge; the About entry is the
+        // top-right ⓘ (below), not a footer link, so the bottom band holds Start alone.
+        let pillY = margin + pillH / 2
         let hasPlayers = !players.isEmpty
         let hostColor = host.flatMap { h in players.first { $0.peerIndex == h }?.colorSlot }
             .map { SKTheme.player(slot: $0) }
@@ -904,32 +922,29 @@ final class RootScene: SKScene, DisplayOutput {
         ) { [weak self] in self?.coordinator?.remoteStartMatch() }
         startBtn.position = CGPoint(x: W / 2, y: pillY)
         lobbyContent.addChild(startBtn)
-        // --- Footer: focusable "Open Source Licenses" link (secondary button), in
-        // the band below Start. Replaces the old music-credit label; the music
-        // attribution (and the CC-BY notice the web conveys via its OpenGameArt
-        // link) now lives inside the licenses screen this opens.
-        let linkText = "Open Source Licenses"
-        let linkProbe = SKLabelNode()
-        linkProbe.setStyledText(linkText, font: AppFont.name, size: linkH * 0.36, color: .white, tracking: 0.08)
-        let linkW = linkProbe.frame.width + min(W * 0.03, 56) * 2
-        let licensesBtn = MenuButton(text: linkText, width: linkW, height: linkH,
-                                     primary: false, tint: .clear) { [weak self] in self?.openLicenses() }
-        licensesBtn.position = CGPoint(x: W / 2, y: licensesCenterY)
-        lobbyContent.addChild(licensesBtn)
+        // --- Top-right ⓘ: the entry to the About screen (Privacy / Imprint QR + Open
+        // Source Licenses). Icon-only, so there is no TV-only string; the music
+        // attribution and license text live inside the licenses screen it drills into.
+        let infoD = max(40, min(H * 0.07, 64))
+        let infoBtn = InfoButton(diameter: infoD) { [weak self] in self?.openAbout() }
+        infoBtn.position = CGPoint(x: W - infoD / 2 - margin * 0.2, y: H - infoD / 2 - margin * 0.2)
+        lobbyContent.addChild(infoBtn)
 
         // Only take over the focus menu when the lobby is the active screen.
-        // updateLobby() also runs (for the hidden lobby) on roster/name/color
-        // changes during RESULTS — without this guard it would clobber the results
-        // menu and break its Left/Right navigation. Start is row 0, the licenses
-        // link row 1 (d-pad Down reaches it; it is the only focusable while Start
-        // is disabled waiting for players). Don't seat focus on an empty lobby:
-        // with Start disabled, autoFocus would land on the licenses link, which
-        // reads as odd before anyone has joined — the first d-pad press picks it up.
-        if coordinator?.state == .lobby { setMenu([[startBtn], [licensesBtn]], autoFocus: hasPlayers) }
+        // updateLobby() also runs (for the hidden lobby) on roster/name/color changes
+        // during RESULTS — without this guard it would clobber the results menu and
+        // break its Left/Right navigation. The ⓘ is row 0 (d-pad Up from Start reaches
+        // it; it is the only focusable while Start is disabled waiting for players),
+        // Start is row 1 and the default focus. Don't seat focus on an empty lobby:
+        // with Start disabled, autoFocus would land on the ⓘ, which reads as odd
+        // before anyone has joined — the first d-pad press picks it up.
+        if coordinator?.state == .lobby {
+            setMenu([[infoBtn], [startBtn]], focus: hasPlayers ? (1, 0) : nil, autoFocus: hasPlayers)
+        }
         if animateEntrance {
             playEntrance(startBtn, fromDy: -16, delay: 0.45)   // fadeUp
-            licensesBtn.alpha = 0
-            licensesBtn.run(.sequence([.wait(forDuration: 0.6), .fadeIn(withDuration: 0.5)]))
+            infoBtn.alpha = 0
+            infoBtn.run(.sequence([.wait(forDuration: 0.6), .fadeIn(withDuration: 0.5)]))
         }
 
         // --- Body band: QR card (left) + player grid (right) as a centered row,

@@ -34,6 +34,9 @@
 
     <string name="player">플레이어</string>
 
+    <string name="privacy">개인정보</string>
+    <string name="imprint">법적 고지</string>
+
     <plurals name="start_n_players">
         <item quantity="other">시작 (%1$d명)</item>
     </plurals>
