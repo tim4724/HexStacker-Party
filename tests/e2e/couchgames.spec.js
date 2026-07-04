@@ -76,6 +76,35 @@ test.describe('Couch Games shell contract', () => {
     expect(controller.url()).toContain(`/${roomCode}`);
   });
 
+  test('cg-accent-color meta tracks the player color (CONTRACT §4)', async ({ page, context }) => {
+    const { roomCode } = await createRoom(page);
+    const controller = await joinCouchController(context, roomCode, 'Iris');
+    await controller.waitForSelector('#player-identity:not(.hidden)', { timeout: 10000 });
+
+    const accentMeta = () => controller.evaluate(() =>
+      document.querySelector('meta[name="cg-accent-color"]').getAttribute('content'));
+    // The meta and the body's --player-color read from the same PLAYER_COLORS
+    // entry, so a confirmed color always leaves them exactly equal.
+    const metaMatchesPlayerColor = () => controller.evaluate(() => {
+      const meta = document.querySelector('meta[name="cg-accent-color"]').getAttribute('content');
+      const playerColor = getComputedStyle(document.body).getPropertyValue('--player-color').trim();
+      return !!playerColor && meta === playerColor;
+    });
+
+    // After WELCOME assigns a color, the accent hint reflects it.
+    await expect.poll(metaMatchesPlayerColor).toBe(true);
+    const before = await accentMeta();
+
+    // Picking a different swatch round-trips through the display (SET_COLOR →
+    // LOBBY_UPDATE) and the meta follows the new color.
+    await controller.click('#identity-trigger');
+    await controller.waitForSelector('#color-picker-overlay:not(.hidden)');
+    await controller.click('.rose-cell--center');
+
+    await expect.poll(accentMeta).not.toBe(before);
+    await expect.poll(metaMatchesPlayerColor).toBe(true);
+  });
+
   test('unknown room surfaces room_not_found through gameEnded', async ({ context }) => {
     const controller = await context.newPage();
     await controller.addInitScript(() => {

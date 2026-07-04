@@ -268,6 +268,19 @@ function readStoredColorIndex() {
   return idx;
 }
 
+// Keep the Couch Games accent hint (CONTRACT §4) in step with the player's
+// color: the launcher tints its own chrome accents (name-chip icon, join
+// spinner, rename controls) from this <head> meta. It's read only at page-
+// load, so live updates matter for a WebView reload mid-session, where
+// captureSessionColorIndex re-seeds the color from persistence before the
+// page finishes loading. A harmless no-op in plain browsers / AirConsole,
+// where nothing reads the meta.
+function setAccentColorMeta(color) {
+  if (!color) return;
+  var meta = document.querySelector('meta[name="cg-accent-color"]');
+  if (meta) meta.setAttribute('content', color);
+}
+
 // Tint the JOIN button before WELCOME arrives. In AirConsole mode the
 // storage shim hydrates asynchronously, so the bootstrap re-invokes this
 // from its onLoad callback (see controller-airconsole.js). Skip when
@@ -280,6 +293,7 @@ function captureSessionColorIndex() {
   var idx = readStoredColorIndex();
   if (idx == null) return;
   document.body.style.setProperty('--player-color', PLAYER_COLORS[idx]);
+  setAccentColorMeta(PLAYER_COLORS[idx]);
 }
 captureSessionColorIndex();
 
@@ -457,6 +471,7 @@ function onWelcome(data) {
   document.body.style.setProperty('--player-color', playerColor);
   playerIdentity.style.setProperty('--player-color', playerColor);
   gameScreen.style.setProperty('--player-color', playerColor);
+  setAccentColorMeta(playerColor);
   playerCount = data.playerCount || 1;
   gameCancelled = false;
   waitingForNextGame = false;
@@ -545,6 +560,7 @@ function onLobbyUpdate(data) {
     document.body.style.setProperty('--player-color', playerColor);
     playerIdentity.style.setProperty('--player-color', playerColor);
     gameScreen.style.setProperty('--player-color', playerColor);
+    setAccentColorMeta(playerColor);
     // Persist only user-initiated changes (see userPickedColor decl in
     // ControllerState.js). Display-driven assignments — initial slot,
     // reconnect-default, reclaim's own SET_COLOR confirmation — must

@@ -59,8 +59,9 @@ function transform(html, { bootstrapScript }) {
 
   // 2. Strip iframe-irrelevant <meta> and <link> tags. Cross-origin iframes
   // can't surface theme-color or PWA-install hints to the host browser, OG /
-  // Twitter cards are never crawled, favicons belong to the top document.
-  html = html.replace(/^\s*<meta\s+(property="og:|name="twitter:|name="description"|name="theme-color"|name="apple-mobile-web-app-capable"|name="mobile-web-app-capable")[^>]*>\n/gm, '');
+  // Twitter cards are never crawled, favicons belong to the top document, and
+  // cg-accent-color is a Couch Games shell hint the AC iframe never uses.
+  html = html.replace(/^\s*<meta\s+(property="og:|name="twitter:|name="description"|name="theme-color"|name="cg-accent-color"|name="apple-mobile-web-app-capable"|name="mobile-web-app-capable")[^>]*>\n/gm, '');
   html = html.replace(/^\s*<link\s+rel="icon"[^>]*>\n/gm, '');
 
   // 3. Strip the controller name-screen legal-links footer (dead DOM in AC).
