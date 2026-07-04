@@ -69,6 +69,10 @@ function transform(html, { bootstrapScript }) {
   // 4. Strip test harness <script> tags — gallery / Playwright only.
   html = html.replace(/^\s*<script src="[^"]*TestHarness\.js"><\/script>\n/gm, '');
 
+  // 4b. Strip the Couch Games shell bootstrap — self-gated on ?cgv=1, which
+  // the AC iframe never carries, so it's dead code there.
+  html = html.replace(/^\s*<script src="[^"]*controller-couchgames\.js"><\/script>\n/m, '');
+
   // 5. Drop share-helper.js. Only the display's device-choice share
   // banner calls HexStacker.share, and device-choice is CSS-hidden in AC.
   html = html.replace(/^\s*<script src="[^"]*share-helper\.js"><\/script>\n/m, '');

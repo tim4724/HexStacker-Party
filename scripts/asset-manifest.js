@@ -45,6 +45,12 @@ const CONTROLLER_SCRIPTS = [
   '/controller/ControllerState.js',
   '/controller/ControllerConnection.js',
   '/controller/ControllerGame.js',
+  // Couch Games shell bootstrap (Android TV launcher WebView). Self-gated on
+  // ?cgv=1 so it's inert everywhere else. Must follow ControllerConnection/
+  // ControllerGame (wraps connect/bailToWelcome at load time) and precede
+  // controller.js (whose init reads skipNameScreen). The AirConsole generator
+  // strips it from the AC entry.
+  '/controller/controller-couchgames.js',
   '/controller/controller.js',
   // Gallery/test harness, kept last (as it was a separate tag). Self-gated on
   // ?scenario= so it's inert for real players; folded in for one atomic bundle.

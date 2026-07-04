@@ -1294,10 +1294,17 @@ html, body {
   filter: grayscale(0.7);
 }
 
-/* --- AirConsole overrides --- */
-body.airconsole #name-screen { display: none !important; }
+/* --- Shell overrides (AirConsole iframe, Couch Games ?cgv=1) --- */
+/* Both shells own identity and leaving, so name entry and the lobby back
+   button are dead surfaces. See controller-airconsole.js and
+   controller-couchgames.js. */
+body.airconsole #name-screen,
+body.couchgames #name-screen { display: none !important; }
+body.airconsole #lobby-back-btn,
+body.couchgames #lobby-back-btn { display: none !important; }
+
+/* --- AirConsole-only overrides --- */
 body.airconsole #lobby-join-url { display: none !important; }
-body.airconsole #lobby-back-btn { display: none !important; }
 /* No relay PING/PONG or fastlane in AC mode, so there is no RTT to show. */
 body.airconsole #latency-display { display: none !important; }
 
