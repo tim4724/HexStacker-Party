@@ -76,8 +76,10 @@ fun QrCard(
         ) {
             Text(
                 text = stringResource(R.string.scan_to_join).uppercase(), // #qr-label text-transform uppercase
+                // display.css #qr-label clamp(11px,1.8vmin,15px); bounds are web-px/1.5
+                // (sp renders 1.5x at the gallery's hdpi), pct carries through.
                 style = AppType.qrScanLabel.copy(
-                    fontSize = vp.vminSp(9f, 1.2f, 11f),
+                    fontSize = vp.vminSp(7.3f, 1.8f, 10f),
                     color = Tokens.textFaint,
                 ),
                 maxLines = 1,

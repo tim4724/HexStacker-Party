@@ -60,13 +60,15 @@ fun AboutScreen(
             val vp = Vp(maxWidth.value, maxHeight.value)
             val overscanH = (vp.wDp * 0.05f).dp // TV title-safe ~5% each edge
             val overscanV = (vp.hDp * 0.05f).dp
-            val cardW = vp.vminDp(210f, 33f, 340f)
+            // Card width / gaps mirror the tvOS AboutOverlay metrics (cardW 320px,
+            // row gap 96px, cluster gap ~58px at 1080p) so the two TV ports align.
+            val cardW = vp.vminDp(180f, 30f, 213.3f)
 
             // Back hint pinned to the top title-safe edge.
             Text(
                 text = stringResource(R.string.licenses_back_hint),
                 style = AppType.musicCredit.copy(
-                    fontSize = vp.vhSp(11f, 1.5f, 14f),
+                    fontSize = vp.vhSp(14f, 2.5f, 18f),
                     color = Tokens.textFaint,
                 ),
                 modifier = Modifier.align(Alignment.TopCenter).padding(top = overscanV),
@@ -78,10 +80,10 @@ fun AboutScreen(
             Column(
                 Modifier.align(Alignment.Center).padding(horizontal = overscanH),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(vp.vhDp(20f, 3.5f, 44f)),
+                verticalArrangement = Arrangement.spacedBy(vp.vhDp(24f, 5.4f, 38.9f)),
             ) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(vp.vminDp(20f, 3.5f, 48f)),
+                    horizontalArrangement = Arrangement.spacedBy(vp.vwDp(32f, 6f, 64f)),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     LegalQrCard(

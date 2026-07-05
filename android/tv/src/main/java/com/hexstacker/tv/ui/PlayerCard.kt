@@ -47,11 +47,12 @@ fun PlayerCard(
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(Tokens.radiusMd)
-    // Web's .identity-name is clamp(1.5rem,4vmin,1.7rem) — capped at 1.7rem (~27px)
-    // on any TV. A capped .sp value renders ~1.5x too large at the gallery's hdpi
-    // density, so express it as the equivalent vmin % (density-independent in px).
-    val nameSize = vp.vminSp(16f, 2.5f, 24f) // ~27px, matches web .identity-name cap
-    val levelSize = vp.vminSp(15.2f, 2f, 19.2f) // .card-level__* clamp(0.95rem,2vmin,1.2rem)
+    // Web display override: .player-card .identity-name clamp(1.5rem,4.5vmin,2.4rem)
+    // (display.css 10-foot sizes; the theme.css clamp is the phone's). Bounds are
+    // web-px / 1.5 because a capped .sp renders 1.5x larger at the gallery's hdpi
+    // density; the vmin % carries through unchanged (720dp * 1.5 = 1080px).
+    val nameSize = vp.vminSp(16f, 4.5f, 25.6f) // caps at 38.4px (2.4rem) on a 1080p TV
+    val levelSize = vp.vminSp(10.7f, 2.6f, 16f) // .card-level__* clamp(1rem,2.6vmin,1.5rem)
     val padH = vp.vminDp(8f, 1.4f, 14f) // half padding clamp(8px,1.4vmin,14px)
     val levelGap = vp.vminDp(6.4f, 0.7f, 10.4f) // .card-level gap clamp(0.4rem,0.7vmin,0.65rem)
 

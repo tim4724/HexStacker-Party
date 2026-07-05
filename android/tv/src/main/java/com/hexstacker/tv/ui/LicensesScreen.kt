@@ -93,7 +93,7 @@ fun LicensesScreen(
                 Text(
                     text = stringResource(R.string.licenses_back_hint),
                     style = AppType.musicCredit.copy(
-                        fontSize = vp.vhSp(11f, 1.5f, 14f),
+                        fontSize = vp.vhSp(14f, 2.5f, 18f),
                         color = Tokens.textFaint,
                     ),
                     modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),

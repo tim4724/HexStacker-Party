@@ -1073,7 +1073,8 @@ final class RootScene: SKScene, DisplayOutput {
         let scan = SKLabelNode()
         scan.verticalAlignmentMode = .center
         scan.zPosition = 1
-        scan.setStyledText(trUpper("scan_to_join"), font: AppFont.brandBold, size: w * 0.05,
+        // display.css #qr-label clamp(11px,1.8vmin,15px) — 15px cap at 1080p.
+        scan.setStyledText(trUpper("scan_to_join"), font: AppFont.brandBold, size: min(w * 0.068, 15),
                            color: SKTheme.textFaint, tracking: 0.16)
         scan.position = CGPoint(x: 0, y: labelY)
         node.addChild(scan)
@@ -1142,7 +1143,9 @@ final class RootScene: SKScene, DisplayOutput {
 
         // Top half: name (web .player-name: weight 800, 0.04em tracking). Fixed
         // size + ellipsis truncation (never scaled), so every chip matches.
-        let nameSize = min(h * 0.26, 30)
+        // display.css .player-card .identity-name clamp(1.5rem,4.5vmin,2.4rem):
+        // the 10-foot override caps at 38.4px on a 1080p TV.
+        let nameSize = min(h * 0.37, 38.4)
         let nameColor = color ?? SKTheme.textSecondary
         let name = SKLabelNode()
         name.verticalAlignmentMode = .center
@@ -1171,13 +1174,14 @@ final class RootScene: SKScene, DisplayOutput {
         let heading = SKLabelNode()
         heading.verticalAlignmentMode = .center
         heading.horizontalAlignmentMode = .center
-        heading.setStyledText(trUpper("level_heading"), font: AppFont.brandBold, size: h * 0.155,
+        // display.css .card-level__heading clamp(1rem,2.6vmin,1.5rem) — 24px cap.
+        heading.setStyledText(trUpper("level_heading"), font: AppFont.brandBold, size: min(h * 0.19, 24),
                               color: SKTheme.textSecondary, tracking: 0.1)
         let value = SKLabelNode()
         value.verticalAlignmentMode = .center
         value.horizontalAlignmentMode = .center
         value.setStyledText(player.map { "\($0.startLevel)" } ?? "—", font: AppFont.brandExtraBold,
-                            size: h * 0.18, color: player == nil ? SKTheme.textSecondary : SKTheme.textPrimary(), tracking: 0)
+                            size: min(h * 0.225, 24), color: player == nil ? SKTheme.textSecondary : SKTheme.textPrimary(), tracking: 0)
         let groupGap = h * 0.10
         let groupW = heading.frame.width + groupGap + value.frame.width
         heading.position = CGPoint(x: -groupW / 2 + heading.frame.width / 2, y: 0)

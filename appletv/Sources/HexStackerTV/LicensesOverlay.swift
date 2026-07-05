@@ -69,7 +69,7 @@ final class LicensesOverlay {
         hint.horizontalAlignmentMode = .left
         hint.verticalAlignmentMode = .top
         hint.setStyledText("Press Menu to return", font: AppFont.psName(.regular),
-                           size: max(14, min(playRect.height * 0.02, 20)),
+                           size: max(20, min(playRect.height * 0.028, 27)),
                            color: SKTheme.textFaint, tracking: 0.02)
         hint.position = CGPoint(x: playRect.minX, y: title.position.y - title.frame.height - margin * 0.3)
         hint.zPosition = 1

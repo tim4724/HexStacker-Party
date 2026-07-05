@@ -55,7 +55,7 @@ final class AboutOverlay {
         hint.horizontalAlignmentMode = .center
         hint.verticalAlignmentMode = .top
         hint.setStyledText("Press Menu to return", font: AppFont.psName(.regular),
-                           size: max(14, min(playRect.height * 0.02, 20)),
+                           size: max(20, min(playRect.height * 0.028, 27)),
                            color: SKTheme.textFaint, tracking: 0.02)
         hint.position = CGPoint(x: playRect.midX, y: playRect.maxY - margin)
         hint.zPosition = 1
@@ -81,7 +81,9 @@ final class AboutOverlay {
 
         // "Open Source Licenses" button below the cards, always shown focused — the
         // only actionable item while About is open (RootScene calls activate()).
-        let btnText = "Open Source Licenses"
+        // Uppercased for parity with web `.btn { text-transform: uppercase }` and
+        // the Android ChromeButton (styling, not new copy).
+        let btnText = "Open Source Licenses".uppercased()
         let probe = SKLabelNode()
         probe.setStyledText(btnText, font: AppFont.brandBold, size: btnH * 0.36, color: .white, tracking: 0.08)
         let btnW = probe.frame.width + min(playRect.width * 0.04, 96) * 2
