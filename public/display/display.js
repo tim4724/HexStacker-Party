@@ -75,8 +75,8 @@ document.addEventListener('visibilitychange', function() {
       (roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN)) {
     acquireWakeLock();
   }
-  // If returning to an already-shown results screen, drop the anti-misclick
-  // gate — see the .results-screen--ready CSS rule.
+  // If returning to an already-shown results screen, skip replaying the
+  // button fade — see the .results-screen--ready CSS rule.
   if (currentScreen === SCREEN.RESULTS && resultsScreen) {
     resultsScreen.classList.add('results-screen--ready');
   }

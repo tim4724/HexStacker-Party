@@ -325,7 +325,7 @@ function showScreen(name) {
   lobbyScreen.classList.toggle('hidden', name !== SCREEN.LOBBY);
   gameScreen.classList.toggle('hidden', name !== SCREEN.GAME && name !== SCREEN.RESULTS);
   resultsScreen.classList.toggle('hidden', name !== SCREEN.RESULTS);
-  // Re-arm the results anti-misclick gate on fresh entry. Re-entering
+  // Replay the results button fade on fresh entry. Re-entering
   // RESULTS from itself preserves the --ready class added by
   // visibilitychange.
   if (name === SCREEN.RESULTS && prev !== SCREEN.RESULTS) {

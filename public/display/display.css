@@ -856,12 +856,12 @@ body.airconsole #qr-container,
   gap: clamp(0.8rem, 1.5vw, 1.5rem);
   margin-top: clamp(1.5rem, 3vh, 3rem);
   /* No anti-misclick gate on the display (a TV/monitor, not a phone): the
-     buttons fade in with the rows instead of appearing 1.5s later. */
-  animation: resultsButtonsEnter 0.4s ease 0.3s both;
+     buttons fade in with the rows and stay clickable throughout — plain
+     opacity fade, no pointer-events gate. */
+  animation: fadeIn 0.4s ease both;
 }
 
-/* Skip even the short fade when returning to a tab already on the results
-   screen. */
+/* Skip the fade when returning to a tab already on the results screen. */
 #results-screen.results-screen--ready #results-buttons {
   animation: none;
 }

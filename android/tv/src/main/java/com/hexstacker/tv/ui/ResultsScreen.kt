@@ -20,14 +20,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
@@ -56,8 +52,8 @@ import kotlin.math.max
  * Ranked rows over the frozen board: winner radial glow, player-colored rank +
  * name, lines/level stats, dashed late-joiner rows. NO title/heading (web
  * `#results-screen` is just the list + buttons, no logo). The PLAY AGAIN primary
- * CTA is host-tinted (web `applyHostTint`); buttons appear after a 1.5s
- * anti-misclick gate.
+ * CTA is host-tinted (web `applyHostTint`). No anti-misclick gate on the TV (a
+ * couch remote, not a phone): buttons are live and focusable immediately.
  *
  * Stateless: [results] from the coordinator's `showResults`, [hostColorIndex] the
  * current host's color slot; [onPlayAgain] = `remoteStartMatch()`, [onNewGame] =
@@ -78,17 +74,9 @@ fun ResultsScreen(
         ?: Color(0xFFFFD700).copy(alpha = 0.06f) // default gold #ffd700 @ 0.06
 
     val playAgainFocus = remember { FocusRequester() }
-    var revealed by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay(1500) // web resultsButtonsEnter 1.5s gate
-        revealed = true
-    }
-    // Separate effect keyed on the reveal: focusable(enabled=false) has NO focus target
-    // node, so requesting focus in the same resumption that sets `revealed = true` (before
-    // the recomposition attaches the node) would silently no-op and leave the D-pad blind.
-    LaunchedEffect(revealed) {
-        if (revealed) runCatching { playAgainFocus.requestFocus() }
-    }
+    // Buttons are live immediately — no anti-misclick gate on the TV. Grab D-pad
+    // focus for the primary CTA on entry.
+    LaunchedEffect(Unit) { runCatching { playAgainFocus.requestFocus() } }
 
     BoxWithConstraints(
         modifier
@@ -134,14 +122,12 @@ fun ResultsScreen(
             }
 
             Row(
-                Modifier.alpha(if (revealed) 1f else 0f),
                 horizontalArrangement = Arrangement.spacedBy(vp.vwDp(16f, 2f, 32f)),
             ) {
                 ChromeButton(
                     text = stringResource(R.string.play_again),
                     primary = true,
                     tint = hostTint(hostColorIndex), // web tints the primary CTA with the host color (applyHostTint)
-                    enabled = revealed,
                     focusRequester = playAgainFocus,
                     fontSize = vp.vhSp(17.6f, 2.4f, 27.2f),
                     contentPadding = PaddingValues(
@@ -155,7 +141,6 @@ fun ResultsScreen(
                     text = stringResource(R.string.new_game),
                     primary = false,
                     tint = Tokens.accentPrimary,
-                    enabled = revealed,
                     fontSize = vp.vhSp(17.6f, 2.4f, 27.2f),
                     contentPadding = PaddingValues(
                         horizontal = vp.vwDp(24f, 3f, 48f),

@@ -1297,10 +1297,11 @@ final class RootScene: SKScene, DisplayOutput {
         resultsLayer.addChild(playAgain)
         resultsLayer.addChild(newGame)
         setMenu([[playAgain, newGame]])
-        // Staged reveal after the rows settle (web resultsButtonsEnter).
+        // No anti-misclick gate on the TV (a couch remote, not a phone): the
+        // buttons are live immediately and just fade in with the rows.
         for b in [playAgain, newGame] {
             b.alpha = 0
-            b.run(.sequence([.wait(forDuration: 0.2 + Double(sorted.count) * 0.08 + 0.3), .fadeIn(withDuration: 0.4)]))
+            b.run(.fadeIn(withDuration: 0.4))
         }
     }
 
