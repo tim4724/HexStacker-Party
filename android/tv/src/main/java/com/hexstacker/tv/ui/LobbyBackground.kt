@@ -11,20 +11,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
-import com.hexstacker.core.render.ColorMath
 import com.hexstacker.core.render.HexGeometry
-import com.hexstacker.core.render.Rgb
-import com.hexstacker.core.render.Theme
+import com.hexstacker.tv.render.addRoundedHex
 import kotlinx.coroutines.isActive
 import kotlin.math.hypot
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
@@ -128,71 +126,52 @@ private fun DrawScope.drawLobbyGlow() {
     )
 }
 
-/** Draw one particle's hex cells with the NORMAL stamp recipe (web `getHexStamp` /
- *  `_stampHexNormal`): a vertical light->dark gradient hex plus top-highlight,
- *  bottom-shadow and inner-shine bands, all weighted by the particle opacity
- *  (web `globalAlpha`). */
+/** Draw one particle's hex cells with the PILLOW stamp recipe (web `getHexStamp` /
+ *  `_stampHexPillow`, matching the favicon/app-icon look): a flat-fill rounded hex
+ *  with a top-left radial gloss and a bottom-edge shadow line, all weighted by the
+ *  particle opacity (web `globalAlpha`). */
 private fun DrawScope.drawFallingPiece(p: FallingPiece, path: Path) {
     val size = p.blockSize
     val cr = size * 0.94f // circumradius == web `sCell` (getHexStamp cr = size/√3)
-    val heightSize = SQRT3 * cr // web stamp `size` (drawn height) for band proportions
+    val heightSize = SQRT3 * cr // web stamp `size` (drawn height) for line-width proportions
     val alpha = p.opacity.coerceIn(0f, 1f)
-    val rgb = Rgb(
+    val fillColor = Color(
         (p.colorArgb shr 16) and 0xFF,
         (p.colorArgb shr 8) and 0xFF,
         p.colorArgb and 0xFF,
     )
-    val topColor = Color(ColorMath.lighten(rgb, 15.0).toArgb())
-    val bottomColor = Color(ColorMath.darken(rgb, 10.0).toArgb())
-    val band = heightSize * 0.08f
-    val shine = heightSize * 0.35f
+    val cornerR = cr * 0.15f
+    val lineInset = cornerR / SQRT3 // pull the shadow line inside the rounded corner
+    val v1 = HexGeometry.unitVertices[1] // two lower vertices carry the bottom edge
+    val v2 = HexGeometry.unitVertices[2]
     for (cell in p.cells) {
         val q = cell[0]
         val r = cell[1]
         val cx = p.x + size * 1.5f * q
         val cy = p.y + size * SQRT3 * (r + q / 2f)
-        buildHexPath(path, cx, cy, cr)
-        // Base: vertical light->dark gradient clipped to the hex silhouette.
+        // Reuse the scratch Path via its backing android.graphics.Path so the
+        // rounded-hex builder allocates nothing per cell.
+        path.rewind()
+        path.asAndroidPath().addRoundedHex(cx, cy, cr, cornerR)
+        // Base: flat fill.
+        drawPath(path, color = fillColor, alpha = alpha)
+        // Radial gloss: white 0.3 -> transparent, center offset up-left. (Web uses a
+        // two-point radial; Compose is single-center, approximated at the web start.)
         drawPath(
             path,
-            brush = Brush.verticalGradient(
-                colors = listOf(topColor, bottomColor),
-                startY = cy - cr,
-                endY = cy + cr,
+            brush = Brush.radialGradient(
+                colors = listOf(Color.White.copy(alpha = 0.30f), Color.Transparent),
+                center = Offset(cx - cr * 0.05f, cy - cr * 0.1f),
+                radius = cr * 1.1f,
             ),
             alpha = alpha,
         )
-        clipPath(path) {
-            // Top highlight — white @ THEME.opacity.highlight.
-            drawRect(
-                color = Color.White.copy(alpha = (Theme.Opacity.highlight.toFloat() * alpha).coerceIn(0f, 1f)),
-                topLeft = Offset(cx - cr * 0.5f, cy - cr * 0.88f),
-                size = Size(cr, band),
-            )
-            // Bottom shadow — black @ THEME.opacity.shadow.
-            drawRect(
-                color = Color.Black.copy(alpha = (Theme.Opacity.shadow.toFloat() * alpha).coerceIn(0f, 1f)),
-                topLeft = Offset(cx - cr * 0.5f, cy + cr * 0.76f),
-                size = Size(cr, band),
-            )
-            // Inner shine — white @ THEME.opacity.subtle.
-            drawRect(
-                color = Color.White.copy(alpha = (Theme.Opacity.subtle.toFloat() * alpha).coerceIn(0f, 1f)),
-                topLeft = Offset(cx - cr * 0.35f, cy - cr * 0.5f),
-                size = Size(shine, shine * 0.36f),
-            )
-        }
+        // Bottom shadow line across the two lower vertices.
+        drawLine(
+            color = Color.Black.copy(alpha = 0.25f * alpha),
+            start = Offset(cx + cr * v1.x.toFloat() - lineInset, cy + cr * v1.y.toFloat()),
+            end = Offset(cx + cr * v2.x.toFloat() + lineInset, cy + cr * v2.y.toFloat()),
+            strokeWidth = max(0.5f, heightSize * 0.04f),
+        )
     }
-}
-
-/** Rewind [path] and rebuild a flat-top hexagon (circumradius [radius]) from the
- *  `:core` unit vertices, so the single scratch Path is reused for every cell. */
-private fun buildHexPath(path: Path, cx: Float, cy: Float, radius: Float) {
-    path.rewind()
-    HexGeometry.unitVertices.forEachIndexed { i, v ->
-        val x = cx + (radius * v.x).toFloat()
-        val y = cy + (radius * v.y).toFloat()
-        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-    }
-    path.close()
 }

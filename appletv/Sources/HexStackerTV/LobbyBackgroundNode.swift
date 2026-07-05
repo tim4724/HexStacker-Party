@@ -117,15 +117,16 @@ final class LobbyBackgroundNode: SKNode {
         return (node, speed)
     }
 
-    /// Build one translucent hex-piece silhouette: a NORMAL gradient stamp per
-    /// cell (the same recipe the game pieces use), laid out in axial coords with
-    /// the canvas-Y-down -> SpriteKit-Y-up flip. Shared by the animated random pool
-    /// (makePiece) and the frozen gallery fixture (buildFrozen).
+    /// Build one translucent hex-piece silhouette: a PILLOW stamp per cell
+    /// (rounded corners + radial gloss, matching the favicon/app-icon look),
+    /// laid out in axial coords with the canvas-Y-down -> SpriteKit-Y-up flip.
+    /// Shared by the animated random pool (makePiece) and the frozen gallery
+    /// fixture (buildFrozen).
     private func buildPiece(typeId: Int, cells: [(q: Int, r: Int)], size: CGFloat, opacity: CGFloat) -> SKNode {
         let rgb = Theme.pieceColors[typeId] ?? RGB(255, 255, 255)
         let sqrt3 = CGFloat(3).squareRoot()
         // stampHeight = circumradius·√3, trimmed for a small cell gap.
-        let tex = HexStampFactory.shared.stamp(tier: .normal, color: rgb, size: size * sqrt3 * 0.94)
+        let tex = HexStampFactory.shared.stamp(tier: .pillow, color: rgb, size: size * sqrt3 * 0.94)
         let container = SKNode()
         container.alpha = opacity
         for cell in cells {

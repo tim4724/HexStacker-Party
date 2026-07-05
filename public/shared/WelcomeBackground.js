@@ -390,7 +390,7 @@ class WelcomeBackground {
     const cells = p.cells;
     const hasStamps = typeof getHexStamp === 'function';
     if (hasStamps) {
-      const stamp = getHexStamp(STYLE_TIERS.NORMAL, p.color, _SQRT3 * sCell);
+      const stamp = getHexStamp(STYLE_TIERS.PILLOW, p.color, _SQRT3 * sCell);
       for (let i = 0; i < cells.length; i++) {
         const q = cells[i][0], r = cells[i][1];
         const cx = p.x + size * 1.5 * q;
