@@ -122,17 +122,15 @@ const DISPLAY_STYLES = [
   '/display/display.css',
 ];
 
-// Every HTML page this server serves in PROD, single-sourced so the build
-// (scripts/prerender-html.js writes a pre-rendered + pre-compressed artifact per
-// entry) and the server (serves those artifacts, skipping the runtime rewrite)
-// agree on the exact set. In prod each is deterministic at build time: the shells
-// expand to hashed bundle tags, the legal + AirConsole pages differ from source
-// only by the version string — so none need a per-request rewrite there, which
-// is what lets the server carry zero on-the-fly HTML compression.
+// Every HTML page the server renders + caches at boot in PROD (server/index.js
+// HTML_CACHE). Single-sourced here so the set is defined once. Each is fully
+// build-deterministic EXCEPT the version label (per-deployment: same image runs
+// prod and preview with different APP_ENV/GIT_SHA), which is why these are
+// finalized at boot rather than baked at build time.
 //
 // EXCLUDED: the gallery pages. In prod Traefik routes /gallery* to a separate
 // static pod (nginx), so this server never serves them there; they stay on the
-// dev-only runtime path. Keys are the post-routing urlPath (see the
+// dev-only per-request rewrite path. Keys are the post-routing urlPath (see the
 // '/' -> /display/index.html and room-code -> /controller/index.html mapping).
 const PRERENDERED_PAGES = [
   '/display/index.html',
@@ -142,13 +140,6 @@ const PRERENDERED_PAGES = [
   '/display/screen.html',        // AirConsole display entry
   '/controller/controller.html', // AirConsole controller entry
 ];
-
-// Flatten a page's urlPath to a collision-free dist filename, derived (not
-// hand-listed) so the pre-render writer and the server reader can't disagree:
-// /display/index.html -> display-index.html, /privacy.html -> privacy.html.
-function distName(urlPath) {
-  return urlPath.replace(/^\//, '').replace(/\//g, '-');
-}
 
 function resolveAsset(urlPath) {
   if (urlPath.indexOf('/engine/') === 0) {
@@ -167,6 +158,5 @@ module.exports = {
   CONTROLLER_STYLES: CONTROLLER_STYLES,
   DISPLAY_STYLES: DISPLAY_STYLES,
   PRERENDERED_PAGES: PRERENDERED_PAGES,
-  distName: distName,
   resolveAsset: resolveAsset,
 };

@@ -8,10 +8,10 @@ COPY public/ ./public/
 COPY partyplug/ ./partyplug/
 COPY scripts/ ./scripts/
 # Bundle the web apps (content-hashed bundles + dist/web-manifest.json) and the
-# native core, generate the AirConsole HTML entry points, and pre-render every
-# prod-served HTML page. `npm run build` now chains all three. Prod serves the
-# bundles + pre-rendered HTML, so this MUST run or the server falls back to
-# ~20 no-store script tags and per-page runtime rewrites.
+# native core, then generate the AirConsole HTML entry points. `npm run build`
+# chains both. Prod serves the bundles, so this MUST run or the server falls back
+# to ~20 no-store script tags. (The prod HTML pages are rendered + cached at
+# server boot, so there's no separate HTML build step.)
 RUN npm run build
 # Drop devDeps so the runtime node_modules carries only production deps.
 RUN npm prune --omit=dev

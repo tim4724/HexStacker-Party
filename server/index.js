@@ -4,6 +4,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const zlib = require('zlib');
 
 const PORT = parseInt(process.env.PORT, 10) || 4000;
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -38,7 +39,7 @@ const VERSION_LABEL = APP_VERSION + (APP_ENV !== 'production' && getShortSha(GIT
 // cross-file hoisting live) without flipping the rest of production mode — most
 // importantly keeping the dev CSP that the AirConsole mock's http.airconsole.com
 // framing relies on.
-const { CONTROLLER_SCRIPTS, DISPLAY_SCRIPTS, CONTROLLER_STYLES, DISPLAY_STYLES, PRERENDERED_PAGES, distName } = require('../scripts/asset-manifest.js');
+const { CONTROLLER_SCRIPTS, DISPLAY_SCRIPTS, CONTROLLER_STYLES, DISPLAY_STYLES, PRERENDERED_PAGES, resolveAsset } = require('../scripts/asset-manifest.js');
 const { renderShell } = require('../scripts/render-shell.js');
 const SERVE_BUNDLES = APP_ENV === 'production' || process.env.SERVE_BUNDLES === '1';
 const WEB_MANIFEST = (function () {
@@ -79,21 +80,57 @@ function styleTagsFor(app, styles) {
   }).join('\n  ');
 }
 
-// Prod-only: the build pre-renders every prod-served HTML page
-// (PRERENDERED_PAGES in asset-manifest.js) to dist/<name>.html (+ .br/.gz) with
-// all placeholders already expanded. Serve those bytes for the mapped urlPath
-// instead of rewriting the source per request — no templating, and the
-// pre-compressed siblings negotiate like a bundle. Empty in dev / when a build
-// is absent, so the runtime rewrite below handles every page there.
-const RENDERED_HTML = (function () {
+// Expand all shell placeholders for a page. Single entry point for both the
+// boot-time cache (below) and the request-time rewrite (in the handler), so a
+// page renders identically whichever path produces it. Every value here is
+// constant per process EXCEPT versionLabel, which carries the non-prod "(#sha)"
+// suffix and is only known at runtime (APP_ENV + GIT_SHA are container env vars;
+// prod and preview run the same image) — which is exactly why the version can't
+// be baked at build time and these pages are finalized at boot instead.
+function renderPage(html) {
+  return renderShell(html, {
+    versionLabel: VERSION_LABEL,
+    appVersion: APP_VERSION,
+    controllerScripts: scriptTagsFor('controller', CONTROLLER_SCRIPTS),
+    displayScripts: scriptTagsFor('display', DISPLAY_SCRIPTS),
+    controllerStyles: styleTagsFor('controller', CONTROLLER_STYLES),
+    displayStyles: styleTagsFor('display', DISPLAY_STYLES),
+  });
+}
+
+// Compress `buf` to `.br`/`.gz` at max quality. Boot-time one-shot per page, so
+// spending brotli 11 / gzip 9 is free — the result is reused for every request.
+function compressVariants(buf) {
+  return {
+    identity: buf,
+    br: zlib.brotliCompressSync(buf, {
+      params: {
+        [zlib.constants.BROTLI_PARAM_QUALITY]: 11,
+        [zlib.constants.BROTLI_PARAM_SIZE_HINT]: buf.length,
+      },
+    }),
+    gzip: zlib.gzipSync(buf, { level: 9 }),
+  };
+}
+
+// Prod-only: render every prod-served HTML page (PRERENDERED_PAGES in
+// asset-manifest.js) once at boot and cache its identity + `.br`/`.gz` bytes, so
+// requests serve static, negotiated, pre-compressed HTML with zero per-request
+// templating or compression. This runs at boot rather than build time precisely
+// because renderPage bakes VERSION_LABEL, which is per-deployment (same image,
+// prod vs preview) and thus only known now. Empty in dev / when bundles aren't
+// served, so the runtime rewrite in the handler covers every page there. A page
+// whose source is missing (e.g. AC entries not generated) is skipped and falls
+// back to that runtime path.
+const HTML_CACHE = (function () {
   if (!SERVE_BUNDLES) return {};
-  const distDir = path.join(__dirname, '..', 'dist');
-  const map = {};
+  const cache = {};
   for (const url of PRERENDERED_PAGES) {
-    const file = path.join(distDir, distName(url));
-    if (fs.existsSync(file)) map[url] = file;
+    let src;
+    try { src = fs.readFileSync(resolveAsset(url), 'utf8'); } catch (_) { continue; }
+    cache[url] = compressVariants(Buffer.from(renderPage(src)));
   }
-  return map;
+  return cache;
 })();
 
 // Explicit allowlist of engine modules serveable via /engine/ route
@@ -310,7 +347,7 @@ const server = http.createServer((req, res) => {
     lookupPath = urlPath.slice('/partyplug'.length);
   }
 
-  let filePath = path.join(baseDir, lookupPath);
+  const filePath = path.join(baseDir, lookupPath);
 
   // Prevent directory traversal. The trailing separator is load-bearing:
   // without it, `/public-evil/...` (resolved via `..` segments in lookupPath)
@@ -321,16 +358,11 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Prod: swap the source page for its pre-rendered dist artifact (after the
-  // traversal guard, since that lives outside PUBLIC_DIR). preRendered signals
-  // the HTML rewrite below to stand down — the bytes are final and pre-compressed.
-  // CSP/cache headers still key off urlPath, which is unchanged, so this file
-  // swap is invisible to them.
-  let preRendered = false;
-  if (RENDERED_HTML[urlPath]) {
-    filePath = RENDERED_HTML[urlPath];
-    preRendered = true;
-  }
+  // Prod: this page has boot-cached, finalized, pre-compressed bytes (below the
+  // deliver() definition). preRendered signals the request-time HTML rewrite to
+  // stand down. CSP/cache headers key off urlPath + ext (unchanged), so serving
+  // from cache is invisible to them.
+  const preRendered = !!HTML_CACHE[urlPath];
 
   // MP4: serve via streaming with Range support so the <video> element can
   // seek. fs.readFile + res.end (the path below) sends the whole buffer
@@ -382,15 +414,11 @@ const server = http.createServer((req, res) => {
   }
 
   const ext = path.extname(filePath).toLowerCase();
-  // Pre-compressed static serving: content-hashed bundles ship `.br`/`.gz`
-  // siblings from the build. If the client accepts one, serve it with the
-  // matching Content-Encoding; if the sibling is somehow missing, fall through
-  // to the plain bytes. Gated to hashed bundles so no other asset pays a
-  // speculative sibling read, and HTML (rewritten per request below) is never a
-  // candidate (it has no static sibling on disk).
-  // Content-hashed bundles and pre-rendered HTML both ship `.br`/`.gz` siblings
-  // from the build, so both negotiate; nothing else pays the sibling probe (the
-  // dev-only runtime-rewritten source HTML has no static sibling on disk).
+  // Which responses carry pre-compressed `.br`/`.gz` variants and can negotiate
+  // Content-Encoding: content-hashed bundles (from disk siblings the build
+  // emits) and boot-cached HTML (from in-memory variants). Everything else skips
+  // the probe — the dev-only runtime-rewritten source HTML has no sibling, and
+  // other static assets aren't compressed.
   const negotiable = preRendered || HASHED_BUNDLE.test(filePath);
   const encoding = negotiable ? pickEncoding(req.headers['accept-encoding']) : null;
 
@@ -403,19 +431,11 @@ const server = http.createServer((req, res) => {
     // version is this page" anchor for staleness detection AND footer display,
     // with the dev " (#sha)" suffix), the ?v= font cache-bust, and the
     // script/style markers (individual files in dev, one hashed bundle in the
-    // fallback). In prod every served page is pre-rendered from dist
-    // (preRendered), so this never runs there. Gallery pages (dev-only here) and
-    // any placeholder-less HTML pass through renderShell unchanged. Single-sourced
-    // with the build's pre-render via renderShell so the two can't drift.
+    // fallback). In prod the prerendered pages are served from HTML_CACHE
+    // (preRendered), so this never runs for them. Gallery pages (dev-only here)
+    // and any placeholder-less HTML pass through renderPage unchanged.
     if (ext === '.html' && !preRendered) {
-      data = Buffer.from(renderShell(data.toString('utf8'), {
-        versionLabel: VERSION_LABEL,
-        appVersion: APP_VERSION,
-        controllerScripts: scriptTagsFor('controller', CONTROLLER_SCRIPTS),
-        displayScripts: scriptTagsFor('display', DISPLAY_SCRIPTS),
-        controllerStyles: styleTagsFor('controller', CONTROLLER_STYLES),
-        displayStyles: styleTagsFor('display', DISPLAY_STYLES),
-      }));
+      data = Buffer.from(renderPage(data.toString('utf8')));
     }
 
     // Non-production: never cache — file edits take effect on the next
@@ -482,6 +502,16 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, headers);
     res.end(data);
   };
+
+  // Boot-cached pages: serve the finalized, pre-compressed buffer straight from
+  // memory (encoding was picked above since preRendered pages are negotiable).
+  // deliver() still stamps CSP/cache/Vary and skips the rewrite (preRendered).
+  if (preRendered) {
+    const variants = HTML_CACHE[urlPath];
+    if (encoding && variants[encoding.name]) { deliver(variants[encoding.name], encoding.name); return; }
+    deliver(variants.identity, null);
+    return;
+  }
 
   if (encoding) {
     fs.readFile(filePath + encoding.ext, (err, data) => {

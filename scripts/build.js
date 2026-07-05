@@ -200,9 +200,9 @@ async function main() {
   fs.writeFileSync(path.join(ROOT, 'dist', 'web-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   console.log('build: public/controller/' + manifest.controller.js + ' + ' + manifest.controller.css);
   console.log('build: public/display/' + manifest.display.js + ' + ' + manifest.display.css);
-  // HTML pre-rendering (scripts/prerender-html.js) runs as a separate step after
-  // this and generate-airconsole-html.js — see the `build` npm script — because
-  // it consumes both this manifest and the generated AC entries.
+  // The prod HTML pages are rendered + cached at server boot (server/index.js
+  // HTML_CACHE), not here — the version label they carry is per-deployment and
+  // only known at runtime.
 }
 
 if (require.main === module) {
