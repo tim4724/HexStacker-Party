@@ -83,7 +83,7 @@ final class AboutOverlay {
         // only actionable item while About is open (RootScene calls activate()).
         let btnText = "Open Source Licenses"
         let probe = SKLabelNode()
-        probe.setStyledText(btnText, font: AppFont.name, size: btnH * 0.36, color: .white, tracking: 0.08)
+        probe.setStyledText(btnText, font: AppFont.brandBold, size: btnH * 0.36, color: .white, tracking: 0.08)
         let btnW = probe.frame.width + min(playRect.width * 0.04, 96) * 2
         let button = MenuButton(text: btnText, width: btnW, height: btnH, primary: false,
                                 tint: SKTheme.accentPrimary) { [weak self] in self?.onOpenLicenses?() }
@@ -124,7 +124,7 @@ final class AboutOverlay {
         labelNode.verticalAlignmentMode = .center
         labelNode.horizontalAlignmentMode = .center
         labelNode.zPosition = 1
-        labelNode.setStyledText(label, font: AppFont.name, size: labelH * 0.58,
+        labelNode.setStyledText(label, font: AppFont.brandBold, size: labelH * 0.58,
                                 color: SKTheme.textPrimary(), tracking: 0.12)
         labelNode.position = CGPoint(x: 0, y: h / 2 - pad - labelH / 2)
         node.addChild(labelNode)

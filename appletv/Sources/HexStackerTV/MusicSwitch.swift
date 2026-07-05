@@ -47,7 +47,7 @@ final class MusicSwitch: SKNode, Focusable {
         label.verticalAlignmentMode = .center
         label.horizontalAlignmentMode = .left
         label.zPosition = 2
-        label.setStyledText(tr("settings_game_music"), font: AppFont.semibold, size: h * 0.40,
+        label.setStyledText(tr("settings_game_music"), font: AppFont.brandSemibold, size: h * 0.40,
                             color: SKTheme.textPrimary(), tracking: 0.05)
         let labelW = label.calculateAccumulatedFrame().width
         let pairGap = h * 0.5   // gap between the label and the switch

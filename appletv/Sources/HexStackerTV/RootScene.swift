@@ -742,7 +742,7 @@ final class RootScene: SKScene, DisplayOutput {
         // Explicit z above the dim: ignoresSiblingOrder makes equal-z sibling
         // order undefined, so content at the scrim's z0 could draw behind it.
         pauseTitle.zPosition = 1
-        pauseTitle.setStyledText(tr("paused"), font: AppFont.black, size: min(size.height * 0.04, 56),
+        pauseTitle.setStyledText(tr("paused"), font: AppFont.brandExtraBold, size: min(size.height * 0.04, 56),
                                  color: SKTheme.textPrimary(), tracking: 0.15)
         pauseLayer.addChild(pauseTitle)
     }
@@ -778,13 +778,13 @@ final class RootScene: SKScene, DisplayOutput {
         connDim.path = CGPath(rect: CGRect(origin: .zero, size: size), transform: nil)
         let cx = playRect.midX, cy = playRect.midY
         connHeading.setStyledText(reconnecting ? tr("reconnecting") : tr("disconnected"),
-                                  font: AppFont.black, size: min(size.height * 0.045, 64),
+                                  font: AppFont.brandExtraBold, size: min(size.height * 0.045, 64),
                                   color: SKTheme.textPrimary(), tracking: 0.12)
         connHeading.position = CGPoint(x: cx, y: cy + playRect.height * (reconnecting ? 0.04 : 0.05))
         // Web shows the status line only while reconnecting; the lost state is
         // just heading + RECONNECT.
         connStatus.isHidden = !reconnecting
-        connStatus.setStyledText(tr("connection_lost"), font: AppFont.name, size: min(size.height * 0.022, 28),
+        connStatus.setStyledText(tr("connection_lost"), font: AppFont.brandBold, size: min(size.height * 0.022, 28),
                                  color: SKTheme.textSecondary, tracking: 0.08)
         connStatus.position = CGPoint(x: cx, y: connHeading.position.y - playRect.height * 0.08)
 
@@ -793,7 +793,7 @@ final class RootScene: SKScene, DisplayOutput {
             let btnH = max(48, playRect.height * 0.075)
             let reconnect = tr("reconnect")
             let probe = SKLabelNode()
-            probe.setStyledText(reconnect, font: AppFont.name, size: btnH * 0.36, color: .white, tracking: 0.08)
+            probe.setStyledText(reconnect, font: AppFont.brandBold, size: btnH * 0.36, color: .white, tracking: 0.08)
             let bw = probe.frame.width + min(playRect.width * 0.04, 96) * 2
             let btn = MenuButton(text: reconnect, width: bw, height: btnH, primary: true,
                                  tint: SKTheme.accentPrimary) { [weak self] in
@@ -816,7 +816,7 @@ final class RootScene: SKScene, DisplayOutput {
     func updateReconnectStatus(attempt: Int, max: Int) {
         guard !connLayer.isHidden, !connStatus.isHidden else { return }
         connStatus.setStyledText(tr("attempt_n_of_m", ["attempt": attempt, "max": max]),
-                                 font: AppFont.name, size: min(size.height * 0.022, 28),
+                                 font: AppFont.brandBold, size: min(size.height * 0.022, 28),
                                  color: SKTheme.textSecondary, tracking: 0.08)
     }
 
@@ -886,13 +886,17 @@ final class RootScene: SKScene, DisplayOutput {
         let animateEntrance = !lobbyEntranceDone
         lobbyEntranceDone = true
 
-        // --- Title (baked gradient wordmark + PARTY subtitle). Sized to ~7.5% of
+        // --- Title lockup (baked triad mark + HEX STACKER wordmark + PARTY sub),
+        // mirroring the web display lobby's .brand-lockup--row. Sized to ~7.5% of
         // the play height to match the web wordmark (clamp(1.6rem, 7vmin, 5rem)).
         let mainSize = max(44, min(H * 0.075, 84))
         let titleImg = TitleTexture.make(mainSize: mainSize)
         let title = SKSpriteNode(texture: SKTexture(image: titleImg))
         title.size = titleImg.size
-        title.position = CGPoint(x: W / 2, y: H - margin - titleImg.size.height / 2)
+        // The sprite is center-anchored, so centering its (now wider) texture on
+        // W/2 centers the whole lockup; the -0.4em nudge is the row variant's
+        // optical-centering shift (web .brand-lockup--row left: -0.4em).
+        title.position = CGPoint(x: W / 2 - mainSize * 0.4, y: H - margin - titleImg.size.height / 2)
         lobbyContent.addChild(title)
         if animateEntrance { playEntrance(title, fromDy: 16, delay: 0) }   // fadeDown
 
@@ -913,7 +917,7 @@ final class RootScene: SKScene, DisplayOutput {
             ? trUpper("start_n_players", ["count": players.count])
             : trUpper("waiting_for_players")
         let startProbe = SKLabelNode()
-        startProbe.setStyledText(startText, font: AppFont.name, size: pillH * 0.36, color: .white, tracking: 0.08)
+        startProbe.setStyledText(startText, font: AppFont.brandBold, size: pillH * 0.36, color: .white, tracking: 0.08)
         let startW = startProbe.frame.width + min(W * 0.04, 96) * 2   // web padding clamp(2rem, 4vw, 6rem)
         let startBtn = MenuButton(
             text: startText,
@@ -1069,7 +1073,7 @@ final class RootScene: SKScene, DisplayOutput {
         let scan = SKLabelNode()
         scan.verticalAlignmentMode = .center
         scan.zPosition = 1
-        scan.setStyledText(trUpper("scan_to_join"), font: AppFont.name, size: w * 0.05,
+        scan.setStyledText(trUpper("scan_to_join"), font: AppFont.brandBold, size: w * 0.05,
                            color: SKTheme.textFaint, tracking: 0.16)
         scan.position = CGPoint(x: 0, y: labelY)
         node.addChild(scan)
@@ -1145,10 +1149,10 @@ final class RootScene: SKScene, DisplayOutput {
         name.horizontalAlignmentMode = .center
         name.position = CGPoint(x: 0, y: h * 0.25)
         var nameText = player?.playerName ?? "P\(slotIndex + 1)"
-        name.setStyledText(nameText, font: AppFont.extraBold, size: nameSize, color: nameColor, tracking: 0.04)
+        name.setStyledText(nameText, font: AppFont.brandExtraBold, size: nameSize, color: nameColor, tracking: 0.04)
         while name.frame.width > w * 0.86 && nameText.count > 1 {
             nameText = String(nameText.dropLast())
-            name.setStyledText(nameText + "…", font: AppFont.extraBold, size: nameSize, color: nameColor, tracking: 0.04)
+            name.setStyledText(nameText + "…", font: AppFont.brandExtraBold, size: nameSize, color: nameColor, tracking: 0.04)
         }
         node.addChild(name)
 
@@ -1167,12 +1171,12 @@ final class RootScene: SKScene, DisplayOutput {
         let heading = SKLabelNode()
         heading.verticalAlignmentMode = .center
         heading.horizontalAlignmentMode = .center
-        heading.setStyledText(trUpper("level_heading"), font: AppFont.name, size: h * 0.155,
+        heading.setStyledText(trUpper("level_heading"), font: AppFont.brandBold, size: h * 0.155,
                               color: SKTheme.textSecondary, tracking: 0.1)
         let value = SKLabelNode()
         value.verticalAlignmentMode = .center
         value.horizontalAlignmentMode = .center
-        value.setStyledText(player.map { "\($0.startLevel)" } ?? "—", font: AppFont.extraBold,
+        value.setStyledText(player.map { "\($0.startLevel)" } ?? "—", font: AppFont.brandExtraBold,
                             size: h * 0.18, color: player == nil ? SKTheme.textSecondary : SKTheme.textPrimary(), tracking: 0)
         let groupGap = h * 0.10
         let groupW = heading.frame.width + groupGap + value.frame.width
@@ -1307,7 +1311,7 @@ final class RootScene: SKScene, DisplayOutput {
         }
 
         let name = SKLabelNode(text: (res["playerName"] as? String) ?? tr("player"))
-        name.fontName = AppFont.name
+        name.fontName = AppFont.brandBold
         name.fontSize = h * 0.44
         name.fontColor = color ?? SKTheme.textSecondary   // web fallback for unnamed players
         name.verticalAlignmentMode = .center

@@ -10,7 +10,7 @@ import HexStackerKit
 /// Compose Apache stack), the tvOS app runs on Apple system frameworks
 /// (JavaScriptCore, SpriteKit, SwiftUI, Foundation) which are Apple-provided and
 /// need no attribution. What DOES ship third-party is the WebRTC binary (BSD-3),
-/// the Orbitron font (OFL 1.1), and the lobby music (CC BY 3.0).
+/// the Orbitron and Baloo 2 fonts (OFL 1.1), and the lobby music (CC BY 3.0).
 ///
 /// English-only, like the Android screen: this is TV-only chrome the web has no
 /// equivalent for, so there is no shared i18n.js string to mirror via `tr()`.
@@ -220,7 +220,12 @@ final class LicensesOverlay {
             name: "Orbitron",
             author: "The Orbitron Project Authors",
             license: "SIL Open Font License 1.1",
-            body: ofl11),
+            body: orbitronOFL),
+        Entry(
+            name: "Baloo 2",
+            author: "Ek Type",
+            license: "SIL Open Font License 1.1",
+            body: balooOFL),
         Entry(
             name: "WebRTC",
             author: "The WebRTC project authors, Google Inc.",
@@ -261,10 +266,16 @@ final class LicensesOverlay {
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     """
 
-    // SIL Open Font License 1.1 for Orbitron (verbatim from the repo's OFL.txt,
-    // which also ships next to the font on web).
-    private static let ofl11 = """
-    Copyright 2018 The Orbitron Project Authors (https://github.com/theleagueof/orbitron), with Reserved Font Name: "Orbitron"
+    // SIL Open Font License 1.1 (verbatim), parameterised by each font's copyright
+    // header. Both bundled fonts ship under OFL 1.1 with identical body text.
+    private static let orbitronOFL = ofl11(copyright:
+        "Copyright 2018 The Orbitron Project Authors (https://github.com/theleagueof/orbitron), with Reserved Font Name: \"Orbitron\"")
+    private static let balooOFL = ofl11(copyright:
+        "Copyright 2019 The Baloo 2 Project Authors (https://github.com/EkType/Baloo2)")
+
+    private static func ofl11(copyright: String) -> String {
+    """
+    \(copyright)
 
     This Font Software is licensed under the SIL Open Font License, Version 1.1.
     This license is copied below, and is also available with a FAQ at:
@@ -357,4 +368,5 @@ final class LicensesOverlay {
     FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
     OTHER DEALINGS IN THE FONT SOFTWARE.
     """
+    }
 }

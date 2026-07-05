@@ -63,7 +63,7 @@ final class MenuButton: SKNode, Focusable {
     func setFocused(_ focused: Bool) {
         let textColor: UIColor = !enabled ? SKTheme.textSecondary
             : (primary ? SKTheme.btnPrimaryText : SKTheme.textPrimary())
-        label.setStyledText(labelText, font: AppFont.name, size: labelSize, color: textColor, tracking: 0.08)
+        label.setStyledText(labelText, font: AppFont.brandBold, size: labelSize, color: textColor, tracking: 0.08)
 
         guard enabled else {
             ring.strokeColor = SKTheme.border; ring.lineWidth = 1

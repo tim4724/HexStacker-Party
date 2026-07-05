@@ -60,9 +60,11 @@ targets:
         # Only standard TLS (wss/https) is used — exempt from export compliance,
         # so uploads skip the per-build encryption questionnaire.
         ITSAppUsesNonExemptEncryption: false
-        # Orbitron variable font (Resources/fonts/), bundled as a resource.
+        # Bundled variable fonts (Resources/fonts/): Orbitron for the HUD voice,
+        # Baloo 2 for the brand voice (wordmark lockup, buttons).
         UIAppFonts:
           - "Orbitron[wght].ttf"
+          - "Baloo2[wght].ttf"
     settings:
       base:
         TARGETED_DEVICE_FAMILY: "3"            # tvOS
