@@ -41,8 +41,12 @@ const HL_FOCAL_DY_FRAC  = -0.10;
 const STROKE_FRAC       = 0.04;   // stroke width / cell-size (size = r*√3)
 
 // Rounded-hex SVG path. Each vertex is replaced by a tangent arc of radius
-// `cornerR`, matching CanvasUtils.hexPathRounded.
+// `cornerR`, matching CanvasUtils.hexPathRounded (canvas arcTo semantics:
+// the path leaves the edge at tangent length cornerR/tan(60°) from the
+// vertex, NOT at cornerR — trimming by the full radius makes the arc
+// bulge past the edges and reads as a little circle on every corner).
 function roundedHexPath(cx, cy, r, cornerR) {
+  const tangent = cornerR / Math.tan(Math.PI / 3);
   const verts = [];
   for (let i = 0; i < 6; i++) {
     const a = i * Math.PI / 3;
@@ -59,8 +63,8 @@ function roundedHexPath(cx, cy, r, cornerR) {
     const inDy  = (curr[1] - prev[1]) / inLen;
     const outDx = (next[0] - curr[0]) / outLen;
     const outDy = (next[1] - curr[1]) / outLen;
-    const ex = curr[0] - cornerR * inDx,  ey = curr[1] - cornerR * inDy;
-    const xx = curr[0] + cornerR * outDx, xy = curr[1] + cornerR * outDy;
+    const ex = curr[0] - tangent * inDx,  ey = curr[1] - tangent * inDy;
+    const xx = curr[0] + tangent * outDx, xy = curr[1] + tangent * outDy;
     d += (i === 0 ? 'M' : 'L') + `${ex.toFixed(3)},${ey.toFixed(3)}`;
     d += `A${cornerR.toFixed(3)},${cornerR.toFixed(3)} 0 0 1 ${xx.toFixed(3)},${xy.toFixed(3)}`;
   }

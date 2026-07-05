@@ -397,6 +397,25 @@
   margin: 0 auto 0.32em;
 }
 
+.brand-lockup__text {
+  display: block;
+}
+
+/* Compact row variant — mark beside the wordmark instead of above it, for
+   screens where the stacked lockup eats too much height (display lobby,
+   device-choice). */
+.brand-lockup--row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+}
+
+.brand-lockup--row .brand-lockup__mark {
+  width: 1.7em;
+  margin: 0;
+}
+
 .brand-lockup__sub {
   display: block;
   font-size: 0.42em;
