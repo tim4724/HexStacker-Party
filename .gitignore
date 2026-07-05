@@ -8,6 +8,8 @@ dist/
 # keeps these from matching the un-hashed source files controller.js / display.js)
 public/controller/controller.*.js*
 public/display/display.*.js*
+public/controller/controller.*.css*
+public/display/display.*.css*
 # Local-only Claude Code state — keeps the .claude/ root committable for
 # shared project settings/hooks while excluding per-user runtime files.
 .claude/worktrees/

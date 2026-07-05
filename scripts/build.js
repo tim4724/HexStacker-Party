@@ -13,7 +13,8 @@ const fs = require('fs');
 const crypto = require('crypto');
 const zlib = require('zlib');
 const esbuild = require('esbuild');
-const { ROOT, CONTROLLER_SCRIPTS, DISPLAY_SCRIPTS, resolveAsset } = require('./asset-manifest.js');
+const { ROOT, CONTROLLER_SCRIPTS, DISPLAY_SCRIPTS, CONTROLLER_STYLES, DISPLAY_STYLES, resolveAsset } = require('./asset-manifest.js');
+const { writeCompressed } = require('./write-compressed.js');
 
 // Portable native core: server/core-entry.js -> dist/partycore.js as an iife
 // exposing globalThis.HexCore. platform:'neutral' so esbuild assumes neither
@@ -139,6 +140,38 @@ async function buildApp(name, scripts) {
   return file;
 }
 
+// Web CSS bundle: concatenate the app's stylesheets in cascade order, minify
+// (esbuild's css loader), content-hash, and emit `.br`/`.gz` siblings — the
+// exact treatment buildApp() gives the JS, and for the same reasons. CSS is
+// render-blocking and, unlike the JS, ships uncompressed from this server today
+// (only hashed bundles are Accept-Encoding-negotiated), so bundling both cuts
+// the request count and finally compresses it. No sourcemap: concatenated,
+// minified CSS has little debugging value and the map would be a rare fetch.
+async function buildStyles(name, styles) {
+  let source = '';
+  for (const urlPath of styles) {
+    source += '/* ==== ' + urlPath + ' ==== */\n'
+      + fs.readFileSync(resolveAsset(urlPath), 'utf8') + '\n';
+  }
+  const result = await esbuild.transform(source, {
+    loader: 'css',
+    minify: true,
+    legalComments: 'none',
+  });
+  const hash = crypto.createHash('sha256').update(result.code).digest('hex').slice(0, 10);
+  const file = name + '.' + hash + '.css';
+  const dir = path.join(ROOT, 'public', name);
+  // Sweep stale hashed CSS bundles (+ their .br/.gz) so local rebuilds don't
+  // orphan them. Prefix match (no `$`) also catches the compressed siblings;
+  // the un-hashed source `<name>.css` lacks the hash segment and is untouched.
+  const stale = new RegExp('^' + name + '\\.[0-9a-f]{10}\\.css');
+  for (const f of fs.readdirSync(dir)) {
+    if (stale.test(f)) fs.rmSync(path.join(dir, f));
+  }
+  writeCompressed(path.join(dir, file), Buffer.from(result.code));
+  return file;
+}
+
 async function main() {
   fs.mkdirSync(path.join(ROOT, 'dist'), { recursive: true });
 
@@ -152,16 +185,24 @@ async function main() {
   // tests don't also sweep and rewrite the git-ignored public/ hashed web bundles.
   if (process.argv.includes('--core')) return;
 
-  // Independent (different output dirs, no shared state), so build them
-  // concurrently — `npm start` now runs this on every boot.
-  const [controller, display] = await Promise.all([
+  // Independent (different output dirs/files, no shared state), so build the JS
+  // and CSS bundles for both apps concurrently — `npm start` runs this on boot.
+  const [controller, display, controllerCss, displayCss] = await Promise.all([
     buildApp('controller', CONTROLLER_SCRIPTS),
     buildApp('display', DISPLAY_SCRIPTS),
+    buildStyles('controller', CONTROLLER_STYLES),
+    buildStyles('display', DISPLAY_STYLES),
   ]);
-  const manifest = { controller: controller, display: display };
+  const manifest = {
+    controller: { js: controller, css: controllerCss },
+    display: { js: display, css: displayCss },
+  };
   fs.writeFileSync(path.join(ROOT, 'dist', 'web-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
-  console.log('build: public/controller/' + manifest.controller);
-  console.log('build: public/display/' + manifest.display);
+  console.log('build: public/controller/' + manifest.controller.js + ' + ' + manifest.controller.css);
+  console.log('build: public/display/' + manifest.display.js + ' + ' + manifest.display.css);
+  // HTML pre-rendering (scripts/prerender-html.js) runs as a separate step after
+  // this and generate-airconsole-html.js — see the `build` npm script — because
+  // it consumes both this manifest and the generated AC entries.
 }
 
 if (require.main === module) {

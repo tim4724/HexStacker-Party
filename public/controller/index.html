@@ -16,13 +16,19 @@
   <meta name="twitter:title" content="HexStacker Party">
   <meta name="twitter:description" content="Multiplayer hex stacker — phones become controllers, a shared screen shows the action.">
   <meta name="twitter:image" content="https://hexstacker.com/artwork/social-preview.png">
+  <!-- Preload the always-used font subsets so their fetch starts with the HTML
+       instead of after the font CSS parses. href must be query-less and match
+       the @font-face url() exactly, and `crossorigin` is required (font fetches
+       are always CORS-mode) — either mismatch causes a double download. The
+       latin-ext subset is unicode-range-gated and skipped: most players never
+       trigger it. -->
+  <link rel="preload" href="/shared/fonts/Orbitron.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/shared/fonts/Baloo2-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/shared/fonts/orbitron.css?v=__APP_V__">
   <link rel="stylesheet" href="/shared/fonts/baloo2.css?v=__APP_V__">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="32x32">
-  <link rel="stylesheet" href="/shared/theme.css?v=__APP_V__">
-  <link rel="stylesheet" href="/shared/results.css?v=__APP_V__">
-  <link rel="stylesheet" href="/controller/controller.css?v=__APP_V__">
+  <!--CONTROLLER_STYLES-->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
 </head>

@@ -38,7 +38,8 @@ const VERSION_LABEL = APP_VERSION + (APP_ENV !== 'production' && getShortSha(GIT
 // cross-file hoisting live) without flipping the rest of production mode — most
 // importantly keeping the dev CSP that the AirConsole mock's http.airconsole.com
 // framing relies on.
-const { CONTROLLER_SCRIPTS, DISPLAY_SCRIPTS } = require('../scripts/asset-manifest.js');
+const { CONTROLLER_SCRIPTS, DISPLAY_SCRIPTS, CONTROLLER_STYLES, DISPLAY_STYLES, PRERENDERED_PAGES, distName } = require('../scripts/asset-manifest.js');
+const { renderShell } = require('../scripts/render-shell.js');
 const SERVE_BUNDLES = APP_ENV === 'production' || process.env.SERVE_BUNDLES === '1';
 const WEB_MANIFEST = (function () {
   try {
@@ -54,14 +55,46 @@ if (SERVE_BUNDLES && !WEB_MANIFEST) {
   console.warn('[warn] SERVE_BUNDLES/production is set but dist/web-manifest.json is missing — run `npm run build`. Serving individual no-store script tags as a fallback.');
 }
 
-// Build the <script> markup that replaces an app's <!--APP_SCRIPTS--> placeholder.
+// Build the <script> markup that replaces an app's <!--*_SCRIPTS--> placeholder.
 // Bundle mode with a built manifest -> a single hashed tag; otherwise the files.
 function scriptTagsFor(app, scripts) {
   if (SERVE_BUNDLES && WEB_MANIFEST && WEB_MANIFEST[app]) {
-    return '<script src="/' + app + '/' + WEB_MANIFEST[app] + '"></script>';
+    return '<script src="/' + app + '/' + WEB_MANIFEST[app].js + '"></script>';
   }
   return scripts.map(function (s) { return '<script src="' + s + '"></script>'; }).join('\n  ');
 }
+
+// Build the <link> markup that replaces an app's <!--*_STYLES--> placeholder.
+// Bundle mode -> one hashed, immutably-cached, compressed stylesheet; otherwise
+// the individual files, each ?v=-busted against the 24h cache (APP_VERSION is
+// baked in here directly so this is independent of the __APP_V__ HTML pass).
+// The @font-face stylesheets are NOT here (see asset-manifest.js) — they remain
+// their own <link>s in the HTML in both modes.
+function styleTagsFor(app, styles) {
+  if (SERVE_BUNDLES && WEB_MANIFEST && WEB_MANIFEST[app] && WEB_MANIFEST[app].css) {
+    return '<link rel="stylesheet" href="/' + app + '/' + WEB_MANIFEST[app].css + '">';
+  }
+  return styles.map(function (s) {
+    return '<link rel="stylesheet" href="' + s + '?v=' + APP_VERSION + '">';
+  }).join('\n  ');
+}
+
+// Prod-only: the build pre-renders every prod-served HTML page
+// (PRERENDERED_PAGES in asset-manifest.js) to dist/<name>.html (+ .br/.gz) with
+// all placeholders already expanded. Serve those bytes for the mapped urlPath
+// instead of rewriting the source per request — no templating, and the
+// pre-compressed siblings negotiate like a bundle. Empty in dev / when a build
+// is absent, so the runtime rewrite below handles every page there.
+const RENDERED_HTML = (function () {
+  if (!SERVE_BUNDLES) return {};
+  const distDir = path.join(__dirname, '..', 'dist');
+  const map = {};
+  for (const url of PRERENDERED_PAGES) {
+    const file = path.join(distDir, distName(url));
+    if (fs.existsSync(file)) map[url] = file;
+  }
+  return map;
+})();
 
 // Explicit allowlist of engine modules serveable via /engine/ route
 const ENGINE_FILES = new Set([
@@ -99,10 +132,11 @@ function sendJson(res, statusCode, payload) {
   res.end(JSON.stringify(payload));
 }
 
-// Content-hashed web bundle (foo.<10-hex>.js), NOT its .map. Only these carry
-// build-time pre-compressed `.br`/`.gz` siblings, so only these are candidates
-// for Accept-Encoding negotiation; every other request skips the sibling probe.
-const HASHED_BUNDLE_JS = /\.[0-9a-f]{10}\.js$/;
+// Content-hashed web bundle (foo.<10-hex>.js or .css), NOT the .js.map. Only
+// these carry build-time pre-compressed `.br`/`.gz` siblings, so only these are
+// candidates for Accept-Encoding negotiation; every other request skips the
+// sibling probe.
+const HASHED_BUNDLE = /\.[0-9a-f]{10}\.(?:js|css)$/;
 
 // Pick the best encoding we ship a pre-compressed sibling for (brotli first),
 // or null if the client accepts neither. Parses q-values so an explicit refusal
@@ -276,7 +310,7 @@ const server = http.createServer((req, res) => {
     lookupPath = urlPath.slice('/partyplug'.length);
   }
 
-  const filePath = path.join(baseDir, lookupPath);
+  let filePath = path.join(baseDir, lookupPath);
 
   // Prevent directory traversal. The trailing separator is load-bearing:
   // without it, `/public-evil/...` (resolved via `..` segments in lookupPath)
@@ -285,6 +319,17 @@ const server = http.createServer((req, res) => {
     res.writeHead(403);
     res.end('Forbidden');
     return;
+  }
+
+  // Prod: swap the source page for its pre-rendered dist artifact (after the
+  // traversal guard, since that lives outside PUBLIC_DIR). preRendered signals
+  // the HTML rewrite below to stand down — the bytes are final and pre-compressed.
+  // CSP/cache headers still key off urlPath, which is unchanged, so this file
+  // swap is invisible to them.
+  let preRendered = false;
+  if (RENDERED_HTML[urlPath]) {
+    filePath = RENDERED_HTML[urlPath];
+    preRendered = true;
   }
 
   // MP4: serve via streaming with Range support so the <video> element can
@@ -343,47 +388,34 @@ const server = http.createServer((req, res) => {
   // to the plain bytes. Gated to hashed bundles so no other asset pays a
   // speculative sibling read, and HTML (rewritten per request below) is never a
   // candidate (it has no static sibling on disk).
-  const negotiable = HASHED_BUNDLE_JS.test(filePath);
+  // Content-hashed bundles and pre-rendered HTML both ship `.br`/`.gz` siblings
+  // from the build, so both negotiate; nothing else pays the sibling probe (the
+  // dev-only runtime-rewritten source HTML has no static sibling on disk).
+  const negotiable = preRendered || HASHED_BUNDLE.test(filePath);
   const encoding = negotiable ? pickEncoding(req.headers['accept-encoding']) : null;
 
   const deliver = (data, usedEncoding) => {
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
     const headers = { 'Content-Type': contentType };
 
-    // Bake the build version into HTML responses. Clients read it from the
-    // <meta name="app-version"> tag — that's the atomic "what version is this
-    // page running" anchor used for staleness detection AND footer display.
-    // The non-prod " (#sha)" suffix used to live in client-side code that
-    // hit /api/version; computing it here folds both responsibilities into
-    // one place. Guard avoids the string round-trip for HTML files (gallery,
-    // privacy, imprint) that don't carry the placeholder.
-    if (ext === '.html') {
-      let text = data.toString('utf8');
-      let mutated = false;
-      if (text.includes('__APP_VERSION__')) {
-        text = text.replace(/__APP_VERSION__/g, VERSION_LABEL);
-        mutated = true;
-      }
-      // __APP_V__ — URL-safe bare semver, used as a ?v= cache-busting query
-      // on CSS hrefs so returning visitors don't see stale stylesheets
-      // against fresh HTML (HTML/JS are no-store, but CSS gets a 24h cache).
-      if (text.includes('__APP_V__')) {
-        text = text.replace(/__APP_V__/g, APP_VERSION);
-        mutated = true;
-      }
-      // Expand the app's script placeholder: one hashed bundle in prod, the
-      // individual files in dev. The AirConsole HTML generator expands this same
-      // marker at build time (to relative-path tags), so the AC entry points
-      // never reach here with it intact.
-      if (text.includes('<!--CONTROLLER_SCRIPTS-->')) {
-        text = text.replaceAll('<!--CONTROLLER_SCRIPTS-->', scriptTagsFor('controller', CONTROLLER_SCRIPTS));
-        mutated = true;
-      }
-      if (text.includes('<!--DISPLAY_SCRIPTS-->')) {
-        text = text.replaceAll('<!--DISPLAY_SCRIPTS-->', scriptTagsFor('display', DISPLAY_SCRIPTS));
-        mutated = true;
-      }
-      if (mutated) data = Buffer.from(text);
+    // Dev path (and the no-build fallback): expand the placeholders at request
+    // time — version into the <meta name="app-version"> tag (the atomic "what
+    // version is this page" anchor for staleness detection AND footer display,
+    // with the dev " (#sha)" suffix), the ?v= font cache-bust, and the
+    // script/style markers (individual files in dev, one hashed bundle in the
+    // fallback). In prod every served page is pre-rendered from dist
+    // (preRendered), so this never runs there. Gallery pages (dev-only here) and
+    // any placeholder-less HTML pass through renderShell unchanged. Single-sourced
+    // with the build's pre-render via renderShell so the two can't drift.
+    if (ext === '.html' && !preRendered) {
+      data = Buffer.from(renderShell(data.toString('utf8'), {
+        versionLabel: VERSION_LABEL,
+        appVersion: APP_VERSION,
+        controllerScripts: scriptTagsFor('controller', CONTROLLER_SCRIPTS),
+        displayScripts: scriptTagsFor('display', DISPLAY_SCRIPTS),
+        controllerStyles: styleTagsFor('controller', CONTROLLER_STYLES),
+        displayStyles: styleTagsFor('display', DISPLAY_STYLES),
+      }));
     }
 
     // Non-production: never cache — file edits take effect on the next
@@ -393,12 +425,12 @@ const server = http.createServer((req, res) => {
     // for bandwidth. The /engine/ route sends its own no-store header
     // above, so its dev/prod behavior matches what we set here.
     //
-    // Exception: content-hashed bundles (foo.<10-hex>.js from scripts/build.js)
-    // and their sidecar .js.map are immutable — the hash changes when the bytes
-    // change, so a new build gets a new URL and a stale copy is never served.
-    // This is what lets the bundled JS finally escape no-store and be cached for
-    // a year.
-    var isHashedBundle = /\.[0-9a-f]{10}\.js(\.map)?$/.test(filePath);
+    // Exception: content-hashed bundles (foo.<10-hex>.js/.css from
+    // scripts/build.js) and the JS sidecar .js.map are immutable — the hash
+    // changes when the bytes change, so a new build gets a new URL and a stale
+    // copy is never served. This is what lets the bundled JS and CSS escape
+    // no-store / the 24h cache and be cached for a year.
+    var isHashedBundle = /\.[0-9a-f]{10}\.(?:js|css)(\.map)?$/.test(filePath);
     var isNonProd = APP_ENV !== 'production';
     var noCache = isNonProd || ext === '.html' || (ext === '.js' && !isHashedBundle);
     headers['Cache-Control'] = isHashedBundle
@@ -483,7 +515,7 @@ function getLocalIP() {
 
 // --- Start server ---
 // Guarded so unit tests can require this module (for pickEncoding /
-// HASHED_BUNDLE_JS) without binding a port. `node server/index.js` (npm start,
+// HASHED_BUNDLE) without binding a port. `node server/index.js` (npm start,
 // Docker CMD, the e2e webServer) is still the main module and listens.
 if (require.main === module) {
   server.listen(PORT, () => {
@@ -494,4 +526,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { pickEncoding, HASHED_BUNDLE_JS };
+module.exports = { pickEncoding, HASHED_BUNDLE };

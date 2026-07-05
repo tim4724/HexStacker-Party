@@ -101,6 +101,55 @@ const DISPLAY_SCRIPTS = [
   '/display/display.js',
 ];
 
+// Canonical CSS load order per app, bundled the same way as the scripts above.
+// The two @font-face stylesheets (/shared/fonts/*.css) are deliberately NOT
+// here: they carry relative url() references to their woff2 siblings that a
+// concatenated bundle served from /controller/ or /display/ would resolve
+// against the wrong directory. They stay as their own <link>s in the HTML
+// (tiny, effectively immutable). Every file below is url()-free (display.css's
+// lone url() is a self-contained data: SVG), so concatenation is path-safe.
+// Order preserves the cascade: theme -> results -> (device-choice) -> app.
+const CONTROLLER_STYLES = [
+  '/shared/theme.css',
+  '/shared/results.css',
+  '/controller/controller.css',
+];
+
+const DISPLAY_STYLES = [
+  '/shared/theme.css',
+  '/shared/results.css',
+  '/shared/device-choice.css',
+  '/display/display.css',
+];
+
+// Every HTML page this server serves in PROD, single-sourced so the build
+// (scripts/prerender-html.js writes a pre-rendered + pre-compressed artifact per
+// entry) and the server (serves those artifacts, skipping the runtime rewrite)
+// agree on the exact set. In prod each is deterministic at build time: the shells
+// expand to hashed bundle tags, the legal + AirConsole pages differ from source
+// only by the version string — so none need a per-request rewrite there, which
+// is what lets the server carry zero on-the-fly HTML compression.
+//
+// EXCLUDED: the gallery pages. In prod Traefik routes /gallery* to a separate
+// static pod (nginx), so this server never serves them there; they stay on the
+// dev-only runtime path. Keys are the post-routing urlPath (see the
+// '/' -> /display/index.html and room-code -> /controller/index.html mapping).
+const PRERENDERED_PAGES = [
+  '/display/index.html',
+  '/controller/index.html',
+  '/privacy.html',
+  '/imprint.html',
+  '/display/screen.html',        // AirConsole display entry
+  '/controller/controller.html', // AirConsole controller entry
+];
+
+// Flatten a page's urlPath to a collision-free dist filename, derived (not
+// hand-listed) so the pre-render writer and the server reader can't disagree:
+// /display/index.html -> display-index.html, /privacy.html -> privacy.html.
+function distName(urlPath) {
+  return urlPath.replace(/^\//, '').replace(/\//g, '-');
+}
+
 function resolveAsset(urlPath) {
   if (urlPath.indexOf('/engine/') === 0) {
     return path.join(ROOT, 'server', urlPath.slice('/engine/'.length));
@@ -115,5 +164,9 @@ module.exports = {
   ROOT: ROOT,
   CONTROLLER_SCRIPTS: CONTROLLER_SCRIPTS,
   DISPLAY_SCRIPTS: DISPLAY_SCRIPTS,
+  CONTROLLER_STYLES: CONTROLLER_STYLES,
+  DISPLAY_STYLES: DISPLAY_STYLES,
+  PRERENDERED_PAGES: PRERENDERED_PAGES,
+  distName: distName,
   resolveAsset: resolveAsset,
 };

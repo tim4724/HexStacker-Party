@@ -17,7 +17,7 @@ module.exports = defineConfig({
     // AirConsole entries use individual files by design, so e2e-airconsole is
     // unaffected. SERVE_BUNDLES (not APP_ENV=production) keeps the dev CSP the AC
     // mock's http.airconsole.com framing needs.
-    command: 'node scripts/build.js && node scripts/generate-airconsole-html.js && node server/index.js',
+    command: 'npm run build && node server/index.js',
     env: {
       ...process.env,
       PORT: process.env.PW_PORT || '4100',

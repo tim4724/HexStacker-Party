@@ -29,22 +29,28 @@
 
 const fs = require('fs');
 const path = require('path');
-const { CONTROLLER_SCRIPTS, DISPLAY_SCRIPTS } = require('./asset-manifest.js');
+const { CONTROLLER_SCRIPTS, DISPLAY_SCRIPTS, CONTROLLER_STYLES, DISPLAY_STYLES } = require('./asset-manifest.js');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
 
 // The AC zip is a self-contained bundle of individual files (no server, no
-// content-hashing), so expand the app's <!--*_SCRIPTS--> marker back to
-// individual tags before transform() runs — its SDK/bootstrap injection,
-// path-absolutization, and test-harness stripping all key off the individual
-// engine/entry/harness tags.
+// content-hashing), so expand the app's <!--*_SCRIPTS--> / <!--*_STYLES-->
+// markers back to individual tags before transform() runs — its SDK/bootstrap
+// injection, path-absolutization, and test-harness stripping all key off the
+// individual engine/entry/harness tags. Styles need no ?v= cache-bust: the zip
+// is versioned as a whole and served without a caching server.
 function tagsFor(scripts) {
   return scripts.map(function (s) { return '<script src="' + s + '"></script>'; }).join('\n  ');
+}
+function styleTagsFor(styles) {
+  return styles.map(function (s) { return '<link rel="stylesheet" href="' + s + '">'; }).join('\n  ');
 }
 function expandScripts(html) {
   return html
     .replaceAll('<!--CONTROLLER_SCRIPTS-->', tagsFor(CONTROLLER_SCRIPTS))
-    .replaceAll('<!--DISPLAY_SCRIPTS-->', tagsFor(DISPLAY_SCRIPTS));
+    .replaceAll('<!--DISPLAY_SCRIPTS-->', tagsFor(DISPLAY_SCRIPTS))
+    .replaceAll('<!--CONTROLLER_STYLES-->', styleTagsFor(CONTROLLER_STYLES))
+    .replaceAll('<!--DISPLAY_STYLES-->', styleTagsFor(DISPLAY_STYLES));
 }
 const SDK_VERSION = getArg('--sdk-version') || '1.11.0';
 const SDK_TAG = `  <script src="https://www.airconsole.com/api/airconsole-${SDK_VERSION}.js"></script>\n`;

@@ -8,7 +8,7 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { pickEncoding, HASHED_BUNDLE_JS } = require('../server/index.js');
+const { pickEncoding, HASHED_BUNDLE } = require('../server/index.js');
 
 test('pickEncoding prefers brotli over gzip', () => {
   assert.deepEqual(pickEncoding('gzip, deflate, br'), { ext: '.br', name: 'br' });
@@ -43,12 +43,16 @@ test('pickEncoding matches whole tokens, not substrings', () => {
   assert.equal(pickEncoding('gzipx'), null);
 });
 
-test('HASHED_BUNDLE_JS gates hashed bundles, not maps or plain files', () => {
-  assert.ok(HASHED_BUNDLE_JS.test('/public/controller/controller.ca7760414e.js'));
-  assert.ok(HASHED_BUNDLE_JS.test('/public/display/display.684e65cd4b.js'));
-  // Its .map sidecar is immutable but never negotiated (no sibling emitted).
-  assert.ok(!HASHED_BUNDLE_JS.test('/public/controller/controller.ca7760414e.js.map'));
+test('HASHED_BUNDLE gates hashed js/css bundles, not maps or plain files', () => {
+  assert.ok(HASHED_BUNDLE.test('/public/controller/controller.ca7760414e.js'));
+  assert.ok(HASHED_BUNDLE.test('/public/display/display.684e65cd4b.js'));
+  // Hashed CSS bundles carry the same .br/.gz siblings, so they negotiate too.
+  assert.ok(HASHED_BUNDLE.test('/public/controller/controller.ca7760414e.css'));
+  assert.ok(HASHED_BUNDLE.test('/public/display/display.684e65cd4b.css'));
+  // The .map sidecar is immutable but never negotiated (no sibling emitted).
+  assert.ok(!HASHED_BUNDLE.test('/public/controller/controller.ca7760414e.js.map'));
   // Un-hashed source files (dev mode, engine route) are excluded.
-  assert.ok(!HASHED_BUNDLE_JS.test('/public/controller/controller.js'));
-  assert.ok(!HASHED_BUNDLE_JS.test('/server/Game.js'));
+  assert.ok(!HASHED_BUNDLE.test('/public/controller/controller.js'));
+  assert.ok(!HASHED_BUNDLE.test('/public/shared/theme.css'));
+  assert.ok(!HASHED_BUNDLE.test('/server/Game.js'));
 });
