@@ -16,8 +16,8 @@ final class MusicSwitch: SKNode, Focusable {
     private let onColor: UIColor
     private let ring = SKShapeNode()      // focus frame at the row bounds
     private let label = SKLabelNode()
-    private let track = SKShapeNode()
-    private let knob = SKShapeNode()
+    private let track = SKSpriteNode()
+    private let knob = SKSpriteNode()
     private var knobOffX: CGFloat = 0
     private var knobOnX: CGFloat = 0
 
@@ -56,18 +56,20 @@ final class MusicSwitch: SKNode, Focusable {
         label.position = CGPoint(x: labelX, y: 0)
         addChild(label)
 
-        // Switch, immediately to the right of the label.
+        // Switch, immediately to the right of the label. The pill and knob are
+        // baked into textures (Core Graphics gives crisp, coverage-antialiased
+        // edges) rather than drawn as live SKShapeNode fills, which render pixely
+        // at this small size. Same texture-bake pattern as MenuButton.
         let trackCenterX = labelX + labelW + pairGap + trackW / 2
-        track.path = UIBezierPath(roundedRect: CGRect(x: trackCenterX - trackW / 2, y: -trackH / 2,
-                                                      width: trackW, height: trackH),
-                                  cornerRadius: trackH / 2).cgPath
-        track.strokeColor = .clear
+        track.texture = Self.bakePill(width: trackW, height: trackH)
+        track.size = CGSize(width: trackW, height: trackH)
+        track.colorBlendFactor = 1   // tint the white pill via updateVisual()
+        track.position = CGPoint(x: trackCenterX, y: 0)
         track.zPosition = 1
         addChild(track)
 
-        knob.path = UIBezierPath(ovalIn: CGRect(x: -knobR, y: -knobR, width: knobR * 2, height: knobR * 2)).cgPath
-        knob.fillColor = .white
-        knob.strokeColor = .clear
+        knob.texture = Self.bakeDisc(radius: knobR)
+        knob.size = CGSize(width: knobR * 2, height: knobR * 2)
         knob.zPosition = 2
         addChild(knob)
 
@@ -93,7 +95,36 @@ final class MusicSwitch: SKNode, Focusable {
     }
 
     private func updateVisual() {
-        track.fillColor = isOn ? onColor : UIColor(white: 1, alpha: 0.12)   // web ON=player-color, OFF=rgba(255,255,255,.12)
+        // web ON=player-color, OFF=rgba(255,255,255,.12). Tint the white pill
+        // texture: ON = onColor opaque, OFF = white at 0.12 alpha.
+        track.color = isOn ? onColor : .white
+        track.alpha = isOn ? 1.0 : 0.12
         knob.position = CGPoint(x: isOn ? knobOnX : knobOffX, y: 0)
+    }
+
+    /// A white, rounded pill baked at device scale for crisp edges.
+    private static func bakePill(width: CGFloat, height: CGFloat) -> SKTexture {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: height))
+        let image = renderer.image { rctx in
+            let ctx = rctx.cgContext
+            ctx.addPath(UIBezierPath(roundedRect: CGRect(x: 0, y: 0, width: width, height: height),
+                                     cornerRadius: height / 2).cgPath)
+            ctx.setFillColor(UIColor.white.cgColor)
+            ctx.fillPath()
+        }
+        return SKTexture(image: image)
+    }
+
+    /// A white filled disc baked at device scale for crisp edges.
+    private static func bakeDisc(radius: CGFloat) -> SKTexture {
+        let d = radius * 2
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: d, height: d))
+        let image = renderer.image { rctx in
+            let ctx = rctx.cgContext
+            ctx.addPath(UIBezierPath(ovalIn: CGRect(x: 0, y: 0, width: d, height: d)).cgPath)
+            ctx.setFillColor(UIColor.white.cgColor)
+            ctx.fillPath()
+        }
+        return SKTexture(image: image)
     }
 }

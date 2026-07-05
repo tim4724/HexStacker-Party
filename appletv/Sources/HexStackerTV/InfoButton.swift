@@ -16,40 +16,22 @@ final class InfoButton: SKNode, Focusable {
         super.init()
 
         let r = diameter / 2
-        let disc = SKShapeNode(circleOfRadius: r)
-        disc.fillColor = SKTheme.bgCard
-        disc.strokeColor = .clear
-        disc.zPosition = 0
-        addChild(disc)
+        // The disc + drawn "i" glyph are baked into one texture (Core Graphics
+        // gives crisp, coverage-antialiased edges); live SKShapeNode fills render
+        // pixely at this size and blur further when scaled on focus. Same
+        // texture-bake pattern as MenuButton / MusicSwitch.
+        let face = SKSpriteNode(texture: Self.bakeFace(diameter: diameter,
+                                                       disc: SKTheme.bgCard,
+                                                       glyph: SKTheme.textPrimary()))
+        face.size = CGSize(width: diameter, height: diameter)
+        face.zPosition = 0
+        addChild(face)
 
         ring.path = CGPath(ellipseIn: CGRect(x: -r, y: -r, width: diameter, height: diameter), transform: nil)
         ring.fillColor = .clear
         ring.isAntialiased = true
         ring.zPosition = 1
         addChild(ring)
-
-        // Drawn info glyph (dot + rounded stem) rather than a font letter, so it reads
-        // as an icon and matches the Android button regardless of the font.
-        let unit = diameter * 0.13     // dot diameter == stem width
-        let stemH = diameter * 0.3
-        let gap = diameter * 0.055
-        let topY = (unit + gap + stemH) / 2   // glyph vertically centered on (0, 0)
-        let glyphColor = SKTheme.textPrimary()
-
-        let dot = SKShapeNode(circleOfRadius: unit / 2)
-        dot.fillColor = glyphColor
-        dot.strokeColor = .clear
-        dot.zPosition = 2
-        dot.position = CGPoint(x: 0, y: topY - unit / 2)
-        addChild(dot)
-
-        let stemRect = CGRect(x: -unit / 2, y: topY - unit - gap - stemH, width: unit, height: stemH)
-        let stem = SKShapeNode(path: CGPath(roundedRect: stemRect, cornerWidth: unit / 2,
-                                            cornerHeight: unit / 2, transform: nil))
-        stem.fillColor = glyphColor
-        stem.strokeColor = .clear
-        stem.zPosition = 2
-        addChild(stem)
 
         setFocused(false)
     }
@@ -63,5 +45,29 @@ final class InfoButton: SKNode, Focusable {
         ring.strokeColor = focused ? .white : SKTheme.borderStrong
         ring.lineWidth = focused ? 4 : 1
         setScale(focused ? 1.06 : 1.0)
+    }
+
+    /// The circular card + drawn info glyph (dot + rounded stem), baked at device
+    /// scale for crisp edges. The glyph is drawn rather than set as a font letter,
+    /// so it reads as an icon and matches the Android button regardless of the font.
+    private static func bakeFace(diameter: CGFloat, disc: UIColor, glyph: UIColor) -> SKTexture {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: diameter, height: diameter))
+        let image = renderer.image { rctx in
+            let ctx = rctx.cgContext
+            let r = diameter / 2
+            ctx.setFillColor(disc.cgColor)
+            ctx.fillEllipse(in: CGRect(x: 0, y: 0, width: diameter, height: diameter))
+
+            let unit = diameter * 0.13     // dot diameter == stem width
+            let stemH = diameter * 0.3
+            let gap = diameter * 0.055
+            let glyphTop = r - (unit + gap + stemH) / 2   // glyph vertically centered
+            ctx.setFillColor(glyph.cgColor)
+            ctx.fillEllipse(in: CGRect(x: r - unit / 2, y: glyphTop, width: unit, height: unit))
+            let stemRect = CGRect(x: r - unit / 2, y: glyphTop + unit + gap, width: unit, height: stemH)
+            ctx.addPath(UIBezierPath(roundedRect: stemRect, cornerRadius: unit / 2).cgPath)
+            ctx.fillPath()
+        }
+        return SKTexture(image: image)
     }
 }
