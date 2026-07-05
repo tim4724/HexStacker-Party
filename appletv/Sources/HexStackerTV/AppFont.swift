@@ -42,8 +42,6 @@ enum AppFont {
     static let name = psName(.bold)
     /// Titles, KO, multi-clear popups, countdown (web weight 900).
     static let black = psName(.black)
-    /// Player names (web weight 800).
-    static let extraBold = psName(.extrabold)
     /// Wordmark subtitle (web weight 600).
     static let semibold = psName(.semibold)
 
