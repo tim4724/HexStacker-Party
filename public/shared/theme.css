@@ -387,6 +387,9 @@
   font-family: var(--font-brand);
   font-weight: 800;
   letter-spacing: 0.06em;
+  /* Baloo's default line boxes are tall (Devanagari metrics); tighten so
+     the wordmark and PARTY sit together instead of drifting apart. */
+  line-height: 1.1;
   color: var(--text-primary);
 }
 
@@ -399,6 +402,9 @@
 
 .brand-lockup__text {
   display: block;
+  /* Leading indent balances the trailing letter-space after the last glyph
+     so the centered line is optically centered (same trick on the sub). */
+  text-indent: 0.06em;
 }
 
 /* Compact row variant — mark beside the wordmark instead of above it, for
@@ -409,6 +415,12 @@
   align-items: center;
   justify-content: center;
   gap: 0.5em;
+  /* Optical centering: shift by half of mark + gap (1.7em + 0.5em) so the
+     WORDMARK sits on the screen axis and the mark hangs left of it.
+     position/left rather than margin (`.device-choice__brand h1` resets
+     margins) or transform (fadeDown animates transform). */
+  position: relative;
+  left: -1.1em;
 }
 
 .brand-lockup--row .brand-lockup__mark {
@@ -421,7 +433,8 @@
   font-size: 0.42em;
   font-weight: 600;
   letter-spacing: 0.35em;
-  margin-top: 0.25em;
+  margin-top: 0.1em;
+  text-indent: 0.35em;
   text-transform: uppercase;
   /* Matches the social-preview PARTY subtitle (artwork/builder.html). */
   color: #fff3c2;

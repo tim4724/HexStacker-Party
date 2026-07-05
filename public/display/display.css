@@ -406,7 +406,7 @@ html:not(.in-session) #relay-status-bar { display: none; }
 
 #qr-label {
   margin: 0;
-  font-size: clamp(9px, 1.2vmin, 11px);
+  font-size: clamp(11px, 1.8vmin, 15px);
   color: var(--text-faint);
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -547,9 +547,12 @@ body.airconsole #qr-container,
 
 /* Display-specific name color — uses --text-secondary as the fallback
    (display empty slots want a muted name) instead of the controller's
-   --text-primary. Layout/typography for .identity-name lives in theme.css. */
+   --text-primary. Layout for .identity-name lives in theme.css; the size
+   override scales the name up for 10-foot viewing (the theme.css clamp
+   is tuned for the phone). */
 .player-card .identity-name {
   color: var(--player-color, var(--text-secondary));
+  font-size: clamp(1.5rem, 4.5vmin, 2.4rem);
 }
 
 @keyframes slotPopIn {
@@ -577,8 +580,8 @@ body.airconsole #qr-container,
    display lobby's static label (controller renders +/- buttons + a value
    span and uses different selectors). */
 .card-level__heading {
-  /* Shared clamp with controller .level-heading. */
-  font-size: clamp(0.95rem, 2vmin, 1.2rem);
+  /* Larger than the controller .level-heading clamp: 10-foot viewing. */
+  font-size: clamp(1rem, 2.6vmin, 1.5rem);
   font-weight: 700;
   color: var(--text-secondary);
   letter-spacing: 0.1em;
@@ -586,8 +589,8 @@ body.airconsole #qr-container,
 }
 
 .card-level__value {
-  /* Shared clamp with controller #level-display. */
-  font-size: clamp(0.95rem, 2vmin, 1.2rem);
+  /* Larger than the controller #level-display clamp: 10-foot viewing. */
+  font-size: clamp(1rem, 2.6vmin, 1.5rem);
   font-weight: 800;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
