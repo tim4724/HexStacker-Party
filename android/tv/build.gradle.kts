@@ -2,6 +2,8 @@
 // + android.graphics.Canvas) and drives the canonical game engine that runs in
 // QuickJS inside :core. AGP 9 compiles Kotlin built-in (no separate kotlin
 // plugin needed).
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
@@ -50,9 +52,31 @@ val syncEngineBundle by tasks.registering(Copy::class) {
     }
 }
 
+// Release signing is driven by a gitignored `android/keystore.properties` (see
+// keystore.properties.example). It is absent on CI and other machines, so
+// `hasReleaseKeystore` is false there and the release build falls back to debug
+// signing — the project still builds and tests. A real Play Store upload needs
+// the file present with the upload keystore it points at.
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
+}
+val hasReleaseKeystore = keystoreProps.getProperty("storeFile") != null
+
 android {
     namespace = "com.hexstacker.tv"
     compileSdk = 37
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                // storeFile path is resolved relative to the android/ Gradle root.
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
     defaultConfig {
         applicationId = "com.hexstacker.tv"
         minSdk = 28
@@ -70,9 +94,10 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Debug-signed so the release build is installable for testing; replace
-            // with a real release keystore before publishing.
-            signingConfig = signingConfigs.getByName("debug")
+            // Signed with the real upload keystore when android/keystore.properties
+            // is present; otherwise debug-signed so the release build stays
+            // installable for testing on machines/CI without the keystore.
+            signingConfig = signingConfigs.getByName(if (hasReleaseKeystore) "release" else "debug")
         }
     }
     compileOptions {
