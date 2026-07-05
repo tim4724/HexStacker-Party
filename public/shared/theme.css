@@ -415,12 +415,14 @@
   align-items: center;
   justify-content: center;
   gap: 0.5em;
-  /* Optical centering: shift by half of mark + gap (1.7em + 0.5em) so the
-     WORDMARK sits on the screen axis and the mark hangs left of it.
+  /* Optical centering: the flex row centers [mark + text] as a unit, but
+     the colorful mark carries less "title weight" than the wordmark, so a
+     small leftward nudge (~1/3 of the way toward centering the text alone,
+     which would be -1.1em) makes the lockup read centered to the eye.
      position/left rather than margin (`.device-choice__brand h1` resets
      margins) or transform (fadeDown animates transform). */
   position: relative;
-  left: -1.1em;
+  left: -0.4em;
 }
 
 .brand-lockup--row .brand-lockup__mark {
