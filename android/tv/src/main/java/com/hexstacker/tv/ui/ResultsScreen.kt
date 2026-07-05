@@ -181,7 +181,7 @@ private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, vp: Vp) {
     val rankSize = vp.vhSp(16f, 3f, 30f) // web result name/rank ~3vh (32px @1080)
     val statsSize = vp.vhSp(13f, 2.6f, 24f) // web result stats ~2.6vh (28px @1080)
     // Web's .result-stats has no font-family override — it inherits the plain
-    // system font (Roboto), unlike the Orbitron name/rank. Match that.
+    // system font (Roboto), unlike the Baloo name / Orbitron rank. Match that.
     val statsStyle = AppType.resultStats.copy(fontFamily = FontFamily.Default, fontWeight = FontWeight.Medium)
     val gap = 20.dp // .result-row gap 1.25rem
 

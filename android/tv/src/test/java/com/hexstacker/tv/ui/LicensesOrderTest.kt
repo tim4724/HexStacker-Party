@@ -15,18 +15,18 @@ class LicensesOrderTest {
     private fun entry(name: String) = LicenseEntry(name, author = null, license = null, url = null, body = null)
 
     @Test
-    fun musicAndFontLeadDepsSortAlphabeticallyQuickJsTrails() {
+    fun musicAndFontsLeadDepsSortAlphabeticallyQuickJsTrails() {
         val music = entry("Lunar Joyride")
-        val font = entry("Orbitron")
+        val fonts = listOf(entry("Baloo 2"), entry("Orbitron"))
         val quickJs = entry("QuickJS")
         // Deliberately out of order, and including names that would sort before the
         // music/font credits if the whole list were sorted flat.
         val deps = listOf(entry("WebRTC SDK"), entry("Compose UI"), entry("AboutLibraries"))
 
-        val ordered = assembleLicenseList(deps, music, font, quickJs).map { it.name }
+        val ordered = assembleLicenseList(deps, music, fonts, quickJs).map { it.name }
 
         assertEquals(
-            listOf("Lunar Joyride", "Orbitron", "AboutLibraries", "Compose UI", "WebRTC SDK", "QuickJS"),
+            listOf("Lunar Joyride", "Baloo 2", "Orbitron", "AboutLibraries", "Compose UI", "WebRTC SDK", "QuickJS"),
             ordered,
         )
     }
@@ -34,11 +34,11 @@ class LicensesOrderTest {
     @Test
     fun leadingCreditsAndTrailingEngineHoldWithNoDeps() {
         val music = entry("Lunar Joyride")
-        val font = entry("Orbitron")
+        val fonts = listOf(entry("Baloo 2"), entry("Orbitron"))
         val quickJs = entry("QuickJS")
 
-        val ordered = assembleLicenseList(emptyList(), music, font, quickJs).map { it.name }
+        val ordered = assembleLicenseList(emptyList(), music, fonts, quickJs).map { it.name }
 
-        assertEquals(listOf("Lunar Joyride", "Orbitron", "QuickJS"), ordered)
+        assertEquals(listOf("Lunar Joyride", "Baloo 2", "Orbitron", "QuickJS"), ordered)
     }
 }

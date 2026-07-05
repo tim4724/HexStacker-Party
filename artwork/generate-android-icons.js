@@ -6,7 +6,7 @@
 //   - legacy launcher mipmaps (ic_launcher / ic_launcher_round) matching the
 //     adaptive icon vectors (with minSdk 28 they are only fallbacks)
 //   - the leanback banner (mipmap-*/app_banner.webp) at every density — the
-//     brand lockup with the real Orbitron wordmark, which vectors can only
+//     brand lockup with the real Baloo 2 wordmark, which vectors can only
 //     approximate
 // Encodes lossless webp via cwebp (brew install webp).
 //
@@ -48,7 +48,7 @@ function writeDataUrl(dataUrl, dest) {
   await page.waitForFunction(() => window.__TVOS_READY__ === true);
   // The banner wordmark needs the brand font loaded before first paint.
   await page.evaluate(async () => {
-    await document.fonts.load('900 200px Orbitron');
+    await document.fonts.load('800 100px "Baloo 2"');
     await document.fonts.ready;
   });
 

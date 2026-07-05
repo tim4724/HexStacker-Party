@@ -264,30 +264,36 @@ body.clip-winner .title-card__url {
   flex-direction: column;
   gap: 16px;
 }
-/* Same 8-stop sweep as .gradient-title in shared/theme.css. Inlined
-   because the composite is loaded outside the display iframe and we
+/* Mirrors .brand-lockup in shared/theme.css (triad mark + cream wordmark).
+   Inlined because the composite is loaded outside the display iframe and we
    want the title card to render even if shared CSS load order changes. */
 .title-card__brand {
-  font-family: 'Orbitron', sans-serif;
-  font-weight: 900;
-  letter-spacing: 0.08em;
+  font-family: 'Baloo 2', system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   font-size: 76px;
   margin: 0;
-  line-height: 1;
-  background: linear-gradient(135deg, #FF6B6B, #FF8C42, #FFE066, #7BED6F, #4ECDC4, #5B7FFF, #A78BFA, #F178D8);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  color: transparent;
+  line-height: 1.1;
+  color: #F7F1E8;
+}
+.title-card__brand-mark {
+  display: block;
+  width: 1.35em;
+  height: auto;
+  margin: 0 0 0.32em;
+}
+body.clip-logo .title-card__brand-mark,
+body.clip-winner .title-card__brand-mark {
+  margin: 0 auto 0.32em;
 }
 .title-card__brand-sub {
   display: block;
   font-size: 0.42em;
   font-weight: 600;
   letter-spacing: 0.35em;
-  margin-top: 0.25em;
+  text-indent: 0.35em;
+  margin-top: 0.1em;
   text-transform: uppercase;
-  -webkit-text-fill-color: #fff3c2;
   color: #fff3c2;
 }
 .title-card__url {

@@ -113,7 +113,7 @@ class ComposeScreenshotTest {
     // The fixture supplies only the dependency DATA (not the generated AboutLibraries
     // report, so the shot is deterministic and needs no build-time metadata on the
     // classpath). The display ORDER comes from the app's real assembleLicenseList, so
-    // this shot renders through the same ordering the app runs — music + font lead,
+    // this shot renders through the same ordering the app runs — music + fonts lead,
     // deps sort alphabetically, QuickJS trails — and can't drift from it. The deps are
     // passed unsorted on purpose, to exercise that sort.
     @Test
@@ -126,7 +126,10 @@ class ComposeScreenshotTest {
             entries = assembleLicenseList(
                 deps = deps,
                 music = LicenseEntry("Lunar Joyride", "FoxSynergy", "CC BY 3.0", "https://creativecommons.org/licenses/by/3.0/", null),
-                font = LicenseEntry("Orbitron", "The Orbitron Project Authors", "SIL Open Font License 1.1", null, "Copyright 2018 The Orbitron Project Authors"),
+                fonts = listOf(
+                    LicenseEntry("Baloo 2", "Ek Type", "SIL Open Font License 1.1", null, "Copyright 2021 The Baloo 2 Project Authors"),
+                    LicenseEntry("Orbitron", "The Orbitron Project Authors", "SIL Open Font License 1.1", null, "Copyright 2018 The Orbitron Project Authors"),
+                ),
                 quickJs = LicenseEntry("QuickJS", "Fabrice Bellard, Charlie Gordon et al.", "MIT License", null, "MIT License\n\n(full text...)"),
             ),
             onClose = {},

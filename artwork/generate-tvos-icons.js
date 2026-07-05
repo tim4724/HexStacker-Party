@@ -4,14 +4,14 @@
 // Renders the layered tvOS App Icon (small + App Store) from the HexStacker
 // brand primitives (artwork/tvos-icon.html) and writes them into the tvOS asset
 // catalog. Per the tvOS HIG the icon is a single centered focal point with no
-// text (the shelf shows the app name itself): the "piece badge" — the game's
-// 'd' piece in the party colorway as in-game pillow cells — floating over a
-// flat brand plum. Two parallax layers: BACK (opaque plum + the badge's soft
-// drop shadow), FRONT (the badge on transparency), so the focus wobble makes
-// the piece hover above its own shadow. Badge is bounding-box centered at
-// sizeFrac 0.20 — inside the 370x222 safe zone (of 400x240) and legible at the
-// 300x180 unfocused size. The gallery-artwork page reviews the assembled look
-// by compositing these two shipped layers live in CSS (no baked preview PNGs).
+// text (the shelf shows the app name itself): the brand triad — three party-
+// colorway pillow cells (teal/red/honey) — floating over a flat brand plum.
+// Two parallax layers: BACK (opaque plum + the triad's soft drop shadow),
+// FRONT (the triad on transparency), so the focus wobble makes the mark hover
+// above its own shadow. The triad is bounding-box centered at sizeFrac 0.20 —
+// inside the 370x222 safe zone (of 400x240) and legible at the 300x180
+// unfocused size. The gallery-artwork page reviews the assembled look by
+// compositing these two shipped layers live in CSS (no baked preview PNGs).
 //
 //   node artwork/generate-tvos-icons.js
 //
@@ -30,7 +30,7 @@ const XC = path.resolve(ROOT,
 
 const ICON = {
   bg: '#241E38',
-  badge: { nx: 0.5, ny: 0.5, sizeFrac: 0.20 },
+  mark: { nx: 0.5, ny: 0.5, sizeFrac: 0.20 },
 };
 
 function iconSpec(layer, w, h) {

@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>HexStacker Party — Builder</title>
   <link rel="stylesheet" href="../public/shared/fonts/orbitron.css">
+  <link rel="stylesheet" href="../public/shared/fonts/baloo2.css">
   <link rel="stylesheet" href="../public/shared/theme.css">
   <style>
     :root {
@@ -832,196 +833,141 @@
     }
   }
 
-  function titleGradient(ctx, W) {
-    // Mirrors .gradient-title in public/shared/theme.css — full 8-stop sweep
-    // across the party palette in PLAYER_COLORS spectrum order
-    // (red → tangerine → honey → mint → teal → indigo → violet → magenta).
-    const g = ctx.createLinearGradient(60, 0, W - 60, 0);
-    const stops = ['#FF6B6B', '#FF8C42', '#FFE066', '#7BED6F', '#4ECDC4', '#5B7FFF', '#A78BFA', '#F178D8'];
-    stops.forEach((c, i) => g.addColorStop(i / (stops.length - 1), c));
-    return g;
-  }
+  // ============================================================
+  // Brand lockup — canonical triad mark + Baloo 2 wordmark ("Direction A").
+  // Mirrors public/shared/brand-mark.svg and .brand-lockup in theme.css so
+  // the cover / social art can never drift from the shipped web wordmark.
+  // ============================================================
 
-  // ============================================================
-  // Shared wordmark drawers
-  // ============================================================
-  // Shrink font-size until the text fits within maxWidth — prevents titles
-  // from bleeding off-canvas when the user cranks size or types a long name.
-  function fitFontSize(ctx, text, targetSize, maxWidth, weight) {
-    let size = targetSize;
-    const w = weight || '900';
-    ctx.font = `${w} ${size}px Orbitron, sans-serif`;
-    let safety = 80;
-    while (ctx.measureText(text).width > maxWidth && size > 10 && safety-- > 0) {
-      size = Math.max(10, size * 0.94);
-      ctx.font = `${w} ${Math.round(size)}px Orbitron, sans-serif`;
+  // The triad mark — three flat-top pillow hexes (teal top-left, red below,
+  // honey right-center), the same canonical cells as favicon.svg /
+  // brand-mark.svg. Colors are brand-fixed (not palette-driven) so the mark
+  // reads identically regardless of the exploratory palette selection.
+  const TRIAD_CELLS = [
+    { q: 0, r: 0, color: '#4ECDC4' }, // teal
+    { q: 0, r: 1, color: '#FF6B6B' }, // red
+    { q: 1, r: 0, color: '#FFE066' }, // honey
+  ];
+  // bbox of the triad (in units of the layout circumradius R): cells span
+  // x∈[-0.94, 2.44], y∈[-0.814, 2.546] once drawn at 0.94R. Width 3.38R,
+  // height 3.36R, bbox center (0.75R, 0.866R) from the (0,0) cell.
+  const TRIAD_W_R = 3.38, TRIAD_H_R = 3.36, TRIAD_CX_R = 0.75, TRIAD_CY_R = 0.866;
+
+  // Draw the triad centered on (cx, cy) at the given overall pixel width.
+  // Uses the pillow cell painter so the corner rounding + sheen match the
+  // in-game Lv 6–10 cells and the favicon. Returns the mark's pixel height.
+  function drawTriadMark(ctx, cx, cy, markW) {
+    const R = markW / TRIAD_W_R;
+    const drawR = R * 0.94;   // gap between adjacent cells (matches favicon)
+    const hexH = SQRT3 * R;
+    const offX = cx - TRIAD_CX_R * R;
+    const offY = cy - TRIAD_CY_R * R;
+    for (const c of TRIAD_CELLS) {
+      const hx = offX + 1.5 * R * c.q;
+      const hy = offY + hexH * (c.r + c.q / 2);
+      CELL_STYLES.pillow(ctx, hx, hy, drawR, c.color);
     }
-    return Math.round(size);
+    return TRIAD_H_R * R;
   }
 
-  // Subtitle drawer — routes on params.subtitleStyle. Y is shifted by
-  // params.subtitleYOffset so the user can fine-tune placement independently
-  // of the per-template default.
-  function drawSubtitle(ctx, W, text, opts) {
-    if (!text) return opts.y;
-    const { size, style, subSpace, params } = opts;
-    const y = (opts.y || 0) + ((params && params.subtitleYOffset) || 0);
-    const s = style || 'letterSpaced';
-    // Optional override — when set, replaces the fill/stroke color of the
-    // text-based styles. For 'pill' it recolors the pill background; for
-    // 'bold' it replaces the title gradient with a solid color.
-    const sc = (params && params.subtitleColor) || null;
+  // Cap height of a Baloo 2 line at `size` — used to place lines precisely.
+  function balooCapHeight(ctx, size, weight) {
+    ctx.font = `${weight} ${size}px 'Baloo 2', sans-serif`;
+    return ctx.measureText('HEXSTACKER').actualBoundingBoxAscent;
+  }
 
-    // Letter-spaced helper that auto-widens spacing so glyphs never overlap
-    // at large sizes — Orbitron caps need ~0.7em of width, so the requested
-    // spacing floors to maxLetterW * 1.15.
-    const drawLetterSpaced = (font, fillStyle, shadowAlpha) => {
-      ctx.font = font;
-      ctx.fillStyle = fillStyle;
-      ctx.shadowColor = `rgba(0,0,0,${shadowAlpha})`;
-      ctx.shadowBlur = 8;
-      const letters = text.split('');
-      let maxLetterW = 0;
-      for (const ch of letters) maxLetterW = Math.max(maxLetterW, ctx.measureText(ch).width);
-      const requested = subSpace ?? (size * 1.3);
-      const spacing = Math.max(requested, maxLetterW * 1.15);
-      const baseX = W/2 - spacing * (letters.length - 1) / 2;
-      for (let i = 0; i < letters.length; i++) ctx.fillText(letters[i], baseX + i * spacing, y);
-    };
-
+  // Draw one Baloo 2 line. Letter-spacing is applied via ctx.letterSpacing;
+  // for centered lines we subtract half the trailing space so the glyphs are
+  // optically centered (the web uses a matching text-indent). Returns the
+  // line's visual (ink) width.
+  function drawBalooLine(ctx, text, x, y, size, opts) {
+    const weight = opts.weight ?? 800;
+    const lsEm   = opts.ls ?? 0.06;
     ctx.save();
-    ctx.textAlign = 'center';
+    ctx.font = `${weight} ${size}px 'Baloo 2', sans-serif`;
+    ctx.fillStyle = opts.color || '#F7F1E8';
+    ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-
-    if (s === 'letterSpaced') {
-      drawLetterSpaced(`700 ${size}px Orbitron, sans-serif`, sc || 'rgba(247,241,232,0.80)', 0.5);
-    } else if (s === 'compact') {
-      ctx.font = `700 ${size}px Orbitron, sans-serif`;
-      ctx.fillStyle = sc || 'rgba(247,241,232,0.88)';
-      ctx.shadowColor = 'rgba(0,0,0,0.5)';
-      ctx.shadowBlur = 8;
-      ctx.fillText(text, W/2, y);
-    } else if (s === 'bold') {
-      const big = Math.round(size * 1.35);
-      ctx.font = `900 ${big}px Orbitron, sans-serif`;
-      ctx.fillStyle = sc || titleGradient(ctx, W);
-      ctx.shadowColor = 'rgba(0,0,0,0.55)';
-      ctx.shadowBlur = 18;
-      ctx.shadowOffsetY = 6;
-      ctx.fillText(text, W/2, y);
-    } else if (s === 'italic') {
-      ctx.font = `italic 700 ${size}px Orbitron, sans-serif`;
-      ctx.fillStyle = sc || 'rgba(247,241,232,0.88)';
-      ctx.shadowColor = 'rgba(0,0,0,0.5)';
-      ctx.shadowBlur = 8;
-      ctx.fillText(text, W/2, y);
-    } else if (s === 'outline') {
-      ctx.font = `900 ${size}px Orbitron, sans-serif`;
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = sc || 'rgba(247,241,232,0.92)';
-      ctx.strokeText(text, W/2, y);
-    } else if (s === 'pill') {
-      // Text on a rounded accent-colored pill — badge feel.
-      ctx.font = `900 ${Math.round(size * 0.85)}px Orbitron, sans-serif`;
-      const w = ctx.measureText(text).width;
-      const padX = size * 0.55, padY = size * 0.22;
-      const pillW = w + padX * 2, pillH = size * 0.85 + padY * 2;
-      const px = W/2 - pillW/2, py = y - size * 0.78 - padY;
-      const r = pillH / 2;
-      const accent = sc || getPalette()[2] || '#FFD400';
-      ctx.save();
-      ctx.fillStyle = accent;
-      ctx.shadowColor = 'rgba(0,0,0,0.45)';
-      ctx.shadowBlur = 14;
-      ctx.shadowOffsetY = 4;
-      ctx.beginPath();
-      ctx.moveTo(px + r, py);
-      ctx.lineTo(px + pillW - r, py);
-      ctx.arc(px + pillW - r, py + r, r, -Math.PI/2, Math.PI/2);
-      ctx.lineTo(px + r, py + pillH);
-      ctx.arc(px + r, py + r, r, Math.PI/2, -Math.PI/2);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
-      ctx.fillStyle = '#1E1A2B';
-      ctx.fillText(text, W/2, y);
-    }
+    const s = lsEm * size;
+    ctx.letterSpacing = s + 'px';
+    const w = ctx.measureText(text).width;
+    const drawX = opts.align === 'left' ? x : x - (w - s) / 2;
+    ctx.fillText(text, drawX, y);
     ctx.restore();
-    return y;
+    return w - s;
   }
 
-  // Measure total block height (in px, baseline→baseline extent plus top/bot
-  // padding) for vertical-centering math. Rough but good enough given the
-  // user has a titleY slider for fine-tuning.
-  function measureTitleBlock(title, subtitle, size, subSize, params) {
-    const lines = (params.titleLayout === 'split3')
-      ? (title.trim().split(/\s+/).length + (subtitle ? 1 : 0))
-      : 1;
-    const lineH = size * 0.98;
-    let h = size + (lines - 1) * lineH;
-    if (params.titleLayout !== 'split3' && subtitle) h += subSize + 18;
-    return h;
-  }
+  // Render the brand lockup. Two arrangements:
+  //   • 'stacked' (cover): triad above HEX STACKER above the PARTY subtitle,
+  //     centered on the canvas.
+  //   • 'row' (social): triad left, a two-line HEX / STACKER cream block right.
+  // params.titleY is the vertical center of the whole lockup block; the
+  // wordmark auto-shrinks so it never bleeds off-canvas.
+  function drawBrandLockup(ctx, W, H, params) {
+    const CREAM = '#F7F1E8';
+    const SUB   = params.subtitleColor || '#FFF3C2';
+    const title = (params.title || 'HEX STACKER').toUpperCase();
+    const cy    = params.titleY ?? H / 2;
 
-  function drawInlineTitle(ctx, W, params, opts) {
-    // Single-line title with subtitle below it. When titleLayout === 'split3',
-    // the title is split by whitespace and each word (+ subtitle) is rendered
-    // as a full-title-styled line, stacked vertically around `y`.
-    const { title, subtitle } = params;
-    const size = opts.size ?? 120;
-    const subSize = opts.subSize ?? 44;
-    const maxW = W - 80;
-    const y = opts.y ?? 140;
-
-    if (params.titleLayout === 'split3') {
-      // Title words rendered with title gradient; subtitle (3rd line) uses
-      // the configured subtitleStyle so it can differ from the title.
-      const titleWords = title.trim().split(/\s+/);
-      ctx.save();
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillStyle = titleGradient(ctx, W);
-      ctx.shadowColor = 'rgba(0,0,0,0.55)';
-      ctx.shadowBlur = 18;
-      ctx.shadowOffsetY = 6;
-      const lineH = size * 0.98;
-      for (let i = 0; i < titleWords.length; i++) {
-        const fitted = fitFontSize(ctx, titleWords[i], size, maxW);
-        ctx.font = `900 ${fitted}px Orbitron, sans-serif`;
-        ctx.fillText(titleWords[i], W/2, y + i * lineH);
+    if ((params.lockup || 'stacked') === 'row') {
+      // Two-line wordmark next to the mark (HEX / STACKER); no subtitle.
+      const words = title.split(/\s+/);
+      const maxW = W * 0.84;
+      let size = params.titleSize || 150;
+      for (let i = 0; i < 80; i++) {
+        ctx.font = `800 ${size}px 'Baloo 2', sans-serif`;
+        ctx.letterSpacing = (0.06 * size) + 'px';
+        const tw = Math.max(...words.map(w => ctx.measureText(w).width));
+        if (2.2 * size + tw <= maxW) break;   // 2.2 = markW(1.7) + gap(0.5)
+        size *= 0.96;
       }
-      ctx.restore();
-      if (subtitle) {
-        const sSize = params.subtitleSize ?? size;
-        drawSubtitle(ctx, W, subtitle, {
-          y: y + titleWords.length * lineH,
-          size: sSize,
-          style: params.subtitleStyle,
-          params,
-        });
-      }
+      const markW = 1.7 * size;
+      const gap   = 0.5 * size;
+      const cap   = balooCapHeight(ctx, size, 800);
+      const lineGap = 1.1 * size;
+      ctx.font = `800 ${size}px 'Baloo 2', sans-serif`;
+      ctx.letterSpacing = (0.06 * size) + 'px';
+      const textW = Math.max(...words.map(w => ctx.measureText(w).width));
+      const totalW = markW + gap + textW;
+      const x0 = (W - totalW) / 2;
+      drawTriadMark(ctx, x0 + markW / 2, cy, markW);
+      const textX = x0 + markW + gap;
+      const blockH = (words.length - 1) * lineGap + cap;
+      const firstBaseline = cy - blockH / 2 + cap;
+      words.forEach((w, i) => {
+        drawBalooLine(ctx, w, textX, firstBaseline + i * lineGap, size,
+          { weight: 800, color: CREAM, ls: 0.06, align: 'left' });
+      });
       return;
     }
 
-    ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = titleGradient(ctx, W);
-    ctx.shadowColor = 'rgba(0,0,0,0.55)';
-    ctx.shadowBlur = 18;
-    ctx.shadowOffsetY = 6;
-    const fitted = fitFontSize(ctx, title, size, maxW);
-    ctx.font = `900 ${fitted}px Orbitron, sans-serif`;
-    ctx.fillText(title, W/2, y);
-    ctx.restore();
-    if (subtitle) {
-      const sSize = params.subtitleSize ?? subSize;
-      drawSubtitle(ctx, W, subtitle, {
-        y: y + sSize + 18,
-        size: sSize,
-        style: params.subtitleStyle,
-        params,
-      });
+    // Stacked: mark, then single-line wordmark, then PARTY subtitle.
+    const maxW = W * 0.82;
+    let size = params.titleSize || 130;
+    for (let i = 0; i < 80; i++) {
+      ctx.font = `800 ${size}px 'Baloo 2', sans-serif`;
+      ctx.letterSpacing = (0.06 * size) + 'px';
+      if (ctx.measureText(title).width <= maxW) break;
+      size *= 0.96;
+    }
+    const markW  = 1.35 * size;
+    const markH  = TRIAD_H_R * (markW / TRIAD_W_R);
+    const mainCap = balooCapHeight(ctx, size, 800);
+    const sub     = params.subtitle ? params.subtitle.toUpperCase() : '';
+    const subSize = 0.42 * size;
+    const subCap  = sub ? balooCapHeight(ctx, subSize, 600) : 0;
+    const gapMark = 0.32 * size;   // mark → wordmark (matches web 0.32em)
+    const gapSub  = 0.30 * size;   // wordmark → PARTY
+    const totalH  = markH + gapMark + mainCap + (sub ? gapSub + subCap : 0);
+    const top     = cy - totalH / 2;
+    drawTriadMark(ctx, W / 2, top + markH / 2, markW);
+    const mainBaseline = top + markH + gapMark + mainCap;
+    drawBalooLine(ctx, title, W / 2, mainBaseline, size,
+      { weight: 800, color: CREAM, ls: 0.06, align: 'center' });
+    if (sub) {
+      const subBaseline = mainBaseline + gapSub + subCap;
+      drawBalooLine(ctx, sub, W / 2, subBaseline, subSize,
+        { weight: 600, color: SUB, ls: 0.35, align: 'center' });
     }
   }
 
@@ -1039,42 +985,20 @@
     cover: {
       canvasW: 1024, canvasH: 1024,
       bgStyle: 'radial', palette: 'classic', cellStyle: 'pillow',
-      title: 'HEX STACKER', subtitle: '',
-      titleLayout: 'split3',
-      subtitleStyle: 'pill', subtitleSize: 60, subtitleYOffset: -48,
-      showTitle: true, titleSize: 168, titleY: 472,
-      overrideSize: true, globalSize: 54,
-      overrideTrail: true, globalTrail: 364,
-      pieces: [
-        { type: 'd',  x: 777, y: 811, size: 52, trailLen: 380, rot: 2 },
-        { type: 'V3', x: 473, y: 98,  size: 54, trailLen: 0,   rot: 5 },
-        { type: 'b',  x: 132, y: 795, size: 52, trailLen: 0,   rot: 3 },
-        { type: 'T3', x: 85,  y: 264, size: 50, trailLen: 0,   rot: 4 },
-        { type: 'I3', x: 446, y: 775, size: 50, trailLen: 0,   rot: 2 },
-        { type: 'o',  x: 808, y: 275, size: 50, trailLen: 0,   rot: 0 },
-      ],
+      lockup: 'stacked',
+      title: 'HEX STACKER', subtitle: 'PARTY',
+      subtitleColor: '#FFF3C2',
+      showTitle: true, titleSize: 150, titleY: 512,
+      pieces: [],
       selectedPiece: -1,
     },
     social: {
       canvasW: 1280, canvasH: 640,
       bgStyle: 'radial', palette: 'classic', cellStyle: 'pillow',
-      title: 'HEX STACKER', subtitle: 'PARTY',
-      titleLayout: 'default',
-      subtitleStyle: 'letterSpaced', subtitleSize: 50, subtitleYOffset: 12,
-      subtitleColor: '#fff3c2',
-      showTitle: true, titleSize: 130, titleY: 320,
-      overrideSize: true, globalSize: 36,
-      overrideTrail: true, globalTrail: 220,
-      pieces: [
-        { type: 'o',  x: 199,  y: 118, size: 32, trailLen: 0, rot: 0 },
-        { type: 'b',  x: 504,  y: 84,  size: 34, trailLen: 0, rot: 2 },
-        { type: 'V3', x: 1001, y: 109, size: 36, trailLen: 0, rot: 2 },
-        { type: 'd',  x: 412,  y: 472, size: 34, trailLen: 0, rot: 2 },
-        { type: 'V3', x: 1021, y: 453, size: 32, trailLen: 0, rot: 3 },
-        { type: 'T3', x: 166,  y: 433, size: 36, trailLen: 0, rot: 2 },
-        { type: 'I3', x: 763,  y: 492, size: 42, trailLen: 0, rot: 0 },
-        { type: 'T3', x: 777,  y: 113, size: 36, trailLen: 0, rot: 3 },
-      ],
+      lockup: 'row',
+      title: 'HEX STACKER', subtitle: '',
+      showTitle: true, titleSize: 168, titleY: 320,
+      pieces: [],
       selectedPiece: -1,
     },
   };
@@ -1092,7 +1016,7 @@
     paintBackground(ctx, W, H, STATE.bgStyle);
 
     if (STATE.showTitle !== false) {
-      drawInlineTitle(ctx, W, STATE, { size: STATE.titleSize || 110, y: (STATE.titleY || 140), H });
+      drawBrandLockup(ctx, W, H, STATE);
     }
 
     // Trails first so pieces render on top.
@@ -1617,16 +1541,10 @@
     }
   }
 
-  // One-shot: compute the Y that vertically centers the current title block
-  // on the canvas, then write it into the active template's Y parameter.
-  // titleY is the *baseline* of line 1 (drawInlineTitle), so the block
-  // spans roughly [y - size] (top) to [y + subtitle extras] (bottom).
+  // One-shot vertical center. titleY is the center of the whole lockup block
+  // (drawBrandLockup), so centering is just the canvas midpoint.
   function centerTitleVertically() {
-    const H = canvas.height;
-    const size = STATE.titleSize ?? 110;
-    const subSize = STATE.subtitleSize ?? 44;
-    const blockH = measureTitleBlock(STATE.title || '', STATE.subtitle || '', size, subSize, STATE);
-    STATE.titleY = Math.round((H - blockH) / 2 + size);
+    STATE.titleY = Math.round(canvas.height / 2);
     buildStageParams();
     render();
   }
@@ -1707,7 +1625,13 @@
   // ============================================================
   // Boot
   // ============================================================
-  document.fonts.ready.then(() => {
+  // Explicitly load the Baloo 2 weights the lockup draws with — document.fonts
+  // .ready only waits on faces already requested, and nothing in the DOM uses
+  // Baloo, so without this the canvas (and headless captures) render fallback.
+  Promise.all([
+    document.fonts.load('800 100px "Baloo 2"'),
+    document.fonts.load('600 100px "Baloo 2"'),
+  ]).then(() => document.fonts.ready).then(() => {
     if (applyHeadless()) {
       render();
     } else {

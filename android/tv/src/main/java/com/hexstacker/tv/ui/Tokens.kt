@@ -15,9 +15,9 @@ object Tokens {
     val bgPrimary = Color(0xFF1E1A2B) // --bg-primary  rgb(30,26,43)
     val bgBoard = Color(0xFF15121F) // --bg-board
     val bgSecondary = Color(0xFF181421) // --bg-secondary
-    // Cross-ref: bgCard/bgCardSoft (and #FFE066 in wordmarkStops below) are also
-    // parsed as `Rgb` in render/TvColors.kt. Nothing enforces equality, so keep
-    // the two hex sets in sync until a :core Theme token unifies them.
+    // Cross-ref: bgCard/bgCardSoft are also parsed as `Rgb` in render/TvColors.kt.
+    // Nothing enforces equality, so keep the two hex sets in sync until a :core
+    // Theme token unifies them.
     val bgCard = Color(0xFF2A2540) // --bg-card     rgb(42,37,64)
     val bgCardSoft = Color(0xFF342E4D) // --bg-card-soft
     val bgGlass = Color(0x0FFFF8EC) // --bg-glass  rgba(255,248,236,0.06)
@@ -41,14 +41,8 @@ object Tokens {
     val overlayBg = Color(0xE01E1A2B) // --overlay-bg rgba(bgPrimary,0.88)
 
     val joinPillBg = Color(0x38000000) // #join-url background rgba(0,0,0,0.22)
-    val partySubColor = Color(0xFFFFF3C2) // .gradient-title__sub color #fff3c2
+    val partySubColor = Color(0xFFFFF3C2) // .brand-lockup__sub color #fff3c2
     val white = Color(0xFFFFFFFF)
-
-    // Wordmark gradient stops — PLAYER_COLORS spectrum order (== .gradient-title 135deg).
-    val wordmarkStops = listOf(
-        Color(0xFFFF6B6B), Color(0xFFFF8C42), Color(0xFFFFE066), Color(0xFF7BED6F),
-        Color(0xFF4ECDC4), Color(0xFF5B7FFF), Color(0xFFA78BFA), Color(0xFFF178D8),
-    )
 
     // Radii (theme.css)
     val radiusSm = 6.dp

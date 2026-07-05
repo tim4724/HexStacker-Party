@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>HexStacker — TV brand-asset renderer</title>
-  <link rel="stylesheet" href="../public/shared/fonts/orbitron.css">
+  <link rel="stylesheet" href="../public/shared/fonts/baloo2.css">
   <style>
     html, body { margin: 0; background: #06060f; }
     #stage { display: block; image-rendering: auto; }
@@ -15,14 +15,15 @@
   <script>
   'use strict';
   // ============================================================
-  // TV brand-asset renderer. The app icon is the "piece badge": the game's
-  // 'd' piece at grid rotation 5 (spine on the 30° diagonal, nub top-right)
-  // in the party colorway, drawn as in-game pillow cells over a flat brand
-  // plum, floating above a soft drop shadow. Cell render matches
-  // CanvasUtils._stampHexPillow 1:1 so the icon never drifts from the game.
+  // TV brand-asset renderer. The app icon is the brand triad: three flat-top
+  // pillow cells (teal top-left, red below, honey right) in the party colorway
+  // over a flat brand plum, floating above a soft drop shadow. It's the same
+  // canonical mark as the favicon (artwork/generate-favicon-svg.js) and the
+  // .brand-lockup wordmark; cell render matches CanvasUtils._stampHexPillow 1:1
+  // so the icon never drifts from the game.
   //
-  // Layers (for parallax): 'back'  = flat plum + the badge's drop shadow;
-  //                        'front' = the badge cells on transparency;
+  // Layers (for parallax): 'back'  = flat plum + the triad's drop shadow;
+  //                        'front' = the triad cells on transparency;
   //                        'flat'  = both (previews / single images).
   // window.renderHexBrandLayer(spec) -> PNG data URL (alpha preserved).
   // window.renderLauncherIcon(spec)  -> Android legacy launcher icon PNG.
@@ -80,65 +81,21 @@
   }
 
   // ============================================================
-  // The piece badge — 'd' at grid rotation 5 (server/Piece.js geometry).
-  // Cell order: left, center, bottom-right, top-nub. Party colorway from
-  // PARTY_PALETTE: magenta, teal, red, honey — kept in sync with the Android
-  // adaptive-icon / banner vectors via artwork/generate-android-vectors.js.
+  // The brand triad — three mutually-adjacent flat-top pillow cells (teal
+  // top-left, red below, honey right), the canonical mark shared with the
+  // favicon (artwork/generate-favicon-svg.js) and the .brand-lockup wordmark.
+  // Colors track PARTY_PALETTE slots 1/0/2 — kept in sync with the Android
+  // adaptive-icon vector via artwork/generate-android-vectors.js.
   // ============================================================
-  const BADGE_CELLS = [[-1, 0], [0, 0], [1, 0], [1, -1]];
+  const TRIAD_CELLS = [[0, 0], [0, 1], [1, 0]];
   const PAL = (typeof PARTY_PALETTE !== 'undefined') ? PARTY_PALETTE.slice() : [];
-  function badgeColors() {
-    return [PAL[5] || '#F178D8', PAL[1] || '#4ECDC4', PAL[0] || '#FF6B6B', PAL[2] || '#FFE066'];
+  function triadColors() {
+    return [PAL[1] || '#4ECDC4', PAL[0] || '#FF6B6B', PAL[2] || '#FFE066'];
   }
   function axialToOffset(q, r) { return { col: q, row: r + ((q - (q & 1)) >> 1) }; }
-  // Cell centers relative to the badge's bounding-box center (which is what
-  // gets pinned to the icon center — centroid centering reads off-balance
-  // because of the asymmetric nub).
-  function badgeCellCenters(s) {
-    const R = s * 0.95;
-    const pts = BADGE_CELLS.map(([q, r]) => {
-      const o = axialToOffset(q, r);
-      return [1.5 * s * o.col, SQRT3 * s * (o.row + 0.5 * (o.col & 1))];
-    });
-    const minX = Math.min(...pts.map((p) => p[0])) - R;
-    const maxX = Math.max(...pts.map((p) => p[0])) + R;
-    const minY = Math.min(...pts.map((p) => p[1])) - SQRT3 / 2 * R;
-    const maxY = Math.max(...pts.map((p) => p[1])) + SQRT3 / 2 * R;
-    const mx = (minX + maxX) / 2, my = (minY + maxY) / 2;
-    return pts.map(([x, y]) => [x - mx, y - my]);
-  }
-  function drawBadge(ctx, cx, cy, s, colors) {
-    const cols = colors || badgeColors();
-    badgeCellCenters(s).forEach(([x, y], i) => stampPillow(ctx, cx + x, cy + y, s * 0.95, cols[i]));
-  }
-  // Soft drop shadow below the badge — the floating-sticker depth cue. On
-  // tvOS it lives on the back layer so the piece hovers over it in parallax.
-  function drawBadgeShadow(ctx, cx, cy, s) {
-    ctx.save();
-    ctx.globalAlpha = 0.5;
-    ctx.filter = `blur(${s * 0.30}px)`;
-    ctx.fillStyle = '#0A0714';
-    for (const [x, y] of badgeCellCenters(s)) {
-      hexPathRounded(ctx, cx + x, cy + y + s * 0.22, s * 0.95, s * 0.95 * 0.18);
-      ctx.fill();
-    }
-    ctx.restore();
-  }
-
-  // Brand wordmark gradient — a diagonal 135° sweep across the wordmark BLOCK
-  // (both lines), mirroring .gradient-title (theme.css) as one cohesive run
-  // instead of restarting per line. Pass the block's bounding box.
-  function blockGradient(ctx, x0, y0, x1, y1) {
-    const g = ctx.createLinearGradient(x0, y0, x1, y1);
-    const stops = ['#FF6B6B', '#FF8C42', '#FFE066', '#7BED6F', '#4ECDC4', '#5B7FFF', '#A78BFA', '#F178D8'];
-    stops.forEach((c, i) => g.addColorStop(i / (stops.length - 1), c));
-    return g;
-  }
-
-  // --- Banner falling-piece motif (same pillow vocabulary as the badge) ---
-  function hexToRgba(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; }
-  // Centered cell layout for an arbitrary hex piece (axial cells) — the badge's
-  // badgeCellCenters generalized to any footprint.
+  // Centered cell layout for a hex piece (axial cells) — centers are relative
+  // to the piece's bounding-box center, which is what gets pinned to the icon
+  // center.
   function pieceCellCenters(cells, s) {
     const R = s * 0.95;
     const pts = cells.map(([q, r]) => { const o = axialToOffset(q, r); return [1.5 * s * o.col, SQRT3 * s * (o.row + 0.5 * (o.col & 1))]; });
@@ -147,32 +104,22 @@
     const my = (Math.min(...ys) - SQRT3 / 2 * R + Math.max(...ys) + SQRT3 / 2 * R) / 2;
     return pts.map(([x, y]) => [x - mx, y - my]);
   }
-  // Downward motion trail behind a falling piece — the social-preview streak.
-  function drawTrail(ctx, cx, yTop, yBot, w, color, alpha) {
+  function drawTriad(ctx, cx, cy, s, colors) {
+    const cols = colors || triadColors();
+    pieceCellCenters(TRIAD_CELLS, s).forEach(([x, y], i) => stampPillow(ctx, cx + x, cy + y, s * 0.95, cols[i]));
+  }
+  // Soft drop shadow below the triad — the floating-sticker depth cue. On
+  // tvOS it lives on the back layer so the mark hovers over it in parallax.
+  function drawTriadShadow(ctx, cx, cy, s) {
     ctx.save();
-    const g = ctx.createLinearGradient(0, yBot, 0, yTop);
-    g.addColorStop(0, hexToRgba(color, alpha)); g.addColorStop(1, hexToRgba(color, 0));
-    ctx.fillStyle = g; ctx.filter = `blur(${w * 0.22}px)`;
-    ctx.beginPath(); ctx.roundRect(cx - w / 2, yTop, w, yBot - yTop, w / 2); ctx.fill();
-    ctx.restore();
-  }
-  const BANNER_SHAPES = { tri: [[0, 0], [1, 0], [0, 1]], line: [[-1, 0], [0, 0], [1, 0]], ell: [[0, 0], [1, 0], [1, 1]], badge: BADGE_CELLS };
-  // One single-colour falling cluster + its trail.
-  function drawCluster(ctx, cx, cy, s, shape, color, alpha, trail, trailA) {
-    if (trail) drawTrail(ctx, cx, cy - trail, cy + s, s * 1.5, color, trailA);
-    ctx.save(); ctx.globalAlpha = alpha;
-    pieceCellCenters(BANNER_SHAPES[shape], s).forEach(([x, y]) => stampPillow(ctx, cx + x, cy + y, s * 0.95, color));
-    ctx.restore();
-  }
-  function fitFontSize(ctx, text, targetSize, maxWidth) {
-    let size = targetSize;
-    ctx.font = `900 ${size}px Orbitron, sans-serif`;
-    let safety = 120;
-    while (ctx.measureText(text).width > maxWidth && size > 8 && safety-- > 0) {
-      size = Math.max(8, size * 0.96);
-      ctx.font = `900 ${Math.round(size)}px Orbitron, sans-serif`;
+    ctx.globalAlpha = 0.5;
+    ctx.filter = `blur(${s * 0.30}px)`;
+    ctx.fillStyle = '#0A0714';
+    for (const [x, y] of pieceCellCenters(TRIAD_CELLS, s)) {
+      hexPathRounded(ctx, cx + x, cy + y + s * 0.22, s * 0.95, s * 0.95 * 0.18);
+      ctx.fill();
     }
-    return Math.round(size);
+    ctx.restore();
   }
 
   // Radial plum backdrop — used by the Top Shelf key art.
@@ -189,7 +136,7 @@
   // Icon layer renderer. spec = {
   //   w, h, layer: 'back'|'front'|'flat',
   //   bg: css color (back layer fill — flat brand plum),
-  //   badge: { nx, ny, sizeFrac, colors? }   nx/ny in 0..1; sizeFrac = s / h
+  //   mark: { nx, ny, sizeFrac, colors? }   nx/ny in 0..1; sizeFrac = s / h
   // }
   // ============================================================
   function renderHexBrandLayer(spec) {
@@ -198,15 +145,15 @@
     canvas.width = W; canvas.height = H;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, W, H);
-    const b = spec.badge;
+    const b = spec.mark;
     const cx = b.nx * W, cy = b.ny * H, s = b.sizeFrac * H;
     if (spec.layer === 'back' || spec.layer === 'flat') {
       ctx.fillStyle = spec.bg;
       ctx.fillRect(0, 0, W, H);
-      drawBadgeShadow(ctx, cx, cy, s);
+      drawTriadShadow(ctx, cx, cy, s);
     }
     if (spec.layer === 'front' || spec.layer === 'flat') {
-      drawBadge(ctx, cx, cy, s, b.colors);
+      drawTriad(ctx, cx, cy, s, b.colors);
     }
     return canvas.toDataURL('image/png');
   }
@@ -237,8 +184,8 @@
 
   // Android legacy launcher icon (pre-adaptive fallback mipmaps). Mirrors the
   // adaptive icon exactly: the ic_launcher_background.xml radial mapped to the
-  // 72dp visible crop of the 108dp grid, the badge at the adaptive foreground's
-  // size (cell s = 10.8dp of the 72dp crop), masked to the legacy shape. No
+  // 72dp visible crop of the 108dp grid, the triad at the adaptive foreground's
+  // size (cell s = 12dp of the 72dp crop), masked to the legacy shape. No
   // drop shadow — VectorDrawables can't blur, so the adaptive icon has none
   // and the raster fallbacks match it.
   // spec = { size, shape: 'square'|'round' } -> PNG data URL.
@@ -259,20 +206,19 @@
     g.addColorStop(1, '#15121F');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, N, N);
-    drawBadge(ctx, N / 2, N / 2, (10.8 / 72) * N);
+    drawTriad(ctx, N / 2, N / 2, (12 / 72) * N);
     ctx.restore();
     return canvas.toDataURL('image/png');
   }
   window.renderLauncherIcon = renderLauncherIcon;
 
   // Android TV leanback banner (16:9, rendered natively at every density).
-  // Google requires the logo with the app name, so this is the brand lockup in
-  // the social-preview family: a centred two-line Orbitron wordmark with one
-  // cohesive diagonal gradient (mirrors .gradient-title), on the plum radial,
-  // framed by scattered single-colour "falling" pieces + motion trails in the
-  // same pillow vocabulary as the app icon. All geometry is fractional so each
-  // density renders natively (never downscaled). Raster on purpose — the
-  // wordmark uses the real brand font a VectorDrawable can only approximate.
+  // Google requires the logo with the app name, so this is the brand lockup: a
+  // horizontal row of the triad mark beside the two-line "HEX"/"STACKER"
+  // wordmark in cream Baloo 2 (no gradient), centred as a unit on the plum
+  // radial. All geometry is fractional so each density renders natively (never
+  // downscaled). Raster on purpose — the wordmark uses the real brand font a
+  // VectorDrawable can only approximate.
   // spec = { w, h } -> PNG data URL.
   function renderBanner(spec) {
     const W = spec.w, H = spec.h;
@@ -284,36 +230,28 @@
     const bg = ctx.createRadialGradient(W / 2, H * 0.42, 0, W / 2, H * 0.5, RR);
     bg.addColorStop(0, '#2E2748'); bg.addColorStop(1, '#161226');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-    // Scattered falling pieces around the wordmark (fx, fy, fs as fractions of
-    // W/H; colours span PARTY_PALETTE).
-    const CLUSTERS = [
-      [0.10, 0.19, 0.045, 'ell',  PAL[3]],
-      [0.31, 0.13, 0.040, 'tri',  PAL[2]],
-      [0.70, 0.13, 0.040, 'line', PAL[5]],
-      [0.90, 0.18, 0.045, 'tri',  PAL[1]],
-      [0.11, 0.82, 0.045, 'badge', PAL[4]],
-      [0.33, 0.87, 0.040, 'tri',  PAL[7]],
-      [0.66, 0.86, 0.042, 'line', PAL[0]],
-      [0.89, 0.82, 0.045, 'ell',  PAL[6]],
-    ];
-    for (const [fx, fy, fs, shape, color] of CLUSTERS) {
-      drawCluster(ctx, fx * W, fy * H, fs * H, shape, color, 0.88, 0.16 * H, 0.42);
-    }
-    // Centred two-line wordmark, one diagonal gradient across the block.
-    ctx.save();
-    ctx.textAlign = 'center';
+    // Row lockup — triad mark + two-line cream wordmark, centred as one unit
+    // (proportions track the approved banner mockup, as fractions of banner
+    // height so every density renders natively).
+    const s = (19 / 180) * H;                  // triad cell size
+    const fontPx = Math.round((34 / 180) * H); // wordmark line size
+    const gap = (16 / 180) * H;                // mark → text gap
+    const markW = 1.5 * s + 2 * (s * 0.95);    // triad bounding-box width
+    ctx.font = `800 ${fontPx}px 'Baloo 2', sans-serif`;
     ctx.textBaseline = 'middle';
-    const size = fitFontSize(ctx, 'STACKER', 0.25 * H, 0.70 * W);
-    ctx.font = `900 ${size}px Orbitron, sans-serif`;
-    const step = size * 1.05, firstY = H / 2 - step / 2;
-    const blockW = ctx.measureText('STACKER').width;
-    const yT = firstY - size / 2, yB = firstY + step + size / 2;
-    ctx.shadowColor = 'rgba(0,0,0,0.55)';
-    ctx.shadowBlur = size * 0.14;
-    ctx.shadowOffsetY = Math.max(1, size * 0.04);
-    ctx.fillStyle = blockGradient(ctx, W / 2 - blockW / 2, yT, W / 2 + blockW / 2, yB);
-    ctx.fillText('HEX', W / 2, firstY);
-    ctx.fillText('STACKER', W / 2, firstY + step);
+    ctx.letterSpacing = `${fontPx * 0.06}px`;
+    const textW = Math.max(ctx.measureText('HEX').width, ctx.measureText('STACKER').width);
+    const x0 = (W - (markW + gap + textW)) / 2;
+    drawTriad(ctx, x0 + markW / 2, H / 2, s);
+    ctx.save();
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#F7F1E8';
+    ctx.shadowColor = 'rgba(0,0,0,0.45)';
+    ctx.shadowBlur = fontPx * 0.10;
+    ctx.shadowOffsetY = Math.max(1, fontPx * 0.03);
+    const textLeft = x0 + markW + gap, lineStep = fontPx * 1.02;
+    ctx.fillText('HEX', textLeft, H / 2 - lineStep / 2);
+    ctx.fillText('STACKER', textLeft, H / 2 + lineStep / 2);
     ctx.restore();
     return canvas.toDataURL('image/png');
   }

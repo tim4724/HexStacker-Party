@@ -4,7 +4,7 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { PARTY_PALETTE, PLAYER_COLORS } = require('../public/shared/theme.js');
+const { PARTY_PALETTE } = require('../public/shared/theme.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const THEME_CSS = fs.readFileSync(path.join(ROOT, 'public/shared/theme.css'), 'utf8');
@@ -40,14 +40,14 @@ describe('palette consistency — JS, CSS, and canvas agree', function () {
     );
   });
 
-  it('artwork/builder.html titleGradient() stops match PLAYER_COLORS spectrum order', function () {
-    const m = /function titleGradient\([\s\S]*?return g;\s*\}/.exec(BUILDER_HTML);
-    assert.ok(m, 'titleGradient() not found in builder.html');
-    const stops = m[0].match(/#[0-9a-fA-F]{6}/g) || [];
+  it('artwork/builder.html TRIAD_CELLS colors match the brand triad (teal, red, honey)', function () {
+    const m = /const TRIAD_CELLS = \[[\s\S]*?\];/.exec(BUILDER_HTML);
+    assert.ok(m, 'TRIAD_CELLS not found in builder.html');
+    const colors = m[0].match(/#[0-9a-fA-F]{6}/g) || [];
     assert.deepEqual(
-      stops.map(s => s.toUpperCase()),
-      PLAYER_COLORS.map(c => c.toUpperCase()),
-      'Canvas gradient stops must equal PLAYER_COLORS in order'
+      colors.map(s => s.toUpperCase()),
+      [PARTY_PALETTE[1], PARTY_PALETTE[0], PARTY_PALETTE[2]].map(c => c.toUpperCase()),
+      'Canvas triad cells must be palette teal, red, honey in draw order'
     );
   });
 });

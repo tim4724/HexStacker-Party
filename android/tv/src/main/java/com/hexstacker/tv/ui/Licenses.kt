@@ -64,12 +64,21 @@ private fun buildLicenseEntries(context: Context): List<LicenseEntry> {
         url = "https://creativecommons.org/licenses/by/3.0/",
         body = CC_BY_MUSIC,
     )
-    val font = LicenseEntry(
-        name = "Orbitron",
-        author = "The Orbitron Project Authors",
-        license = "SIL Open Font License 1.1",
-        url = "https://github.com/theleagueof/orbitron",
-        body = rawText(context, R.raw.license_ofl_1_1),
+    val fonts = listOf(
+        LicenseEntry(
+            name = "Baloo 2",
+            author = "Ek Type",
+            license = "SIL Open Font License 1.1",
+            url = "https://github.com/EkType/Baloo2",
+            body = rawText(context, R.raw.license_ofl_1_1),
+        ),
+        LicenseEntry(
+            name = "Orbitron",
+            author = "The Orbitron Project Authors",
+            license = "SIL Open Font License 1.1",
+            url = "https://github.com/theleagueof/orbitron",
+            body = rawText(context, R.raw.license_ofl_1_1),
+        ),
     )
     val quickJs = LicenseEntry(
         name = "QuickJS",
@@ -78,24 +87,24 @@ private fun buildLicenseEntries(context: Context): List<LicenseEntry> {
         url = "https://github.com/quickjs-ng/quickjs",
         body = rawText(context, R.raw.license_mit_quickjs),
     )
-    return assembleLicenseList(deps, music, font, quickJs)
+    return assembleLicenseList(deps, music, fonts, quickJs)
 }
 
 /**
  * Final display order for the Open Source Licenses screen: the app's most
- * audible/visible credits lead — [music] then [font] — followed by the Gradle
- * [deps] sorted alphabetically, with the bundled MIT QuickJS engine ([quickJs])
- * trailing. Pure (no Android context) so the ordering is unit-testable and the
- * screenshot fixture renders through the same code the app runs, rather than a
- * hand-copied order that can silently drift.
+ * audible/visible credits lead — [music] then the bundled [fonts] — followed
+ * by the Gradle [deps] sorted alphabetically, with the bundled MIT QuickJS
+ * engine ([quickJs]) trailing. Pure (no Android context) so the ordering is
+ * unit-testable and the screenshot fixture renders through the same code the
+ * app runs, rather than a hand-copied order that can silently drift.
  */
 internal fun assembleLicenseList(
     deps: List<LicenseEntry>,
     music: LicenseEntry,
-    font: LicenseEntry,
+    fonts: List<LicenseEntry>,
     quickJs: LicenseEntry,
 ): List<LicenseEntry> =
-    listOf(music, font) + deps.sortedBy { it.name.lowercase() } + quickJs
+    listOf(music) + fonts + deps.sortedBy { it.name.lowercase() } + quickJs
 
 /** Bundled full text for licenses the AboutLibraries report couldn't embed itself. */
 private fun fallbackBody(context: Context, licenseName: String?): String? {
