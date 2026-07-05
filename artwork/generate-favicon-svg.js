@@ -18,15 +18,20 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync, spawnSync } = require('child_process');
 const os = require('os');
-const { PIECE_COLORS } = require('../public/shared/theme.js');
+const { PARTY_PALETTE } = require('../public/shared/theme.js');
 
 const SQRT3 = Math.sqrt(3);
 
-// Single hex cell — the simplest possible read of "HexStacker" at favicon
-// sizes where multi-cell shapes muddy together. Color sourced from
-// PIECE_COLORS so it tracks the game palette.
-const CELLS = [[0, 0]];
-const PIECE_COLOR = PIECE_COLORS[1]; // I3 → PARTY_PALETTE[0] (red, #FF6B6B)
+// The brand-mark triad — three mutually adjacent cells (teal top-left, red
+// below it, honey right-center), the same canonical piece as the title
+// lockup. Also written to public/shared/brand-mark.svg so favicon and
+// lockup can never drift apart. Colors track the game palette; the
+// palette-consistency test asserts this cell order.
+const CELLS = [
+  { q: 0, r: 0, color: PARTY_PALETTE[1] }, // teal
+  { q: 0, r: 1, color: PARTY_PALETTE[0] }, // red
+  { q: 1, r: 0, color: PARTY_PALETTE[2] }, // honey
+];
 
 // Pillow-tier rendering constants (ported from CanvasUtils.js _stampHexPillow).
 const CORNER_FRAC       = 0.15;   // cornerR / circumradius
@@ -64,7 +69,7 @@ function roundedHexPath(cx, cy, r, cornerR) {
 
 function generateHexSVG() {
   const R = 10;            // hex circumradius used for layout math
-  const DRAW_R = R;        // no neighbor gap to reserve for a single-cell favicon
+  const DRAW_R = R * 0.94; // draw slightly small so adjacent cells keep a gap
   const cornerR   = DRAW_R * CORNER_FRAC;
   const lineInset = cornerR / SQRT3;
   const strokeW   = DRAW_R * SQRT3 * STROKE_FRAC;
@@ -73,7 +78,7 @@ function generateHexSVG() {
   // Flat-top layout: cx = 1.5 * R * q, cy = hexH * (r + q/2). Cells use the
   // full R for spacing but each hex is drawn at DRAW_R so adjacent cells have
   // a small gap between them (matches the game's blockGap).
-  const centers = CELLS.map(([q, r]) => [1.5 * R * q, hexH * (r + q / 2)]);
+  const centers = CELLS.map(({ q, r }) => [1.5 * R * q, hexH * (r + q / 2)]);
 
   const drawHexH = SQRT3 * DRAW_R;
   const allX = centers.flatMap(([cx]) => [cx - DRAW_R, cx + DRAW_R]);
@@ -109,7 +114,7 @@ function generateHexSVG() {
     const v1y = cy + DRAW_R * Math.sin(Math.PI / 3);
     const v2x = cx + DRAW_R * Math.cos(2 * Math.PI / 3);
     const v2y = cy + DRAW_R * Math.sin(2 * Math.PI / 3);
-    return `  <path d="${d}" fill="${PIECE_COLOR}"/>
+    return `  <path d="${d}" fill="${CELLS[i].color}"/>
   <path d="${d}" fill="url(#hl${i})"/>
   <line x1="${(v1x - lineInset).toFixed(3)}" y1="${v1y.toFixed(3)}" x2="${(v2x + lineInset).toFixed(3)}" y2="${v2y.toFixed(3)}" stroke="black" stroke-opacity="0.25" stroke-width="${strokeW.toFixed(3)}"/>`;
   }).join('\n');
@@ -182,9 +187,13 @@ async function generateICO(svgPath, icoPath) {
 const publicDir = path.resolve(__dirname, '..', 'public');
 const svgPath = path.resolve(publicDir, 'favicon.svg');
 const icoPath = path.resolve(publicDir, 'favicon.ico');
+const markPath = path.resolve(publicDir, 'shared', 'brand-mark.svg');
 
-fs.writeFileSync(svgPath, generateHexSVG());
+const svg = generateHexSVG();
+fs.writeFileSync(svgPath, svg);
 console.log(`Generated: ${path.relative(process.cwd(), svgPath)}`);
+fs.writeFileSync(markPath, svg);
+console.log(`Generated: ${path.relative(process.cwd(), markPath)}`);
 
 (async () => {
   if (await generateICO(svgPath, icoPath)) {
