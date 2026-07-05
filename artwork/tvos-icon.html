@@ -42,6 +42,33 @@
   const HEX_UNIT_VERTICES = [];
   for (let _i = 0; _i < 6; _i++) { const _a = Math.PI / 3 * _i; HEX_UNIT_VERTICES.push(Math.cos(_a), Math.sin(_a)); }
 
+  // Anti-banding dither. An 8-bit canvas quantizes the shallow dark-plum
+  // radials into visible bands; sub-LSB triangular-PDF noise before
+  // quantization dissolves them. Deterministic (hashed coords) so regenerated
+  // assets stay byte-stable, and RGB-only so pixels a clip left transparent
+  // (alpha 0) remain invisible.
+  function _hash01(a, b) {
+    let h = (a * 374761393 + b * 668265263) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  }
+  function ditherRect(ctx, x, y, w, h, amp) {
+    x = Math.max(0, Math.floor(x)); y = Math.max(0, Math.floor(y));
+    w = Math.min(ctx.canvas.width - x, Math.ceil(w));
+    h = Math.min(ctx.canvas.height - y, Math.ceil(h));
+    if (w <= 0 || h <= 0) return;
+    amp = amp == null ? 1 : amp;
+    const img = ctx.getImageData(x, y, w, h);
+    const d = img.data;
+    for (let p = 0, i = 0; p < w * h; p++, i += 4) {
+      const px = p % w, py = (p / w) | 0;
+      const n = (_hash01(px, py) + _hash01(px + 101, py + 911) - 1) * amp;
+      d[i] += n; d[i + 1] += n; d[i + 2] += n;
+    }
+    ctx.putImageData(img, x, y);
+  }
+
   function hexPathRounded(ctx, cx, cy, size, radius) {
     if (radius <= 0) { hexPath(ctx, cx, cy, size); return; }
     const V = HEX_UNIT_VERTICES;
@@ -132,21 +159,17 @@
     ctx.restore();
   }
 
-  // Radial plum backdrop — used by the Top Shelf key art.
-  function paintRadial(ctx, W, H) {
-    const R = Math.max(W, H) * 0.85;
-    const g = ctx.createRadialGradient(W/2, H*0.42, 0, W/2, H*0.5, R);
-    g.addColorStop(0, '#2E2748');
-    g.addColorStop(1, '#120F1C');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
-  }
-
   // ============================================================
   // Icon layer renderer. spec = {
   //   w, h, layer: 'back'|'front'|'flat',
   //   bg: css color (back layer fill — flat brand plum),
   //   mark: { nx, ny, sizeFrac, colors? }   nx/ny in 0..1; sizeFrac = s / h
+  //   wordmark?: [line, ...]   when present, a row lockup (triad + wordmark)
+  //     replaces the bare centered triad — used so the tvOS Home Screen (which
+  //     shows no app-name label) carries the brand name, mirroring the Android
+  //     TV leanback banner. The lockup is centred as a unit and auto-shrinks to
+  //     fit the icon safe zone; the triad + text sit on FRONT and float over
+  //     the triad's drop shadow on BACK in parallax.
   // }
   // ============================================================
   function renderHexBrandLayer(spec) {
@@ -156,6 +179,55 @@
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, W, H);
     const b = spec.mark;
+
+    if (spec.wordmark && spec.wordmark.length) {
+      const lines = spec.wordmark;
+      const cy = b.ny * H;
+      // Auto-fit: start from sizeFrac and shrink the whole lockup until it fits
+      // the safe width (leaves margin for the parallax shift on either side).
+      const targetW = W * 0.86;
+      const measure = (s) => {
+        const fontPx = s * 1.7;
+        ctx.font = `800 ${fontPx}px 'Baloo 2', sans-serif`;
+        ctx.letterSpacing = `${fontPx * 0.06}px`;
+        const textW = Math.max(...lines.map((t) => ctx.measureText(t).width));
+        const gap = s * 0.85;
+        const markW = 1.5 * s + 2 * (s * 0.95);
+        return { fontPx, gap, markW, textW, total: markW + gap + textW };
+      };
+      let s = b.sizeFrac * H;
+      let m = measure(s);
+      for (let i = 0; i < 200 && m.total > targetW && s > 4; i++) { s *= 0.97; m = measure(s); }
+      const x0 = (W - m.total) / 2;
+      const triadCx = x0 + m.markW / 2;
+
+      if (spec.layer === 'back' || spec.layer === 'flat') {
+        ctx.fillStyle = spec.bg;
+        ctx.fillRect(0, 0, W, H);
+        drawTriadShadow(ctx, triadCx, cy, s);
+      }
+      if (spec.layer === 'front' || spec.layer === 'flat') {
+        drawTriad(ctx, triadCx, cy, s, b.colors);
+        ctx.save();
+        ctx.font = `800 ${m.fontPx}px 'Baloo 2', sans-serif`;
+        ctx.letterSpacing = `${m.fontPx * 0.06}px`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#F7F1E8';
+        ctx.shadowColor = 'rgba(0,0,0,0.45)';
+        ctx.shadowBlur = m.fontPx * 0.10;
+        ctx.shadowOffsetY = Math.max(1, m.fontPx * 0.03);
+        // Optical nudge down: 'middle' centres the em box, whose descender slack
+        // sits below the all-caps mass, so the block reads high without it.
+        const capNudge = m.fontPx * 0.07;
+        const textLeft = x0 + m.markW + m.gap, lineStep = m.fontPx * 1.02;
+        const yTop = cy - ((lines.length - 1) * lineStep) / 2 + capNudge;
+        lines.forEach((t, i) => ctx.fillText(t, textLeft, yTop + i * lineStep));
+        ctx.restore();
+      }
+      return canvas.toDataURL('image/png');
+    }
+
     const cx = b.nx * W, cy = b.ny * H, s = b.sizeFrac * H;
     if (spec.layer === 'back' || spec.layer === 'flat') {
       ctx.fillStyle = spec.bg;
@@ -169,16 +241,19 @@
   }
   window.renderHexBrandLayer = renderHexBrandLayer;
 
-  // Top Shelf (the fullscreen showcase): contain-fit a gameplay banner onto the
-  // plum radial so the side margins blend with the banner's own dark-plum
-  // background. Rich key art belongs here per Apple's tvOS HIG. Returns a PNG.
+  // Top Shelf (the fullscreen showcase): contain-fit a gameplay banner onto a
+  // flat fill of the banner's own edge colour so the letterbox pillars are
+  // seamless with the art (the banner is a uniform var(--bg-primary) #1E1A2B to
+  // its edges — any gradient here would show a visible seam at the pillars).
+  // Rich key art belongs here per Apple's tvOS HIG. Returns a PNG.
   function renderTopShelf(spec) {
     return new Promise((resolve, reject) => {
       const W = spec.w, H = spec.h;
       const canvas = document.getElementById('stage');
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext('2d');
-      paintRadial(ctx, W, H);
+      ctx.fillStyle = '#1E1A2B';   // --bg-primary; matches gameplay-2x1.png edges
+      ctx.fillRect(0, 0, W, H);
       const img = new Image();
       img.onload = () => {
         const scale = Math.min(W / img.width, H / img.height);
@@ -216,6 +291,7 @@
     g.addColorStop(1, '#15121F');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, N, N);
+    ditherRect(ctx, 0, 0, N, N);
     // Round mask hides the bounding box, so center the mark on its mass (1.0);
     // square mask shows the box, so use the light nudge (0.35).
     const k = spec.shape === 'round' ? OPTICAL_K_ROUND : OPTICAL_K;
@@ -243,6 +319,7 @@
     const bg = ctx.createRadialGradient(W / 2, H * 0.42, 0, W / 2, H * 0.5, RR);
     bg.addColorStop(0, '#2E2748'); bg.addColorStop(1, '#161226');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    ditherRect(ctx, 0, 0, W, H);
     // Row lockup — triad mark + two-line cream wordmark, centred as one unit
     // (proportions track the approved banner mockup, as fractions of banner
     // height so every density renders natively).

@@ -3,14 +3,14 @@
 
 // Renders the layered tvOS App Icon (small + App Store) from the HexStacker
 // brand primitives (artwork/tvos-icon.html) and writes them into the tvOS asset
-// catalog. Per the tvOS HIG the icon is a single centered focal point with no
-// text (the shelf shows the app name itself): the brand triad — three party-
-// colorway pillow cells (teal/red/honey) — floating over a flat brand plum.
-// Two parallax layers: BACK (opaque plum + the triad's soft drop shadow),
-// FRONT (the triad on transparency), so the focus wobble makes the mark hover
-// above its own shadow. The triad is bounding-box centered at sizeFrac 0.20 —
-// inside the 370x222 safe zone (of 400x240) and legible at the 300x180
-// unfocused size. The gallery-artwork page reviews the assembled look by
+// catalog. Because the tvOS Home Screen shows no app-name label, the icon
+// carries the name itself (Apple's HIG allows this on tvOS): a row lockup of
+// the brand triad — three party-colorway pillow cells (teal/red/honey) — beside
+// a two-line "HEX"/"STACKER" cream wordmark, mirroring the Android TV leanback
+// banner. Two parallax layers: BACK (opaque plum + the triad's soft drop
+// shadow), FRONT (the triad + wordmark), so the focus wobble makes the lockup
+// hover above its shadow. The lockup auto-shrinks to fit the 370x222 safe zone
+// (of 400x240). The gallery-artwork page reviews the assembled look by
 // compositing these two shipped layers live in CSS (no baked preview PNGs).
 //
 //   node artwork/generate-tvos-icons.js
@@ -31,6 +31,11 @@ const XC = path.resolve(ROOT,
 const ICON = {
   bg: '#241E38',
   mark: { nx: 0.5, ny: 0.5, sizeFrac: 0.20 },
+  // The tvOS Home Screen draws no app-name label, so the icon carries the name
+  // itself (Apple's HIG explicitly allows this on tvOS): a triad + two-line
+  // cream wordmark lockup, mirroring the Android TV leanback banner. The lockup
+  // auto-shrinks to fit the safe zone.
+  wordmark: ['HEX', 'STACKER'],
 };
 
 function iconSpec(layer, w, h) {
@@ -63,6 +68,11 @@ async function writeDataUrl(dataUrl, dest) {
   const page = await browser.newPage();
   await page.goto(`file://${PAGE}`);
   await page.waitForFunction(() => window.__TVOS_READY__ === true);
+  // The wordmark lockup needs the brand font loaded before first paint.
+  await page.evaluate(async () => {
+    await document.fonts.load('800 100px "Baloo 2"');
+    await document.fonts.ready;
+  });
 
   const render = (spec) => page.evaluate((s) => window.renderHexBrandLayer(s), spec);
 

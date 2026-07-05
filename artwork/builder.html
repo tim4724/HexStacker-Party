@@ -733,7 +733,40 @@
   // ============================================================
   // Background styles (shared across templates)
   // ============================================================
+
+  // Anti-banding dither. An 8-bit canvas quantizes our shallow dark-plum
+  // radials into visible concentric bands. Adding sub-LSB triangular-PDF
+  // noise before quantization dissolves them (the same TPDF trick audio uses).
+  // Deterministic (hashed coords) so regenerated assets stay byte-stable, and
+  // RGB-only so pixels a clip left transparent (alpha 0) remain invisible.
+  function _hash01(a, b) {
+    let h = (a * 374761393 + b * 668265263) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  }
+  function ditherRect(ctx, x, y, w, h, amp) {
+    x = Math.max(0, Math.floor(x)); y = Math.max(0, Math.floor(y));
+    w = Math.min(ctx.canvas.width - x, Math.ceil(w));
+    h = Math.min(ctx.canvas.height - y, Math.ceil(h));
+    if (w <= 0 || h <= 0) return;
+    amp = amp == null ? 1 : amp;
+    const img = ctx.getImageData(x, y, w, h);
+    const d = img.data;
+    for (let p = 0, i = 0; p < w * h; p++, i += 4) {
+      const px = p % w, py = (p / w) | 0;
+      // Sum of two uniforms → triangular noise in [-amp, amp].
+      const n = (_hash01(px, py) + _hash01(px + 101, py + 911) - 1) * amp;
+      d[i] += n; d[i + 1] += n; d[i + 2] += n;
+    }
+    ctx.putImageData(img, x, y);
+  }
+
   function paintBackground(ctx, W, H, style) {
+    paintBackgroundBase(ctx, W, H, style);
+    if (style !== 'solid') ditherRect(ctx, 0, 0, W, H);
+  }
+  function paintBackgroundBase(ctx, W, H, style) {
     if (style === 'solid') {
       ctx.fillStyle = '#1E1A2B';
       ctx.fillRect(0, 0, W, H);
@@ -856,11 +889,15 @@
   // Draw the triad centered on (cx, cy) at the given overall pixel width.
   // Uses the pillow cell painter so the corner rounding + sheen match the
   // in-game Lv 6–10 cells and the favicon. Returns the mark's pixel height.
-  function drawTriadMark(ctx, cx, cy, markW) {
+  // opticalK slides the mark right toward its area centroid (0.5R) so the bright
+  // honey cell's rightward pull reads as centered — same nudge the app icons
+  // apply (0 = bbox-centered, 1 = centroid-centered). See tvos-icon.html.
+  function drawTriadMark(ctx, cx, cy, markW, opticalK) {
     const R = markW / TRIAD_W_R;
     const drawR = R * 0.94;   // gap between adjacent cells (matches favicon)
     const hexH = SQRT3 * R;
-    const offX = cx - TRIAD_CX_R * R;
+    const nudgeX = (opticalK || 0) * (TRIAD_CX_R - 0.5) * R;   // 0.5R = area centroid x
+    const offX = cx - TRIAD_CX_R * R + nudgeX;
     const offY = cy - TRIAD_CY_R * R;
     for (const c of TRIAD_CELLS) {
       const hx = offX + 1.5 * R * c.q;
@@ -950,17 +987,17 @@
       if (ctx.measureText(title).width <= maxW) break;
       size *= 0.96;
     }
-    const markW  = 1.35 * size;
+    const markW  = (params.markScale || 1.35) * size;
     const markH  = TRIAD_H_R * (markW / TRIAD_W_R);
     const mainCap = balooCapHeight(ctx, size, 800);
     const sub     = params.subtitle ? params.subtitle.toUpperCase() : '';
     const subSize = 0.42 * size;
     const subCap  = sub ? balooCapHeight(ctx, subSize, 600) : 0;
-    const gapMark = 0.32 * size;   // mark → wordmark (matches web 0.32em)
-    const gapSub  = 0.30 * size;   // wordmark → PARTY
+    const gapMark = (params.gapMark ?? 0.32) * size;   // mark → wordmark (web 0.32em)
+    const gapSub  = (params.gapSub ?? 0.30) * size;    // wordmark → PARTY
     const totalH  = markH + gapMark + mainCap + (sub ? gapSub + subCap : 0);
     const top     = cy - totalH / 2;
-    drawTriadMark(ctx, W / 2, top + markH / 2, markW);
+    drawTriadMark(ctx, W / 2, top + markH / 2, markW, params.markOpticalK);
     const mainBaseline = top + markH + gapMark + mainCap;
     drawBalooLine(ctx, title, W / 2, mainBaseline, size,
       { weight: 800, color: CREAM, ls: 0.06, align: 'center' });
@@ -989,6 +1026,11 @@
       title: 'HEX STACKER', subtitle: 'PARTY',
       subtitleColor: '#FFF3C2',
       showTitle: true, titleSize: 150, titleY: 512,
+      // Oversized triad mark leads the stacked lockup so the square store cover
+      // reads as the brand icon, not a small logo on empty gradient. markOpticalK
+      // slides the triad right toward its centroid (matches the app icons); the
+      // gaps give the enlarged mark room to breathe above the wordmark.
+      markScale: 2.6, markOpticalK: 0.4, gapMark: 0.8, gapSub: 0.32,
       pieces: [],
       selectedPiece: -1,
     },

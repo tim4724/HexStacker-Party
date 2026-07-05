@@ -4,9 +4,10 @@
 // Renders the tvOS Top Shelf images (the fullscreen showcase shown when the app
 // is focused on the Home screen) from the gameplay key art. Apple's tvOS HIG
 // wants rich, full-bleed key art here (vs a simple logo for the app icon), so
-// this uses artwork/gameplay-2x1.png contain-fit onto the brand plum radial —
-// the side margins blend into the banner's own dark-plum background, so it reads
-// edge-to-edge without cropping the boards/players. The app icon is produced
+// this uses artwork/gameplay-2x1.png contain-fit onto a flat fill of the banner's
+// own edge colour (--bg-primary), so the letterbox pillars are seamless with the
+// art and it reads edge-to-edge without cropping the boards/players. The app icon
+// is produced
 // separately by generate-tvos-icons.js.
 //
 //   node artwork/generate-tvos-topshelf.js
