@@ -30,11 +30,16 @@ enum TitleTexture {
         let mainBounds = mainStr.size()
         let subBounds = subStr.size()
 
-        // Text block: main over sub, left-aligned; the sub sits 0.1em (of its own
-        // size) below the wordmark (web .brand-lockup__sub margin-top: 0.1em).
+        // Text block: main over sub. Web crops Baloo's tall natural line box with
+        // `.brand-lockup { line-height: 1.1 }`; NSAttributedString.size() reports
+        // the *natural* box (~1.6em), so stacking the sub below it drops PARTY
+        // ~0.35em too far. Stack on 1.1em line boxes (with the sub's 0.1em-of-sub
+        // gap) and center each string's natural box inside its line box below.
         let subGap = subSize * 0.1
+        let mainLineH = mainSize * 1.1
+        let subLineH = subSize * 1.1
         let textW = max(mainBounds.width, subBounds.width)
-        let textH = mainBounds.height + subGap + subBounds.height
+        let textH = mainLineH + subGap + subLineH
 
         // Triad mark on the left; row gap 0.5em of the main size (.brand-lockup--row).
         // markW is the mark bbox width for the packing drawMark lays out (3.5R wide,
@@ -66,10 +71,16 @@ enum TitleTexture {
             let textTop = centerY - textH / 2
             // Center each line within the text block (web text-align: center);
             // the trailing kern after the last glyph is already inside size().
-            mainStr.draw(at: CGPoint(x: textLeft + (textW - mainBounds.width) / 2, y: textTop))
+            // The y offset centers the string's natural line box inside the 1.1em
+            // line box (CSS half-leading), so the baseline lands where the web's
+            // line-height:1.1 puts it and PARTY sits tight under the wordmark.
+            mainStr.draw(at: CGPoint(
+                x: textLeft + (textW - mainBounds.width) / 2,
+                y: textTop + (mainLineH - mainBounds.height) / 2
+            ))
             subStr.draw(at: CGPoint(
                 x: textLeft + (textW - subBounds.width) / 2,
-                y: textTop + mainBounds.height + subGap
+                y: textTop + mainLineH + subGap + (subLineH - subBounds.height) / 2
             ))
         }
     }

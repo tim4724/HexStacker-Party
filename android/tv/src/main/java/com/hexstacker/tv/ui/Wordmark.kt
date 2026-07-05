@@ -2,12 +2,14 @@ package com.hexstacker.tv.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.TextUnit
@@ -34,10 +37,23 @@ import kotlin.math.sqrt
  * [mainSize] is the "HEX STACKER" font size; the subtitle is 0.42em of it,
  * the mark is 1.7em tall, the mark/text gap is 0.5em.
  */
+// Web tightens the lockup with `.brand-lockup { line-height: 1.1 }`; CSS lets a
+// line box shrink below the font's natural metrics, but Compose's `lineHeight`
+// never shrinks below them (Baloo's natural box is ~1.6em), so LineHeightStyle
+// can't reproduce it. Instead we cap each line's box to 1.1em and let the taller
+// glyphs overflow centered — the same visual crop as CSS half-leading. Without
+// this the PARTY subtitle drops ~0.35em too far below the wordmark.
+private const val LINE_HEIGHT = 1.1f
+
+// includeFontPadding=false so the text box is exactly the font's ascent+descent,
+// keeping the glyphs centered symmetrically inside the capped 1.1em box.
+private val noFontPadding = PlatformTextStyle(includeFontPadding = false)
+
 @Composable
 fun Wordmark(mainSize: TextUnit, modifier: Modifier = Modifier) {
     val density = LocalDensity.current
     val mainDp = with(density) { mainSize.toDp() }
+    val subDp = mainDp * 0.42f // .brand-lockup__sub font-size 0.42em
     Row(
         modifier.offset(x = -mainDp * 0.4f),
         verticalAlignment = Alignment.CenterVertically,
@@ -45,29 +61,37 @@ fun Wordmark(mainSize: TextUnit, modifier: Modifier = Modifier) {
     ) {
         TriadMark(Modifier.size(mainDp * 1.7f))
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            androidx.compose.material3.Text(
-                text = stringResource(R.string.wordmark_main),
-                style = AppType.wordmarkMain.merge(
-                    TextStyle(
-                        color = Tokens.textPrimary,
-                        fontSize = mainSize,
-                        textAlign = TextAlign.Center,
+            Box(Modifier.height(mainDp * LINE_HEIGHT), contentAlignment = Alignment.Center) {
+                androidx.compose.material3.Text(
+                    text = stringResource(R.string.wordmark_main),
+                    modifier = Modifier.wrapContentHeight(unbounded = true),
+                    style = AppType.wordmarkMain.merge(
+                        TextStyle(
+                            color = Tokens.textPrimary,
+                            fontSize = mainSize,
+                            textAlign = TextAlign.Center,
+                            platformStyle = noFontPadding,
+                        ),
                     ),
-                ),
-            )
+                )
+            }
             // Web `.brand-lockup__sub { margin-top: 0.1em }` resolves against the
             // SUB's own font-size (0.42em of main) → 0.042 * mainSize.
             Spacer(Modifier.height((mainSize.value * 0.042f).dp))
-            androidx.compose.material3.Text(
-                text = stringResource(R.string.wordmark_sub),
-                style = AppType.wordmarkSub.merge(
-                    TextStyle(
-                        color = Tokens.partySubColor, // .brand-lockup__sub color #fff3c2
-                        fontSize = mainSize * 0.42f, // .brand-lockup__sub font-size 0.42em
-                        textAlign = TextAlign.Center,
+            Box(Modifier.height(subDp * LINE_HEIGHT), contentAlignment = Alignment.Center) {
+                androidx.compose.material3.Text(
+                    text = stringResource(R.string.wordmark_sub),
+                    modifier = Modifier.wrapContentHeight(unbounded = true),
+                    style = AppType.wordmarkSub.merge(
+                        TextStyle(
+                            color = Tokens.partySubColor, // .brand-lockup__sub color #fff3c2
+                            fontSize = mainSize * 0.42f, // .brand-lockup__sub font-size 0.42em
+                            textAlign = TextAlign.Center,
+                            platformStyle = noFontPadding,
+                        ),
                     ),
-                ),
-            )
+                )
+            }
         }
     }
 }
