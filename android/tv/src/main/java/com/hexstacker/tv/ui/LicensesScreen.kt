@@ -46,9 +46,9 @@ import com.hexstacker.tv.R
  * the lobby via [onClose].
  *
  * The prebuilt AboutLibraries Compose UI is a mobile/touch Material list, so this
- * renders its own list in the app's Orbitron/token design language instead, driven
+ * renders its own list in the app's brand/token design language instead, driven
  * by plain [LicenseEntry] data (see [rememberLicenseEntries]). Legal body text uses
- * a monospace family — a display font like Orbitron is unreadable at that length.
+ * a monospace family — display faces are unreadable at that length.
  *
  * Stateless: [entries] is supplied by the caller so screenshot tests can pass a
  * fixed fixture without loading the generated report.
@@ -93,7 +93,7 @@ fun LicensesScreen(
                 Text(
                     text = stringResource(R.string.licenses_back_hint),
                     style = AppType.musicCredit.copy(
-                        fontSize = vp.vhSp(14f, 2.5f, 18f),
+                        fontSize = vp.vhSp(18f, 3f, 21.3f),
                         color = Tokens.textFaint,
                     ),
                     modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),

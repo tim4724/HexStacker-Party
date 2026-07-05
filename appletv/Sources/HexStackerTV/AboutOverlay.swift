@@ -54,8 +54,8 @@ final class AboutOverlay {
         let hint = SKLabelNode()
         hint.horizontalAlignmentMode = .center
         hint.verticalAlignmentMode = .top
-        hint.setStyledText("Press Menu to return", font: AppFont.psName(.regular),
-                           size: max(20, min(playRect.height * 0.028, 27)),
+        hint.setStyledText("Press Menu to return", font: AppFont.brandRegular,
+                           size: max(22, min(playRect.height * 0.033, 32)),
                            color: SKTheme.textFaint, tracking: 0.02)
         hint.position = CGPoint(x: playRect.midX, y: playRect.maxY - margin)
         hint.zPosition = 1

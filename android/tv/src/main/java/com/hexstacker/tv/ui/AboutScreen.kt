@@ -68,7 +68,7 @@ fun AboutScreen(
             Text(
                 text = stringResource(R.string.licenses_back_hint),
                 style = AppType.musicCredit.copy(
-                    fontSize = vp.vhSp(14f, 2.5f, 18f),
+                    fontSize = vp.vhSp(18f, 3f, 21.3f),
                     color = Tokens.textFaint,
                 ),
                 modifier = Modifier.align(Alignment.TopCenter).padding(top = overscanV),

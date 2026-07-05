@@ -59,7 +59,7 @@ final class LicensesOverlay {
         let title = SKLabelNode()
         title.horizontalAlignmentMode = .left
         title.verticalAlignmentMode = .top
-        title.setStyledText("Open Source Licenses", font: AppFont.black,
+        title.setStyledText("Open Source Licenses", font: AppFont.brandExtraBold,
                             size: titleSize, color: SKTheme.textPrimary(), tracking: 0.08)
         title.position = CGPoint(x: playRect.minX, y: playRect.maxY - margin)
         title.zPosition = 1
@@ -68,8 +68,8 @@ final class LicensesOverlay {
         let hint = SKLabelNode()
         hint.horizontalAlignmentMode = .left
         hint.verticalAlignmentMode = .top
-        hint.setStyledText("Press Menu to return", font: AppFont.psName(.regular),
-                           size: max(20, min(playRect.height * 0.028, 27)),
+        hint.setStyledText("Press Menu to return", font: AppFont.brandRegular,
+                           size: max(22, min(playRect.height * 0.033, 32)),
                            color: SKTheme.textFaint, tracking: 0.02)
         hint.position = CGPoint(x: playRect.minX, y: title.position.y - title.frame.height - margin * 0.3)
         hint.zPosition = 1
@@ -116,7 +116,7 @@ final class LicensesOverlay {
             name.horizontalAlignmentMode = .left
             name.verticalAlignmentMode = .top
             name.zPosition = 1
-            name.setStyledText(e.name, font: AppFont.name, size: max(18, min(width * 0.015, 28)),
+            name.setStyledText(e.name, font: AppFont.brandBold, size: max(18, min(width * 0.015, 28)),
                                color: SKTheme.textPrimary(), tracking: 0.02)
             name.position = CGPoint(x: leftX + padX, y: inner)
             content.addChild(name)
@@ -125,7 +125,7 @@ final class LicensesOverlay {
             license.horizontalAlignmentMode = .right
             license.verticalAlignmentMode = .top
             license.zPosition = 1
-            license.setStyledText(e.license, font: AppFont.psName(.regular), size: max(13, min(width * 0.011, 20)),
+            license.setStyledText(e.license, font: AppFont.brandRegular, size: max(13, min(width * 0.011, 20)),
                                   color: SKTheme.textSecondary, tracking: 0.02)
             license.position = CGPoint(x: leftX + width - padX, y: inner)
             content.addChild(license)
@@ -136,7 +136,7 @@ final class LicensesOverlay {
             author.horizontalAlignmentMode = .left
             author.verticalAlignmentMode = .top
             author.zPosition = 1
-            author.setStyledText(e.author, font: AppFont.psName(.regular), size: max(12, min(width * 0.0095, 18)),
+            author.setStyledText(e.author, font: AppFont.brandRegular, size: max(12, min(width * 0.0095, 18)),
                                  color: SKTheme.textFaint, tracking: 0.02)
             author.position = CGPoint(x: leftX + padX, y: inner)
             content.addChild(author)
@@ -216,16 +216,17 @@ final class LicensesOverlay {
             Licensed under Creative Commons Attribution 3.0 Unported (CC BY 3.0)
             https://creativecommons.org/licenses/by/3.0/
             """),
-        Entry(
-            name: "Orbitron",
-            author: "The Orbitron Project Authors",
-            license: "SIL Open Font License 1.1",
-            body: orbitronOFL),
+        // Fonts alphabetically, matching the Android assembleLicenseList order.
         Entry(
             name: "Baloo 2",
             author: "Ek Type",
             license: "SIL Open Font License 1.1",
             body: balooOFL),
+        Entry(
+            name: "Orbitron",
+            author: "The Orbitron Project Authors",
+            license: "SIL Open Font License 1.1",
+            body: orbitronOFL),
         Entry(
             name: "WebRTC",
             author: "The WebRTC project authors, Google Inc.",

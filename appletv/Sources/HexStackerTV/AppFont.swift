@@ -56,4 +56,6 @@ enum AppFont {
     /// Brand voice (Baloo 2). Wordmark subtitle "PARTY", Game Music label
     /// (web weight 600).
     static let brandSemibold = balooName(.semibold)
+    /// Brand voice (Baloo 2). Back hints, license meta lines (web weight 400).
+    static let brandRegular = balooName(.regular)
 }
