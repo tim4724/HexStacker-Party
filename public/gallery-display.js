@@ -20,6 +20,7 @@ var DISPLAY_CARDS = [
   { key: 'disconnected',     title: 'Disconnected', hostVariant: true },
   { key: 'disconnected-controller', title: 'Disconnected (one controller)' },
   { key: 'results',          title: 'Results',      hostVariant: true },
+  { key: 'airconsole-results', title: 'Results (AirConsole)' },
   { key: 'privacy',          title: 'Privacy', staticPath: '/privacy' },
   { key: 'imprint',          title: 'Imprint', staticPath: '/imprint' }
 ];

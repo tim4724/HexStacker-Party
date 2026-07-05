@@ -425,6 +425,68 @@ function renderResults(results) {
   }
 }
 
+// --- Global Leaderboard Rendering ---
+// Mode-neutral DOM renderers for the #global-leaderboard panel on the results
+// screen. Driven by the AirConsole highscore flow (display-airconsole.js) in
+// phase 1; reusable by the normal-mode server board in phase 2. The panel and
+// its markup are inert until renderGlobalLeaderboard reveals it, so normal mode
+// (which never calls these) keeps the single-column results screen.
+
+// Render the top-N rows for a board and reveal the panel + two-column layout.
+// `entries`: [{ rank, name, scoreString, colorIndex? }]. A non-null colorIndex
+// marks one of this session's players — that row's rank + name are tinted in
+// their player color (mirroring the session cards) so they spot themselves on
+// the global board. `activeBoardKey`: 'all' | 'month'.
+function renderGlobalLeaderboard(entries, activeBoardKey) {
+  if (!globalLeaderboard || !globalLeaderboardList) return;
+  globalLeaderboardList.innerHTML = '';
+  for (var i = 0; i < (entries ? entries.length : 0); i++) {
+    var e = entries[i];
+    var li = document.createElement('li');
+    li.className = 'gl-row';
+    var color = (e.colorIndex != null && typeof PLAYER_COLORS !== 'undefined') ? PLAYER_COLORS[e.colorIndex] : null;
+
+    var rank = document.createElement('span');
+    rank.className = 'gl-rank';
+    rank.textContent = '#' + (e.rank != null ? e.rank : i + 1);
+    if (color) rank.style.color = color;
+
+    var name = document.createElement('span');
+    name.className = 'gl-name';
+    name.textContent = e.name || t('player');
+    if (color) name.style.color = color;
+
+    var score = document.createElement('span');
+    score.className = 'gl-score';
+    score.textContent = e.scoreString || '';
+
+    li.appendChild(rank);
+    li.appendChild(name);
+    li.appendChild(score);
+    globalLeaderboardList.appendChild(li);
+  }
+
+  if (activeBoardKey) {
+    var tabs = globalLeaderboard.querySelectorAll('.gl-tab');
+    for (var j = 0; j < tabs.length; j++) {
+      var tabActive = tabs[j].getAttribute('data-board') === activeBoardKey;
+      tabs[j].classList.toggle('is-active', tabActive);
+      tabs[j].setAttribute('aria-selected', tabActive ? 'true' : 'false');
+    }
+    // Point the tabpanel at the active tab for the ARIA tab pattern.
+    if (globalLeaderboardList) globalLeaderboardList.setAttribute('aria-labelledby', 'gl-tab-' + activeBoardKey);
+  }
+
+  globalLeaderboard.classList.remove('hidden');
+  if (resultsScreen) resultsScreen.classList.add('results-screen--has-global');
+}
+
+// Collapse the panel back to a single-column results screen.
+function hideGlobalLeaderboard() {
+  if (globalLeaderboard) globalLeaderboard.classList.add('hidden');
+  if (resultsScreen) resultsScreen.classList.remove('results-screen--has-global');
+}
+
 // --- Timer Rendering ---
 function drawTimer(elapsedMs) {
   var totalSeconds = Math.floor(elapsedMs / 1000);
