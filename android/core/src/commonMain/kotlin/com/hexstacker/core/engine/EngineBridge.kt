@@ -48,21 +48,27 @@ class EngineBridge private constructor(
             bundleJs: String,
             dispatcher: CoroutineDispatcher = Dispatchers.Default.limitedParallelism(1),
         ): EngineBridge {
-            val qjs = QuickJs.create(dispatcher)
-            try {
-                qjs.evaluate<Any?>(bundleJs)                          // -> globalThis.HexCore
-                qjs.evaluate<Any?>(EngineBootstrap.SHIM + "\nvoid 0;") // -> globalThis.Bridge
-                if (qjs.evaluate<String>("typeof HexCore.PartyCore") != "function") {
-                    throw EngineException.BridgeUnavailable
+            // Build + bootstrap the QuickJS runtime off the Main thread (on [dispatcher]); all
+            // later evaluate() calls hop here too (evalTyped/decode). The serial dispatcher + the
+            // instance Mutex serialize every call, and the 90 KB bundle parse no longer hitches
+            // the UI thread on the first match.
+            return withContext(dispatcher) {
+                val qjs = QuickJs.create(dispatcher)
+                try {
+                    qjs.evaluate<Any?>(bundleJs)                          // -> globalThis.HexCore
+                    qjs.evaluate<Any?>(EngineBootstrap.SHIM + "\nvoid 0;") // -> globalThis.Bridge
+                    if (qjs.evaluate<String>("typeof HexCore.PartyCore") != "function") {
+                        throw EngineException.BridgeUnavailable
+                    }
+                    if (qjs.evaluate<String>("typeof Bridge") != "object") {
+                        throw EngineException.BridgeUnavailable
+                    }
+                } catch (e: Throwable) {
+                    qjs.close()
+                    throw EngineException.wrap("bootstrap", e)
                 }
-                if (qjs.evaluate<String>("typeof Bridge") != "object") {
-                    throw EngineException.BridgeUnavailable
-                }
-            } catch (e: Throwable) {
-                qjs.close()
-                throw EngineException.wrap("bootstrap", e)
+                EngineBridge(qjs, dispatcher)
             }
-            return EngineBridge(qjs, dispatcher)
         }
     }
 
@@ -156,14 +162,14 @@ class EngineBridge private constructor(
 
     private suspend inline fun <reified T> evalTyped(label: String, code: String): T =
         try {
-            qjs.evaluate<T>(code)
+            withContext(dispatcher) { qjs.evaluate<T>(code) } // run QuickJS off the caller (Main) thread
         } catch (e: Throwable) {
             throw EngineException.wrap(label, e)
         }
 
     private suspend inline fun <reified T> decode(label: String, code: String): T {
         val json = try {
-            qjs.evaluate<String>(code)
+            withContext(dispatcher) { qjs.evaluate<String>(code) } // run QuickJS off the caller (Main) thread
         } catch (e: Throwable) {
             throw EngineException.wrap(label, e)
         }

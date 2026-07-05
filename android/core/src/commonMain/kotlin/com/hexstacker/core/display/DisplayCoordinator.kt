@@ -546,7 +546,14 @@ class DisplayCoordinator(
         if (flow.state != RoomState.PLAYING || paused) return
         val action = msg.action ?: return
         val input = InputAction.fromWire(action) ?: return
-        engine?.processInput(from, input)
+        val e = engine ?: return
+        e.processInput(from, input)
+        // Render-on-input: reflect the applied input on the very next vsync instead of
+        // waiting for the next frame() tick. snapshot() is a pure read (getSnapshot deep-copy,
+        // no time advance), so this only front-runs the VISUAL; this frame's events/commands
+        // (lock flash, garbage, sends) still flow on the next frame(). Guarded to PLAYING above.
+        val snap = try { e.snapshot() } catch (t: Throwable) { return }
+        output.renderSnapshot(snap)
     }
 
     private fun handleSetLevel(from: Int, msg: ControllerMessage) {
