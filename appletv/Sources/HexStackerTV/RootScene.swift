@@ -310,7 +310,10 @@ final class RootScene: SKScene, DisplayOutput {
     private func layoutLobbyGlow() {
         guard size.width > 0, size.height > 0 else { return }
         let d = max(size.width, size.height) * 1.15
-        lobbyGlow.texture = Self.radialTexture(color: SKTheme.accentPrimary, centerAlpha: 0.06)
+        if lobbyGlow.shader == nil {
+            lobbyGlow.texture = Self.glowUnit
+            lobbyGlow.shader = Self.glowShader(color: SKTheme.accentPrimary, centerAlpha: 0.06)
+        }
         lobbyGlow.size = CGSize(width: d, height: d)
         lobbyGlow.position = CGPoint(x: size.width / 2, y: size.height * 0.7)   // 30% from the top
     }
@@ -691,8 +694,7 @@ final class RootScene: SKScene, DisplayOutput {
 
         // Soft red radial glow behind the number (web radial-gradient tint).
         let glowD = min(size.width, size.height) * 0.7
-        let glow = SKSpriteNode(texture: Self.radialTexture(color: SKTheme.accentPrimary, centerAlpha: 0.08))
-        glow.size = CGSize(width: glowD, height: glowD)
+        let glow = Self.makeGlow(diameter: glowD, color: SKTheme.accentPrimary, centerAlpha: 0.08)
         glow.position = CGPoint(x: size.width / 2, y: size.height / 2)
         countdownLayer.addChild(glow)
 
@@ -705,24 +707,47 @@ final class RootScene: SKScene, DisplayOutput {
         countdownLayer.addChild(countdownNumber)
     }
 
-    /// Baked radial gradient (centerAlpha at center → transparent at edge). The caller
-    /// sizes the sprite; this bakes at a modest fixed resolution and lets the GPU's
-    /// bilinear magnification interpolate between the 8-bit alpha levels, which turns
-    /// the hard concentric steps (visible banding on the dark bg at a full-res bake)
-    /// into a continuous ramp.
-    private static func radialTexture(color: UIColor, centerAlpha: CGFloat) -> SKTexture {
-        let px: CGFloat = 256
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: px, height: px))
-        let image = renderer.image { rctx in
-            let cs = CGColorSpaceCreateDeviceRGB()
-            let colors = [color.withAlphaComponent(centerAlpha).cgColor, color.withAlphaComponent(0).cgColor] as CFArray
-            if let grad = CGGradient(colorsSpace: cs, colors: colors, locations: [0, 1]) {
-                rctx.cgContext.drawRadialGradient(grad, startCenter: CGPoint(x: px / 2, y: px / 2), startRadius: 0,
-                                                  endCenter: CGPoint(x: px / 2, y: px / 2), endRadius: px / 2, options: [])
-            }
-        }
-        return SKTexture(image: image)
+    /// A soft radial glow (centerAlpha at the center → transparent at the edge),
+    /// computed per-pixel by a shader rather than baked into a texture. A baked
+    /// gradient has to be magnified to full-screen, which turns CoreGraphics' fine
+    /// anti-band dither into coarse mottling ("dithering gone mad"); drawing it in a
+    /// shader runs at native resolution (no magnification, no visible grain) and adds
+    /// a ±0.5-LSB ordered dither so the very shallow ramp stays band-free on the dark
+    /// background. Color + center alpha are constant per glow, so they are baked into
+    /// the source string (no per-node uniforms needed).
+    private static func makeGlow(diameter d: CGFloat, color: UIColor, centerAlpha: CGFloat) -> SKSpriteNode {
+        let node = SKSpriteNode(texture: Self.glowUnit)
+        node.size = CGSize(width: d, height: d)
+        node.shader = Self.glowShader(color: color, centerAlpha: centerAlpha)
+        return node
     }
+
+    private static func glowShader(color: UIColor, centerAlpha: CGFloat) -> SKShader {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        color.getRed(&r, green: &g, blue: &b, alpha: &a)
+        func f(_ v: CGFloat) -> String { String(format: "%.6f", Double(v)) }
+        // v_tex_coord spans 0..1 across the sprite; center at 0.5. The ramp is linear
+        // in radius (matching the old CGGradient), zero past the inscribed circle.
+        // gl_FragColor is premultiplied (SpriteKit's .alpha blend expects that).
+        let src = """
+        void main() {
+            vec2 p = (v_tex_coord - 0.5) * 2.0;
+            float alpha = \(f(centerAlpha)) * clamp(1.0 - length(p), 0.0, 1.0);
+            float n = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
+            alpha = max(0.0, alpha + (n - 0.5) * 0.003921569);
+            gl_FragColor = vec4(\(f(r)), \(f(g)), \(f(b)), 1.0) * alpha;
+        }
+        """
+        return SKShader(source: src)
+    }
+
+    /// Opaque 2×2 white stand-in so the glow sprite has a texture to give the shader a
+    /// `v_tex_coord`; the shader never samples it (it computes the color from scratch).
+    private static let glowUnit: SKTexture = {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 2, height: 2))
+        let image = renderer.image { ctx in UIColor.white.setFill(); ctx.fill(CGRect(x: 0, y: 0, width: 2, height: 2)) }
+        return SKTexture(image: image)
+    }()
 
     private func buildPauseOverlay() {
         pauseLayer.zPosition = 90
@@ -1215,8 +1240,7 @@ final class RootScene: SKScene, DisplayOutput {
             // center) and alpha (0.08) so the glow is as contained + faint as the browser's,
             // not a broad wash over the whole screen.
             let d = 1.2 * hypot(W / 2, H * 0.7)
-            let glow = SKSpriteNode(texture: Self.radialTexture(color: SKTheme.player(slot: slot), centerAlpha: 0.08))
-            glow.size = CGSize(width: d, height: d)
+            let glow = Self.makeGlow(diameter: d, color: SKTheme.player(slot: slot), centerAlpha: 0.08)
             glow.position = CGPoint(x: W / 2, y: H * 0.70)   // web --winner-glow at 50% 30%
             // Behind the rows + buttons (z0). Without this it shares z0 with them
             // and, under ignoresSiblingOrder, paints OVER the opaque cards — tinting
