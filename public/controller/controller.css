@@ -6,6 +6,11 @@
 
 :root {
   --app-height: 100dvh;
+  /* Optical-centering bias for the menu-type screens (name, lobby, color
+     picker, results). Applied as bottom padding on the centering containers,
+     it lifts the vertically-centered content by ~half this value so it sits
+     a touch above dead-center — geometric centering reads as slightly low. */
+  --content-lift: clamp(40px, 7vh, 64px);
 }
 
 html, body {
@@ -65,6 +70,8 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  /* Bias the centered column upward — see --content-lift. */
+  padding-bottom: var(--content-lift);
 }
 
 .controller-shell__brand {
@@ -397,6 +404,10 @@ html, body {
 #color-picker-overlay {
   z-index: 20;
   gap: 14px;
+  /* Lift the title + rose above dead-center to match the shell screens.
+     Extra bottom padding on top of .game-overlay's safe-area inset; the
+     close button is position:absolute so it stays anchored top-right. */
+  padding-bottom: calc(var(--safe-bottom) + 16px + var(--content-lift));
   /* Drive open/close fade off the .hidden toggle. animation:none
      overrides .game-overlay's fadeIn keyframe so the transition below
      is the only opacity controller. */

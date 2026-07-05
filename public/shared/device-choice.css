@@ -223,12 +223,12 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
   border-radius: var(--radius-md);
   /* Symmetric padding so URL + subtitle stay horizontally centered across
      the full banner width; the share icon floats on top at the right edge. */
-  padding: 14px 16px;
+  padding: 9px 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  line-height: 1.25;
+  gap: 0;
+  line-height: 1.15;
   font: inherit;
   cursor: pointer;
   position: relative;
@@ -289,21 +289,16 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
   opacity: 0.85;
 }
 
-/* Subtitle voice: Orbitron small-caps with wide tracking — matches the
-   "button label" treatment used on .btn elsewhere (uppercase + letter-
-   spacing), just smaller. Drops the italic that felt out-of-vocabulary
-   on a button surface. */
 .device-choice__banner-sub {
   font-family: var(--font-brand);
-  font-size: clamp(0.64rem, 2.5vw, 0.72rem);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  /* rgba fallback for browsers without color-mix() support. Tuned to
-     --btn-primary-text (plum-dark #1E1A2B) at ~72% alpha. */
-  color: rgba(30, 26, 43, 0.72);
-  color: color-mix(in srgb, var(--btn-primary-text) 72%, transparent);
-  margin-top: 2px;
+  /* Sentence-case, tight-tracked and full-strength: the earlier uppercase +
+     wide-tracking + tiny/faded treatment read as an illegible smear against
+     the coral gradient. Legibility wins over the "small-caps label" voice. */
+  font-size: clamp(1.15rem, 4.6vw, 1.3rem);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--btn-primary-text);
+  margin-top: 0;
 }
 
 /* --- Continue on this device: understated link-style fallback. No button
@@ -373,7 +368,7 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
   }
   .device-choice__chips { display: none; }
   .device-choice__screenshot { max-height: 45vh; }
-  .device-choice__banner { padding: 10px 14px; }
+  .device-choice__banner { padding: 7px 14px; }
 }
 
 /* Very tight (~≤460px): drop the screenshot too — banner + link + title
