@@ -30,14 +30,13 @@ describe('palette consistency — JS, CSS, and canvas agree', function () {
     assert.equal(readVar(THEME_CSS, '--accent-secondary-rgb'), hexToRgbTuple(PARTY_PALETTE[7]));
   });
 
-  it('.gradient-title gradient stops match PLAYER_COLORS spectrum order', function () {
-    const m = /\.gradient-title\s*\{[^}]*?linear-gradient\([^)]+\)/.exec(THEME_CSS);
-    assert.ok(m, '.gradient-title rule with linear-gradient not found');
-    const stops = m[0].match(/#[0-9a-fA-F]{6}/g) || [];
+  it('brand-mark.svg triad cells are drawn from PARTY_PALETTE (teal, red, honey)', function () {
+    const svg = fs.readFileSync(path.join(ROOT, 'public/shared/brand-mark.svg'), 'utf8');
+    const fills = [...svg.matchAll(/fill="(#[0-9a-fA-F]{6})"/g)].map(m => m[1].toUpperCase());
     assert.deepEqual(
-      stops.map(s => s.toUpperCase()),
-      PLAYER_COLORS.map(c => c.toUpperCase()),
-      'CSS gradient stops must equal PLAYER_COLORS in order'
+      fills,
+      [PARTY_PALETTE[1], PARTY_PALETTE[0], PARTY_PALETTE[2]].map(c => c.toUpperCase()),
+      'brand-mark cells must be palette teal, red, honey in draw order'
     );
   });
 

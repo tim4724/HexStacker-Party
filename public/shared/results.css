@@ -59,7 +59,7 @@
    readable when no player color is available. --- */
 
 .result-rank {
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-hud);
   font-weight: 900;
   letter-spacing: -0.02em;
   flex-shrink: 0;
@@ -74,5 +74,5 @@
 /* --- Name --- */
 
 .result-name {
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
 }

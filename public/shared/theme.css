@@ -52,6 +52,19 @@
   --text-secondary: rgba(247, 241, 232, 0.65);
   --text-faint: rgba(247, 241, 232, 0.4);
 
+  /*
+   * Type roles
+   *
+   * --font-brand: identity voice — title lockup, buttons, headings, menu
+   *   and settings text. Baloo 2 (self-hosted, latin/latin-ext); Cyrillic/
+   *   CJK locales fall back to the system stack, same coverage as Orbitron.
+   * --font-hud: scoreboard voice — timers, counters, in-game labels, room
+   *   codes/URLs (Orbitron's unambiguous 0/O matters there) and technical
+   *   chrome. Canvas text (CanvasUtils.getGameFont) is the same voice.
+   */
+  --font-brand: 'Baloo 2', system-ui, -apple-system, sans-serif;
+  --font-hud: 'Orbitron', sans-serif;
+
   /* Semantic */
   --danger: #ff4444;
   --border: rgba(255, 248, 236, 0.08);
@@ -97,7 +110,7 @@
 .btn {
   border: none;
   border-radius: var(--radius-md);
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   font-weight: 700;
   text-transform: uppercase;
   cursor: pointer;
@@ -212,7 +225,7 @@
   background: var(--bg-card-soft);
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -233,7 +246,7 @@
   padding: 14px 18px;
   font-size: 16px;
   color: var(--text-primary);
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   font-weight: 500;
   outline: none;
   width: 100%;
@@ -288,7 +301,7 @@
   border-radius: var(--radius-md);
   background: var(--bg-card);
   border: 2px solid var(--player-color, var(--border-strong));
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   font-weight: 600;
   letter-spacing: 0.05em;
   color: var(--player-color, var(--text-primary));
@@ -326,7 +339,7 @@
   width: 100%;
   padding: 0 clamp(8px, 1.4vmin, 14px);
   position: relative;
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   gap: clamp(0.4rem, 0.7vmin, 0.65rem);
 }
 
@@ -348,7 +361,7 @@
   min-width: 0;
   max-width: 100%;
   text-align: center;
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   font-weight: 800;
   font-size: clamp(1.5rem, 4vmin, 1.7rem);
   letter-spacing: 0.04em;
@@ -365,31 +378,33 @@
    defensive against future rules that read --player-color on empty cards. */
 .player-card.empty { --player-color: initial; }
 
-/* HEX STACKER wordmark — full 8-stop sweep across the party palette in
-   PLAYER_COLORS spectrum order (red → tangerine → honey → mint → teal →
-   indigo → violet → magenta). Mirrored by titleGradient() in
-   artwork/builder.html for canvas-rendered PNGs. */
-.gradient-title {
-  font-family: 'Orbitron', sans-serif;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  background: linear-gradient(135deg, #FF6B6B, #FF8C42, #FFE066, #7BED6F, #4ECDC4, #5B7FFF, #A78BFA, #F178D8);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  color: transparent; /* Firefox: supports background-clip:text but not -webkit-text-fill-color */
+/* HEX STACKER lockup — triad mark (shared/brand-mark.svg: teal/red/honey
+   cells from the party palette) above a single-color wordmark. The palette
+   lives in the mark now, not the letters. Sizing comes from each context
+   (#welcome-screen h1, #lobby-screen h1, .controller-shell__title, ...);
+   the mark and subtitle scale with the h1 font-size via em units. */
+.brand-lockup {
+  font-family: var(--font-brand);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--text-primary);
 }
 
-.gradient-title__sub {
+.brand-lockup__mark {
+  display: block;
+  width: 1.35em;
+  height: auto;
+  margin: 0 auto 0.32em;
+}
+
+.brand-lockup__sub {
   display: block;
   font-size: 0.42em;
   font-weight: 600;
   letter-spacing: 0.35em;
   margin-top: 0.25em;
   text-transform: uppercase;
-  /* Opt out of the parent's background-clip:text trick so the subtitle renders.
-     Color matches the social-preview PARTY subtitle (artwork/builder.html). */
-  -webkit-text-fill-color: currentColor;
+  /* Matches the social-preview PARTY subtitle (artwork/builder.html). */
   color: #fff3c2;
 }
 
@@ -457,7 +472,7 @@
 }
 
 .game-overlay h1 {
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   font-size: clamp(1.3rem, 6vw, 1.8rem);
   font-weight: 900;
   letter-spacing: 0.15em;

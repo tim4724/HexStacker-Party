@@ -188,7 +188,7 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
 .device-choice__chips li { --chip-accent: var(--text-primary); }
 
 .device-choice__chips strong {
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   font-weight: 900;
   font-size: clamp(1rem, 4.2vw, 1.2rem);
   letter-spacing: 0.02em;
@@ -200,7 +200,7 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
    subordinate to the accent-colored hero above, same typographic family
    so the chip has one voice, not two. */
 .device-choice__chips span {
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   font-size: clamp(0.6rem, 2.5vw, 0.7rem);
   font-weight: 500;
   color: var(--text-secondary);
@@ -262,7 +262,7 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
 }
 
 .device-choice__banner-url {
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   font-weight: 700;
   font-size: clamp(1.15rem, 5.4vw, 1.42rem);
   /* URLs read better tight-tracked — users scan them as a whole word,
@@ -294,7 +294,7 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
    spacing), just smaller. Drops the italic that felt out-of-vocabulary
    on a button surface. */
 .device-choice__banner-sub {
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   font-size: clamp(0.64rem, 2.5vw, 0.72rem);
   font-weight: 500;
   text-transform: uppercase;
@@ -344,7 +344,7 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
   background: var(--bg-card-soft);
   border: 1px solid var(--border);
   color: var(--text-secondary);
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   font-size: 0.85rem;
   font-weight: 500;
   letter-spacing: 0.06em;

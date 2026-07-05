@@ -53,7 +53,7 @@ html, body {
   position: absolute;
   top: clamp(1rem, 2.5vh, 1.5rem);
   right: clamp(1rem, 2vw, 2rem);
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-hud);
   font-size: clamp(11px, 1.3vw, 14px);
   font-weight: 600;
   letter-spacing: 0.14em;
@@ -254,7 +254,7 @@ html:not(.in-session) #relay-status-bar { display: none; }
   align-items: center;
   gap: 6px;
   color: var(--text-secondary);
-  font-family: 'Orbitron', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-hud);
   font-size: clamp(11px, 1.3vw, 13px);
   letter-spacing: 0.08em;
   opacity: 0.85;
@@ -275,7 +275,7 @@ html:not(.in-session) #relay-status-bar { display: none; }
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.85);
   color: var(--text-primary);
-  font-family: 'Orbitron', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-hud);
   font-size: 11px;
   letter-spacing: 0.06em;
   white-space: nowrap;
@@ -410,7 +410,7 @@ html:not(.in-session) #relay-status-bar { display: none; }
   color: var(--text-faint);
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -427,7 +427,7 @@ html:not(.in-session) #relay-status-bar { display: none; }
   align-self: stretch;
   gap: 0;
   margin: 0;
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-hud);
   line-height: 1.2;
   max-width: 100%;
   padding: clamp(4px, 1vmin, 8px) clamp(8px, 1.5vmin, 14px);
@@ -456,7 +456,7 @@ html:not(.in-session) #relay-status-bar { display: none; }
   padding: 4px 10px;
   background: var(--accent-secondary);
   color: var(--bg-primary);
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-hud);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -641,7 +641,7 @@ body.airconsole #qr-container,
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-hud);
   font-size: clamp(6rem, 15vh, 14rem);
   font-weight: 900;
   letter-spacing: 0.05em;

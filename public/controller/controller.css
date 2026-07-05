@@ -227,7 +227,7 @@ html, body {
   border: 1.5px solid var(--border);
   background: var(--bg-card);
   color: var(--text-primary);
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   font-size: clamp(1.1rem, 5vw, 1.4rem);
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -322,7 +322,7 @@ html, body {
 }
 
 #level-selector .level-heading {
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   /* Larger floor than display's .card-level__heading clamp — phones
      pin to the floor (vmin ≈ vw is small in portrait), so the floor is
      what's actually rendered on a controller. */
@@ -337,7 +337,7 @@ html, body {
 }
 
 #level-display {
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   /* Larger floor than display's .card-level__value clamp — see note on
      .level-heading above. */
   font-size: clamp(1.05rem, 4.5vmin, 1.35rem);
@@ -446,7 +446,7 @@ html, body {
 }
 
 .picker-rose__title {
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   font-size: clamp(1rem, 4.5vw, 1.3rem);
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -599,14 +599,14 @@ html, body {
 }
 
 #waiting-action-text {
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   animation: fadeUp 0.5s 0.35s ease-out both;
 }
 
 #status-text,
 #name-status-text,
 #room-gone-heading {
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   font-size: clamp(1.2rem, 5.8vw, 1.85rem);
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -666,7 +666,7 @@ html, body {
 }
 
 .game-name-label {
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-hud);
   font-weight: 700;
   font-size: clamp(1rem, 5vw, 1.3rem);
   letter-spacing: 0.05em;
@@ -709,7 +709,7 @@ html, body {
 }
 
 .hint-bar-item__verb {
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-hud);
   font-size: clamp(0.6rem, 3.2vw, 0.75rem);
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -778,7 +778,7 @@ html, body {
   position: absolute;
   top: 10px;
   left: 12px;
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-hud);
   font-size: clamp(0.55rem, 2.5vw, 0.65rem);
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -834,7 +834,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   font-size: clamp(4rem, 20vw, 6rem);
   font-weight: 900;
   color: rgba(255, 255, 255, 0.25);
@@ -955,7 +955,7 @@ html, body {
 /* Latency indicator (one-way; RTT/2) */
 .latency-display {
   font-size: 0.7rem;
-  font-family: 'Orbitron', monospace;
+  font-family: var(--font-hud);
   opacity: 0.5;
   display: inline-flex;
   align-items: center;
@@ -1018,7 +1018,7 @@ html, body {
 }
 
 #settings-overlay h1 {
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   font-size: clamp(1.2rem, 5vw, 1.5rem);
   font-weight: 900;
   letter-spacing: 0.15em;
@@ -1040,7 +1040,7 @@ html, body {
 }
 
 .settings-row__label {
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: 0.05em;
@@ -1129,7 +1129,7 @@ html, body {
   border: none;
   background: transparent;
   color: var(--text-secondary);
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.05em;
@@ -1228,7 +1228,7 @@ html, body {
   font-size: 0.78rem;
   color: var(--text-secondary);
   letter-spacing: 0.06em;
-  font-family: 'Orbitron', sans-serif;
+  font-family: var(--font-brand);
   margin-top: -4px;
   opacity: 0.7;
 }
@@ -1668,7 +1668,7 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
     top: 16px;
     left: 50%;
     transform: translateX(-50%);
-    font-family: 'Orbitron', sans-serif;
+    font-family: var(--font-hud);
     font-weight: 700;
     font-size: clamp(1rem, 5vw, 1.3rem);
     letter-spacing: 0.05em;

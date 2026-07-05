@@ -18,6 +18,7 @@
   <meta name="twitter:description" content="Multiplayer hex stacker — phones become controllers, a shared screen shows the action.">
   <meta name="twitter:image" content="https://hexstacker.com/artwork/social-preview.png">
   <link rel="stylesheet" href="/shared/fonts/orbitron.css?v=__APP_V__">
+  <link rel="stylesheet" href="/shared/fonts/baloo2.css?v=__APP_V__">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="32x32">
   <link rel="stylesheet" href="/shared/theme.css?v=__APP_V__">
@@ -42,7 +43,7 @@
   <div class="device-choice hidden" id="device-choice" role="dialog" aria-labelledby="device-choice-title">
     <div class="device-choice__intro">
       <div class="device-choice__brand">
-        <h1 id="device-choice-title" class="gradient-title">HEX STACKER<span class="gradient-title__sub">party</span></h1>
+        <h1 id="device-choice-title" class="brand-lockup"><img class="brand-lockup__mark" src="/shared/brand-mark.svg" alt="">HEX STACKER<span class="brand-lockup__sub">party</span></h1>
       </div>
       <div class="device-choice__hero">
         <picture>
@@ -84,7 +85,7 @@
   <!-- Welcome screen: unlocks audio via user gesture -->
   <div id="welcome-screen" class="screen">
     <span id="welcome-version-label"></span>
-    <h1 class="gradient-title">HEX STACKER<span class="gradient-title__sub">party</span></h1>
+    <h1 class="brand-lockup"><img class="brand-lockup__mark" src="/shared/brand-mark.svg" alt="">HEX STACKER<span class="brand-lockup__sub">party</span></h1>
     <div id="welcome-actions">
       <button id="new-game-btn" class="btn btn-primary" data-i18n="start_new_game">START NEW GAME</button>
       <button id="watch-trailer-btn" type="button" class="watch-trailer-btn" data-i18n-aria-label="watch_trailer" aria-label="Watch trailer">
@@ -128,7 +129,7 @@
   <!-- Lobby screen: QR code + player list + start button -->
   <div id="lobby-screen" class="screen hidden">
     <span id="lobby-version-label"></span>
-    <h1 class="gradient-title">HEX STACKER<span class="gradient-title__sub">party</span></h1>
+    <h1 class="brand-lockup"><img class="brand-lockup__mark" src="/shared/brand-mark.svg" alt="">HEX STACKER<span class="brand-lockup__sub">party</span></h1>
     <div id="lobby-body">
       <div id="qr-container">
         <canvas id="qr-code"></canvas>
