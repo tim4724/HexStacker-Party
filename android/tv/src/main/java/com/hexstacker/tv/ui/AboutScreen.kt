@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.hexstacker.core.render.Theme
 import com.hexstacker.tv.R
 
 // The web legal pages the About screen points phones at. The game is played on
@@ -58,8 +59,9 @@ fun AboutScreen(
     Box(modifier.fillMaxSize().background(Tokens.bgPrimary)) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val vp = Vp(maxWidth.value, maxHeight.value)
-            val overscanH = (vp.wDp * 0.05f).dp // TV title-safe ~5% each edge
-            val overscanV = (vp.hDp * 0.05f).dp
+            val overscan = Theme.Size.tvOverscan.toFloat() // TV title-safe, each edge
+            val overscanH = (vp.wDp * overscan).dp
+            val overscanV = (vp.hDp * overscan).dp
             // Card width / gaps mirror the tvOS AboutOverlay metrics (cardW 320px,
             // row gap 96px, cluster gap ~58px at 1080p) so the two TV ports align.
             val cardW = vp.vminDp(180f, 30f, 213.3f)

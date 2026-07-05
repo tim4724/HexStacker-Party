@@ -77,17 +77,14 @@ final class RootScene: SKScene, DisplayOutput {
     // newly arriving players, not on every roster rebuild.
     private var lobbyKnownPlayers: Set<Int> = []
 
-    // tvOS overscan / title-safe area (system reports ≈60pt top/bottom, 80pt
-    // left/right). We inset to a fraction of it: the full safe area leaves the
-    // boards noticeably smaller than the web, so we use half — bigger boards,
-    // still a margin against typical overscan. Raise toward 1.0 for more safety,
-    // lower toward 0 to match the web edge-to-edge.
-    private let overscanScale: CGFloat = 0.5
+    // tvOS overscan / title-safe area. Honor the full system-reported safe-area
+    // insets per Apple's HIG (≈60pt top/bottom, 80pt left/right on 1080p); content
+    // lays out inside playRect while full-bleed backgrounds still fill `size`.
     private var safe = UIEdgeInsets.zero
     private var playRect: CGRect {
-        let l = safe.left * overscanScale, r = safe.right * overscanScale
-        let t = safe.top * overscanScale, b = safe.bottom * overscanScale
-        return CGRect(x: l, y: b, width: max(1, size.width - l - r), height: max(1, size.height - t - b))
+        return CGRect(x: safe.left, y: safe.bottom,
+                      width: max(1, size.width - safe.left - safe.right),
+                      height: max(1, size.height - safe.top - safe.bottom))
     }
 
     override func didMove(to view: SKView) {

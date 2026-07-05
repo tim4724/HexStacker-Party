@@ -76,6 +76,7 @@ object Theme {
         const val panelGap = 0.25
         const val canvasPad = 5.0
         const val blockGap = 0.03
+        const val tvOverscan = 0.05 // TV title-safe margin per edge (Google/Apple ~5% overscan)
     }
 
     object Font {

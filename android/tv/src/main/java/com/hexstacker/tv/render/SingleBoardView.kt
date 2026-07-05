@@ -65,13 +65,15 @@ class SingleBoardView @JvmOverloads constructor(
         val key = (w.toLong() shl 32) or h.toLong()
         if (renderer == null || builtForKey != key) {
             renderer?.recycle()
-            val layout = LayoutEngine.layout(1, w.toDouble(), h.toDouble())
+            val marginX = w * Theme.Size.tvOverscan
+            val marginY = h * Theme.Size.tvOverscan
+            val layout = LayoutEngine.layout(1, w - 2 * marginX, h - 2 * marginY)
             val pl = layout.placements.first()
             renderer = BoardRenderer(
                 context = context,
                 geometry = layout.geometry,
-                boardX = pl.originX.toFloat(),
-                boardY = pl.originY.toFloat(),
+                boardX = (pl.originX + marginX).toFloat(),
+                boardY = (pl.originY + marginY).toFloat(),
                 colorSlot = colorSlot,
                 name = playerName,
                 stampCache = stampCache,

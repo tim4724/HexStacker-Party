@@ -405,7 +405,11 @@ class BoardSurfaceView @JvmOverloads constructor(
         for (r in renderers) r.recycle()
 
         val n = if (playerCount > 0) playerCount else s.size
-        val layout = LayoutEngine.layout(n, w.toDouble(), h.toDouble(), textHeightOverride)
+        // Keep boards inside the TV title-safe area: lay out within a 5%-inset
+        // rectangle and shift each origin by the margin (surface stays full-bleed).
+        val marginX = w * Theme.Size.tvOverscan
+        val marginY = h * Theme.Size.tvOverscan
+        val layout = LayoutEngine.layout(n, w - 2 * marginX, h - 2 * marginY, textHeightOverride)
 
         val newRenderers = ArrayList<BoardRenderer>(layout.placements.size)
         val idx = HashMap<Int, Int>()
@@ -415,8 +419,8 @@ class BoardSurfaceView @JvmOverloads constructor(
                 BoardRenderer(
                     context = context,
                     geometry = layout.geometry,
-                    boardX = pl.originX.toFloat(),
-                    boardY = pl.originY.toFloat(),
+                    boardX = (pl.originX + marginX).toFloat(),
+                    boardY = (pl.originY + marginY).toFloat(),
                     colorSlot = seat.colorSlot,
                     name = seat.name,
                     stampCache = stampCache,
@@ -448,8 +452,13 @@ class BoardSurfaceView @JvmOverloads constructor(
         val timeStr = timerCachedStr
 
         // Fixed size relative to view height, not cell size, so the clock reads the
-        // same regardless of board count and matches the web/tvOS renderers.
+        // same regardless of board count and matches the web/tvOS renderers (all
+        // three size off full screen height; only the position is title-safe inset).
         val timerSize = max(24f, min(surfaceH * 0.04f, 60f))
+        // Nudge the clock into the same TV title-safe margin as the boards, matching
+        // tvOS (which positions the timer inside playRect). Web has no inset (margin 0).
+        val marginX = surfaceW * Theme.Size.tvOverscan.toFloat()
+        val marginY = surfaceH * Theme.Size.tvOverscan.toFloat()
         val labelSize = timerSize.roundToInt().toFloat()
         val digitAdvance = labelSize * 0.92f
         val colonAdvance = labelSize * 0.52f
@@ -465,12 +474,13 @@ class BoardSurfaceView @JvmOverloads constructor(
 
         val n = renderers.size
         // Odd board counts: left-anchor (a centered clock overlaps the middle board).
+        // Centering is unchanged by the inset (symmetric margins keep it at surfaceW/2).
         val startX = if (n > 0 && n % 2 == 1) {
-            (Theme.Size.canvasPad + timerSize * 0.3).toFloat()
+            marginX + timerSize * 0.3f
         } else {
             surfaceW / 2f - timerWidth / 2f
         }
-        val y = timerSize * 0.6f
+        val y = marginY + timerSize * 0.6f
 
         timerPaint.textSize = labelSize
         var cursorX = startX

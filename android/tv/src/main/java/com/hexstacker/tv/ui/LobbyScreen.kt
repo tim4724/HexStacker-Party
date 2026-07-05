@@ -38,6 +38,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.hexstacker.core.render.Theme
 import com.hexstacker.tv.R
 import kotlinx.coroutines.launch
 import kotlin.math.ceil
@@ -81,8 +82,9 @@ fun LobbyScreen(
 
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val vp = Vp(maxWidth.value, maxHeight.value)
-            val overscanH = (vp.wDp * 0.05f).dp // TV title-safe ~5% each edge
-            val overscanV = (vp.hDp * 0.05f).dp
+            val overscan = Theme.Size.tvOverscan.toFloat() // TV title-safe, each edge
+            val overscanH = (vp.wDp * overscan).dp
+            val overscanV = (vp.hDp * overscan).dp
 
             Column(
                 Modifier.fillMaxSize().padding(horizontal = overscanH, vertical = overscanV),
