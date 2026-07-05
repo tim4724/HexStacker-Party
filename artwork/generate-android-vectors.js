@@ -24,6 +24,13 @@ const SQRT3 = Math.sqrt(3);
 // artwork/tvos-icon.html and the favicon's CELLS).
 const COLORS = ['#4ECDC4', '#FF6B6B', '#FFE066'];
 const TRIAD_CELLS = [[0, 0], [0, 1], [1, 0]];
+// Optical-centering nudge (see artwork/generate-favicon-svg.js's OPTICAL_K
+// note). This is the ADAPTIVE icon foreground, which the OS masks into whatever
+// shape the launcher uses (circle, squircle, rounded square, ...). Since it must
+// look right under ANY mask it uses the square/rect value (0.35), the safe
+// mask-agnostic choice; the dedicated round raster fallback gets the full 1.0
+// via OPTICAL_K_ROUND in artwork/tvos-icon.html.
+const OPTICAL_K = 0.35;
 
 const f2 = (n) => n.toFixed(2).replace(/\.00$/, '.00');
 
@@ -39,7 +46,9 @@ function cellCenters(cx, cy, s) {
   const minY = Math.min(...pts.map((p) => p[1])) - SQRT3 / 2 * R;
   const maxY = Math.max(...pts.map((p) => p[1])) + SQRT3 / 2 * R;
   const mx = (minX + maxX) / 2, my = (minY + maxY) / 2;
-  return pts.map(([x, y]) => [cx + x - mx, cy + y - my]);
+  const gx = pts.reduce((a, [x]) => a + x, 0) / pts.length; // area centroid x
+  const dx = OPTICAL_K * (mx - gx);                         // optical nudge (rightward)
+  return pts.map(([x, y]) => [cx + x - mx + dx, cy + y - my]);
 }
 
 // Rounded flat-top hex pathData (arcTo geometry: tangent length = A/tan(60°)),

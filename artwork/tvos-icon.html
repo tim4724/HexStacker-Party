@@ -88,6 +88,14 @@
   // adaptive-icon vector via artwork/generate-android-vectors.js.
   // ============================================================
   const TRIAD_CELLS = [[0, 0], [0, 1], [1, 0]];
+  // Optical-centering nudge: fraction of the way from the triad's bbox center
+  // toward its area centroid, sliding the mark right so the bright honey cell's
+  // rightward pull reads as centered (see artwork/generate-favicon-svg.js's
+  // OPTICAL_K note). The right amount depends on the frame shape: a CIRCLE mask
+  // hides the bounding box, so it wants full center-of-mass centering (1.0); a
+  // SQUARE/RECT frame shows the bounding box, so it wants a light nudge (0.35).
+  const OPTICAL_K = 0.35;        // square / rectangular frames (tvOS, banner, square launcher)
+  const OPTICAL_K_ROUND = 1.0;  // circular mask (dedicated round launcher)
   const PAL = (typeof PARTY_PALETTE !== 'undefined') ? PARTY_PALETTE.slice() : [];
   function triadColors() {
     return [PAL[1] || '#4ECDC4', PAL[0] || '#FF6B6B', PAL[2] || '#FFE066'];
@@ -96,26 +104,28 @@
   // Centered cell layout for a hex piece (axial cells) — centers are relative
   // to the piece's bounding-box center, which is what gets pinned to the icon
   // center.
-  function pieceCellCenters(cells, s) {
+  function pieceCellCenters(cells, s, k) {
     const R = s * 0.95;
     const pts = cells.map(([q, r]) => { const o = axialToOffset(q, r); return [1.5 * s * o.col, SQRT3 * s * (o.row + 0.5 * (o.col & 1))]; });
     const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
     const mx = (Math.min(...xs) - R + Math.max(...xs) + R) / 2;
     const my = (Math.min(...ys) - SQRT3 / 2 * R + Math.max(...ys) + SQRT3 / 2 * R) / 2;
-    return pts.map(([x, y]) => [x - mx, y - my]);
+    const gx = xs.reduce((a, b) => a + b, 0) / xs.length;   // area centroid x
+    const dx = (k == null ? OPTICAL_K : k) * (mx - gx);     // optical nudge (rightward)
+    return pts.map(([x, y]) => [x - mx + dx, y - my]);
   }
-  function drawTriad(ctx, cx, cy, s, colors) {
+  function drawTriad(ctx, cx, cy, s, colors, k) {
     const cols = colors || triadColors();
-    pieceCellCenters(TRIAD_CELLS, s).forEach(([x, y], i) => stampPillow(ctx, cx + x, cy + y, s * 0.95, cols[i]));
+    pieceCellCenters(TRIAD_CELLS, s, k).forEach(([x, y], i) => stampPillow(ctx, cx + x, cy + y, s * 0.95, cols[i]));
   }
   // Soft drop shadow below the triad — the floating-sticker depth cue. On
   // tvOS it lives on the back layer so the mark hovers over it in parallax.
-  function drawTriadShadow(ctx, cx, cy, s) {
+  function drawTriadShadow(ctx, cx, cy, s, k) {
     ctx.save();
     ctx.globalAlpha = 0.5;
     ctx.filter = `blur(${s * 0.30}px)`;
     ctx.fillStyle = '#0A0714';
-    for (const [x, y] of pieceCellCenters(TRIAD_CELLS, s)) {
+    for (const [x, y] of pieceCellCenters(TRIAD_CELLS, s, k)) {
       hexPathRounded(ctx, cx + x, cy + y + s * 0.22, s * 0.95, s * 0.95 * 0.18);
       ctx.fill();
     }
@@ -206,7 +216,10 @@
     g.addColorStop(1, '#15121F');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, N, N);
-    drawTriad(ctx, N / 2, N / 2, (12 / 72) * N);
+    // Round mask hides the bounding box, so center the mark on its mass (1.0);
+    // square mask shows the box, so use the light nudge (0.35).
+    const k = spec.shape === 'round' ? OPTICAL_K_ROUND : OPTICAL_K;
+    drawTriad(ctx, N / 2, N / 2, (12 / 72) * N, null, k);
     ctx.restore();
     return canvas.toDataURL('image/png');
   }
@@ -249,9 +262,14 @@
     ctx.shadowColor = 'rgba(0,0,0,0.45)';
     ctx.shadowBlur = fontPx * 0.10;
     ctx.shadowOffsetY = Math.max(1, fontPx * 0.03);
+    // Optical vertical centering for the all-caps wordmark: textBaseline
+    // 'middle' centers the em box, whose empty descender space sits below the
+    // caps, so the visual cap mass lands above center and reads high. Nudge the
+    // whole two-line block down by a fraction of the cap descent to compensate.
+    const capNudge = fontPx * 0.07;
     const textLeft = x0 + markW + gap, lineStep = fontPx * 1.02;
-    ctx.fillText('HEX', textLeft, H / 2 - lineStep / 2);
-    ctx.fillText('STACKER', textLeft, H / 2 + lineStep / 2);
+    ctx.fillText('HEX', textLeft, H / 2 - lineStep / 2 + capNudge);
+    ctx.fillText('STACKER', textLeft, H / 2 + lineStep / 2 + capNudge);
     ctx.restore();
     return canvas.toDataURL('image/png');
   }

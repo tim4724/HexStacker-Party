@@ -40,6 +40,19 @@ const HL_FOCAL_DX_FRAC  = -0.05;  // focal point offset (upper-left light)
 const HL_FOCAL_DY_FRAC  = -0.10;
 const STROKE_FRAC       = 0.04;   // stroke width / cell-size (size = r*√3)
 
+// Optical centering. A bounding-box-centered triad reads as sitting left: the
+// bright honey cell (rightmost, widest-reaching point) pulls the perceived
+// weight right. The fix is to slide the mark toward its area centroid (center
+// of mass), which lies left of the bbox center, so the mark moves right. Pure
+// centroid centering overshoots (honey ends up jammed at the edge), so we take
+// a fraction of the way there. OPTICAL_K = 0 is bbox-centered, 1 is full
+// centroid. The right amount depends on the frame shape: a SQUARE/RECT frame
+// shows the bounding box, so it wants a light nudge (0.35); a CIRCLE mask hides
+// the box and wants full center-of-mass centering (1.0). The favicon renders in
+// a square-ish browser tab, so it uses the square value. The circle value lives
+// in artwork/tvos-icon.html (OPTICAL_K_ROUND, for the round Android launcher).
+const OPTICAL_K         = 0.35;
+
 // Rounded-hex SVG path. Each vertex is replaced by a tangent arc of radius
 // `cornerR`, matching CanvasUtils.hexPathRounded (canvas arcTo semantics:
 // the path leaves the edge at tangent length cornerR/tan(60°) from the
@@ -93,9 +106,18 @@ function generateHexSVG() {
   const maxY = Math.max(...allY);
 
   const pad = 0.5;
-  const vbX = minX - pad;
+  // Optically center on X: frame is symmetric about a point OPTICAL_K of the way
+  // from the bbox center toward the area centroid (see OPTICAL_K note). That
+  // slides the mark right; the frame grows on the honey side so nothing clips
+  // and the tight side keeps its `pad` margin. Y stays bbox-centered (the triad
+  // is already vertically symmetric).
+  const bboxCx   = (minX + maxX) / 2;
+  const centroidX = centers.reduce((s, [cx]) => s + cx, 0) / centers.length;
+  const frameCx  = bboxCx - OPTICAL_K * (bboxCx - centroidX);
+  const halfW    = Math.max(frameCx - minX, maxX - frameCx) + pad;
+  const vbX = frameCx - halfW;
   const vbY = minY - pad;
-  const vbW = maxX - minX + pad * 2;
+  const vbW = halfW * 2;
   const vbH = maxY - minY + pad * 2;
 
   // One radial gradient per cell — focal point sits upper-left of cell center.
