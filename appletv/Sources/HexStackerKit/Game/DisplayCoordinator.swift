@@ -394,6 +394,11 @@ public final class DisplayCoordinator {
         guard flow.state == .playing, !paused, let action = msg.action,
               InputAction(rawValue: action) != nil else { return }
         engine?.processInput(playerId: from, action: action)
+        // Render-on-input: reflect the applied input on the very next display frame
+        // instead of waiting for the next tick(). snapshot() is a pure read (value-copy,
+        // no time advance), so it only front-runs the VISUAL; this frame's events/commands
+        // (lock flash, garbage, sends) still flow on the next tick(). Mirrors the Android path.
+        if let engine, let snap = try? engine.snapshot() { output?.renderSnapshot(snap) }
     }
 
     private func handleSetLevel(from: Int, msg: ControllerMessage) {

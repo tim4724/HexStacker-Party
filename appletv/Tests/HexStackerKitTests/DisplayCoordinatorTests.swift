@@ -58,6 +58,24 @@ import Foundation
         return (coord, ft, fo)
     }
 
+    // MARK: - Render-on-input
+
+    // A controller input renders the applied state on the spot, without waiting for the
+    // next tick(); a non-input message must NOT render.
+    @Test func inputRendersImmediatelyWithoutWaitingForTick() {
+        let (coord, ft, fo) = makeLobby(players: 2)
+        coord.remoteStartMatch(); runCountdown(coord)
+        #expect(coord.state == .playing)
+
+        let beforeInput = fo.renderCount
+        ft.onMessage?(1, ["type": "input", "action": "left"]) // no tick() in between
+        #expect(fo.renderCount > beforeInput, "input renders immediately (render-on-input)")
+
+        let afterInput = fo.renderCount
+        ft.onMessage?(1, ["type": "ping"])
+        #expect(fo.renderCount == afterInput, "a non-input message does not render")
+    }
+
     // MARK: - All-disconnected auto-pause / auto-resume (silent)
 
     @Test func allParticipantsGoneSilentlyAutoPausesAndAutoResumes() {

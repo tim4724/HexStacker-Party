@@ -149,6 +149,36 @@ class DisplayCoordinatorTest {
         }
     }
 
+    // Render-on-input: a controller input renders the applied state on the spot, without
+    // waiting for the next frame() tick. A non-input message must NOT render.
+    @Test
+    fun inputRendersImmediatelyWithoutWaitingForTick() = runBlocking {
+        val bridge = EngineBridge.create(bundle())
+        try {
+            val t = FakeTransport()
+            val out = FakeOutput()
+            val coord = DisplayCoordinator(t, out, realFactory(bridge), seedProvider = { 0xBADCAFEL })
+            coord.start()
+            t.created("ROOM", "i"); coord.awaitIdle()
+            t.peerJoined(1); t.peerJoined(2); coord.awaitIdle()
+            t.deliver(1, simple(Msg.START_GAME)); coord.awaitIdle()
+            coord.tick(0.0); coord.tick(1000.0); coord.tick(1000.0); coord.tick(1000.0); coord.tick(500.0)
+            assertEquals(RoomState.PLAYING, coord.state)
+
+            val beforeInput = out.snapshots.size
+            t.deliver(1, input("left")); coord.awaitIdle() // no tick() in between
+            assertTrue(out.snapshots.size > beforeInput, "input renders immediately (render-on-input)")
+
+            val afterInput = out.snapshots.size
+            t.deliver(1, simple(Msg.PING)); coord.awaitIdle()
+            assertEquals(afterInput, out.snapshots.size, "a non-input message does not render")
+
+            coord.stop()
+        } finally {
+            bridge.close()
+        }
+    }
+
     @Test
     fun pauseResumeAndConnectedGuard() = runBlocking {
         val bridge = EngineBridge.create(bundle())
