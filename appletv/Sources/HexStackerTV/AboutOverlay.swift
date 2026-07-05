@@ -19,8 +19,8 @@ import HexStackerKit
 final class AboutOverlay {
 
     // The web legal pages the QR codes encode.
-    private static let privacyURL = "https://hexstacker.com/privacy"
-    private static let imprintURL = "https://hexstacker.com/imprint"
+    private static let privacyURL = "https://couch-games.com/privacy"
+    private static let imprintURL = "https://couch-games.com/imprint"
 
     let node = SKNode()
     private(set) var isOpen = false

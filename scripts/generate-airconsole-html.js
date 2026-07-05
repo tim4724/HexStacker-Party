@@ -9,8 +9,8 @@
  *  - Strips meta/link tags useless inside an iframe (OG/Twitter, theme-color,
  *    PWA-install hints, favicon links)
  *  - Strips the controller name-screen legal-links footer (name screen is
- *    bypassed in AC mode; the anchors point to /privacy and /imprint which
- *    aren't part of the AC zip)
+ *    bypassed in AC mode; the anchors are external couch-games.com legal
+ *    links, irrelevant to the AC entry)
  *  - Strips test harness <script> tags (gallery / Playwright only — gated
  *    on URL params the AC iframe never has)
  *  - Strips share-helper.js (the only caller is the device-choice share

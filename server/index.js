@@ -314,13 +314,9 @@ const server = http.createServer((req, res) => {
   // Map directory paths to index.html
   if (urlPath === '/') {
     urlPath = '/display/index.html';
-  } else if (urlPath === '/privacy') {
-    urlPath = '/privacy.html';
-  } else if (urlPath === '/imprint') {
-    urlPath = '/imprint.html';
   } else if (urlPath === '/gallery' || urlPath === '/gallery-controller' || urlPath === '/gallery-rotations' || urlPath === '/gallery-artwork') {
-    // Extensionless gallery URLs (matching /privacy and /imprint style), carved
-    // out ahead of the room-code catch below. Deployed hosts never get here:
+    // Extensionless gallery URLs, carved out ahead of the room-code catch
+    // below. Deployed hosts never get here:
     // Traefik routes /gallery* to the static gallery pod, whose nginx does the
     // same $uri.html resolution.
     urlPath = urlPath + '.html';
@@ -479,9 +475,7 @@ const server = http.createServer((req, res) => {
         //       those mappings ever change.
         const iframeable =
           urlPath === '/display/index.html' ||
-          urlPath === '/controller/index.html' ||
-          urlPath === '/privacy.html' ||
-          urlPath === '/imprint.html';
+          urlPath === '/controller/index.html';
         const frameAncestors = iframeable ? "'self'" : "'none'";
         // Note on stun.hexstacker.com: WebRTC's STUN traffic is UDP and not
         // subject to connect-src in any major browser (Chrome ignores

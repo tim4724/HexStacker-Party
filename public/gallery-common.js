@@ -92,10 +92,6 @@ var Gallery = (function() {
     return '/' + qs(p);
   }
 
-  function staticURL(state, path) {
-    return path + qs({ lang: state.lang });
-  }
-
   function controllerURL(state, scenario, colorIdx, extra) {
     var p = {
       test: 1, bg: 1, lang: state.lang,
@@ -399,7 +395,6 @@ var Gallery = (function() {
     saveState: saveState,
     displayURL: displayURL,
     controllerURL: controllerURL,
-    staticURL: staticURL,
     makeCard: makeCard,
     lazyMount: lazyMount,
     resetQueue: resetQueue,

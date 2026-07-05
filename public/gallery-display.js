@@ -4,9 +4,9 @@
 // through a real session. Cards-per-row is set by the header control.
 //
 // Card shape:
-//   { key, title, hostVariant?, level?, animated?, staticPath? }
+//   { key, title, hostVariant?, level?, animated? }
 // hostVariant cards swap their `host` URL param when the view-as selector
-// changes (no iframe rebuild). staticPath cards render /privacy or /imprint.
+// changes (no iframe rebuild).
 var DISPLAY_CARDS = [
   { key: 'welcome',          title: 'Welcome' },
   { key: 'lobby',            title: 'Lobby (Standard)',   hostVariant: true },
@@ -19,9 +19,7 @@ var DISPLAY_CARDS = [
   { key: 'pause',            title: 'Paused',                hostVariant: true },
   { key: 'disconnected',     title: 'Disconnected', hostVariant: true },
   { key: 'disconnected-controller', title: 'Disconnected (one controller)' },
-  { key: 'results',          title: 'Results',      hostVariant: true },
-  { key: 'privacy',          title: 'Privacy', staticPath: '/privacy' },
-  { key: 'imprint',          title: 'Imprint', staticPath: '/imprint' }
+  { key: 'results',          title: 'Results',      hostVariant: true }
 ];
 
 var state = Gallery.loadState();
@@ -54,7 +52,6 @@ var allCards = [];
 var hostVariantCards = [];
 
 function cardURL(c) {
-  if (c.staticPath) return Gallery.staticURL(state, c.staticPath);
   if (c.hostVariant) return Gallery.displayURL(state, c.key, undefined, { host: state.viewAs });
   return Gallery.displayURL(state, c.key, c.level);
 }
@@ -62,7 +59,6 @@ function cardURL(c) {
 function cardTag(c) {
   if (c.hostVariant) return Gallery.PLAYER_COLOR_NAMES[state.viewAs];
   if (c.animated) return 'anim';
-  if (c.staticPath) return 'static';
   return '';
 }
 

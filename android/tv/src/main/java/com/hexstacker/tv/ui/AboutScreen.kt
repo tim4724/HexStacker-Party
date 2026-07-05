@@ -37,8 +37,8 @@ import com.hexstacker.tv.R
 // phones, so the phone the player is already holding is the right screen to read
 // long-form legal text on: the TV only offers a scannable link + the URL, and the
 // pages themselves stay single-sourced on the web (not re-rendered natively).
-private const val PRIVACY_URL = "https://hexstacker.com/privacy"
-private const val IMPRINT_URL = "https://hexstacker.com/imprint"
+private const val PRIVACY_URL = "https://couch-games.com/privacy"
+private const val IMPRINT_URL = "https://couch-games.com/imprint"
 
 /**
  * About screen (reached from the lobby ⓘ button): two QR cards linking phones to the

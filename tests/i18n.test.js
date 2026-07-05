@@ -150,7 +150,7 @@ describe('i18n', function () {
       'room_not_found', 'game_ended', 'game_full', 'game_in_progress',
       'waiting_for_host_to_start', 'waiting_for_host_to_continue',
       'n_lines', 'level_n', 'player', 'new_player', 'level_heading',
-      'enter_name', 'copied', 'touchpad', 'privacy', 'imprint', 'back',
+      'enter_name', 'copied', 'touchpad', 'privacy', 'imprint',
       'stacked_by', 'music_by', 'hex_lines_level',
       'swipe', 'tap', 'flick', 'gesture_move', 'gesture_rotate',
       'gesture_drop', 'gesture_hold',

@@ -135,8 +135,6 @@ const DISPLAY_STYLES = [
 const PRERENDERED_PAGES = [
   '/display/index.html',
   '/controller/index.html',
-  '/privacy.html',
-  '/imprint.html',
   '/display/screen.html',        // AirConsole display entry
   '/controller/controller.html', // AirConsole controller entry
 ];

@@ -3,9 +3,9 @@
 // Party-Server relay URL
 var RELAY_URL = 'wss://ws.hexstacker.com';
 
-// First-party STUN server (self-hosted, see public/privacy.html). Used by the
-// fastlane to gather server-reflexive candidates so cross-network peers can
-// find each other when host candidates aren't reachable.
+// First-party STUN server (self-hosted, see https://couch-games.com/privacy).
+// Used by the fastlane to gather server-reflexive candidates so cross-network
+// peers can find each other when host candidates aren't reachable.
 var STUN_URL = 'stun:stun.hexstacker.com:3478';
 
 // Message types for game communication (inside Party-Server data field)

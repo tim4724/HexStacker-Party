@@ -4,13 +4,12 @@
 // journey through a real session: device-choice overlay (homepage + bail
 // toasts), then the controller flow (name entry -> lobby -> play -> end).
 // perColor cards swap the `color` URL param when the view-as selector
-// changes; staticPath cards render /privacy or /imprint; isDisplayPage
-// cards load the DISPLAY URL — the device-choice overlay only lives on
-// the display page but surfaces naturally at phone size via the mobile
-// CSS media query.
+// changes; isDisplayPage cards load the DISPLAY URL — the device-choice
+// overlay only lives on the display page but surfaces naturally at phone
+// size via the mobile CSS media query.
 //
 // Card shape:
-//   { key, title, perColor?, staticPath?, extra?, isDisplayPage? }
+//   { key, title, perColor?, extra?, isDisplayPage? }
 // `extra` is merged into the URL (e.g. host=1 flags the host variant of a
 // screen that otherwise looks the same for host/non-host).
 var CONTROLLER_CARDS = [
@@ -34,9 +33,7 @@ var CONTROLLER_CARDS = [
   { key: 'reconnecting',     title: 'Reconnecting',        perColor: true },
   { key: 'disconnected',     title: 'Disconnected',        perColor: true },
   { key: 'results-winner',   title: 'Results (host)',      perColor: true, replayable: true },
-  { key: 'results-loser',    title: 'Results (non-host)',  perColor: true },
-  { key: 'privacy',          title: 'Privacy', staticPath: '/privacy' },
-  { key: 'imprint',          title: 'Imprint', staticPath: '/imprint' }
+  { key: 'results-loser',    title: 'Results (non-host)',  perColor: true }
 ];
 
 var state = Gallery.loadState();
@@ -73,7 +70,6 @@ var allCards = [];
 var perColorCards = [];
 
 function cardURL(c) {
-  if (c.staticPath) return Gallery.staticURL(state, c.staticPath);
   if (c.isDisplayPage) return Gallery.displayURL(state, c.key || undefined, undefined, c.extra || null);
   var colorIdx = c.perColor ? state.viewAs : 0;
   return Gallery.controllerURL(state, c.key, colorIdx, c.extra || null);
@@ -81,7 +77,6 @@ function cardURL(c) {
 
 function cardTag(c) {
   if (c.perColor) return Gallery.PLAYER_COLOR_NAMES[state.viewAs];
-  if (c.staticPath) return 'static';
   return '';
 }
 
