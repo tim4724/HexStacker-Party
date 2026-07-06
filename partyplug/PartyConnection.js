@@ -184,6 +184,22 @@ class PartyConnection {
     this.connect();
   }
 
+  // Treat the current socket as a failed attempt and drive the normal
+  // backoff/give-up path — for callers that detect failure themselves (e.g. a
+  // socket that opened but the relay never answered create/join, which never
+  // triggers onclose). Mirrors an unexpected onclose: discards the dead socket,
+  // bumps the attempt counter, notifies onClose, and either schedules a backoff
+  // reconnect or gives up once maxReconnectAttempts is passed.
+  failAttempt() {
+    if (!this._shouldReconnect) return;
+    this._discardOldWs();
+    this.reconnectAttempt++;
+    if (this.onClose) this.onClose(this.reconnectAttempt, this.maxReconnectAttempts);
+    if (this.reconnectAttempt <= this.maxReconnectAttempts) {
+      this._scheduleReconnect();
+    }
+  }
+
   resetReconnectCount() {
     this.reconnectAttempt = 0;
   }

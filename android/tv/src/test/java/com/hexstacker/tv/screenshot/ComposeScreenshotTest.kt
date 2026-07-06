@@ -11,9 +11,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import com.github.takahirom.roborazzi.captureRoboImage
-import com.hexstacker.tv.ui.AboutScreen
-import com.hexstacker.tv.ui.ConnectionOverlay
-import com.hexstacker.tv.ui.CountdownOverlay
+import com.hexstacker.core.display.DisplayScreen
+import com.hexstacker.core.net.RelayTransport
+import com.hexstacker.tv.DisplayChrome
+import com.hexstacker.tv.UiModel
+import com.hexstacker.tv.ui.CountdownValue
 import com.hexstacker.tv.ui.LicenseEntry
 import com.hexstacker.tv.ui.LicensesScreen
 import com.hexstacker.tv.ui.assembleLicenseList
@@ -23,7 +25,6 @@ import com.hexstacker.tv.ui.LobbyScreen
 import com.hexstacker.tv.ui.PauseOverlay
 import com.hexstacker.tv.ui.QrRenderer
 import com.hexstacker.tv.ui.ResultCard
-import com.hexstacker.tv.ui.ResultsScreen
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -33,25 +34,37 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * Screenshot coverage for the Compose-for-TV chrome ([LobbyScreen], [ResultsScreen],
- * and the [CountdownOverlay] / [PauseOverlay] / [ConnectionOverlay] overlays).
+ * Screenshot coverage for the Compose-for-TV display, for the cross-platform gallery.
  *
- * All content data comes from the canonical cross-platform [GalleryFixtures] (the
- * same `HexCore.GalleryFixtures` the web and Apple TV galleries use, run through
- * QuickJS), so every platform's screenshots render byte-identical rosters, join
- * data, and results. The countdown / pause / disconnect states composite the real
- * board layer ([BoardFixtureRenderer]) behind the Compose overlay, mirroring how
- * `MainActivity` layers `BoardSurfaceView` under the chrome.
+ * Every layered state (results, countdown, pause, the relay connection overlay, and
+ * the create-room-failure overlay) renders through the app's real [DisplayChrome] —
+ * the SAME composable [com.hexstacker.tv.MainActivity]'s `HexStackerApp` uses to lay
+ * out the board, active screen, and overlays. The shot only constructs a [UiModel]
+ * and hands `DisplayChrome` a baked board bitmap where the live app would hand it the
+ * [com.hexstacker.tv.render.BoardSurfaceView]. So the shots exercise the real z-order
+ * and the real derived logic (e.g. `creating = !hasRoom` picks the create-failure vs
+ * reconnect copy) instead of a hand-assembled reconstruction that could drift.
+ *
+ * A few states stay as direct single-widget calls because they need a determinism
+ * seam the production tree deliberately doesn't expose: the lobby shots inject a
+ * frozen QR + ambient background (both live/async in the app); `licenses` injects a
+ * fixture dependency list (the real list reads build-time AboutLibraries metadata not
+ * on the test classpath); `pause_music` seeds the focused switch (real focus can't
+ * fire headless). None of these reconstruct layering — each is one full-screen widget.
+ *
+ * All content data comes from the canonical cross-platform [GalleryFixtures] (the same
+ * `HexCore.GalleryFixtures` the web and Apple TV galleries use, via QuickJS), so every
+ * platform renders byte-identical rosters, join data, and results. The board layer is
+ * the real [BoardFixtureRenderer].
  *
  * Runs headless on the JVM (no emulator) via Robolectric's NATIVE graphics mode +
- * Roborazzi. Rendered at the 1280x720 TV design viewport the previews use, but at
- * hdpi (density 1.5) so the PNGs come out at full 1080p (1920x1080) with the exact
- * same composition. These are record-only smoke tests: capturing a frame asserts the
- * composable renders without throwing, and the PNGs land in `build/outputs/roborazzi/`
- * for human review (regenerate with `./gradlew :tv:recordRoborazziDebug`). They are NOT
- * automated golden gates (no goldens are committed and `:tv:verifyRoborazziDebug` is
- * not run), matching the repo rule that UI regressions are caught via the gallery, not
- * visual snapshots.
+ * Roborazzi. Rendered at the 1280x720 TV design viewport at hdpi (density 1.5) so the
+ * PNGs come out at 1080p (1920x1080) with the same composition. These are record-only
+ * smoke tests: capturing a frame asserts the composable renders without throwing, and
+ * the PNGs land in `build/outputs/roborazzi/` for human review (regenerate with
+ * `./gradlew :tv:recordRoborazziDebug`). They are NOT automated golden gates (no
+ * goldens committed, `:tv:verifyRoborazziDebug` is not run), matching the repo rule
+ * that UI regressions are caught via the gallery, not visual snapshots.
  *
  * Determinism: entrance/idle animations are frozen by disabling the compose test
  * clock's auto-advance and stepping a fixed amount, so infinite pulses (countdown
@@ -76,7 +89,40 @@ class ComposeScreenshotTest {
         compose.onRoot().captureRoboImage("$OUT/$name.png")
     }
 
-    // ── Lobby ────────────────────────────────────────────────────────────────
+    // Render a UiModel through the app's real DisplayChrome. `board` is the baked board
+    // bitmap the live app would supply via BoardSurfaceView (null for lobby states,
+    // where the app keeps the board hidden). This is the path every layered shot takes.
+    private fun chromeShot(
+        name: String,
+        model: UiModel,
+        board: Bitmap? = null,
+        showAbout: Boolean = false,
+        showLicenses: Boolean = false,
+    ) = shoot(name) {
+        DisplayChrome(
+            model = model,
+            board = {
+                if (board != null) {
+                    Image(
+                        bitmap = board.asImageBitmap(),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.FillBounds,
+                    )
+                }
+            },
+            showAbout = showAbout,
+            showLicenses = showLicenses,
+        )
+    }
+
+    // Minimal lobby carrying just the host color, for the in-match overlays (pause /
+    // results tint). The real UiModel keeps the lobby around through the whole match.
+    private fun hostLobby(colorIndex: Int) = LobbyData(
+        joinHost = "", joinCode = "", joinUrl = "", players = emptyList(), hostColorIndex = colorIndex,
+    )
+
+    // ── Lobby (direct: frozen QR + ambient background for a deterministic shot) ────
 
     private fun lobbyShot(name: String, count: Int) {
         val join = GalleryFixtures.join
@@ -108,7 +154,7 @@ class ComposeScreenshotTest {
     @Test fun lobby8p() = lobbyShot("lobby_8p", 8)
     @Test fun lobbyWaiting() = lobbyShot("lobby_waiting", 0)
 
-    // ── Licenses ───────────────────────────────────────────────────────────────
+    // ── Licenses (direct: injects a fixture dependency list) ──────────────────────
 
     // The fixture supplies only the dependency DATA (not the generated AboutLibraries
     // report, so the shot is deterministic and needs no build-time metadata on the
@@ -136,14 +182,14 @@ class ComposeScreenshotTest {
         )
     }
 
-    // ── About ────────────────────────────────────────────────────────────────
+    // ── About (through DisplayChrome: the lobby ⓘ sub-screen) ─────────────────────
 
-    // The lobby ⓘ opens this: two QR cards (Privacy / Imprint) + the licenses drill-in.
-    // No fixture data needed — the QR URLs are constants and labels come from resources.
+    // Two QR cards (Privacy / Imprint) + the licenses drill-in. No fixture data needed
+    // — the QR URLs are constants and labels come from resources.
     @Test
-    fun about() = shoot("about") { AboutScreen(onOpenLicenses = {}) }
+    fun about() = chromeShot("about", UiModel(screen = DisplayScreen.LOBBY), showAbout = true)
 
-    // ── Results ──────────────────────────────────────────────────────────────
+    // ── Results (through DisplayChrome, over the real board layer) ────────────────
 
     private fun ResultsFixture.cards(): List<ResultCard> = entries.map {
         ResultCard(
@@ -156,42 +202,26 @@ class ComposeScreenshotTest {
         )
     }
 
-    // Results/connection shots composite the board layer the same way production
-    // does: MainActivity keeps BoardSurfaceView VISIBLE for every screen except
-    // the lobby, and these overlays draw the translucent (0.88) overlayBg scrim,
-    // so the frozen boards show through faintly — matching web/tvOS's
-    // frosted-glass backdrop (minus their blur, which a SurfaceView can't get).
+    // Results/connection shots keep the board VISIBLE the way production does:
+    // MainActivity holds BoardSurfaceView visible for every screen except the lobby,
+    // and these overlays draw the translucent (0.88) overlayBg scrim so the frozen
+    // boards show through faintly — matching web/tvOS's frosted-glass backdrop (minus
+    // their blur, which a SurfaceView can't get).
     @Test
-    fun results() {
-        val board = boardLayer("lv1")
-        shoot("results") {
-            OverlayOnBoard(board) {
-                ResultsScreen(
-                    results = GalleryFixtures.results(4).cards(),
-                    hostColorIndex = 0,
-                    onPlayAgain = {},
-                    onNewGame = {},
-                )
-            }
-        }
-    }
+    fun results() = chromeShot(
+        "results",
+        UiModel(screen = DisplayScreen.RESULTS, results = GalleryFixtures.results(4).cards(), lobby = hostLobby(0)),
+        board = boardLayer("lv1"),
+    )
 
     @Test
-    fun resultsSolo() {
-        val board = boardLayer("solo")
-        shoot("results_solo") {
-            OverlayOnBoard(board) {
-                ResultsScreen(
-                    results = GalleryFixtures.results(1).cards(),
-                    hostColorIndex = 0,
-                    onPlayAgain = {},
-                    onNewGame = {},
-                )
-            }
-        }
-    }
+    fun resultsSolo() = chromeShot(
+        "results_solo",
+        UiModel(screen = DisplayScreen.RESULTS, results = GalleryFixtures.results(1).cards(), lobby = hostLobby(0)),
+        board = boardLayer("solo"),
+    )
 
-    // ── Countdown / pause (Compose overlay over the real board layer) ─────────
+    // ── Countdown / pause (through DisplayChrome, over the real board layer) ───────
 
     /** Pre-game (empty) boards for the countdown seats, or a live variant snapshot. */
     private fun boardLayer(variant: String?): Bitmap {
@@ -204,50 +234,36 @@ class ComposeScreenshotTest {
         return BoardFixtureRenderer.render(app, seats, fx.snapshot)
     }
 
-    @Composable
-    private fun OverlayOnBoard(board: Bitmap, overlay: @Composable () -> Unit) {
-        Box(Modifier.fillMaxSize()) {
-            Image(
-                bitmap = board.asImageBitmap(),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.FillBounds,
-            )
-            overlay()
-        }
-    }
+    @Test
+    fun countdown() = chromeShot(
+        "countdown",
+        UiModel(screen = DisplayScreen.GAME, countdown = CountdownValue.Number(3)),
+        board = boardLayer(null), // 4 fresh/empty boards, roster(4) seat names
+    )
 
     @Test
-    fun countdown() {
-        val board = boardLayer(null) // 4 fresh/empty boards, roster(4) seat names
-        shoot("countdown") { OverlayOnBoard(board) { CountdownOverlay(3) } }
-    }
-
-    @Test
-    fun pause() {
-        val board = boardLayer("lv1")
-        shoot("pause") {
-            OverlayOnBoard(board) {
-                PauseOverlay(
-                    hostColorIndex = 0,
-                    musicOn = true,
-                    onToggleMusic = {},
-                    onContinue = {},
-                    onNewGame = {},
-                )
-            }
-        }
-    }
+    fun pause() = chromeShot(
+        "pause",
+        UiModel(screen = DisplayScreen.GAME, paused = true, muted = false, lobby = hostLobby(0)),
+        board = boardLayer("lv1"),
+    )
 
     // Real focus events can't fire here (Robolectric's headless compose host never
     // gains window focus), so this seeds the switch's focused state through the
-    // shot-only override — the same `focused` boolean the focus system drives, so
-    // the styling is the genuine focused visual.
+    // shot-only override — the same `focused` boolean the focus system drives, so the
+    // styling is the genuine focused visual. Direct because that seed isn't a
+    // production DisplayChrome/UiModel input.
     @Test
     fun pauseMusic() {
         val board = boardLayer("lv1")
         shoot("pause_music") {
-            OverlayOnBoard(board) {
+            Box(Modifier.fillMaxSize()) {
+                Image(
+                    bitmap = board.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.FillBounds,
+                )
                 PauseOverlay(
                     hostColorIndex = 0,
                     musicOn = true,
@@ -260,26 +276,58 @@ class ComposeScreenshotTest {
         }
     }
 
-    // ── Connection overlays (display's own relay link) ────────────────────────
+    // ── Connection overlay: lost room mid-game (hasRoom = true → reconnect copy) ───
 
     @Test
-    fun connectionReconnecting() {
-        val board = boardLayer("lv1")
-        shoot("connection_reconnecting") {
-            // attempt/max mirror the web gallery ("Attempt 2 of 5").
-            OverlayOnBoard(board) {
-                ConnectionOverlay(disconnected = false, onReconnect = {}, attempt = 2, maxAttempts = 5)
-            }
-        }
-    }
+    fun connectionReconnecting() = chromeShot(
+        "connection_reconnecting",
+        // attempt 2 + MAX_RECONNECT_ATTEMPTS (from DisplayChrome) => "Attempt 2 of 5".
+        UiModel(
+            screen = DisplayScreen.GAME,
+            connection = RelayTransport.ConnectionState.RECONNECTING,
+            reconnectAttempt = 2,
+            hasRoom = true,
+        ),
+        board = boardLayer("lv1"),
+    )
 
     @Test
-    fun connectionDisconnected() {
-        val board = boardLayer("lv1")
-        shoot("connection_disconnected") {
-            OverlayOnBoard(board) { ConnectionOverlay(disconnected = true, onReconnect = {}) }
-        }
-    }
+    fun connectionDisconnected() = chromeShot(
+        "connection_disconnected",
+        UiModel(
+            screen = DisplayScreen.GAME,
+            connection = RelayTransport.ConnectionState.CLOSED,
+            hasRoom = true,
+        ),
+        board = boardLayer("lv1"),
+    )
+
+    // ── Create-room failure: no room yet (hasRoom = false) ────────────────────────
+    // DisplayChrome derives `creating = !hasRoom` (constant "Couldn't create room"
+    // heading + RETRY once given up) and falls the lobby back to WAITING_LOBBY (blank
+    // QR + empty player grid) behind the overlay — exactly the live create-failure
+    // path, not a reconstruction. RECONNECTING = auto-retrying; CLOSED = exhausted.
+
+    @Test
+    fun createErrorRetry() = chromeShot(
+        "create_error_retry",
+        UiModel(
+            screen = DisplayScreen.LOBBY,
+            connection = RelayTransport.ConnectionState.RECONNECTING,
+            reconnectAttempt = 2,
+            hasRoom = false,
+        ),
+    )
+
+    @Test
+    fun createError() = chromeShot(
+        "create_error",
+        UiModel(
+            screen = DisplayScreen.LOBBY,
+            connection = RelayTransport.ConnectionState.CLOSED,
+            hasRoom = false,
+        ),
+    )
 
     private companion object {
         // Roborazzi resolves relative paths from the module dir (the test working dir).

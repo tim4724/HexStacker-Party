@@ -32,6 +32,7 @@ function resetToWelcome() {
   lastRelayRtt = -1;
   relayRegion = null;
   if (relayReportBtn) relayReportBtn.classList.add('hidden');
+  clearCreateError();
   preCreatedRoom = null;
   showScreen(SCREEN.WELCOME);
   connectAndCreateRoom();
@@ -357,6 +358,19 @@ reconnectBtn.addEventListener('click', function() {
   reconnectStatus.textContent = t('connecting');
   party.reconnectNow();
 });
+
+// Retry a failed room creation. Keeps the error card visible with a
+// "connecting" status while a fresh create attempt runs; onRoomCreated clears
+// it on success, showCreateError updates it on another failure.
+if (lobbyErrorRetryBtn) {
+  lobbyErrorRetryBtn.addEventListener('click', function() {
+    if (!party) return;
+    lobbyErrorRetryBtn.classList.add('hidden');
+    if (lobbyErrorStatus) lobbyErrorStatus.textContent = t('connecting');
+    party.resetReconnectCount();
+    party.reconnectNow();
+  });
+}
 
 // --- Version + Background ---
 // Read the build version from the <meta name="app-version"> tag baked into

@@ -164,10 +164,10 @@ final class RootScene: SKScene, DisplayOutput {
             switch state {
             case .reconnecting:
                 self.coordinator?.setRelayConnected(false)
-                self.showConnectionOverlay(reconnecting: true)
+                self.showConnectionOverlay(reconnecting: true, creating: !self.hasRoom)
             case .closed:
                 self.coordinator?.setRelayConnected(false)
-                self.showConnectionOverlay(reconnecting: false)
+                self.showConnectionOverlay(reconnecting: false, creating: !self.hasRoom)
             case .open:
                 self.coordinator?.setRelayConnected(true)
                 self.hideConnectionOverlay()
@@ -226,6 +226,10 @@ final class RootScene: SKScene, DisplayOutput {
         coordinator.start()
         relayStarted = true
         showScreen(.lobby)
+        // Render the waiting-lobby scaffold immediately so the create-failure overlay
+        // sits on top of the lobby (not a bare background) and there's no empty-screen
+        // flash before the room arrives.
+        buildWaitingLobby()
     }
 
     /// Render a single frozen gallery state. Shared by the HEXSHOT env launch and
@@ -245,6 +249,18 @@ final class RootScene: SKScene, DisplayOutput {
         case "disconnected-display":
             coordinator.renderShot("game", playerCount: pc)
             showConnectionOverlay(reconnecting: false)
+        case "create-error-retry":  // first-launch create failed, auto-retrying
+            // Overlay on top of the waiting lobby (matching web), then the
+            // create-failure overlay on top.
+            showScreen(.lobby)
+            buildWaitingLobby()
+            showConnectionOverlay(reconnecting: true, creating: true)
+            // Static shot has no live retry tick; seed the web-parity counter.
+            updateReconnectStatus(attempt: 2, max: 5)
+        case "create-error":        // create attempts exhausted → RETRY button
+            showScreen(.lobby)
+            buildWaitingLobby()
+            showConnectionOverlay(reconnecting: false, creating: true)
         case "about":         // full-screen About overlay (Privacy / Imprint QR + Licenses drill-in)
             coordinator.renderShot("lobby-empty", playerCount: pc)
             openAbout()
@@ -344,8 +360,17 @@ final class RootScene: SKScene, DisplayOutput {
     }
 
     func roomReady(room: String, joinURL: String, qrText: String) {
+        hasRoom = true   // a connection drop now reads as "reconnecting", not "couldn't create room"
         lobbyQRText = qrText
         buildLobby(room: room, joinURL: joinURL, players: coordinator.flow.list(), host: coordinator.flow.host)
+    }
+
+    /// The pre-room lobby scaffold: title, empty player grid, and a BLANK QR card
+    /// (no room exists until the relay answers `created`). Rendered from launch and
+    /// behind the create-failure overlay so it sits on top of the lobby (matching the
+    /// web display); `roomReady` rebuilds it with the real room + QR.
+    private func buildWaitingLobby() {
+        buildLobby(room: "", joinURL: "", players: [], host: nil)
     }
 
     func updateLobby(players: [PlayerRecord], hostPeerIndex: Int?) {
@@ -791,15 +816,20 @@ final class RootScene: SKScene, DisplayOutput {
 
     /// Show the full-screen overlay for the DISPLAY's own relay link. While
     /// reconnecting it is informational (auto-retry); once given up (closed) it
-    /// offers a focusable RECONNECT. All strings mirror the web overlay.
-    func showConnectionOverlay(reconnecting: Bool, allowReconnect: Bool = true) {
+    /// offers a focusable RECONNECT. When `creating` (no room yet — a failed
+    /// first-launch create, not a lost room), the heading + button use the
+    /// create-failure copy instead. All strings mirror the web overlay.
+    func showConnectionOverlay(reconnecting: Bool, allowReconnect: Bool = true, creating: Bool = false) {
         // Stash the menu behind the overlay so its Select doesn't reach the screen
         // underneath (e.g. PLAY AGAIN during a results-screen blip); restored on hide.
         if savedMenuRows == nil { savedMenuRows = menuRows; savedFocusRC = focusRC }
         connLayer.isHidden = false
         connDim.path = CGPath(rect: CGRect(origin: .zero, size: size), transform: nil)
         let cx = playRect.midX, cy = playRect.midY
-        connHeading.setStyledText(reconnecting ? tr("reconnecting") : tr("disconnected"),
+        // Creating keeps one constant heading across auto-retry AND give-up (web
+        // parity); a lost room swaps RECONNECTING → DISCONNECTED.
+        let heading = creating ? tr("room_create_failed") : (reconnecting ? tr("reconnecting") : tr("disconnected"))
+        connHeading.setStyledText(heading,
                                   font: AppFont.brandExtraBold, size: min(size.height * 0.045, 64),
                                   color: SKTheme.textPrimary(), tracking: 0.12)
         connHeading.position = CGPoint(x: cx, y: cy + playRect.height * (reconnecting ? 0.04 : 0.05))
@@ -813,7 +843,7 @@ final class RootScene: SKScene, DisplayOutput {
         connButton?.removeFromParent(); connButton = nil
         if !reconnecting && allowReconnect {
             let btnH = max(48, playRect.height * 0.075)
-            let reconnect = tr("reconnect")
+            let reconnect = creating ? tr("retry") : tr("reconnect")
             let probe = SKLabelNode()
             probe.setStyledText(reconnect, font: AppFont.brandBold, size: btnH * 0.36, color: .white, tracking: 0.08)
             let bw = probe.frame.width + min(playRect.width * 0.04, 96) * 2
@@ -888,6 +918,9 @@ final class RootScene: SKScene, DisplayOutput {
     // MARK: - Lobby
 
     private var lobbyRoom: String?
+    // True once the relay has ever answered `created`/`joined`. Distinguishes a
+    // lost room (reconnect copy) from a never-created one (create-failure copy).
+    private var hasRoom = false
     private var lobbyJoinURL: String?
     // The QR payload. In production it equals lobbyJoinURL (the QR encodes the join
     // URL); the screen-gallery JOIN fixture makes them differ (displayed code vs QR
@@ -1083,7 +1116,10 @@ final class RootScene: SKScene, DisplayOutput {
         node.addChild(qrBg)
         // The QR encodes lobbyQRText (== joinURL in production; a distinct target in
         // the gallery JOIN fixture), while the pill below shows the joinURL host/code.
-        if let qr = QRCode.image(for: lobbyQRText ?? joinURL) {
+        // Empty payload = no room yet (the pre-room / create-failure lobby): leave the
+        // white square blank, matching the web lobby's empty QR canvas.
+        let qrPayload = lobbyQRText ?? joinURL
+        if !qrPayload.isEmpty, let qr = QRCode.image(for: qrPayload) {
             let sprite = SKSpriteNode(texture: SKTexture(image: qr))
             let inset = qrSide * 0.92
             sprite.size = CGSize(width: inset, height: inset)

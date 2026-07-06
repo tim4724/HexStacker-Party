@@ -31,6 +31,8 @@ final class GameViewController: UIViewController {
         ("pause", "pause", 4),
         ("pause-music", "pause-music", 4),
         ("disconnected-controller", "disconnected-controller", 4),
+        ("create-error-retry", "create-error-retry", 0),
+        ("create-error", "create-error", 0),
         ("reconnecting", "reconnecting", 4),
         ("disconnected-display", "disconnected-display", 4),
         ("results", "results", 4),

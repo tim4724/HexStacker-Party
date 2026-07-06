@@ -70,7 +70,9 @@ fun LobbyScreen(
 ) {
     val startFocus = remember { FocusRequester() }
     val generatedQr by rememberQrBitmap(data.joinUrl) // called unconditionally (Compose rule)
-    val qrBitmap = qrOverride ?: generatedQr
+    // Blank QR while there's no room yet (empty joinUrl): the pre-room / create-failure
+    // lobby shows an empty white QR panel, matching the web + tvOS displays.
+    val qrBitmap = qrOverride ?: generatedQr?.takeIf { data.joinUrl.isNotBlank() }
     val hasPlayers = data.players.isNotEmpty()
 
     LaunchedEffect(hasPlayers) {

@@ -243,6 +243,9 @@ data class UiModel(
     // Terminal slot-0 eviction: another display took over this room. Distinguishes a
     // "replaced" CLOSED (no reconnect affordance) from an ordinary give-up CLOSED.
     val replaced: Boolean = false,
+    // True once the relay has answered `created`/`joined`. A connection failure before
+    // this is a failed create ("Couldn't create room" + RETRY), not a lost room.
+    val hasRoom: Boolean = false,
 )
 
 /**
@@ -289,7 +292,7 @@ class TvDisplayOutput(
     override fun roomReady(room: String, joinUrl: String) {
         this.room = room
         this.joinUrl = joinUrl
-        _state.value = _state.value.copy(lobby = buildLobby())
+        _state.value = _state.value.copy(lobby = buildLobby(), hasRoom = true)
     }
 
     override fun updateLobby(players: List<PlayerRecord>, hostPeerIndex: Int?) {
@@ -404,6 +407,17 @@ class TvDisplayOutput(
     }
 }
 
+// Pre-room lobby: shown from launch until the relay answers `created`. Empty
+// joinUrl => blank QR panel; empty roster => empty player grid + "waiting for
+// players". The create-failure overlay renders on top of this (web / tvOS parity).
+private val WAITING_LOBBY = LobbyData(
+    joinHost = "",
+    joinCode = "",
+    joinUrl = "",
+    players = emptyList(),
+    hostColorIndex = null,
+)
+
 @Composable
 private fun HexStackerApp(
     board: BoardSurfaceView,
@@ -434,13 +448,60 @@ private fun HexStackerApp(
         if (showLicenses) showLicenses = false else showAbout = false
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .onRemoteKeys(onPlayPause = onPlayPause, onMenu = onMenu),
-    ) {
+    DisplayChrome(
+        model = model,
         // z0: the live board (visible during GAME + RESULTS, behind overlays).
-        AndroidView(factory = { board }, modifier = Modifier.fillMaxSize())
+        board = { AndroidView(factory = { board }, modifier = Modifier.fillMaxSize()) },
+        onStart = onStart,
+        onPlayAgain = onPlayAgain,
+        onNewGame = onNewGame,
+        onContinue = onContinue,
+        onToggleMusic = onToggleMusic,
+        onReconnect = onReconnect,
+        showAbout = showAbout,
+        showLicenses = showLicenses,
+        onOpenAbout = { showAbout = true },
+        onOpenLicenses = { showLicenses = true },
+        onCloseLicenses = { showLicenses = false },
+        modifier = Modifier.onRemoteKeys(onPlayPause = onPlayPause, onMenu = onMenu),
+    )
+}
+
+/**
+ * The display's full visual tree for a given [UiModel]: the board layer, the active
+ * screen (lobby / results — GAME shows only the board), and the additive overlays
+ * (countdown, pause, and the relay-link connection overlay) in z-order.
+ *
+ * This is the SINGLE SOURCE OF TRUTH for "what's on screen for this state", shared by:
+ *  - the live app ([HexStackerApp]), which passes the real [BoardSurfaceView] as
+ *    [board] and drives [showAbout] / [showLicenses] from local state, and
+ *  - the screenshot gallery ([ComposeScreenshotTest]), which passes a baked board
+ *    bitmap and a constructed [UiModel].
+ * So the gallery shots render the real layering + the real derived logic (e.g.
+ * `creating = !hasRoom` for the create-failure overlay) instead of a hand-assembled
+ * reconstruction that could silently drift from the app.
+ */
+@Composable
+internal fun DisplayChrome(
+    model: UiModel,
+    board: @Composable () -> Unit,
+    onStart: () -> Unit = {},
+    onPlayAgain: () -> Unit = {},
+    onNewGame: () -> Unit = {},
+    onContinue: () -> Unit = {},
+    onToggleMusic: () -> Unit = {},
+    onReconnect: () -> Unit = {},
+    // Lobby-local sub-screens (About / Licenses). Hoisted so the host owns Back
+    // handling + focus; the screenshot test drives them via the same flags.
+    showAbout: Boolean = false,
+    showLicenses: Boolean = false,
+    onOpenAbout: () -> Unit = {},
+    onOpenLicenses: () -> Unit = {},
+    onCloseLicenses: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier.fillMaxSize()) {
+        board()
 
         when (model.screen) {
             // About / Licenses each replace the lobby chrome (rather than layering over
@@ -448,13 +509,19 @@ private fun HexStackerApp(
             DisplayScreen.LOBBY ->
                 when {
                     showLicenses ->
-                        LicensesScreen(entries = rememberLicenseEntries(), onClose = { showLicenses = false })
+                        LicensesScreen(entries = rememberLicenseEntries(), onClose = onCloseLicenses)
                     showAbout ->
-                        AboutScreen(onOpenLicenses = { showLicenses = true })
+                        AboutScreen(onOpenLicenses = onOpenLicenses)
                     else ->
-                        model.lobby?.let {
-                            LobbyScreen(data = it, onStart = onStart, onOpenAbout = { showAbout = true })
-                        }
+                        // Render the lobby scaffold even before the room exists (model.lobby
+                        // still null): a waiting lobby with a blank QR, so the create-failure
+                        // overlay sits on top of the lobby (web / tvOS parity) instead of a
+                        // bare screen. roomReady swaps in the real room + QR.
+                        LobbyScreen(
+                            data = model.lobby ?: WAITING_LOBBY,
+                            onStart = onStart,
+                            onOpenAbout = onOpenAbout,
+                        )
                 }
             DisplayScreen.RESULTS -> ResultsScreen(
                 results = model.results,
@@ -486,13 +553,14 @@ private fun HexStackerApp(
                     onReconnect = onReconnect,
                     attempt = model.reconnectAttempt,
                     maxAttempts = RelayConfig.MAX_RECONNECT_ATTEMPTS,
+                    creating = !model.hasRoom,
                 )
             RelayTransport.ConnectionState.CLOSED ->
                 // A "replaced" eviction is terminal: show DISCONNECTED with no RECONNECT
                 // button (re-arming reconnect would only be evicted again), mirroring the
                 // web dropping the reconnect affordance in that state.
                 if (model.replaced) ConnectionOverlay(disconnected = true, showReconnect = false)
-                else ConnectionOverlay(disconnected = true, onReconnect = onReconnect)
+                else ConnectionOverlay(disconnected = true, onReconnect = onReconnect, creating = !model.hasRoom)
             else -> Unit
         }
     }

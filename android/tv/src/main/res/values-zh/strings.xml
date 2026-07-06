@@ -31,6 +31,8 @@
     <string name="connection_lost">连接已断开...</string>
     <string name="attempt_n_of_m">第 %1$d 次尝试，共 %2$d 次</string>
     <string name="reconnect">重新连接</string>
+    <string name="room_create_failed">无法创建房间</string>
+    <string name="retry">重试</string>
 
     <string name="player">玩家</string>
 

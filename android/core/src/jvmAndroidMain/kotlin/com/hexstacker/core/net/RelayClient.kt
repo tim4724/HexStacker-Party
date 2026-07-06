@@ -63,6 +63,7 @@ class RelayClient(
     private var dropHandled = false
     private var reconnectFuture: ScheduledFuture<*>? = null
     private var heartbeatFuture: ScheduledFuture<*>? = null
+    private var handshakeFuture: ScheduledFuture<*>? = null
     private var lastHeartbeatEcho = 0L
 
     // ----- public control (all hop onto ops) -----
@@ -77,6 +78,7 @@ class RelayClient(
     override fun disconnect() = ops.executeSafe {
         shouldReconnect = false
         cancelReconnect()
+        cancelHandshakeTimeout()
         stopHeartbeat()
         webSocket?.cancel()
         webSocket = null
@@ -129,6 +131,7 @@ class RelayClient(
 
     private fun connectLocked() {
         cancelReconnect()
+        cancelHandshakeTimeout()
         dropHandled = false
         emitState(if (reconnectAttempt > 0) RelayTransport.ConnectionState.RECONNECTING else RelayTransport.ConnectionState.CONNECTING)
         val old = webSocket
@@ -165,13 +168,33 @@ class RelayClient(
                 ),
             )
         }
+        startHandshakeTimeout()
         emitState(RelayTransport.ConnectionState.OPEN)
+    }
+
+    /** Arm the created/joined answer deadline; a silent relay is treated as a drop
+     *  so the capped backoff (and eventually the gave-up overlay) applies. Mirrors
+     *  appletv RelayClient.startHandshakeTimeout. */
+    private fun startHandshakeTimeout() {
+        cancelHandshakeTimeout()
+        handshakeFuture = ops.schedule({
+            val old = webSocket ?: return@schedule
+            webSocket = null
+            old.cancel()
+            handleDrop(null)
+        }, RelayConfig.HANDSHAKE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+    }
+
+    private fun cancelHandshakeTimeout() {
+        handshakeFuture?.cancel(false)
+        handshakeFuture = null
     }
 
     private fun handleDrop(closeCode: Int?) {
         if (dropHandled) return
         dropHandled = true
         stopHeartbeat()
+        cancelHandshakeTimeout()
         webSocket = null
         if (closeCode == RelayConfig.CLOSE_CODE_REPLACED) {
             shouldReconnect = false
@@ -259,6 +282,7 @@ class RelayClient(
                 lastRoom = f.room
                 lastInstance = f.instance
                 reconnectAttempt = 0
+                cancelHandshakeTimeout()
                 startHeartbeat()
                 emit { onCreated?.invoke(f.room, f.instance, f.region) }
             }
@@ -266,6 +290,7 @@ class RelayClient(
                 val f = RelayJson.decodeFromJsonElement<JoinedFrame>(root)
                 lastRoom = f.room.ifEmpty { lastRoom ?: "" }
                 reconnectAttempt = 0
+                cancelHandshakeTimeout()
                 startHeartbeat()
                 val room = lastRoom ?: ""
                 emit { onJoined?.invoke(room, f.peers) }

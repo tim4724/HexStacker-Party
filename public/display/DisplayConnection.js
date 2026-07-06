@@ -8,8 +8,52 @@
 // =====================================================================
 
 
+// A socket can upgrade fine but leave `create` unanswered (wedged relay shard).
+// onclose never fires, so an explicit deadline is the only canary during the
+// create window (the self-heartbeat only starts after `created`). Matches the
+// native tvOS/Android handshake timeout.
+var CREATE_TIMEOUT_MS = 8000;
+var createTimeout = null;
+
+// Arm the silent-socket deadline for a fresh create. Join/reconnect (lastRoomCode
+// set) rides PartyConnection's own onclose backoff, and AirConsole has no relay
+// socket to time out — both skip it.
+function armCreateTimeout() {
+  clearTimeout(createTimeout);
+  if (lastRoomCode || window.airconsole) return;
+  createTimeout = setTimeout(function() {
+    if (party && !roomCode) party.failAttempt();
+  }, CREATE_TIMEOUT_MS);
+}
+
+// Room-creation failure surface (see #lobby-error). Distinct from the reconnect
+// overlay, which recovers a room we already had; this is for never getting one
+// (no Internet, relay error, or a silent socket). Auto-retry rides the same
+// PartyConnection backoff — during attempts we show the attempt counter; once
+// they're exhausted we surface a RETRY button.
+function showCreateError(attempt, maxAttempts) {
+  if (!lobbyError) return;
+  // Dimmed overlay on top of the lobby (same pattern as the reconnect overlay),
+  // not an inline swap of the QR card.
+  lobbyError.classList.remove('hidden');
+  var exhausted = attempt > maxAttempts;
+  if (lobbyErrorStatus) {
+    lobbyErrorStatus.textContent = exhausted
+      ? ''
+      : t('attempt_n_of_m', { attempt: Math.min(attempt, maxAttempts), max: maxAttempts });
+  }
+  if (lobbyErrorRetryBtn) lobbyErrorRetryBtn.classList.toggle('hidden', !exhausted);
+}
+
+function clearCreateError() {
+  clearTimeout(createTimeout);
+  if (lobbyError) lobbyError.classList.add('hidden');
+  if (lobbyErrorRetryBtn) lobbyErrorRetryBtn.classList.add('hidden');
+}
+
 function connectAndCreateRoom() {
   if (party) party.close();
+  clearTimeout(createTimeout);
   if (fastlane) { fastlane.closeAll(); fastlane = null; }
 
   // If we already know the instance (reconnect path), open the WS on the
@@ -46,11 +90,20 @@ function connectAndCreateRoom() {
       party.join(lastRoomCode);
     } else {
       party.create(9, controllerUrlTemplate());
+      armCreateTimeout();
     }
   };
 
   party.onClose = function(attempt, maxAttempts) {
     preCreatedRoom = null;
+    clearTimeout(createTimeout);
+    // No room established yet → this is a failed *create*, not a lost
+    // connection. Surface it inline on the lobby (welcome-screen pre-creates
+    // keep retrying silently until the user actually lands on the lobby).
+    if (!lastRoomCode) {
+      if (currentScreen === SCREEN.LOBBY) showCreateError(attempt, maxAttempts);
+      return;
+    }
     if (currentScreen === SCREEN.WELCOME) return;
     clearTimeout(disconnectedTimer);
 
@@ -97,7 +150,13 @@ function connectAndCreateRoom() {
         maybeBroadcastHostChange();
         break;
       case 'error':
-        if (msg.message === 'Room not found' || msg.message === 'Room is full') {
+        if (!lastRoomCode) {
+          // Relay rejected the create (bad url template, server error, etc.).
+          // Fail this attempt so it retries with backoff, then shows RETRY —
+          // "Room not found"/"Room is full" only apply to the join path below.
+          console.warn('Party-Server (create):', msg.message);
+          if (party) party.failAttempt();
+        } else if (msg.message === 'Room not found' || msg.message === 'Room is full') {
           console.error('Party-Server error:', msg.message);
           resetToWelcome();
         } else {
@@ -132,6 +191,7 @@ function connectAndCreateRoom() {
 // =====================================================================
 
 function onRoomCreated(partyRoomCode, instance) {
+  clearCreateError();
   lastInstance = instance || null;
   // Pin the WS URL so PartyConnection's auto-reconnect lands on the same
   // instance (the relay's bare endpoint would otherwise route to whichever

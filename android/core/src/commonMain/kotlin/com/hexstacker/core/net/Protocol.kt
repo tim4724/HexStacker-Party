@@ -45,6 +45,12 @@ object RelayConfig {
     const val SELF_HEARTBEAT_DEAD_MS = 6000L
     const val HEARTBEAT_INTERVAL_MS = 1000L
 
+    /** A socket can complete the WS upgrade but never get a created/joined answer
+     *  (wedged shard). The heartbeat only starts on created/joined, so this is the
+     *  only canary during the handshake window — a silent relay is treated as a
+     *  drop. Mirrors appletv RelayClient.handshakeTimeoutSeconds. */
+    const val HANDSHAKE_TIMEOUT_MS = 6000L
+
     /** Relay eviction close code: another client claimed our clientId/slot. */
     const val CLOSE_CODE_REPLACED = 4000
 }

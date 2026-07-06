@@ -30,6 +30,8 @@
     <string name="connection_lost">Connessione persa...</string>
     <string name="attempt_n_of_m">Tentativo %1$d di %2$d</string>
     <string name="reconnect">RICONNETTI</string>
+    <string name="room_create_failed">Impossibile creare la stanza</string>
+    <string name="retry">RIPROVA</string>
 
     <string name="player">Giocatore</string>
 

@@ -99,6 +99,20 @@
       "android": { "file": "disconnected_controller" }
     },
     {
+      "key": "create-error-retry",
+      "title": "Create room failed (auto-retrying)",
+      "web": { "scenario": "create-error-retry", "players": 0 },
+      "tvos": { "shot": "create-error-retry", "players": 0 },
+      "android": { "file": "create_error_retry" }
+    },
+    {
+      "key": "create-error",
+      "title": "Create room failed (RETRY button)",
+      "web": { "scenario": "create-error", "players": 0 },
+      "tvos": { "shot": "create-error", "players": 0 },
+      "android": { "file": "create_error" }
+    },
+    {
       "key": "reconnecting",
       "title": "Display reconnecting (full screen)",
       "web": { "scenario": "reconnecting", "players": 4 },

@@ -469,10 +469,13 @@ function initScenario(opts) {
   }
 
   // Seed dummy relay data for gallery previews so the chip renders. Skip
-  // welcome (chip hidden on welcome by design) and airconsole-lobby (real
+  // welcome (chip hidden on welcome by design), airconsole-lobby (real
   // AirConsole sessions don't use our relay, so the chip is hidden there
-  // — gallery should match).
-  if (scenario !== 'welcome' && scenario !== 'airconsole-lobby') {
+  // — gallery should match), and the create-error states (the room was never
+  // created, so there is no relay link and the chip stays hidden).
+  var noRelayChip = scenario === 'welcome' || scenario === 'airconsole-lobby' ||
+    scenario === 'create-error' || scenario === 'create-error-retry';
+  if (!noRelayChip) {
     relayRegion = 'fra';
     lastRelayRtt = 12;
     consecutiveBadRtt = 0;
@@ -503,6 +506,20 @@ function initScenario(opts) {
     window.__TEST__.addPlayers(_buildDebugPlayers(playerCount, level, hostSlot));
     showScreen(SCREEN.LOBBY);
     _freezeWelcomeBg();
+    return;
+  }
+
+  // Create-failure states — first launch couldn't create a room (no Internet,
+  // relay error, silent-socket timeout). Runs the production showCreateError,
+  // which dims the empty lobby under the create-failure overlay: the -retry
+  // variant shows the auto-retry "Attempt N of M" counter (button hidden); the
+  // plain variant is the exhausted state with the RETRY button. No room, so no
+  // players are connected. Mirrors DisplayConnection's create-error path.
+  if (scenario === 'create-error' || scenario === 'create-error-retry') {
+    showScreen(SCREEN.LOBBY);
+    _freezeWelcomeBg();
+    if (scenario === 'create-error-retry') showCreateError(2, 5);
+    else showCreateError(6, 5);
     return;
   }
 

@@ -30,6 +30,8 @@
     <string name="connection_lost">Bağlantı kesildi...</string>
     <string name="attempt_n_of_m">Deneme %1$d/%2$d</string>
     <string name="reconnect">YENİDEN BAĞLAN</string>
+    <string name="room_create_failed">Oda oluşturulamadı</string>
+    <string name="retry">TEKRAR DENE</string>
 
     <string name="player">Oyuncu</string>
 

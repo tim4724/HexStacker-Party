@@ -38,6 +38,10 @@ fun ConnectionOverlay(
     // attempt <= 0 falls back to the static "Connection lost..." (the first tick).
     attempt: Int = 0,
     maxAttempts: Int = 0,
+    // No room yet — this is a failed first-launch create, not a lost room. Uses the
+    // create-failure copy (constant heading across retry AND give-up) and a RETRY
+    // button instead of RECONNECT. Mirrors the web display.
+    creating: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val focus = remember { FocusRequester() }
@@ -58,7 +62,11 @@ fun ConnectionOverlay(
         val vp = Vp(maxWidth.value, maxHeight.value)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = if (disconnected) stringResource(R.string.disconnected) else stringResource(R.string.reconnecting),
+                text = when {
+                    creating -> stringResource(R.string.room_create_failed)
+                    disconnected -> stringResource(R.string.disconnected)
+                    else -> stringResource(R.string.reconnecting)
+                },
                 style = AppType.connHeading,
                 color = Tokens.textPrimary,
                 fontSize = vp.vwSp(20.8f, 6f, 28.8f), // web .game-overlay h1: clamp(1.3rem,6vw,1.8rem)
@@ -83,7 +91,7 @@ fun ConnectionOverlay(
             if (disconnected && showReconnect) {
                 Spacer(Modifier.height(40.dp))
                 ChromeButton(
-                    text = stringResource(R.string.reconnect),
+                    text = if (creating) stringResource(R.string.retry) else stringResource(R.string.reconnect),
                     primary = true,
                     tint = Tokens.accentPrimary,
                     fontSize = vp.vhSp(17.6f, 2.4f, 27.2f),

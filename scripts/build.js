@@ -55,6 +55,7 @@ const LOCALE_DISPLAY_KEYS = [
   'paused', 'continue_btn', 'new_game', 'settings_game_music',
   // Display-connection overlay
   'reconnecting', 'connection_lost', 'reconnect', 'attempt_n_of_m',
+  'room_create_failed', 'retry',
   // Results
   'play_again', 'n_lines', 'level_n', 'new_player', 'player',
   // About screen legal links (Privacy / Imprint QR labels)

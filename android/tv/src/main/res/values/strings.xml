@@ -56,6 +56,8 @@
     <string name="connection_lost">Connection lost...</string>
     <string name="attempt_n_of_m">Attempt %1$d of %2$d</string>
     <string name="reconnect">RECONNECT</string>
+    <string name="room_create_failed">Couldn\'t create room</string>
+    <string name="retry">RETRY</string>
 
     <!-- Unnamed-player fallback (i18n player). -->
     <string name="player">Player</string>
