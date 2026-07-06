@@ -242,6 +242,15 @@ public final class RelayClient: NSObject, RelayTransport {
             emit { self.onReplaced?() }
             return
         }
+        // 4001: the room itself is gone (relay teardown). A connected host can't
+        // receive this today (only the host closes rooms, and the hostless grace
+        // arms only while slot 0 is vacant), so this is future-proofing: unpin
+        // the dead room and let the normal reconnect path below open a FRESH
+        // room (`create`) instead of bouncing a join off "Room not found".
+        if closeCode == 4001 {
+            lastRoom = nil
+            lastInstance = nil
+        }
 
         reconnectAttempt += 1
         if shouldReconnect && reconnectAttempt <= maxReconnectAttempts {

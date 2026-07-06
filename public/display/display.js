@@ -276,6 +276,13 @@ window.addEventListener('pagehide', function() {
   if (typeof party.broadcast === 'function') {
     try { party.broadcast({ type: MSG.DISPLAY_CLOSED }); } catch (_) {}
   }
+  // Tear the room down on the relay too: GET /room/:code turns 404 right away
+  // (stale rejoin links die) and any controller that misses DISPLAY_CLOSED
+  // still gets its socket closed with 4001 -> "party ended". Sent after the
+  // broadcast (same socket, ordered), so controllers see the goodbye first.
+  if (typeof party.closeRoom === 'function') {
+    try { party.closeRoom(); } catch (_) {}
+  }
   if (typeof party.close === 'function') party.close();
 });
 

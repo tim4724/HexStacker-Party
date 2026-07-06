@@ -217,6 +217,29 @@ test.describe('Reconnection', () => {
     await controller.waitForURL(/bail=game_ended/, { timeout: 10000 });
   });
 
+  test('display navigating away tears the room down on the relay', async ({ page, context }) => {
+    const { roomCode } = await createRoom(page);
+    const controller = await joinController(context, roomCode, 'Alice');
+    await waitForDisplayPlayers(page, 1);
+
+    // The room resolves while the party is live (this is what feeds the
+    // Couch Games launcher's rejoin card).
+    const probe = 'https://ws.hexstacker.com/room/' + encodeURIComponent(roomCode);
+    expect((await fetch(probe)).status).toBe(200);
+
+    // Display navigates away: pagehide broadcasts DISPLAY_CLOSED and sends
+    // close_room, so the relay drops the room immediately (stale rejoin
+    // links die) instead of waiting for every member socket to disconnect.
+    await page.goto('about:blank');
+    await expect.poll(async () => (await fetch(probe)).status, { timeout: 10000 }).toBe(404);
+
+    // The controller ends at the party-over bail; DISPLAY_CLOSED and its own
+    // 4001 "room closed" frame both converge there, whichever lands first.
+    // The bail may already have happened (and the welcome page strips its
+    // ?bail= param on consuming the toast), so assert the settled URL.
+    await expect.poll(() => new URL(controller.url()).pathname, { timeout: 10000 }).toBe('/');
+  });
+
   test('controller in lobby survives a display relay blip without bailing', async ({ page, context }) => {
     // Same interception, but reconnect attempts ARE bridged: the display
     // comes back on its own (tvOS Home-and-back, relay blip) and re-welcomes.

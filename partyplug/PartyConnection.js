@@ -40,7 +40,7 @@ class PartyConnection {
 
     // Callbacks
     this.onOpen = null;        // () => void
-    this.onClose = null;       // (attempt: number, maxAttempts: number, meta?: {replaced: boolean}) => void
+    this.onClose = null;       // (attempt: number, maxAttempts: number, meta?: {replaced?: boolean, roomClosed?: boolean}) => void
     this.onError = null;       // () => void
     this.onMessage = null;     // (from: number, data: object) => void
     this.onProtocol = null;    // (type: string, msg: object) => void
@@ -96,6 +96,14 @@ class PartyConnection {
         // Relay evicted us because another client joined with the same clientId
         this._shouldReconnect = false;
         if (this.onClose) this.onClose(0, 0, { replaced: true });
+        return;
+      }
+      if (event && event.code === 4001) {
+        // The room itself is gone (host sent close_room, or the relay's
+        // hostless grace expired). Terminal: a reconnect would only bounce
+        // off "Room not found".
+        this._shouldReconnect = false;
+        if (this.onClose) this.onClose(0, 0, { roomClosed: true });
         return;
       }
       this.reconnectAttempt++;
@@ -177,6 +185,16 @@ class PartyConnection {
   // retain. `data` must be JSON-serializable and <= 16 KiB serialized.
   setState(data) {
     this._send({ type: 'set_state', data: data });
+  }
+
+  // Tear the room down for everyone (host/slot-0 only; the relay rejects it
+  // from anyone else). The relay deletes the room, GET /room/:code turns 404
+  // (killing stale rejoin links), and every member socket is closed with 4001,
+  // which surfaces to them as onClose(0, 0, {roomClosed: true}). There is no
+  // ack message: the sender's own 4001 close is the confirmation, unless the
+  // caller close()s first (fine on pagehide, where the page is going away).
+  closeRoom() {
+    this._send({ type: 'close_room' });
   }
 
   reconnectNow() {

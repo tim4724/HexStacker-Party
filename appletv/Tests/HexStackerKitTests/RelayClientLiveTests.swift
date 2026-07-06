@@ -142,6 +142,28 @@ import Foundation
         #expect(waitUntil(3) { state.get().rejoinPeers != nil }, "onJoined fired on resume")
     }
 
+    @Test func roomClosedCloseUnpinsRoomAndRecreates() throws {
+        let server = try MockRelayServer(); try server.start()
+        defer { server.stop() }
+
+        let client = RelayClient(baseURL: server.baseURL, clientId: "display", callbackQueue: cbQueue)
+        defer { client.disconnect() }
+
+        let state = Captured()
+        client.onCreated = { room, _, _ in state.set { $0.room = room } }
+
+        client.connect()
+        #expect(waitUntil(15) { state.get().room != nil }, "initial create landed")
+
+        // The relay tore the room down (close 4001): the pinned room is dead,
+        // so the auto-reconnect must open a FRESH room with `create`, not
+        // bounce a `join` off "Room not found".
+        server.closeCurrentConnection(code: 4001)
+        #expect(waitUntil(8) { server.connectionCount >= 2 }, "client reconnected after 4001")
+        #expect(waitUntil(8) { server.receivedEnvelopes(type: "create").count == 2 }, "reconnect sent a fresh create")
+        #expect(server.receivedEnvelopes(type: "join").isEmpty, "no join against the closed room")
+    }
+
     @Test func evictionCloseFiresOnReplacedWithoutReconnect() throws {
         let server = try MockRelayServer(); try server.start()
         defer { server.stop() }

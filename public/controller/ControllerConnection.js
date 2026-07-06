@@ -226,6 +226,12 @@ function connect() {
       bailToWelcome(undefined, true);
       return;
     }
+    if (meta && meta.roomClosed) {
+      // The relay tore the room down (host closed it, or its hostless grace
+      // expired): the party is over for good, so skip the reconnect flow.
+      bailToWelcome('game_ended');
+      return;
+    }
     if (currentScreen !== 'game') return;
     clearTimeout(disconnectedTimer);
 

@@ -97,6 +97,7 @@ new PartyConnection(relayUrl, { clientId?, maxReconnectAttempts = 5 })
 | `sendTo(to, data)` | Send to one slot |
 | `broadcast(data)` | Send to all peers |
 | `setState(data)` | Publish the retained room snapshot (host/slot-0 only; ≤ 16 KiB serialized) |
+| `closeRoom()` | Tear the room down for everyone (host/slot-0 only): the relay deletes it (`GET /room/:code` turns 404) and closes every member socket with 4001, surfaced to them as `onClose` `{ roomClosed }` |
 | `reconnectNow()` / `resetReconnectCount()` | Manual reconnect control |
 | `close()` | Tear down, stop reconnecting |
 
@@ -104,6 +105,9 @@ Callbacks (assigned as properties):
 
 - `onOpen()`
 - `onClose(attempt, maxAttempts, meta?)` where `meta` may carry `{ replaced }`
+  (evicted by a same-clientId join, close 4000) or `{ roomClosed }` (the room
+  itself is gone: host `closeRoom()` or the relay's hostless grace, close 4001);
+  both are terminal, no auto-reconnect follows
 - `onError()`
 - `onMessage(from, data)` for game messages
 - `onProtocol(type, msg)` for relay events (`created`, `joined`, `peer_joined`, `peer_left`)

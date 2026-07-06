@@ -26,13 +26,15 @@ declare class PartyConnection {
   broadcast(data: any): void;
   /** Publish a retained state snapshot (host/slot-0 only). Replayed to clients on (re)join and pushed live to peers. <= 16 KiB serialized. */
   setState(data: any): void;
+  /** Tear the room down for everyone (host/slot-0 only). The relay deletes the room and closes every member socket with 4001 (onClose meta.roomClosed). */
+  closeRoom(): void;
   reconnectNow(): void;
   resetReconnectCount(): void;
   close(): void;
 
   // Callbacks (assigned as properties).
   onOpen: (() => void) | null;
-  onClose: ((attempt: number, maxAttempts: number, meta?: { replaced?: boolean }) => void) | null;
+  onClose: ((attempt: number, maxAttempts: number, meta?: { replaced?: boolean; roomClosed?: boolean }) => void) | null;
   onError: (() => void) | null;
   onMessage: ((from: number, data: any) => void) | null;
   onProtocol: ((type: string, msg: any) => void) | null;
