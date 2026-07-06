@@ -487,9 +487,9 @@ import Foundation
         let broadcastsBefore = ft.broadcasts.count
         coord.displayDidEnterBackground()
         #expect(fl.closeAllCount == 1, "backgrounding tears down all fastlane peers")
-        // Backgrounding is recoverable, so it must NOT broadcast DISPLAY_CLOSED
-        // (which controllers treat as terminal); their reconnect overlay comes
-        // from the relay's peer_left when the socket suspends.
+        // Backgrounding is recoverable, so it must NOT signal the controllers
+        // that the party ended; their reconnect overlay comes from the relay's
+        // peer_left when the socket suspends.
         #expect(ft.broadcasts.count == broadcastsBefore, "backgrounding broadcasts nothing")
     }
 

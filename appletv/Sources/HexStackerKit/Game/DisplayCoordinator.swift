@@ -790,7 +790,7 @@ public final class DisplayCoordinator {
     }
 
     /// The tvOS app is backgrounding. Deliberately NOT the web's pagehide
-    /// DISPLAY_CLOSED broadcast: a page that hides is gone for good, but a
+    /// close_room teardown: a page that hides is gone for good, but a
     /// backgrounded app can come straight back (Home and back), so the party
     /// survives. Controllers learn of the absence via the relay's peer_left
     /// (RelayClient.suspend), keep their seats, and bail on their own if the

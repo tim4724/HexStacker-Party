@@ -188,8 +188,8 @@ test.describe('Reconnection', () => {
 
   test('controller in lobby: display vanishing shows reconnect overlay then bails home', async ({ page, context }) => {
     // Bridge the display's relay WS once; refuse reconnect attempts so the
-    // display stays gone (a crash or a backgrounded tvOS app): no
-    // DISPLAY_CLOSED broadcast, only the relay's peer_left(0).
+    // display stays gone (a crash or a backgrounded tvOS app): no room
+    // teardown, only the relay's peer_left(0).
     let link = null;
     await page.routeWebSocket(/ws\.hexstacker\.com/, (ws) => {
       if (link) return;   // reconnect attempts never reach the relay
@@ -227,14 +227,14 @@ test.describe('Reconnection', () => {
     const probe = 'https://ws.hexstacker.com/room/' + encodeURIComponent(roomCode);
     expect((await fetch(probe)).status).toBe(200);
 
-    // Display navigates away: pagehide broadcasts DISPLAY_CLOSED and sends
-    // close_room, so the relay drops the room immediately (stale rejoin
-    // links die) instead of waiting for every member socket to disconnect.
+    // Display navigates away: pagehide sends close_room, so the relay drops
+    // the room immediately (stale rejoin links die) instead of waiting for
+    // every member socket to disconnect.
     await page.goto('about:blank');
     await expect.poll(async () => (await fetch(probe)).status, { timeout: 10000 }).toBe(404);
 
-    // The controller ends at the party-over bail; DISPLAY_CLOSED and its own
-    // 4001 "room closed" frame both converge there, whichever lands first.
+    // The controller ends at the party-over bail via its own 4001 "room
+    // closed" close frame.
     // The bail may already have happened (and the welcome page strips its
     // ?bail= param on consuming the toast), so assert the settled URL.
     await expect.poll(() => new URL(controller.url()).pathname, { timeout: 10000 }).toBe('/');

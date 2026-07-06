@@ -74,7 +74,6 @@ class ProtocolCodecTest {
     @Test
     fun outboundBuilderShapes() {
         assertEquals(Msg.GAME_START, type(OutboundMessage.gameStart()))
-        assertEquals(Msg.DISPLAY_CLOSED, type(OutboundMessage.displayClosed()))
 
         val cd = OutboundMessage.countdownGo()
         assertEquals(Msg.COUNTDOWN, type(cd))

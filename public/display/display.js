@@ -264,22 +264,17 @@ startBtn.addEventListener('click', function() {
   startGame();
 });
 
-// Goodbye to controllers on intentional close/navigate-away so they
-// immediately see the end screen instead of a "reconnecting" overlay.
-// Best-effort: pagehide also fires on bfcache freeze (iOS Safari) where
-// the WebSocket send may not complete before the page is frozen.
-// Controllers fall back to the existing reconnect overlay in that case.
-// In test/gallery mode `party` may be a minimal stub without broadcast/close,
-// so each call is guarded.
+// Goodbye on intentional close/navigate-away: tear the room down on the
+// relay. Every controller gets a 4001 "room closed" (its terminal
+// party-over signal) and GET /room/:code turns 404 right away, so stale
+// rejoin links die with the room. Best-effort: pagehide also fires on
+// bfcache freeze (iOS Safari) where the send may not complete before the
+// page is frozen; controllers then fall back to their display-gone flow
+// (reconnect overlay, then their own bail). In test/gallery mode `party`
+// may be a minimal stub (or the AirConsole adapter, where the SDK owns
+// session end), so each call is guarded.
 window.addEventListener('pagehide', function() {
   if (!party) return;
-  if (typeof party.broadcast === 'function') {
-    try { party.broadcast({ type: MSG.DISPLAY_CLOSED }); } catch (_) {}
-  }
-  // Tear the room down on the relay too: GET /room/:code turns 404 right away
-  // (stale rejoin links die) and any controller that misses DISPLAY_CLOSED
-  // still gets its socket closed with 4001 -> "party ended". Sent after the
-  // broadcast (same socket, ordered), so controllers see the goodbye first.
   if (typeof party.closeRoom === 'function') {
     try { party.closeRoom(); } catch (_) {}
   }

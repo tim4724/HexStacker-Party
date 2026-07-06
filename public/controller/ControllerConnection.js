@@ -287,11 +287,12 @@ function stopPing() {
 }
 
 // The display's relay slot emptied out (peer_left(0), or a unicast to it
-// bounced) without a DISPLAY_CLOSED broadcast: crash, network loss, or the
-// tvOS app backgrounded by the Home button. That's recoverable (the display
+// bounced) without the room being torn down: crash, network loss, or a TV
+// app backgrounded by the Home button. That's recoverable (the display
 // rejoins the same slot and re-WELCOMEs everyone), so wait on the reconnect
 // overlay instead of bailing, but not forever. WELCOME clears the timer,
-// hides the overlay, and restarts pings.
+// hides the overlay, and restarts pings. A deliberate display exit is NOT
+// this path: the relay closes our socket with 4001 (onClose meta.roomClosed).
 function onDisplayGone() {
   // Stop pinging the empty slot: each PING would bounce as a relay error and
   // re-enter here. The display re-stamps everyone's liveness on rejoin, so

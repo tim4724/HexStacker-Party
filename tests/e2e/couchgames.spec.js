@@ -68,8 +68,9 @@ test.describe('Couch Games shell contract', () => {
     await expect(controller.locator('#player-identity-name')).toHaveText('Maxi');
     await expect(page.locator('#player-list')).toContainText('Maxi');
 
-    // Display navigating away broadcasts DISPLAY_CLOSED → terminal end goes
-    // to the launcher bridge, with no navigation off the controller page.
+    // Display navigating away tears the room down (close_room): the 4001
+    // close is the controller's terminal end and goes to the launcher
+    // bridge, with no navigation off the controller page.
     await page.goto('about:blank');
     await controller.waitForFunction(() => window.__cgEnded.length > 0, null, { timeout: 10000 });
     expect(await controller.evaluate(() => window.__cgEnded)).toEqual(['game_ended']);

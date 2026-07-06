@@ -93,7 +93,6 @@ object Msg {
     const val GAME_END = "game_end"
     const val GAME_PAUSED = "game_paused"
     const val GAME_RESUMED = "game_resumed"
-    const val DISPLAY_CLOSED = "display_closed"
     const val ERROR = "error"
 
     /** Internal display self-liveness canary (echoed via relay slot 0); not in protocol.js MSG. */
@@ -227,7 +226,6 @@ object OutboundMessage {
     fun gamePaused(): JsonObject = buildJsonObject { put("type", Msg.GAME_PAUSED) }
     fun gameResumed(): JsonObject = buildJsonObject { put("type", Msg.GAME_RESUMED) }
     fun gameOver(): JsonObject = buildJsonObject { put("type", Msg.GAME_OVER) }
-    fun displayClosed(): JsonObject = buildJsonObject { put("type", Msg.DISPLAY_CLOSED) }
     fun displayMuted(muted: Boolean): JsonObject = buildJsonObject { put("type", Msg.DISPLAY_MUTED); put("muted", muted) }
     fun returnToLobby(playerCount: Int): JsonObject =
         buildJsonObject { put("type", Msg.RETURN_TO_LOBBY); put("playerCount", playerCount) }

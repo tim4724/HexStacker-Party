@@ -77,7 +77,6 @@ public enum MSG {
     public static let gameEnd = "game_end"
     public static let gamePaused = "game_paused"
     public static let gameResumed = "game_resumed"
-    public static let displayClosed = "display_closed"
     public static let error = "error"
 
     // Internal: display self-liveness canary (echoed via relay slot 0).
