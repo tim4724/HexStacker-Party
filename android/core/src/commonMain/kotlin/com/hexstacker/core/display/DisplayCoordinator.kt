@@ -182,12 +182,15 @@ class DisplayCoordinator(
         transport.connect()
     }
 
-    /** Cancel the consumer + scope and disconnect the transport. */
+    /** Cancel the consumer + scope, tear the room down, and disconnect the transport. */
     fun stop() {
         if (!started) return
-        // Tell controllers the display is going away so they show the end screen
-        // immediately instead of a reconnect overlay (web broadcasts DISPLAY_CLOSED).
-        runCatching { transport.broadcast(OutboundMessage.displayClosed()) }
+        // Deliberate exit (BACK out of the app): tear the room down on the relay.
+        // Every controller gets a 4001 "room closed" (its terminal party-over
+        // signal), and GET /room/:code turns 404 immediately, so stale rejoin
+        // links die with the room. Backgrounding (Home) is NOT this path: the
+        // Activity suspends the socket instead, and the party survives.
+        runCatching { transport.closeRoom() }
         fastlane?.closeAll()
         transport.disconnect()
         actions.close()

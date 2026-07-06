@@ -80,7 +80,29 @@ class RelayClient(
         cancelReconnect()
         cancelHandshakeTimeout()
         stopHeartbeat()
-        webSocket?.cancel()
+        // Graceful close (not cancel): a frame queued just before — the exit
+        // path's close_room — still flushes ahead of the close handshake.
+        webSocket?.close(1000, null)
+        webSocket = null
+        emitState(RelayTransport.ConnectionState.CLOSED)
+    }
+
+    /**
+     * Deliberate close while the app is backgrounded: tear down the socket and
+     * timers with NO auto-reconnect, but keep the room pinned so a foreground
+     * [reconnect] re-joins slot 0. Closing promptly hands the controllers an
+     * immediate peer_left(0), so they react to the display's absence (reconnect
+     * overlay, then their own bail) instead of sitting in a live-looking room
+     * with nobody behind it. If the room is gone by the time we return, the
+     * relay answers the join with "Room not found" and the coordinator recovers
+     * via [createFresh]. Mirrors appletv RelayClient.suspend().
+     */
+    fun suspendSocket() = ops.executeSafe {
+        cancelReconnect()
+        cancelHandshakeTimeout()
+        stopHeartbeat()
+        dropHandled = true // suppress the drop handler for this deliberate cancel
+        webSocket?.close(1000, null)
         webSocket = null
         emitState(RelayTransport.ConnectionState.CLOSED)
     }
@@ -93,6 +115,9 @@ class RelayClient(
 
     override fun setState(data: JsonObject) =
         ops.executeSafe { sendEnvelope(RelayJson.encodeToString(SetStateFrame(data = data))) }
+
+    override fun closeRoom() =
+        ops.executeSafe { sendEnvelope(RelayJson.encodeToString(CloseRoomFrame())) }
 
     /** Manual reconnect (user pressed RECONNECT after we gave up): clear the backoff
      *  and connect immediately. */
@@ -201,6 +226,13 @@ class RelayClient(
             emitState(RelayTransport.ConnectionState.CLOSED)
             emit { onReplaced?.invoke() }
             return
+        }
+        // Room torn down by the relay: the room is gone, not just this socket.
+        // Unpin it so the reconnect below opens a FRESH room (`create`) instead
+        // of bouncing a join off "Room not found". Mirrors appletv RelayClient.
+        if (closeCode == RelayConfig.CLOSE_CODE_ROOM_CLOSED) {
+            lastRoom = null
+            lastInstance = null
         }
         reconnectAttempt += 1
         if (shouldReconnect && reconnectAttempt <= RelayConfig.MAX_RECONNECT_ATTEMPTS) {

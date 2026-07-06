@@ -53,6 +53,11 @@ object RelayConfig {
 
     /** Relay eviction close code: another client claimed our clientId/slot. */
     const val CLOSE_CODE_REPLACED = 4000
+
+    /** Room-teardown close code: the host sent close_room, or the relay's hostless
+     *  grace expired. The room is gone (not just this socket), so reconnect logic
+     *  must not rejoin it; the client unpins the room and creates a fresh one. */
+    const val CLOSE_CODE_ROOM_CLOSED = 4001
 }
 
 /** Application message-type strings (data.type), verbatim from protocol.js. */
@@ -133,6 +138,9 @@ data class SendFrame(val type: String = "send", val data: JsonObject, val to: In
 
 @Serializable
 data class SetStateFrame(val type: String = "set_state", val data: JsonObject)
+
+@Serializable
+data class CloseRoomFrame(val type: String = "close_room")
 
 // ---- Inbound frames (decoded from the parsed root object, per type) ----
 @Serializable
@@ -251,6 +259,15 @@ interface RelayTransport {
      * resetToWelcome -> connectAndCreateRoom path).
      */
     fun createFresh()
+
+    /**
+     * Tear the room down for everyone (host/slot-0 only; the relay rejects it from
+     * anyone else): the relay deletes the room (GET /room/:code turns 404, killing
+     * stale rejoin links) and closes every member socket with 4001 "room closed".
+     * No ack message; the sender's own 4001 close is the confirmation, unless it
+     * disconnects first (fine on app exit, where the socket is going away anyway).
+     */
+    fun closeRoom()
 
     var onCreated: ((room: String, instance: String?, region: String?) -> Unit)?
     var onJoined: ((room: String, peers: List<Int>) -> Unit)?

@@ -460,7 +460,7 @@ class DisplayCoordinatorTest {
     }
 
     @Test
-    fun displayClosedBroadcastOnStop() = runBlocking {
+    fun closeRoomOnStop() = runBlocking {
         val t = FakeTransport(); val out = FakeOutput()
         val coord = DisplayCoordinator(t, out, engineFactory = { _, _ -> error("no engine") }, seedProvider = { 0L })
         coord.start()
@@ -468,7 +468,10 @@ class DisplayCoordinatorTest {
         t.peerJoined(1); coord.awaitIdle()
         t.sent.clear()
         coord.stop()
-        assertTrue(t.sent.any { it.first == -1 && type(it.second) == Msg.DISPLAY_CLOSED })
+        // Deliberate exit tears the room down on the relay; the members' 4001
+        // close frames are their party-over signal, so nothing is broadcast.
+        assertEquals(1, t.roomCloses, "stop() sends close_room")
+        assertTrue(t.sent.isEmpty(), "stop() broadcasts nothing")
     }
 
     @Test
@@ -818,6 +821,7 @@ class DisplayCoordinatorTest {
         val sent = mutableListOf<Pair<Int, JsonObject>>() // (to, data); to == -1 for broadcast
         val states = mutableListOf<JsonObject>() // retained set_state snapshots
         var freshCreates = 0
+        var roomCloses = 0
 
         override var onCreated: ((room: String, instance: String?, region: String?) -> Unit)? = null
         override var onJoined: ((room: String, peers: List<Int>) -> Unit)? = null
@@ -835,6 +839,7 @@ class DisplayCoordinatorTest {
         override fun broadcast(data: JsonObject) { sent += -1 to data }
         override fun setState(data: JsonObject) { states += data }
         override fun createFresh() { freshCreates++ }
+        override fun closeRoom() { roomCloses++ }
 
         // inbound drivers
         fun created(room: String, inst: String?) = onCreated?.invoke(room, inst, null)

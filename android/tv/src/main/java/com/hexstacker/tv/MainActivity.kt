@@ -162,15 +162,36 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Background: silence music (the tick loop already stops via repeatOnLifecycle). */
+    // True between a Home-press suspend (onStop) and the matching onStart resume,
+    // so the first onStart of the process doesn't "resume" a connection that the
+    // onCreate connect() is already opening.
+    private var suspendedForBackground = false
+
+    /** Background: silence music and suspend the relay socket (the tick loop already
+     *  stops via repeatOnLifecycle). Backgrounding is recoverable (Home and back), so
+     *  the party survives: closing the socket hands controllers an immediate
+     *  peer_left(0) and they wait on their reconnect overlay instead of sitting in a
+     *  live-looking room with a frozen display behind it. Skipped when finishing:
+     *  onDestroy's coordinator.stop() must still send close_room over a live socket. */
     override fun onStop() {
         super.onStop()
         music.pauseForBackground()
+        if (!isFinishing) {
+            fastlane.closeAll() // controllers re-offer their P2P channels on rejoin
+            relay.suspendSocket()
+            suspendedForBackground = true
+        }
     }
 
-    /** Foreground: restore music only if a match is actively running (not paused/muted). */
+    /** Foreground: rejoin the suspended room (slot 0; the coordinator re-welcomes the
+     *  waiting controllers on `joined`, or recovers via createFresh if the relay
+     *  retired the room), and restore music only if a match is actively running. */
     override fun onStart() {
         super.onStart()
+        if (suspendedForBackground) {
+            suspendedForBackground = false
+            relay.reconnect()
+        }
         val m = ui.state.value
         // countdown == null gates out the 3/2/1/GO window: the screen is already GAME then,
         // but startMusic() only fires at GO. Resuming here mid-countdown would start the loop
