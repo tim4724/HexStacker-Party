@@ -194,12 +194,23 @@ class BoardSurfaceView @JvmOverloads constructor(
         layoutDirty = true
     }
 
-    override fun surfaceDestroyed(holder: SurfaceHolder) {
+    /**
+     * Stop the render thread and wait for it to exit. Idempotent.
+     *
+     * Call this from the main thread BEFORE hiding the board (visibility=GONE). Tearing the
+     * SurfaceView down while the render thread still holds a buffer dequeued inside
+     * lockHardwareCanvas races SurfaceFlinger's buffer teardown and blocks the main-thread
+     * traversal for ~1-2s on return-to-lobby (measured: Choreographer "Skipped 57 frames",
+     * HWUI "Davey! 1016ms", "buffers were freed while being dequeued"). Stopping first — while
+     * the surface is still valid — lets the thread finish its in-flight lock/unlockCanvas and
+     * exit, so the join is bounded to the current frame (~16ms) and the teardown is clean.
+     *
+     * The join loops until the thread is confirmed dead: a still-running thread that then drew
+     * onto a recycled bitmap would throw "trying to use a recycled bitmap" (or touch a dead
+     * Surface), so callers must never free bitmaps until this returns.
+     */
+    fun stopRenderThread() {
         running = false
-        // Join in a loop until the render thread actually stops. A bare join(timeout) can
-        // return while the thread is still wedged inside lock/unlockCanvas during a
-        // SurfaceFlinger stall, and a still-running thread that then drew onto a recycled
-        // bitmap would throw "trying to use a recycled bitmap" (or touch the dead Surface).
         renderThread?.let { t ->
             var joined = false
             while (!joined) {
@@ -207,12 +218,19 @@ class BoardSurfaceView @JvmOverloads constructor(
                     t.join()
                     joined = true
                 } catch (_: InterruptedException) {
-                    // Retry the join; never free bitmaps until the thread is confirmed dead.
+                    // Retry the join; never proceed until the thread is confirmed dead.
                 }
             }
         }
         renderThread = null
-        // Thread is stopped → safe to free bitmaps + clear render-thread state from here.
+    }
+
+    override fun surfaceDestroyed(holder: SurfaceHolder) {
+        // Normally the thread is already stopped by showScreen(LOBBY) before the surface is
+        // hidden (that's what avoids the teardown race); this handles surface loss we don't
+        // initiate (backgrounding, config change). Either way the thread is dead before the
+        // bitmaps are freed.
+        stopRenderThread()
         for (r in renderers) r.recycle()
         renderers = emptyList()
         stampCache.clear()

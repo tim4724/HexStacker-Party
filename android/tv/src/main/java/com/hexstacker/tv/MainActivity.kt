@@ -265,6 +265,11 @@ class TvDisplayOutput(
     override fun showScreen(screen: DisplayScreen) {
         // Only render the board surface during GAME/RESULTS; hiding it in the lobby
         // stops its render thread (the surface is destroyed) and saves the GPU.
+        //
+        // Stop the render thread BEFORE hiding: tearing the SurfaceView down while the thread
+        // still holds a dequeued buffer stalls the main thread on return-to-lobby (see
+        // stopRenderThread), so the lobby wouldn't paint for ~1-2s.
+        if (screen == DisplayScreen.LOBBY) board.stopRenderThread()
         board.visibility = if (screen == DisplayScreen.LOBBY) View.GONE else View.VISIBLE
         // Keep the TV awake for the whole match (COUNTDOWN+PLAYING = DisplayScreen.GAME); the
         // TV itself gets no input, so without this the screensaver can fire mid-game. Mirrors
