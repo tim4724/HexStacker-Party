@@ -122,11 +122,6 @@
         <button id="pause-newgame-btn" class="btn btn-secondary" data-i18n="new_game">New Game</button>
       </div>
     </div>
-    <div id="reconnect-overlay" class="game-overlay hidden">
-      <h1 id="reconnect-heading" data-i18n="reconnecting">RECONNECTING</h1>
-      <p id="reconnect-status" class="game-overlay__status"></p>
-      <button id="reconnect-rejoin-btn" class="btn btn-primary hidden" data-i18n="rejoin">REJOIN</button>
-    </div>
     <div id="gesture-hints" aria-hidden="true">
       <div class="hint-bar-item"><div class="hint-bar-item__icon"><svg width="36" height="18" viewBox="0 0 36 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3L3 9L9 15M3 9L14 9M22 9L33 9M27 3L33 9L27 15" opacity="0.7"/><circle cx="18" cy="9" r="4.2" fill="currentColor" stroke="none"/></svg></div><div class="hint-bar-item__verb" data-i18n="swipe">Swipe</div><div class="hint-bar-item__result" data-i18n="gesture_move">move</div></div>
       <div class="hint-bar-item"><div class="hint-bar-item__icon"><svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="14" r="8" opacity="0.625"/><circle cx="14" cy="14" r="13" opacity="0.25"/><circle cx="14" cy="14" r="3.15" fill="currentColor" stroke="none"/></svg></div><div class="hint-bar-item__verb" data-i18n="tap">Tap</div><div class="hint-bar-item__result" data-i18n="gesture_rotate">rotate</div></div>
@@ -147,6 +142,15 @@
         <span class="latency-display__text">-- ms</span>
       </span>
     </div>
+  </div>
+
+  <!-- Reconnect overlay: outside all screens (like settings below), since the
+       display can vanish while the controller is in the lobby or on results,
+       and inside #game-screen the ancestor's .hidden would swallow it. -->
+  <div id="reconnect-overlay" class="game-overlay hidden">
+    <h1 id="reconnect-heading" data-i18n="reconnecting">RECONNECTING</h1>
+    <p id="reconnect-status" class="game-overlay__status"></p>
+    <button id="reconnect-rejoin-btn" class="btn btn-primary hidden" data-i18n="rejoin">REJOIN</button>
   </div>
 
   <!-- Settings overlay — lives outside all screens so it can be opened

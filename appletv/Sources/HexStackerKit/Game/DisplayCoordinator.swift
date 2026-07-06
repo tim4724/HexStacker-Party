@@ -789,12 +789,14 @@ public final class DisplayCoordinator {
         }
     }
 
-    /// Tell controllers the display is going away (the tvOS app is backgrounding /
-    /// terminating) so they show the end screen instead of a reconnect-forever
-    /// overlay. Mirrors the web's pagehide DISPLAY_CLOSED broadcast.
-    public func displayWillClose() {
-        transport.broadcast(OutboundMessage.displayClosed())
-        // Tear down P2P channels; if we foreground again the controllers re-offer.
+    /// The tvOS app is backgrounding. Deliberately NOT the web's pagehide
+    /// DISPLAY_CLOSED broadcast: a page that hides is gone for good, but a
+    /// backgrounded app can come straight back (Home and back), so the party
+    /// survives. Controllers learn of the absence via the relay's peer_left
+    /// (RelayClient.suspend), keep their seats, and bail on their own if the
+    /// display stays gone. Tear down P2P channels; on foregrounding the
+    /// controllers re-offer.
+    public func displayDidEnterBackground() {
         fastlane?.closeAll()
     }
 

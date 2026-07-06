@@ -62,6 +62,13 @@ var pingTimer = null;
 var lastPongTime = 0;
 var disconnectedTimer = null;
 
+// Display absence (relay peer_left for slot 0). The display may be coming
+// right back (relay blip, tvOS app backgrounded and reopened), so the
+// controller waits on the reconnect overlay; if it stays gone this long,
+// treat the party as over and bail.
+var DISPLAY_GONE_BAIL_MS = 30000;
+var displayGoneTimer = null;
+
 // Gesture feedback state
 var lastTouchX = 0, lastTouchY = 0;
 var coordTracker = null;

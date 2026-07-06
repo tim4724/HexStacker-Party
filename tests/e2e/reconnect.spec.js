@@ -186,6 +186,66 @@ test.describe('Reconnection', () => {
     await page.waitForSelector('#reconnect-overlay:not(.hidden)', { timeout: 15000 });
   });
 
+  test('controller in lobby: display vanishing shows reconnect overlay then bails home', async ({ page, context }) => {
+    // Bridge the display's relay WS once; refuse reconnect attempts so the
+    // display stays gone (a crash or a backgrounded tvOS app): no
+    // DISPLAY_CLOSED broadcast, only the relay's peer_left(0).
+    let link = null;
+    await page.routeWebSocket(/ws\.hexstacker\.com/, (ws) => {
+      if (link) return;   // reconnect attempts never reach the relay
+      const server = ws.connectToServer();
+      link = { server };
+      ws.onMessage((msg) => server.send(msg));
+      server.onMessage((msg) => ws.send(msg));
+    });
+
+    const { roomCode } = await createRoom(page);
+    const controller = await joinController(context, roomCode, 'Alice');
+    await waitForDisplayPlayers(page, 1);
+
+    // Shorten the display-gone grace so the bail is observable in test time.
+    await controller.evaluate(() => { DISPLAY_GONE_BAIL_MS = 2000; });
+
+    // Sever the display's relay link server-side while the controller sits
+    // in the LOBBY.
+    link.server.close();
+
+    // The lobby reacts instead of silently hosting a ghost...
+    await controller.waitForSelector('#reconnect-overlay:not(.hidden)', { timeout: 10000 });
+    // ...and once the display stays gone, bails with the party-over reason
+    // (the Couch Games shell maps this to returning home).
+    await controller.waitForURL(/bail=game_ended/, { timeout: 10000 });
+  });
+
+  test('controller in lobby survives a display relay blip without bailing', async ({ page, context }) => {
+    // Same interception, but reconnect attempts ARE bridged: the display
+    // comes back on its own (tvOS Home-and-back, relay blip) and re-welcomes.
+    const links = [];
+    await page.routeWebSocket(/ws\.hexstacker\.com/, (ws) => {
+      const server = ws.connectToServer();
+      ws.onMessage((msg) => server.send(msg));
+      server.onMessage((msg) => ws.send(msg));
+      links.push(server);
+    });
+
+    const { roomCode } = await createRoom(page);
+    const controller = await joinController(context, roomCode, 'Alice');
+    await waitForDisplayPlayers(page, 1);
+
+    // Sever the current link; the display auto-reconnects through the route.
+    // The controller's in-flight PING may bounce off the empty slot in the
+    // gap; that must NOT bail it out of the room.
+    links[links.length - 1].close();
+
+    // Controller notices the absence...
+    await controller.waitForSelector('#reconnect-overlay:not(.hidden)', { timeout: 10000 });
+    // ...and the display's rejoin re-welcomes it: overlay clears, same room,
+    // still in the lobby.
+    await expect(controller.locator('#reconnect-overlay')).toBeHidden({ timeout: 15000 });
+    expect(controller.url()).toContain(roomCode);
+    await expect(controller.locator('#player-identity')).toBeVisible();
+  });
+
   test('two-player game: one disconnect does not end game', async ({ page, context }) => {
     const { roomCode } = await createRoom(page);
     const c1 = await joinController(context, roomCode, 'Alice');

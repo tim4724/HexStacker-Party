@@ -163,14 +163,20 @@ function connect() {
           // when the display comes back.
           cancelFastlaneReopen();
         }
-        if (currentScreen === 'game') {
-          reconnectOverlay.classList.remove('hidden');
-          reconnectHeading.textContent = t('reconnecting');
-          reconnectStatus.textContent = t('display_reconnecting');
-          reconnectRejoinBtn.classList.add('hidden');
-        }
+        onDisplayGone();
       }
     } else if (type === 'peer_joined') {
+      if (msg.index === 0 && displayGoneTimer) {
+        // Display is back on the relay. Don't clear the bail outright: its
+        // re-WELCOME is what proves this session survived (and hides the
+        // overlay + restarts pings). Re-arm so a display that returns but
+        // never welcomes us (restarted with an empty roster) still bails.
+        clearTimeout(displayGoneTimer);
+        displayGoneTimer = setTimeout(function () {
+          displayGoneTimer = null;
+          bailToWelcome('game_ended');
+        }, DISPLAY_GONE_BAIL_MS);
+      }
       if (msg.index === 0 && fastlane) {
         // Display is back — re-establish the fastlane immediately rather
         // than waiting for the next watchdog or retry tick. Cancel any
@@ -184,6 +190,15 @@ function connect() {
     } else if (type === 'error') {
       if (msg.message === 'Room not found') bailToWelcome('room_not_found');
       else if (msg.message === 'Room is full') bailToWelcome('game_full');
+      else if (msg.message === 'Target peer not found' && currentScreen !== 'name') {
+        // We only ever unicast to slot 0, so this means the display's relay
+        // slot is empty; typically a PING that raced the peer_left(0)
+        // broadcast. In-session (post-WELCOME) that's the display-gone flow,
+        // not a terminal bail: the display may be seconds from rejoining
+        // (relay blip, tvOS Home and back). Pre-WELCOME ('name', i.e. the
+        // HELLO bounced off a hostless room) falls through and bails.
+        onDisplayGone();
+      }
       else bailToWelcome();
     }
   };
@@ -263,6 +278,32 @@ function startPing() {
 
 function stopPing() {
   if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
+}
+
+// The display's relay slot emptied out (peer_left(0), or a unicast to it
+// bounced) without a DISPLAY_CLOSED broadcast: crash, network loss, or the
+// tvOS app backgrounded by the Home button. That's recoverable (the display
+// rejoins the same slot and re-WELCOMEs everyone), so wait on the reconnect
+// overlay instead of bailing, but not forever. WELCOME clears the timer,
+// hides the overlay, and restarts pings.
+function onDisplayGone() {
+  // Stop pinging the empty slot: each PING would bounce as a relay error and
+  // re-enter here. The display re-stamps everyone's liveness on rejoin, so
+  // going quiet is safe.
+  stopPing();
+  // 'name' has no session to guard (pre-WELCOME); its JOIN error path owns it.
+  if (currentScreen !== 'name') {
+    reconnectOverlay.classList.remove('hidden');
+    reconnectHeading.textContent = t('reconnecting');
+    reconnectStatus.textContent = t('display_reconnecting');
+    reconnectRejoinBtn.classList.add('hidden');
+  }
+  if (!displayGoneTimer) {
+    displayGoneTimer = setTimeout(function () {
+      displayGoneTimer = null;   // page survives the bail in AC mode
+      bailToWelcome('game_ended');
+    }, DISPLAY_GONE_BAIL_MS);
+  }
 }
 
 function updateLatencyDisplay(ms) {

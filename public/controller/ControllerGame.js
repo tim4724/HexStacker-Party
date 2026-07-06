@@ -494,6 +494,10 @@ function onWelcome(data) {
   if (party) party.resetReconnectCount();
   startPing();
   clearTimeout(disconnectedTimer);
+  // Also covers the display returning while OUR socket was down: the rejoin
+  // delivers no peer_joined(0), so the WELCOME is what proves it's back.
+  clearTimeout(displayGoneTimer);
+  displayGoneTimer = null;
   reconnectOverlay.classList.add('hidden');
 
   playerName = data.playerName || playerName || t('player');

@@ -110,6 +110,38 @@ import Foundation
         #expect(waitUntil(3) { state.get().rejoinPeers == [1] }, "onJoined delivered the reconnect roster")
     }
 
+    @Test func suspendClosesWithoutReconnectAndResumesWithJoin() throws {
+        let server = try MockRelayServer(); try server.start()
+        defer { server.stop() }
+
+        let client = RelayClient(baseURL: server.baseURL, clientId: "display", callbackQueue: cbQueue)
+        defer { client.disconnect() }
+
+        let state = Captured()
+        client.onCreated = { room, _, _ in state.set { $0.room = room } }
+        client.onJoined = { _, peers in state.set { $0.rejoinPeers = peers } }
+
+        client.connect()
+        #expect(waitUntil(15) { state.get().room != nil }, "initial create landed")
+
+        // Backgrounding suspends the socket. This is a deliberate close, so the
+        // auto-reconnect that follows an ordinary drop must NOT fire.
+        client.suspend()
+        Thread.sleep(forTimeInterval: 1.5)   // past the first ~1 s backoff
+        #expect(server.connectionCount == 1, "suspend did not auto-reconnect")
+
+        // Foregrounding resumes with a fresh socket and a `join` that re-pins the
+        // room + clientId (slot-0 restore), not a second `create`.
+        client.reconnectNow()
+        #expect(waitUntil(8) { server.connectionCount == 2 }, "resume opened a new socket")
+        #expect(waitUntil(8) { !server.receivedEnvelopes(type: "join").isEmpty }, "resume sent join")
+        let join = server.receivedEnvelopes(type: "join").first
+        #expect(join?["clientId"] as? String == "display", "join carries the display clientId")
+        #expect(join?["room"] as? String == server.roomCode, "join re-pins the suspended room")
+        #expect(server.receivedEnvelopes(type: "create").count == 1, "resume does not create a second room")
+        #expect(waitUntil(3) { state.get().rejoinPeers != nil }, "onJoined fired on resume")
+    }
+
     @Test func evictionCloseFiresOnReplacedWithoutReconnect() throws {
         let server = try MockRelayServer(); try server.start()
         defer { server.stop() }

@@ -173,7 +173,6 @@ public enum OutboundMessage {
     public static func gamePaused() -> [String: Any] { ["type": MSG.gamePaused] }
     public static func gameResumed() -> [String: Any] { ["type": MSG.gameResumed] }
     public static func gameOver() -> [String: Any] { ["type": MSG.gameOver] }
-    public static func displayClosed() -> [String: Any] { ["type": MSG.displayClosed] }
     public static func displayMuted(_ muted: Bool) -> [String: Any] {
         ["type": MSG.displayMuted, "muted": muted]
     }

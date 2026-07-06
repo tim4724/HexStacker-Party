@@ -96,6 +96,28 @@ public final class RelayClient: NSObject, RelayTransport {
         }
     }
 
+    /// Deliberate close while the app is backgrounded: tear down the socket and
+    /// timers with NO auto-reconnect, but keep the room pinned and the session
+    /// alive so a foreground `reconnectNow()` re-joins slot 0. Closing promptly
+    /// (rather than letting the socket linger until the relay's idle timeout
+    /// kills it mid-suspension) hands the controllers an immediate peer_left(0),
+    /// so they react to the display's absence instead of sitting in a
+    /// live-looking room with nobody behind it. If the room is gone by the time
+    /// we return, the relay answers the join with "Room not found" and the
+    /// coordinator recovers by creating a fresh room.
+    public func suspend() {
+        q.async {
+            self.cancelReconnectTimer()
+            self.cancelHandshakeTimer()
+            self.stopHeartbeat()
+            self.dropHandled = true          // suppress the drop handler for this deliberate cancel
+            let old = self.task
+            self.task = nil
+            old?.cancel(with: .goingAway, reason: nil)
+            self.setState(.closed)
+        }
+    }
+
     /// Forget the current room and open a fresh one. Clears the pinned room so the
     /// next handshake sends `create` (not `join`), then tears the socket down and
     /// reconnects. Recovery path for a relay `error` of "Room not found"/"Room is

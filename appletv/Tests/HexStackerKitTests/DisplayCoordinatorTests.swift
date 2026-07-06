@@ -484,8 +484,13 @@ import Foundation
         // A controller leaving closes its P2P channel; backgrounding closes all.
         ft.onPeerLeft?(1)
         #expect(fl.closedPeers.contains(1), "peer_left closes the fastlane peer")
-        coord.displayWillClose()
-        #expect(fl.closeAllCount == 1, "displayWillClose tears down all fastlane peers")
+        let broadcastsBefore = ft.broadcasts.count
+        coord.displayDidEnterBackground()
+        #expect(fl.closeAllCount == 1, "backgrounding tears down all fastlane peers")
+        // Backgrounding is recoverable, so it must NOT broadcast DISPLAY_CLOSED
+        // (which controllers treat as terminal); their reconnect overlay comes
+        // from the relay's peer_left when the socket suspends.
+        #expect(ft.broadcasts.count == broadcastsBefore, "backgrounding broadcasts nothing")
     }
 
     // MARK: - `created` surfaces the room code + join URL, hello applies the name

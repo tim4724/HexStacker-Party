@@ -272,12 +272,13 @@ final class RootScene: SKScene, DisplayOutput {
         }
     }
 
-    /// App returned to the foreground. Backgrounding broadcast DISPLAY_CLOSED
-    /// (notifyDisplayClosing) but kept the socket, so after a quick Home-and-back
-    /// nothing detects a drop and the controllers stay stranded on their end
-    /// screens. Force a fresh join: `joined` replays the roster through the
-    /// coordinator's onJoined, which reconciles presence and re-welcomes every
-    /// controller, the same recovery the web gets from a page reload.
+    /// App returned to the foreground. Backgrounding suspended the relay socket
+    /// (appDidEnterBackground), so rejoin explicitly: if the room survived (the
+    /// controllers are still waiting on their reconnect overlays), `joined`
+    /// replays the roster through the coordinator's onJoined, which reconciles
+    /// presence and re-welcomes every controller; if the relay retired it (the
+    /// controllers gave up and left), the join answers "Room not found" and
+    /// onRelayError opens a fresh room.
     func appWillEnterForeground() {
         guard relayStarted else { return }   // HEXSHOT/HEXLOBBY/HEXDEMO never connect
         relay?.reconnectNow()
@@ -887,8 +888,18 @@ final class RootScene: SKScene, DisplayOutput {
         }
     }
 
-    /// App is backgrounding/terminating: tell controllers the display is gone.
-    func notifyDisplayClosing() { coordinator?.displayWillClose() }
+    /// App is backgrounding. Don't end the party (backgrounding is recoverable,
+    /// unlike the web's pagehide): close the P2P channels and suspend the relay
+    /// socket. Closing promptly, instead of letting the socket linger through
+    /// tvOS suspension, gives the relay an immediate peer_left(0) to fan out, so
+    /// controllers show their reconnect overlay right away (and bail on their
+    /// own if we never come back) rather than sitting in a live-looking lobby
+    /// with no display behind it.
+    func appDidEnterBackground() {
+        coordinator?.displayDidEnterBackground()
+        guard relayStarted else { return }   // HEXSHOT/HEXLOBBY/HEXDEMO never connect
+        relay?.suspend()
+    }
 
     // MARK: - Board layout
 

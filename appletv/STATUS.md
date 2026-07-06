@@ -149,8 +149,12 @@ the room QR and watch the controller's fastlane bolt light up while input still 
   - **Host hand-off** mid-game is re-broadcast so the new host's phone gains controls.
   - **Relay-link drop freezes the sim** (no blind KOs behind the reconnect overlay);
     reconnect resumes. Reconnect overlay shows live **"Attempt N of M"**.
-  - **DISPLAY_CLOSED** on app background, and **eviction** (slot stolen) shows a
-    terminal disconnect with no reconnect (avoids a takeover war).
+  - **App background suspends the relay socket** (no DISPLAY_CLOSED broadcast:
+    backgrounding is recoverable, unlike web pagehide) so controllers see
+    peer_left(0) and wait on their reconnect overlay; foreground rejoins slot 0
+    and re-welcomes, or opens a fresh room if the relay retired it.
+    **Eviction** (slot stolen) shows a terminal disconnect with no reconnect
+    (avoids a takeover war).
   - Host **mute from the phone** now silences live TV music immediately.
 - **Visual polish:** attacker-colored incoming-garbage telegraph + white
   defence/cancel flash on the meter; KO white-flash + 12-particle burst;

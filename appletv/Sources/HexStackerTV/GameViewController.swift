@@ -90,21 +90,22 @@ final class GameViewController: UIViewController {
             }
         }
 
-        // Leaving the app (Home / app switch) backgrounds it on tvOS: tell the
-        // controllers the display is going away (the web does this on pagehide) so
-        // they show the end screen instead of a reconnect-forever overlay.
+        // Leaving the app (Home / app switch) backgrounds it on tvOS. Unlike the
+        // web's pagehide (the page is gone for good), backgrounding is
+        // recoverable, so the party survives: suspend the relay socket and let
+        // the controllers wait on their reconnect overlays.
         NotificationCenter.default.addObserver(
             self, selector: #selector(appDidEnterBackground),
             name: UIApplication.didEnterBackgroundNotification, object: nil)
-        // Coming back needs the inverse: controllers were told the display
-        // closed, so re-join and re-welcome them (not posted on first launch).
+        // Coming back rejoins the same room and re-welcomes the waiting
+        // controllers (not posted on first launch).
         NotificationCenter.default.addObserver(
             self, selector: #selector(appWillEnterForeground),
             name: UIApplication.willEnterForegroundNotification, object: nil)
     }
 
     @objc private func appDidEnterBackground() {
-        rootScene?.notifyDisplayClosing()
+        rootScene?.appDidEnterBackground()
     }
 
     @objc private func appWillEnterForeground() {
