@@ -510,16 +510,24 @@ function initScenario(opts) {
   }
 
   // Create-failure states — first launch couldn't create a room (no Internet,
-  // relay error, silent-socket timeout). Runs the production showCreateError,
-  // which dims the empty lobby under the create-failure overlay: the -retry
-  // variant shows the auto-retry "Attempt N of M" counter (button hidden); the
-  // plain variant is the exhausted state with the RETRY button. No room, so no
-  // players are connected. Mirrors DisplayConnection's create-error path.
+  // relay error, silent-socket timeout). Merged into the reconnect overlay:
+  // it dims the empty, room-less lobby (no QR, no players). The -retry variant
+  // shows RECONNECTING with the auto-retry "Attempt N of M" counter; the plain
+  // variant is the exhausted DISCONNECTED state with the RECONNECT button.
+  // Mirrors DisplayConnection's onClose create-failure path.
   if (scenario === 'create-error' || scenario === 'create-error-retry') {
     showScreen(SCREEN.LOBBY);
     _freezeWelcomeBg();
-    if (scenario === 'create-error-retry') showCreateError(2, 5);
-    else showCreateError(6, 5);
+    reconnectOverlay.classList.remove('hidden');
+    if (scenario === 'create-error-retry') {
+      reconnectHeading.textContent = t('reconnecting');
+      reconnectStatus.textContent = t('attempt_n_of_m', { attempt: 1, max: 5 });
+      reconnectBtn.classList.add('hidden');
+    } else {
+      reconnectHeading.textContent = t('disconnected');
+      reconnectStatus.textContent = '';
+      reconnectBtn.classList.remove('hidden');
+    }
     return;
   }
 

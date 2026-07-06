@@ -12,7 +12,7 @@
     <string name="triple_clear">ÜÇLÜ!</string>
 
     <string name="scan_to_join">Katılmak için tara</string>
-    <string name="waiting_for_players">Oyuncular bekleniyor...</string>
+    <string name="waiting_for_players">Oyuncular bekleniyor</string>
     <string name="level_heading">Seviye</string>
     <string name="music_by">Müzik: FoxSynergy (CC-BY 3.0)</string>
 
@@ -27,11 +27,9 @@
 
     <string name="reconnecting">YENİDEN BAĞLANIYOR</string>
     <string name="disconnected">BAĞLANTI KESİLDİ</string>
-    <string name="connection_lost">Bağlantı kesildi...</string>
+    <string name="connection_lost">Bağlantı kesildi</string>
     <string name="attempt_n_of_m">Deneme %1$d/%2$d</string>
     <string name="reconnect">YENİDEN BAĞLAN</string>
-    <string name="room_create_failed">Oda oluşturulamadı</string>
-    <string name="retry">TEKRAR DENE</string>
 
     <string name="player">Oyuncu</string>
 

@@ -26,31 +26,6 @@ function armCreateTimeout() {
   }, CREATE_TIMEOUT_MS);
 }
 
-// Room-creation failure surface (see #lobby-error). Distinct from the reconnect
-// overlay, which recovers a room we already had; this is for never getting one
-// (no Internet, relay error, or a silent socket). Auto-retry rides the same
-// PartyConnection backoff — during attempts we show the attempt counter; once
-// they're exhausted we surface a RETRY button.
-function showCreateError(attempt, maxAttempts) {
-  if (!lobbyError) return;
-  // Dimmed overlay on top of the lobby (same pattern as the reconnect overlay),
-  // not an inline swap of the QR card.
-  lobbyError.classList.remove('hidden');
-  var exhausted = attempt > maxAttempts;
-  if (lobbyErrorStatus) {
-    lobbyErrorStatus.textContent = exhausted
-      ? ''
-      : t('attempt_n_of_m', { attempt: Math.min(attempt, maxAttempts), max: maxAttempts });
-  }
-  if (lobbyErrorRetryBtn) lobbyErrorRetryBtn.classList.toggle('hidden', !exhausted);
-}
-
-function clearCreateError() {
-  clearTimeout(createTimeout);
-  if (lobbyError) lobbyError.classList.add('hidden');
-  if (lobbyErrorRetryBtn) lobbyErrorRetryBtn.classList.add('hidden');
-}
-
 function connectAndCreateRoom() {
   if (party) party.close();
   clearTimeout(createTimeout);
@@ -97,13 +72,10 @@ function connectAndCreateRoom() {
   party.onClose = function(attempt, maxAttempts) {
     preCreatedRoom = null;
     clearTimeout(createTimeout);
-    // No room established yet → this is a failed *create*, not a lost
-    // connection. Surface it inline on the lobby (welcome-screen pre-creates
-    // keep retrying silently until the user actually lands on the lobby).
-    if (!lastRoomCode) {
-      if (currentScreen === SCREEN.LOBBY) showCreateError(attempt, maxAttempts);
-      return;
-    }
+    // Welcome-screen pre-creates keep retrying silently until the user lands
+    // on the lobby. From there a failed *create* (no room yet) and a lost room
+    // both drive the same overlay: RECONNECTING with the attempt counter while
+    // backoff runs, then DISCONNECTED + RECONNECT once attempts are exhausted.
     if (currentScreen === SCREEN.WELCOME) return;
     clearTimeout(disconnectedTimer);
 
@@ -152,8 +124,8 @@ function connectAndCreateRoom() {
       case 'error':
         if (!lastRoomCode) {
           // Relay rejected the create (bad url template, server error, etc.).
-          // Fail this attempt so it retries with backoff, then shows RETRY —
-          // "Room not found"/"Room is full" only apply to the join path below.
+          // Fail this attempt so it retries with backoff via the reconnect
+          // overlay — "Room not found"/"Room is full" only apply to join below.
           console.warn('Party-Server (create):', msg.message);
           if (party) party.failAttempt();
         } else if (msg.message === 'Room not found' || msg.message === 'Room is full') {
@@ -191,7 +163,13 @@ function connectAndCreateRoom() {
 // =====================================================================
 
 function onRoomCreated(partyRoomCode, instance) {
-  clearCreateError();
+  // A create can succeed after earlier attempts failed, which would have put
+  // the reconnect overlay up (RECONNECTING / DISCONNECTED). Clear it and reset
+  // the backoff counter so a later lost room starts counting from attempt 1.
+  clearTimeout(createTimeout);
+  clearTimeout(disconnectedTimer);
+  reconnectOverlay.classList.add('hidden');
+  if (party) party.resetReconnectCount();
   lastInstance = instance || null;
   // Pin the WS URL so PartyConnection's auto-reconnect lands on the same
   // instance (the relay's bare endpoint would otherwise route to whichever

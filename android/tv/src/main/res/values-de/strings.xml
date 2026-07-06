@@ -12,7 +12,7 @@
     <string name="triple_clear">TRIPLE!</string>
 
     <string name="scan_to_join">Scannen</string>
-    <string name="waiting_for_players">Warte auf Spieler...</string>
+    <string name="waiting_for_players">Warte auf Spieler</string>
     <string name="level_heading">Level</string>
     <string name="music_by">Musik von FoxSynergy (CC-BY 3.0)</string>
 
@@ -25,13 +25,11 @@
     <string name="continue_btn">Weiter</string>
     <string name="settings_game_music">Musik</string>
 
-    <string name="reconnecting">VERBINDE NEU...</string>
+    <string name="reconnecting">VERBINDE NEU</string>
     <string name="disconnected">GETRENNT</string>
-    <string name="connection_lost">Verbindung verloren...</string>
+    <string name="connection_lost">Verbindung verloren</string>
     <string name="attempt_n_of_m">Versuch %1$d von %2$d</string>
     <string name="reconnect">NEU VERBINDEN</string>
-    <string name="room_create_failed">Raum konnte nicht erstellt werden</string>
-    <string name="retry">ERNEUT VERSUCHEN</string>
 
     <string name="player">Spieler</string>
 

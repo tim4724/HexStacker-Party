@@ -761,7 +761,6 @@ body.airconsole #qr-container,
 #pause-continue-btn,
 #pause-newgame-btn,
 #reconnect-btn,
-#lobby-error-retry,
 #play-again-btn,
 #new-game-results-btn {
   min-width: clamp(260px, 34vh, 420px);
@@ -771,8 +770,7 @@ body.airconsole #qr-container,
   text-align: center;
 }
 
-#reconnect-btn.hidden,
-#lobby-error-retry.hidden {
+#reconnect-btn.hidden {
   display: none;
 }
 

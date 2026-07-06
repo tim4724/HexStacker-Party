@@ -16,7 +16,7 @@ var DISPLAY_CARDS = [
   { key: 'effects-combo',    title: 'Game (Pillow · Lv 8)',  level: 8,  animated: true, replayable: true },
   { key: 'effects-combo',    title: 'Game (Neon · Lv 12)',   level: 12, animated: true, replayable: true },
   { key: 'create-error-retry', title: 'Create failed (retrying)' },
-  { key: 'create-error',       title: 'Create failed (RETRY)' },
+  { key: 'create-error',       title: 'Create failed (disconnected)' },
   { key: 'reconnecting',     title: 'Reconnecting' },
   { key: 'pause',            title: 'Paused',                hostVariant: true },
   { key: 'disconnected',     title: 'Disconnected', hostVariant: true },

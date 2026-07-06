@@ -107,7 +107,7 @@
     },
     {
       "key": "create-error",
-      "title": "Create room failed (RETRY button)",
+      "title": "Create room failed (disconnected)",
       "web": { "scenario": "create-error", "players": 0 },
       "tvos": { "shot": "create-error", "players": 0 },
       "android": { "file": "create_error" }

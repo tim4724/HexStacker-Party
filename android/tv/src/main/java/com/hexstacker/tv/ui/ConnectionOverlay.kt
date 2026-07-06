@@ -21,9 +21,10 @@ import com.hexstacker.tv.R
 
 /**
  * Full-screen overlay shown when the display's own relay link drops. Mirrors the
- * web: while auto-retrying it reads RECONNECTING / "Connection lost..."; once the
+ * web: while auto-retrying it reads RECONNECTING / "Connection lost"; once the
  * client gives up it reads DISCONNECTED with a focusable RECONNECT button. Copy is
- * the web i18n source (no TV-only strings).
+ * the web i18n source (no TV-only strings). A failed first-launch create drives the
+ * same overlay as a lost room (RECONNECTING → DISCONNECTED).
  *
  * When [showReconnect] is false (a terminal slot-0 eviction: another display took over
  * the room), the DISCONNECTED copy is shown with no reconnect affordance, mirroring the
@@ -35,13 +36,9 @@ fun ConnectionOverlay(
     onReconnect: () -> Unit = {},
     showReconnect: Boolean = true,
     // Current retry / max, shown as "Attempt N of M" while reconnecting (web parity).
-    // attempt <= 0 falls back to the static "Connection lost..." (the first tick).
+    // attempt <= 0 falls back to the static "Connection lost" (the first tick).
     attempt: Int = 0,
     maxAttempts: Int = 0,
-    // No room yet — this is a failed first-launch create, not a lost room. Uses the
-    // create-failure copy (constant heading across retry AND give-up) and a RETRY
-    // button instead of RECONNECT. Mirrors the web display.
-    creating: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val focus = remember { FocusRequester() }
@@ -62,11 +59,8 @@ fun ConnectionOverlay(
         val vp = Vp(maxWidth.value, maxHeight.value)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = when {
-                    creating -> stringResource(R.string.room_create_failed)
-                    disconnected -> stringResource(R.string.disconnected)
-                    else -> stringResource(R.string.reconnecting)
-                },
+                text = if (disconnected) stringResource(R.string.disconnected)
+                       else stringResource(R.string.reconnecting),
                 style = AppType.connHeading,
                 color = Tokens.textPrimary,
                 fontSize = vp.vwSp(20.8f, 6f, 28.8f), // web .game-overlay h1: clamp(1.3rem,6vw,1.8rem)
@@ -77,7 +71,7 @@ fun ConnectionOverlay(
                 Spacer(Modifier.height(14.dp))
                 Text(
                     // "Attempt N of M" once retries begin (web clamps N to M); the static
-                    // "Connection lost..." is the fallback until the first retry tick.
+                    // "Connection lost" is the fallback until the first retry tick.
                     text = if (attempt > 0) {
                         stringResource(R.string.attempt_n_of_m, attempt.coerceAtMost(maxAttempts), maxAttempts)
                     } else {
@@ -91,7 +85,7 @@ fun ConnectionOverlay(
             if (disconnected && showReconnect) {
                 Spacer(Modifier.height(40.dp))
                 ChromeButton(
-                    text = if (creating) stringResource(R.string.retry) else stringResource(R.string.reconnect),
+                    text = stringResource(R.string.reconnect),
                     primary = true,
                     tint = Tokens.accentPrimary,
                     fontSize = vp.vhSp(17.6f, 2.4f, 27.2f),

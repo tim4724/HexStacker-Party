@@ -195,16 +195,6 @@
     <button id="reconnect-btn" class="btn btn-primary hidden" data-i18n="reconnect">RECONNECT</button>
   </div>
 
-  <!-- Create-room-failed overlay: shown on top of the lobby when the display
-       can't create its relay room (no Internet / relay error / timeout). Same
-       dimmed full-screen pattern as the reconnect overlay; constant heading
-       across auto-retry and give-up, with a RETRY button once retries run out. -->
-  <div id="lobby-error" class="game-overlay hidden" role="alert" aria-live="assertive">
-    <h1 id="lobby-error-heading" data-i18n="room_create_failed">Couldn't create room</h1>
-    <p id="lobby-error-status" class="game-overlay__status"></p>
-    <button id="lobby-error-retry" class="btn btn-primary hidden" data-i18n="retry">RETRY</button>
-  </div>
-
   <!-- Results overlay (shown on top of game screen) -->
   <div id="results-screen" class="screen hidden">
     <div id="results-list"></div>

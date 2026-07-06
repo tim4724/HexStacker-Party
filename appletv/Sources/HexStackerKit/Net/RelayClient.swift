@@ -225,9 +225,13 @@ public final class RelayClient: NSObject, RelayTransport {
         if shouldReconnect && reconnectAttempt <= maxReconnectAttempts {
             // Backoff: 1s, 1.5s, 2.25s, 3.375s, capped 5s.
             let delay = min(1.0 * pow(1.5, Double(reconnectAttempt - 1)), 5.0)
-            setState(.reconnecting)
+            // Emit the attempt count BEFORE the state change so the overlay paints
+            // "Attempt N of M" straight away — callbacks run in order on .main, so
+            // showConnectionOverlay reads the count instead of flashing "connection
+            // lost" first (the counter starts visibly at 1, not 2).
             let attempt = reconnectAttempt, max = maxReconnectAttempts
             emit { self.onReconnecting?(attempt, max) }
+            setState(.reconnecting)
             scheduleReconnect(after: delay)
         } else {
             setState(.closed)

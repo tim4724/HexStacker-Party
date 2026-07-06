@@ -12,7 +12,7 @@
     <string name="triple_clear">TRIPLE!</string>
 
     <string name="scan_to_join">Scansiona per unirti</string>
-    <string name="waiting_for_players">In attesa di giocatori...</string>
+    <string name="waiting_for_players">In attesa di giocatori</string>
     <string name="level_heading">Livello</string>
     <string name="music_by">Musica di FoxSynergy (CC-BY 3.0)</string>
 
@@ -27,11 +27,9 @@
 
     <string name="reconnecting">RICONNESSIONE</string>
     <string name="disconnected">DISCONNESSO</string>
-    <string name="connection_lost">Connessione persa...</string>
+    <string name="connection_lost">Connessione persa</string>
     <string name="attempt_n_of_m">Tentativo %1$d di %2$d</string>
     <string name="reconnect">RICONNETTI</string>
-    <string name="room_create_failed">Impossibile creare la stanza</string>
-    <string name="retry">RIPROVA</string>
 
     <string name="player">Giocatore</string>
 

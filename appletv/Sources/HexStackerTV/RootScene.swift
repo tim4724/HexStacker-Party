@@ -164,10 +164,10 @@ final class RootScene: SKScene, DisplayOutput {
             switch state {
             case .reconnecting:
                 self.coordinator?.setRelayConnected(false)
-                self.showConnectionOverlay(reconnecting: true, creating: !self.hasRoom)
+                self.showConnectionOverlay(reconnecting: true)
             case .closed:
                 self.coordinator?.setRelayConnected(false)
-                self.showConnectionOverlay(reconnecting: false, creating: !self.hasRoom)
+                self.showConnectionOverlay(reconnecting: false)
             case .open:
                 self.coordinator?.setRelayConnected(true)
                 self.hideConnectionOverlay()
@@ -250,17 +250,17 @@ final class RootScene: SKScene, DisplayOutput {
             coordinator.renderShot("game", playerCount: pc)
             showConnectionOverlay(reconnecting: false)
         case "create-error-retry":  // first-launch create failed, auto-retrying
-            // Overlay on top of the waiting lobby (matching web), then the
-            // create-failure overlay on top.
+            // Reconnect overlay over the empty, room-less waiting lobby (matching
+            // web): a failed create now reads exactly like a lost room.
             showScreen(.lobby)
             buildWaitingLobby()
-            showConnectionOverlay(reconnecting: true, creating: true)
-            // Static shot has no live retry tick; seed the web-parity counter.
-            updateReconnectStatus(attempt: 2, max: 5)
-        case "create-error":        // create attempts exhausted → RETRY button
+            showConnectionOverlay(reconnecting: true)
+            // Static shot has no live retry tick; seed the counter at its start.
+            updateReconnectStatus(attempt: 1, max: 5)
+        case "create-error":        // create attempts exhausted → DISCONNECTED + RECONNECT
             showScreen(.lobby)
             buildWaitingLobby()
-            showConnectionOverlay(reconnecting: false, creating: true)
+            showConnectionOverlay(reconnecting: false)
         case "about":         // full-screen About overlay (Privacy / Imprint QR + Licenses drill-in)
             coordinator.renderShot("lobby-empty", playerCount: pc)
             openAbout()
@@ -360,7 +360,6 @@ final class RootScene: SKScene, DisplayOutput {
     }
 
     func roomReady(room: String, joinURL: String, qrText: String) {
-        hasRoom = true   // a connection drop now reads as "reconnecting", not "couldn't create room"
         lobbyQRText = qrText
         buildLobby(room: room, joinURL: joinURL, players: coordinator.flow.list(), host: coordinator.flow.host)
     }
@@ -816,34 +815,37 @@ final class RootScene: SKScene, DisplayOutput {
 
     /// Show the full-screen overlay for the DISPLAY's own relay link. While
     /// reconnecting it is informational (auto-retry); once given up (closed) it
-    /// offers a focusable RECONNECT. When `creating` (no room yet — a failed
-    /// first-launch create, not a lost room), the heading + button use the
-    /// create-failure copy instead. All strings mirror the web overlay.
-    func showConnectionOverlay(reconnecting: Bool, allowReconnect: Bool = true, creating: Bool = false) {
+    /// offers a focusable RECONNECT. A failed first-launch create drives the same
+    /// overlay as a lost room (RECONNECTING → DISCONNECTED). All strings mirror
+    /// the web overlay.
+    func showConnectionOverlay(reconnecting: Bool, allowReconnect: Bool = true) {
         // Stash the menu behind the overlay so its Select doesn't reach the screen
         // underneath (e.g. PLAY AGAIN during a results-screen blip); restored on hide.
         if savedMenuRows == nil { savedMenuRows = menuRows; savedFocusRC = focusRC }
         connLayer.isHidden = false
         connDim.path = CGPath(rect: CGRect(origin: .zero, size: size), transform: nil)
         let cx = playRect.midX, cy = playRect.midY
-        // Creating keeps one constant heading across auto-retry AND give-up (web
-        // parity); a lost room swaps RECONNECTING → DISCONNECTED.
-        let heading = creating ? tr("room_create_failed") : (reconnecting ? tr("reconnecting") : tr("disconnected"))
+        let heading = reconnecting ? tr("reconnecting") : tr("disconnected")
         connHeading.setStyledText(heading,
                                   font: AppFont.brandExtraBold, size: min(size.height * 0.045, 64),
                                   color: SKTheme.textPrimary(), tracking: 0.12)
         connHeading.position = CGPoint(x: cx, y: cy + playRect.height * (reconnecting ? 0.04 : 0.05))
         // Web shows the status line only while reconnecting; the lost state is
-        // just heading + RECONNECT.
+        // just heading + RECONNECT. Paint the attempt counter directly when it's
+        // already known (onReconnecting fires before this on .main) so the count
+        // shows at once — "connection lost" is only the pre-first-tick fallback.
         connStatus.isHidden = !reconnecting
-        connStatus.setStyledText(tr("connection_lost"), font: AppFont.brandBold, size: min(size.height * 0.022, 28),
+        let status = connAttempt > 0
+            ? tr("attempt_n_of_m", ["attempt": connAttempt, "max": connMax])
+            : tr("connection_lost")
+        connStatus.setStyledText(status, font: AppFont.brandBold, size: min(size.height * 0.022, 28),
                                  color: SKTheme.textSecondary, tracking: 0.08)
         connStatus.position = CGPoint(x: cx, y: connHeading.position.y - playRect.height * 0.08)
 
         connButton?.removeFromParent(); connButton = nil
         if !reconnecting && allowReconnect {
             let btnH = max(48, playRect.height * 0.075)
-            let reconnect = creating ? tr("retry") : tr("reconnect")
+            let reconnect = tr("reconnect")
             let probe = SKLabelNode()
             probe.setStyledText(reconnect, font: AppFont.brandBold, size: btnH * 0.36, color: .white, tracking: 0.08)
             let bw = probe.frame.width + min(playRect.width * 0.04, 96) * 2
@@ -864,8 +866,11 @@ final class RootScene: SKScene, DisplayOutput {
     }
 
     /// Update the reconnect status line to "Attempt N of M" (web parity); the
-    /// static "Connection lost…" is the fallback shown until the first retry tick.
+    /// static "Connection lost" is the fallback shown until the first retry tick.
+    /// The count is stashed even when the overlay isn't up yet so a subsequent
+    /// showConnectionOverlay paints it immediately (no "connection lost" flash).
     func updateReconnectStatus(attempt: Int, max: Int) {
+        connAttempt = attempt; connMax = max
         guard !connLayer.isHidden, !connStatus.isHidden else { return }
         connStatus.setStyledText(tr("attempt_n_of_m", ["attempt": attempt, "max": max]),
                                  font: AppFont.brandBold, size: min(size.height * 0.022, 28),
@@ -874,6 +879,7 @@ final class RootScene: SKScene, DisplayOutput {
 
     func hideConnectionOverlay() {
         connLayer.isHidden = true
+        connAttempt = 0; connMax = 0   // next disconnect counts fresh from attempt 1
         connButton?.removeFromParent(); connButton = nil
         if let rows = savedMenuRows {
             savedMenuRows = nil   // clear FIRST so this install isn't diverted back into the stash
@@ -918,9 +924,10 @@ final class RootScene: SKScene, DisplayOutput {
     // MARK: - Lobby
 
     private var lobbyRoom: String?
-    // True once the relay has ever answered `created`/`joined`. Distinguishes a
-    // lost room (reconnect copy) from a never-created one (create-failure copy).
-    private var hasRoom = false
+    // Latest reconnect attempt/max, stashed from onReconnecting so the overlay can
+    // paint "Attempt N of M" the moment it appears (no "connection lost" flash).
+    private var connAttempt = 0
+    private var connMax = 0
     private var lobbyJoinURL: String?
     // The QR payload. In production it equals lobbyJoinURL (the QR encodes the join
     // URL); the screen-gallery JOIN fixture makes them differ (displayed code vs QR

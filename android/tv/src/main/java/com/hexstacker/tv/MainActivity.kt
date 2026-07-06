@@ -243,9 +243,6 @@ data class UiModel(
     // Terminal slot-0 eviction: another display took over this room. Distinguishes a
     // "replaced" CLOSED (no reconnect affordance) from an ordinary give-up CLOSED.
     val replaced: Boolean = false,
-    // True once the relay has answered `created`/`joined`. A connection failure before
-    // this is a failed create ("Couldn't create room" + RETRY), not a lost room.
-    val hasRoom: Boolean = false,
 )
 
 /**
@@ -292,7 +289,7 @@ class TvDisplayOutput(
     override fun roomReady(room: String, joinUrl: String) {
         this.room = room
         this.joinUrl = joinUrl
-        _state.value = _state.value.copy(lobby = buildLobby(), hasRoom = true)
+        _state.value = _state.value.copy(lobby = buildLobby())
     }
 
     override fun updateLobby(players: List<PlayerRecord>, hostPeerIndex: Int?) {
@@ -477,8 +474,8 @@ private fun HexStackerApp(
  *    [board] and drives [showAbout] / [showLicenses] from local state, and
  *  - the screenshot gallery ([ComposeScreenshotTest]), which passes a baked board
  *    bitmap and a constructed [UiModel].
- * So the gallery shots render the real layering + the real derived logic (e.g.
- * `creating = !hasRoom` for the create-failure overlay) instead of a hand-assembled
+ * So the gallery shots render the real layering + the real derived logic (e.g. the
+ * reconnect overlay stacked over the waiting lobby) instead of a hand-assembled
  * reconstruction that could silently drift from the app.
  */
 @Composable
@@ -553,14 +550,13 @@ internal fun DisplayChrome(
                     onReconnect = onReconnect,
                     attempt = model.reconnectAttempt,
                     maxAttempts = RelayConfig.MAX_RECONNECT_ATTEMPTS,
-                    creating = !model.hasRoom,
                 )
             RelayTransport.ConnectionState.CLOSED ->
                 // A "replaced" eviction is terminal: show DISCONNECTED with no RECONNECT
                 // button (re-arming reconnect would only be evicted again), mirroring the
                 // web dropping the reconnect affordance in that state.
                 if (model.replaced) ConnectionOverlay(disconnected = true, showReconnect = false)
-                else ConnectionOverlay(disconnected = true, onReconnect = onReconnect, creating = !model.hasRoom)
+                else ConnectionOverlay(disconnected = true, onReconnect = onReconnect)
             else -> Unit
         }
     }

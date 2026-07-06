@@ -13,7 +13,7 @@
     <string name="triple_clear">三连消!</string>
 
     <string name="scan_to_join">扫码加入</string>
-    <string name="waiting_for_players">等待玩家加入...</string>
+    <string name="waiting_for_players">等待玩家加入</string>
     <string name="level_heading">等级</string>
     <string name="music_by">音乐：FoxSynergy（CC-BY 3.0）</string>
 
@@ -28,11 +28,9 @@
 
     <string name="reconnecting">正在重连</string>
     <string name="disconnected">已断开连接</string>
-    <string name="connection_lost">连接已断开...</string>
+    <string name="connection_lost">连接已断开</string>
     <string name="attempt_n_of_m">第 %1$d 次尝试，共 %2$d 次</string>
     <string name="reconnect">重新连接</string>
-    <string name="room_create_failed">无法创建房间</string>
-    <string name="retry">重试</string>
 
     <string name="player">玩家</string>
 

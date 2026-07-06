@@ -13,7 +13,7 @@
     <string name="triple_clear">3ライン!</string>
 
     <string name="scan_to_join">スキャンして参加</string>
-    <string name="waiting_for_players">プレイヤー待ってる...</string>
+    <string name="waiting_for_players">プレイヤー待ってる</string>
     <string name="level_heading">レベル</string>
     <string name="music_by">音楽：FoxSynergy（CC-BY 3.0）</string>
 
@@ -26,13 +26,11 @@
     <string name="continue_btn">続ける</string>
     <string name="settings_game_music">ゲーム音楽</string>
 
-    <string name="reconnecting">再接続中...</string>
+    <string name="reconnecting">再接続中</string>
     <string name="disconnected">切断された</string>
-    <string name="connection_lost">接続が切れた...</string>
+    <string name="connection_lost">接続が切れた</string>
     <string name="attempt_n_of_m">再試行 %1$d/%2$d</string>
     <string name="reconnect">再接続</string>
-    <string name="room_create_failed">ルームを作成できません</string>
-    <string name="retry">再試行</string>
 
     <string name="player">プレイヤー</string>
 

@@ -13,7 +13,7 @@
     <string name="triple_clear">TRIPLE!</string>
 
     <string name="scan_to_join">Сканируй и заходи</string>
-    <string name="waiting_for_players">Ждём игроков...</string>
+    <string name="waiting_for_players">Ждём игроков</string>
     <string name="level_heading">Уровень</string>
     <string name="music_by">Музыка: FoxSynergy (CC-BY 3.0)</string>
 
@@ -28,11 +28,9 @@
 
     <string name="reconnecting">ПЕРЕПОДКЛЮЧЕНИЕ</string>
     <string name="disconnected">ОТКЛЮЧЕНО</string>
-    <string name="connection_lost">Соединение потеряно...</string>
+    <string name="connection_lost">Соединение потеряно</string>
     <string name="attempt_n_of_m">Попытка %1$d из %2$d</string>
     <string name="reconnect">ПЕРЕПОДКЛЮЧИТЬСЯ</string>
-    <string name="room_create_failed">Не удалось создать комнату</string>
-    <string name="retry">ПОВТОРИТЬ</string>
 
     <string name="player">Игрок</string>
 

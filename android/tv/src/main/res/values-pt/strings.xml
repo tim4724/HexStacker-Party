@@ -12,7 +12,7 @@
     <string name="triple_clear">TRIPLE!</string>
 
     <string name="scan_to_join">Escaneia para entrar</string>
-    <string name="waiting_for_players">Aguardando jogadores...</string>
+    <string name="waiting_for_players">Aguardando jogadores</string>
     <string name="level_heading">Nível</string>
     <string name="music_by">Música de FoxSynergy (CC-BY 3.0)</string>
 
@@ -27,11 +27,9 @@
 
     <string name="reconnecting">RECONECTANDO</string>
     <string name="disconnected">DESCONECTADO</string>
-    <string name="connection_lost">Conexão perdida...</string>
+    <string name="connection_lost">Conexão perdida</string>
     <string name="attempt_n_of_m">Tentativa %1$d de %2$d</string>
     <string name="reconnect">RECONECTAR</string>
-    <string name="room_create_failed">Não foi possível criar a sala</string>
-    <string name="retry">TENTAR NOVAMENTE</string>
 
     <string name="player">Jogador</string>
 

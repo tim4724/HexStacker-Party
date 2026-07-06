@@ -42,8 +42,8 @@ import org.robolectric.annotation.GraphicsMode
  * out the board, active screen, and overlays. The shot only constructs a [UiModel]
  * and hands `DisplayChrome` a baked board bitmap where the live app would hand it the
  * [com.hexstacker.tv.render.BoardSurfaceView]. So the shots exercise the real z-order
- * and the real derived logic (e.g. `creating = !hasRoom` picks the create-failure vs
- * reconnect copy) instead of a hand-assembled reconstruction that could drift.
+ * and the real derived logic (e.g. the reconnect overlay stacked over the waiting
+ * lobby for a failed create) instead of a hand-assembled reconstruction that could drift.
  *
  * A few states stay as direct single-widget calls because they need a determinism
  * seam the production tree deliberately doesn't expose: the lobby shots inject a
@@ -276,7 +276,7 @@ class ComposeScreenshotTest {
         }
     }
 
-    // ── Connection overlay: lost room mid-game (hasRoom = true → reconnect copy) ───
+    // ── Connection overlay: lost room mid-game ────────────────────────────────────
 
     @Test
     fun connectionReconnecting() = chromeShot(
@@ -286,7 +286,6 @@ class ComposeScreenshotTest {
             screen = DisplayScreen.GAME,
             connection = RelayTransport.ConnectionState.RECONNECTING,
             reconnectAttempt = 2,
-            hasRoom = true,
         ),
         board = boardLayer("lv1"),
     )
@@ -297,16 +296,15 @@ class ComposeScreenshotTest {
         UiModel(
             screen = DisplayScreen.GAME,
             connection = RelayTransport.ConnectionState.CLOSED,
-            hasRoom = true,
         ),
         board = boardLayer("lv1"),
     )
 
-    // ── Create-room failure: no room yet (hasRoom = false) ────────────────────────
-    // DisplayChrome derives `creating = !hasRoom` (constant "Couldn't create room"
-    // heading + RETRY once given up) and falls the lobby back to WAITING_LOBBY (blank
-    // QR + empty player grid) behind the overlay — exactly the live create-failure
-    // path, not a reconstruction. RECONNECTING = auto-retrying; CLOSED = exhausted.
+    // ── Create-room failure: no room yet ──────────────────────────────────────────
+    // A failed first-launch create drives the same reconnect overlay as a lost room:
+    // DisplayChrome falls the lobby back to WAITING_LOBBY (blank QR + empty player
+    // grid) behind it — exactly the live create-failure path, not a reconstruction.
+    // RECONNECTING = auto-retrying (counter starts at 1); CLOSED = exhausted.
 
     @Test
     fun createErrorRetry() = chromeShot(
@@ -314,8 +312,7 @@ class ComposeScreenshotTest {
         UiModel(
             screen = DisplayScreen.LOBBY,
             connection = RelayTransport.ConnectionState.RECONNECTING,
-            reconnectAttempt = 2,
-            hasRoom = false,
+            reconnectAttempt = 1,
         ),
     )
 
@@ -325,7 +322,6 @@ class ComposeScreenshotTest {
         UiModel(
             screen = DisplayScreen.LOBBY,
             connection = RelayTransport.ConnectionState.CLOSED,
-            hasRoom = false,
         ),
     )
 
