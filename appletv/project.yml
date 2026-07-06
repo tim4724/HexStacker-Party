@@ -75,6 +75,7 @@ targets:
           - "Baloo2[wght].ttf"
     settings:
       base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hexstacker.tv
         TARGETED_DEVICE_FAMILY: "3"            # tvOS
         SWIFT_VERSION: "5.9"
         ASSETCATALOG_COMPILER_APPICON_NAME: "App Icon & Top Shelf Image"
