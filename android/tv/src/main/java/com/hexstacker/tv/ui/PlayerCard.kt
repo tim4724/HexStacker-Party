@@ -57,7 +57,7 @@ fun PlayerCard(
     val levelGap = vp.vminDp(6.4f, 0.7f, 10.4f) // .card-level gap clamp(0.4rem,0.7vmin,0.65rem)
 
     val filled = player != null
-    val nameColor = if (filled) playerColor(player!!.colorIndex) else Tokens.textSecondary
+    val nameColor = if (filled) playerColor(player.colorIndex) else Tokens.textSecondary
     val dividerColor = if (filled) Tokens.bgGlass else Tokens.textSecondary
 
     val cardModifier = if (filled) {
@@ -65,7 +65,7 @@ fun PlayerCard(
             .aspectRatio(2f)
             .clip(shape)
             .background(Tokens.bgCard, shape)
-            .border(2.dp, playerColor(player!!.colorIndex), shape)
+            .border(2.dp, playerColor(player.colorIndex), shape)
     } else {
         modifier
             .aspectRatio(2f)
@@ -91,7 +91,7 @@ fun PlayerCard(
         ) {
             Text(
                 // Empty-slot placeholder name: DisplayUI `'P' + (idx+1)`.
-                text = if (filled) player!!.name else stringResource(R.string.player_placeholder, slotIndex + 1),
+                text = if (filled) player.name else stringResource(R.string.player_placeholder, slotIndex + 1),
                 style = AppType.cardName.copy(fontSize = nameSize, color = nameColor),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -119,7 +119,7 @@ fun PlayerCard(
                 )
                 if (filled) {
                     Text(
-                        text = player!!.level.toString(),
+                        text = player.level.toString(),
                         style = AppType.cardLevelValue.copy(fontSize = levelSize, color = Tokens.textPrimary),
                     )
                 }
