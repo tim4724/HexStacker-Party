@@ -27,9 +27,6 @@ class Fonts(context: Context) {
     /** 900-weight Orbitron — KO label and line-clear text popups. */
     val black: Typeface = Typeface.create(base, 900, false)
 
-    /** True when the bundled Orbitron asset loaded (else monospace fallback). */
-    val loaded: Boolean = base !== Typeface.MONOSPACE
-
     private companion object {
         private const val ORBITRON_ASSET = "fonts/Orbitron[wght].ttf"
 

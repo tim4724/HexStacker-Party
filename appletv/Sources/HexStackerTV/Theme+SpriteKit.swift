@@ -10,19 +10,14 @@ extension UIColor {
 }
 
 enum SKTheme {
-    static func piece(_ value: Int) -> UIColor {
-        UIColor(Theme.pieceColors[value] ?? RGB(255, 255, 255))
-    }
     static func player(slot: Int) -> UIColor { UIColor(Theme.playerColor(slot: slot)) }
 
     static let bgPrimary = UIColor(Theme.bgPrimary)
     static let bgSecondary = UIColor(Theme.bgSecondary)
     static let bgBoard = UIColor(Theme.bgBoard)
-    static let white = UIColor.white
 
     // Lobby / results UI tokens, mirrored from theme.css.
     static let bgCard = UIColor(RGB(0x2A, 0x25, 0x40))           // --bg-card
-    static let bgCardSoft = UIColor(RGB(0x34, 0x2E, 0x4D))       // --bg-card-soft
     static let accentPrimary = UIColor(RGB(0xFF, 0x6B, 0x6B))    // --accent-primary
     static let accentSecondary = UIColor(RGB(0xFF, 0x8C, 0x42))  // --accent-secondary
     static let btnPrimaryText = UIColor(RGB(0x1E, 0x1A, 0x2B))   // dark text on tinted CTAs
