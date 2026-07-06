@@ -60,6 +60,14 @@ targets:
         # Only standard TLS (wss/https) is used — exempt from export compliance,
         # so uploads skip the per-build encryption questionnaire.
         ITSAppUsesNonExemptEncryption: false
+        # The WebRTC input fastlane (WebRTCFastlane.swift) runs ICE connectivity
+        # checks to a phone controller on the same Wi-Fi (host-candidate pairs),
+        # which trips the tvOS local-network permission. Declare the purpose string
+        # so the prompt reads sensibly and App Review doesn't flag a missing usage
+        # description. Relay-only input still works if the user declines.
+        NSLocalNetworkUsageDescription: >-
+          HexStacker connects to phone controllers on your local network so their
+          taps reach the game with the lowest possible delay.
         # Bundled variable fonts (Resources/fonts/): Orbitron for the HUD voice,
         # Baloo 2 for the brand voice (wordmark lockup, buttons).
         UIAppFonts:
