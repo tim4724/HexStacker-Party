@@ -161,6 +161,7 @@ final class RootScene: SKScene, DisplayOutput {
         // input) behind the overlay; reconnecting resumes it.
         relay.onConnectionState = { [weak self] state in
             guard let self else { return }
+            self.linkState = state
             switch state {
             case .reconnecting:
                 self.coordinator?.setRelayConnected(false)
@@ -174,6 +175,13 @@ final class RootScene: SKScene, DisplayOutput {
             case .connecting, .idle:
                 self.hideConnectionOverlay()
             }
+            // Any state but .open means the link is (still) down, so the shown lobby
+            // QR may be stale (a rejoin can bounce off "Room not found" into a fresh
+            // room). Notably .connecting hides the overlay above (a foreground rejoin
+            // after suspend() must not flash the full DISCONNECTED cover), so the dim
+            // is what marks the QR untrusted. .open does NOT clear it — the socket
+            // opens before the relay answers the join; only roomReady re-confirms.
+            if state != .open { self.setQRPending(true) }
         }
         // Evicted because another client claimed the "display" slot: reconnecting
         // would start a takeover war, so show a terminal disconnect with no button.
@@ -362,6 +370,13 @@ final class RootScene: SKScene, DisplayOutput {
 
     func roomReady(room: String, joinURL: String, qrText: String) {
         lobbyQRText = qrText
+        // The relay confirmed the room (`created`, or `joined` after a rejoin), so
+        // the QR is trustworthy again — the ONLY place the pending dim clears.
+        setQRPending(false)
+        // A mid-game display rejoin lands here too (re-confirming the QR); the lobby
+        // is hidden then and rebuilding it behind the game is wasted work (matches
+        // updateLobby's guard) — returnToLobby repopulates it on match end.
+        guard coordinator?.state == .lobby else { return }
         buildLobby(room: room, joinURL: joinURL, players: coordinator.flow.list(), host: coordinator.flow.host)
     }
 
@@ -896,9 +911,35 @@ final class RootScene: SKScene, DisplayOutput {
     /// own if we never come back) rather than sitting in a live-looking lobby
     /// with no display behind it.
     func appDidEnterBackground() {
+        backgroundedSinceResign = true
         coordinator?.displayDidEnterBackground()
         guard relayStarted else { return }   // HEXSHOT/HEXLOBBY/HEXDEMO never connect
         relay?.suspend()
+    }
+
+    // Last relay link state (mirrored from onConnectionState), so appDidBecomeActive
+    // can tell a healthy socket from an in-flight reconnect.
+    private var linkState: RelayClient.ConnectionState = .idle
+    // Whether the resign-active actually backgrounded the app (Home press) rather
+    // than a transient overlay (app switcher peek, Siri) that returns to active.
+    private var backgroundedSinceResign = false
+
+    /// Frames rendered up to resign-active feed the system snapshot — the image the
+    /// return transition shows. Dim the QR now, while SpriteKit still renders, so a
+    /// possibly-stale room code never presents as live on resume; waiting for the
+    /// suspend()'s .closed emit would miss the snapshot, and the happy-path rejoin
+    /// clears the dim (roomReady) before the first live frame, making it invisible.
+    func appWillResignActive() {
+        guard relayStarted else { return }   // gallery/demo harnesses have no room
+        setQRPending(true)
+    }
+
+    /// Transient resign (no backgrounding): the socket never suspended and the room
+    /// is unchanged, so lift the precautionary dim — unless the link is genuinely
+    /// down, where roomReady clears it after the reconnect instead.
+    func appDidBecomeActive() {
+        if !backgroundedSinceResign, linkState == .open { setQRPending(false) }
+        backgroundedSinceResign = false
     }
 
     // MARK: - Board layout
@@ -945,6 +986,18 @@ final class RootScene: SKScene, DisplayOutput {
     // target), so the QR is threaded separately from the shown host/code.
     private var lobbyQRText: String?
     private var lobbyEntranceDone = false   // entrance anim plays once per lobby entry
+    // The relay link dropped and the room hasn't been re-confirmed (`joined` /
+    // `created`) yet: the shown QR/code may point at a dead room, so the QR card
+    // renders dimmed until roomReady. Kept as state (not just a node poke) because
+    // buildLobby rebuilds the card from scratch and must re-apply the dim.
+    private var qrPending = false
+    private weak var qrCardNode: SKNode?
+    private static let qrPendingAlpha: CGFloat = 0.4   // matches the Android TV dim
+
+    private func setQRPending(_ pending: Bool) {
+        qrPending = pending
+        qrCardNode?.alpha = pending ? Self.qrPendingAlpha : 1
+    }
 
     private func buildLobby(room: String, joinURL: String, players: [PlayerRecord], host: Int?) {
         lobbyRoom = room
@@ -1064,6 +1117,8 @@ final class RootScene: SKScene, DisplayOutput {
         let startX = (W - totalW) / 2
 
         let qrCard = buildQRCard(joinURL: joinURL, width: qrW, center: CGPoint(x: startX + qrW / 2, y: bodyMidY))
+        qrCard.alpha = qrPending ? Self.qrPendingAlpha : 1
+        qrCardNode = qrCard
         lobbyContent.addChild(qrCard)
         if animateEntrance { playEntrance(qrCard, fromDy: -16, delay: 0.15) }   // fadeUp
 

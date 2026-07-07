@@ -10,7 +10,12 @@ final class MusicPlayer {
     private let musicMixer = AVAudioMixerNode()   // carries the 0.50 master volume
     private let beepPlayer = AVAudioPlayerNode()
 
-    private var buffer: AVAudioPCMBuffer?
+    private var trackURL: URL?
+    private var trackFormat: AVAudioFormat?
+    // Invalidates in-flight loop-pass completions after a stop()/start(): a stale
+    // completion from a flushed schedule must not append an extra pass to the
+    // fresh queue (the queue would grow by one on every restart).
+    private var loopGeneration = 0
     private var isPlaying = false
     private var isPaused = false
     private var configChangeObserver: NSObjectProtocol?
@@ -26,10 +31,12 @@ final class MusicPlayer {
         engine.attach(musicMixer)
         engine.attach(beepPlayer)
 
-        // Load the track first so the music chain is connected with the buffer's
-        // own format (player format must match the scheduled buffer).
+        // Resolve the track's format first so the music chain is connected with it
+        // (player format must match the scheduled file's processing format). Only
+        // the file HEADER is read here — passes are decoded incrementally during
+        // playback (see schedulePass), not pre-decoded into a ~40 MB PCM buffer.
         loadTrack()
-        let musicFormat = buffer?.format
+        let musicFormat = trackFormat
             ?? AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2)!
 
         // Music chain: player -> musicMixer(0.5) -> main mixer.
@@ -58,22 +65,38 @@ final class MusicPlayer {
 
     private func loadTrack() {
         guard let url = AssetLocator.url(name: "lunar-joyride", ext: "mp3"),
-              let file = try? AVAudioFile(forReading: url),
-              let buf = AVAudioPCMBuffer(pcmFormat: file.processingFormat,
-                                         frameCapacity: AVAudioFrameCount(file.length)) else { return }
-        try? file.read(into: buf)
-        buffer = buf
+              let file = try? AVAudioFile(forReading: url) else { return }
+        trackURL = url
+        trackFormat = file.processingFormat
     }
 
     func start() {
-        guard let buffer else { return }
+        guard trackURL != nil else { return }
         startEngineIfNeeded()
         musicMixer.outputVolume = Self.masterVolume
+        loopGeneration += 1
         musicPlayer.stop()
-        musicPlayer.scheduleBuffer(buffer, at: nil, options: [.loops])
+        schedulePass(generation: loopGeneration)
+        schedulePass(generation: loopGeneration) // one pass buffered ahead = gapless
         musicPlayer.play()
         isPlaying = true
         isPaused = false
+    }
+
+    /// Queue one full pass of the track; when it is consumed, queue the next. With
+    /// two passes in flight the player never starves (gapless loop) while the file
+    /// decodes incrementally. A fresh AVAudioFile per pass keeps each schedule's
+    /// read position independent (overlapping schedules of ONE file share its
+    /// framePosition and corrupt each other).
+    private func schedulePass(generation: Int) {
+        guard let url = trackURL, let file = try? AVAudioFile(forReading: url) else { return }
+        musicPlayer.scheduleFile(file, at: nil) { [weak self] in
+            // Fires on the render thread; player scheduling must hop off it.
+            DispatchQueue.main.async {
+                guard let self, self.isPlaying, generation == self.loopGeneration else { return }
+                self.schedulePass(generation: generation)
+            }
+        }
     }
 
     func stop() {

@@ -102,6 +102,17 @@ final class GameViewController: UIViewController {
         NotificationCenter.default.addObserver(
             self, selector: #selector(appWillEnterForeground),
             name: UIApplication.willEnterForegroundNotification, object: nil)
+        // Resign-active fires while SpriteKit is still rendering (didEnterBackground
+        // is too late: SKView pauses and the system snapshot — what the return
+        // transition shows — is already taken), so it's where the lobby QR dims
+        // against the room being gone on return. Become-active undoes it for a
+        // transient resign that never backgrounded.
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(appWillResignActive),
+            name: UIApplication.willResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(appDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification, object: nil)
     }
 
     @objc private func appDidEnterBackground() {
@@ -110,6 +121,14 @@ final class GameViewController: UIViewController {
 
     @objc private func appWillEnterForeground() {
         rootScene?.appWillEnterForeground()
+    }
+
+    @objc private func appWillResignActive() {
+        rootScene?.appWillResignActive()
+    }
+
+    @objc private func appDidBecomeActive() {
+        rootScene?.appDidBecomeActive()
     }
 
     private var rootScene: RootScene? { (view as? SKView)?.scene as? RootScene }

@@ -66,6 +66,14 @@ public final class DisplayCoordinator {
     private let seedProvider: () -> UInt32
 
     private var engine: EngineBridge?
+    // The reusable JS runtime behind `engine`. Evaluating the bundle in a fresh
+    // JSContext is the expensive part of a match start (in-process JSC has no JIT),
+    // while Bridge.create re-inits a game on an existing runtime for free — so the
+    // runtime is built ONCE (prewarmed off-main when the first controller says
+    // hello, or synchronously at the first START) and reused for every match.
+    // `engine` stays the match-scoped handle the state machine gates on.
+    private var runtime: EngineBridge?
+    private var runtimePrewarmInFlight = false
     private var room: String?
     private var instance: String?
 
@@ -186,6 +194,11 @@ public final class DisplayCoordinator {
         // results → trim the order + maybe return to the lobby). Marking them
         // disconnected inline instead would strand the board with no rejoin QR and,
         // because expiredPeers skips already-disconnected peers, never self-heal.
+        // Re-confirm the lobby QR: the link was down (QR untrusted, rendered dimmed)
+        // and this `joined` proves the room survived, so the same code + QR are valid
+        // again. The room-gone path re-confirms via onCreated instead.
+        let url = joinURL(room: room, instance: instance)
+        output?.roomReady(room: room, joinURL: url, qrText: url)
         var goneIds: [Int] = []
         for p in flow.list() {
             if peers.contains(p.peerIndex) {
@@ -346,6 +359,8 @@ public final class DisplayCoordinator {
         }
         sendWelcome(to: from, isLateJoiner: isLateJoiner(from))
         if flow.state == .lobby || flow.state == .results { broadcastLobby() }
+        // Someone is in the lobby, so a START may follow: get the runtime ready.
+        if flow.state == .lobby { prewarmRuntime() }
     }
 
     /// Honor a `?claim=<oldIdx>` rejoin: move the dropped participant's slot, board
@@ -473,17 +488,39 @@ public final class DisplayCoordinator {
             (id: $0, startLevel: flow.player($0)?.startLevel ?? 1)
         }
         do {
-            let e = try EngineBridge(engineDirectory: engineDirectory)
+            let e = try runtime ?? EngineBridge(engineDirectory: engineDirectory)
             // Surface fire-and-forget engine exceptions instead of dropping them.
             e.onEngineError = { message in
                 FileHandle.standardError.write(Data("[engine] \(message)\n".utf8))
             }
             try e.createGame(players: players, seed: pendingSeed)
+            runtime = e
             engine = e
             return true
         } catch {
+            runtime = nil // don't reuse a runtime that failed mid-create
             FileHandle.standardError.write(Data("[engine] createGame failed: \(error)\n".utf8))
             return false
+        }
+    }
+
+    /// Build the JS runtime ahead of the first match, off the main thread, so the
+    /// START press doesn't pay the bundle evaluation. Triggered when a controller
+    /// joins the lobby — always seconds before any START. JSC serializes context
+    /// access via the virtual machine's lock, so constructing on a background
+    /// queue and using on main afterwards is safe. If a START wins the race,
+    /// makeEngine builds its own runtime and the late prewarm result is discarded.
+    private func prewarmRuntime() {
+        guard runtime == nil, !runtimePrewarmInFlight else { return }
+        runtimePrewarmInFlight = true
+        let dir = engineDirectory
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let e = try? EngineBridge(engineDirectory: dir)
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.runtimePrewarmInFlight = false
+                if self.runtime == nil { self.runtime = e }
+            }
         }
     }
 
