@@ -205,14 +205,14 @@ class MainActivity : ComponentActivity() {
      * Remote/keyboard handling at the Activity level so it works even when no
      * Compose element is focused (e.g. during GAME, where the only on-screen
      * elements are the board + overlays). Play/Pause is the context action
-     * (start / pause / continue / play-again); Menu/Back pause during a game.
+     * (start / pause / continue / play-again); Menu pauses during a game.
      * D-pad navigation + Select are left to Compose focus on the lobby/results.
      *
-     * BACK is consumed only during GAME (toggle pause); otherwise it falls through to
-     * super so it still exits from the lobby/results. Without this, BACK mid-match would
-     * reach finish() and drop every controller (during GAME nothing in Compose is focused,
-     * so the pause overlay's own Key.Back handler never gets a chance). While paused the
-     * overlay IS focused and routes Key.Back to unpause before this handler is reached.
+     * BACK is intentionally NOT handled here: consuming it in onKeyDown would
+     * suppress the OnBackPressedDispatcher (which fires the app's game-pause
+     * BackHandler during GAME and the default finish() elsewhere). Routing BACK
+     * through the dispatcher is what stops it from BOTH pausing the game AND
+     * exiting the app; see the BackHandler in [HexStackerApp].
      */
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         when (keyCode) {
@@ -226,9 +226,7 @@ class MainActivity : ComponentActivity() {
                 if (event.repeatCount == 0) coordinator.remotePlayPause()
                 return true
             }
-            KeyEvent.KEYCODE_MENU,
-            KeyEvent.KEYCODE_BACK,
-            -> {
+            KeyEvent.KEYCODE_MENU -> {
                 if (ui.state.value.screen == DisplayScreen.GAME) {
                     if (event.repeatCount == 0) lifecycleScope.launch { coordinator.remoteTogglePause() }
                     return true
@@ -461,10 +459,16 @@ private fun HexStackerApp(
     // Back steps back one level (Licenses -> About -> Lobby) via the
     // OnBackPressedDispatcher, which consumes the press. A manual Compose Back key
     // handler instead let one Back both close the screen (on KeyDown) AND finish the
-    // Activity (the dispatcher fires on KeyUp) — a double-back straight to the launcher.
+    // Activity (the dispatcher fires on KeyUp), a double-back straight to the launcher.
     BackHandler(enabled = showAbout || showLicenses) {
         if (showLicenses) showLicenses = false else showAbout = false
     }
+    // During a game (COUNTDOWN + PLAYING) Back toggles pause instead of exiting.
+    // Going through the dispatcher (not onKeyDown/onRemoteKeys) is what keeps a
+    // single Back from BOTH pausing and finishing the Activity. Disabled on the
+    // lobby/results, so Back there falls through to the default finish() and exits
+    // to the launcher (Android TV: Back must eventually reach the home screen).
+    BackHandler(enabled = model.screen == DisplayScreen.GAME) { onContinue() }
 
     DisplayChrome(
         model = model,

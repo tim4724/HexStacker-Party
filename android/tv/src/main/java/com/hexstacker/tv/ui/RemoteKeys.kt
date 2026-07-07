@@ -18,7 +18,12 @@ import androidx.compose.ui.input.key.type
  * `onPreviewKeyEvent`, so focusable children consume DPAD first). The callbacks
  * return `true` when the key was consumed; the integrator decides behavior from
  * the current room state (e.g. PlayPause = start / play-again / pause-resume;
- * Menu/Back during play = toggle pause + consume, otherwise let it bubble).
+ * Menu during play = toggle pause + consume, otherwise let it bubble).
+ *
+ * Back is deliberately NOT mapped here: it must route through the
+ * OnBackPressedDispatcher (a `BackHandler`) so a single Back can't both toggle
+ * pause AND finish the Activity. Consuming Back as a raw key event does not
+ * suppress the dispatcher's default finish(), which is the exit-mid-game bug.
  *
  * Backstop: some TV remotes deliver MEDIA_PLAY_PAUSE only to `Activity.onKeyDown`,
  * bypassing Compose — the integrator should also route those there to
@@ -35,7 +40,7 @@ fun Modifier.onRemoteKeys(
     val firstPress = ev.nativeKeyEvent.repeatCount == 0
     when (ev.key) {
         Key.MediaPlayPause, Key.MediaPlay, Key.MediaPause, Key.P -> if (firstPress) onPlayPause() else true
-        Key.Menu, Key.Back -> if (firstPress) onMenu() else true
-        else -> false // DPAD + Center/Enter -> native focus engine
+        Key.Menu -> if (firstPress) onMenu() else true
+        else -> false // DPAD + Center/Enter -> native focus engine; Back -> BackHandler
     }
 }
