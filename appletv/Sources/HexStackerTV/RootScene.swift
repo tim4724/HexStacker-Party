@@ -1020,9 +1020,9 @@ final class RootScene: SKScene, DisplayOutput {
         let title = SKSpriteNode(texture: SKTexture(image: titleImg))
         title.size = titleImg.size
         // The sprite is center-anchored, so centering its (now wider) texture on
-        // W/2 centers the whole lockup; the -0.4em nudge is the row variant's
-        // optical-centering shift (web .brand-lockup--row left: -0.4em).
-        title.position = CGPoint(x: W / 2 - mainSize * 0.4, y: H - margin - titleImg.size.height / 2)
+        // W/2 centers the whole lockup; the -0.3em nudge is the row variant's
+        // optical-centering shift (web .brand-lockup--row left: -0.3em).
+        title.position = CGPoint(x: W / 2 - mainSize * 0.3, y: H - margin - titleImg.size.height / 2)
         lobbyContent.addChild(title)
         if animateEntrance { playEntrance(title, fromDy: 16, delay: 0) }   // fadeDown
 
