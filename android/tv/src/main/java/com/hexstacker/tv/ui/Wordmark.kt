@@ -31,7 +31,7 @@ import kotlin.math.sqrt
 /**
  * HEX STACKER brand lockup (web `.brand-lockup--row`, tvOS `TitleTexture`):
  * triad mark beside a single-color cream wordmark with the PARTY subtitle,
- * nudged left by 0.4em of [mainSize] so the lockup reads optically centered
+ * nudged left by 0.3em of [mainSize] so the lockup reads optically centered
  * (the mark carries less "title weight" than the wordmark).
  *
  * [mainSize] is the "HEX STACKER" font size; the subtitle is 0.42em of it,
@@ -55,7 +55,7 @@ fun Wordmark(mainSize: TextUnit, modifier: Modifier = Modifier) {
     val mainDp = with(density) { mainSize.toDp() }
     val subDp = mainDp * 0.42f // .brand-lockup__sub font-size 0.42em
     Row(
-        modifier.offset(x = -mainDp * 0.4f),
+        modifier.offset(x = -mainDp * 0.3f),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(mainDp * 0.5f),
     ) {
