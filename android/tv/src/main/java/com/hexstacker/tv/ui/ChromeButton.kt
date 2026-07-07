@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -41,7 +42,9 @@ import androidx.compose.ui.unit.sp
  *  - secondary / disabled → solid `--bg-card`
  *  - text: disabled `--text-secondary`, primary `--btn-primary-text`, secondary `--text-primary`
  *  - focus ring white 4dp + scale 1.06; secondary unfocused keeps a 1dp strong border;
- *    disabled keeps a faint 1dp border, is NOT focusable, no scale
+ *    disabled keeps a faint 1dp border and no scale, but STAYS focusable (ring only),
+ *    so the empty lobby seats initial focus on the disabled Start (the main action)
+ *    instead of letting the focus engine grab the ⓘ (tvOS parity)
  *
  * The label is uppercased here (CSS `text-transform`, not data). Disabled buttons
  * mirror the lobby Start's full-opacity disabled style (grey bg + muted text), not
@@ -73,8 +76,8 @@ fun ChromeButton(
         Modifier.background(Tokens.bgCard, shape)
     }
     val ringModifier = when {
-        !enabled -> Modifier.border(1.dp, Tokens.border, shape)
         focused -> Modifier.border(4.dp, Tokens.white, shape)
+        !enabled -> Modifier.border(1.dp, Tokens.border, shape)
         primary -> Modifier
         else -> Modifier.border(1.dp, Tokens.borderStrong, shape)
     }
@@ -94,9 +97,13 @@ fun ChromeButton(
             .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
             .onFocusChanged { focused = it.isFocused }
             // clickable provides the focus target itself (focusable-in-non-touch-mode).
-            // Do NOT add a separate Modifier.focusable here: that stacks a second focus
-            // target which wins D-pad focus, and DPAD_CENTER then never reaches the
-            // clickable's key handler — the button highlights but can't be activated.
+            // Do NOT stack Modifier.focusable on top of an enabled clickable: the
+            // second focus target wins D-pad focus, and DPAD_CENTER then never reaches
+            // the clickable's key handler; the button highlights but can't be
+            // activated. clickable(enabled = false) has no focus target at all, so a
+            // disabled button swaps in a plain focusable to stay a D-pad stop (the
+            // empty lobby's Start must be able to hold focus).
+            .then(if (enabled) Modifier else Modifier.focusable())
             .clickable(enabled = enabled) { onClick() }
             .padding(contentPadding),
         contentAlignment = Alignment.Center,

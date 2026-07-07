@@ -75,8 +75,12 @@ fun LobbyScreen(
     val qrBitmap = qrOverride ?: generatedQr?.takeIf { data.joinUrl.isNotBlank() }
     val hasPlayers = data.players.isNotEmpty()
 
+    // Seat D-pad focus on Start (the main action) both on entry, where the disabled
+    // Start holds focus so the engine doesn't grab the ⓘ (tvOS parity), and again
+    // when the first controller joins, because enabling the button swaps its focus
+    // target (focusable -> clickable) and would otherwise drop focus.
     LaunchedEffect(hasPlayers) {
-        if (hasPlayers) runCatching { startFocus.requestFocus() }
+        runCatching { startFocus.requestFocus() }
     }
 
     Box(modifier.fillMaxSize().background(Tokens.bgPrimary)) {
