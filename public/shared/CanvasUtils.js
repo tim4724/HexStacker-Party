@@ -265,14 +265,19 @@ function _stampHexNeonFlat(c, cx, cy, cr, size, color) {
   c.globalAlpha = 1;
 }
 
-// Shared font detection — returns the preferred display font family string.
-// Checks whether Orbitron has loaded; falls back to monospace.
-// Re-checks on each font load event until Orbitron is detected.
+// Shared font detection — returns the preferred family string for each voice.
+// HUD (Orbitron) is the numeric/scoreboard face; brand (Baloo 2) is the
+// identity face used for player names. Each falls back until its font loads,
+// re-checking on every font load event.
 var _fontLoaded = false;
+var _brandFontLoaded = false;
 if (typeof document !== 'undefined' && document.fonts && document.fonts.addEventListener) {
   document.fonts.addEventListener('loadingdone', function() {
     if (!_fontLoaded) {
       _fontLoaded = document.fonts?.check?.('700 12px Orbitron') ?? false;
+    }
+    if (!_brandFontLoaded) {
+      _brandFontLoaded = document.fonts?.check?.('700 12px "Baloo 2"') ?? false;
     }
   });
 }
@@ -281,4 +286,10 @@ function getDisplayFont() {
     _fontLoaded = document.fonts?.check?.('700 12px Orbitron') ?? false;
   }
   return _fontLoaded ? 'Orbitron' : '"Courier New", monospace';
+}
+function getBrandFont() {
+  if (!_brandFontLoaded) {
+    _brandFontLoaded = document.fonts?.check?.('700 12px "Baloo 2"') ?? false;
+  }
+  return _brandFontLoaded ? '"Baloo 2"' : 'system-ui, -apple-system, sans-serif';
 }
