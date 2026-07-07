@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -54,12 +55,19 @@ import kotlin.math.max
  * The QR bitmap is rendered once per join URL off-thread (see [rememberQrBitmap]);
  * pass [qrOverride] to inject a cached/pre-rendered bitmap instead.
  */
+// Dim level for the QR card while the room awaits re-confirmation (matches tvOS).
+private const val QR_PENDING_ALPHA = 0.4f
+
 @Composable
 fun LobbyScreen(
     data: LobbyData,
     onStart: () -> Unit,
     modifier: Modifier = Modifier,
     qrOverride: androidx.compose.ui.graphics.ImageBitmap? = null,
+    // The relay link dropped and the room isn't re-confirmed yet: the shown QR/code
+    // may point at a dead room (a rejoin can land in a fresh room), so dim the card
+    // until the rejoin settles. Visual-only — no TV-only copy to invent.
+    qrPending: Boolean = false,
     // Non-null only for the screenshot gallery: a frozen ambient-piece background
     // (see LobbyBackground) so the shot matches the web/tvOS lobby columns.
     backgroundPieces: List<FallingPiece>? = null,
@@ -113,7 +121,9 @@ fun LobbyScreen(
                             joinCode = data.joinCode,
                             qrBitmap = qrBitmap,
                             vp = vp,
-                            modifier = Modifier.width(vp.vminDp(180f, 36f, 360f)),
+                            modifier = Modifier
+                                .width(vp.vminDp(180f, 36f, 360f))
+                                .alpha(if (qrPending) QR_PENDING_ALPHA else 1f),
                         )
                         PlayerGrid(players = data.players, vp = vp)
                     }

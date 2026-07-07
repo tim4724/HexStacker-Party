@@ -12,6 +12,10 @@ plugins {
     // build time (consumed by the Open Source Licenses screen). Auto-wired into the
     // Android resource pipeline as long as the export output path is left default.
     alias(libs.plugins.aboutlibraries)
+    // Consumer side of :baselineprofile — merges the generated app profile (plus the
+    // library profiles) into the release artifact. Regenerate with
+    // `./gradlew :tv:generateBaselineProfile` after big UI/startup changes.
+    alias(libs.plugins.baselineprofile)
 }
 
 // Open-source license report generation (res/raw/aboutlibraries.json, consumed by
@@ -148,6 +152,7 @@ configurations.matching { it.name.endsWith("UnitTestRuntimeClasspath") }.configu
 
 dependencies {
     implementation(project(":core"))
+    baselineProfile(project(":baselineprofile"))
 
     // Parses the generated res/raw/aboutlibraries.json for the licenses screen
     // (data only — the screen renders its own TV-focusable list, not the M3 UI).
@@ -157,6 +162,7 @@ dependencies {
     implementation(composeBom)
 
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.profileinstaller)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.ui)

@@ -64,9 +64,16 @@ class WebRtcFastlane(context: Context, private val iceUrls: List<String>) : Fast
     }
 
     init {
-        ensureFactoryInit(appContext)
-        factory = PeerConnectionFactory.builder().createPeerConnectionFactory()
-        Log.i(TAG, "factory ready, iceServers=$iceUrls")
+        // Factory init loads the libwebrtc native library (~100-300ms on TV-class CPUs),
+        // so it runs on the serial executor instead of the constructing (main) thread —
+        // constructing this in Activity.onCreate must not delay the first frame. No
+        // ordering race: every use of `factory` (signals, dispose) is post()ed onto the
+        // same serial executor, and this task is queued first.
+        post {
+            ensureFactoryInit(appContext)
+            factory = PeerConnectionFactory.builder().createPeerConnectionFactory()
+            Log.i(TAG, "factory ready, iceServers=$iceUrls")
+        }
     }
 
     // ── Fastlane API (all posted onto the serial executor) ────────────────────

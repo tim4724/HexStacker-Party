@@ -32,3 +32,4 @@ plugins {
 rootProject.name = "HexStacker TV"
 include(":tv")
 include(":core")
+include(":baselineprofile")

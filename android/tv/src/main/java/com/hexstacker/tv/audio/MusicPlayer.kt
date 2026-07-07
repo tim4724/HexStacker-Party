@@ -47,25 +47,42 @@ class MusicPlayer(context: Context) {
         "android.resource://${appContext.packageName}/${R.raw.lunar_joyride}",
     )
 
-    private val player: ExoPlayer = ExoPlayer.Builder(appContext)
-        .setHandleAudioBecomingNoisy(false) // TV: no headphone-unplug pause
-        .build()
-        .apply {
-            setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(C.USAGE_GAME)
-                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                    .build(),
-                /* handleAudioFocus = */ true,
-            )
-            repeatMode = Player.REPEAT_MODE_ONE
-            volume = MASTER_VOLUME
-            setMediaItem(MediaItem.fromUri(trackUri))
-            prepare() // decode/buffer ahead; do not play yet
-            playWhenReady = false
-        }
+    // Lazy (main-thread only): building ExoPlayer + prepare() costs enough to matter on
+    // TV-class CPUs, and music first plays at GO — many seconds after launch. Construct
+    // via [warmUp] during lobby idle instead of on the Activity.onCreate critical path.
+    // Methods reachable before then (setMuted / stop / pauseForBackground / release)
+    // check isInitialized instead of forcing construction.
+    private val playerDelegate = lazy(LazyThreadSafetyMode.NONE) {
+        ExoPlayer.Builder(appContext)
+            .setHandleAudioBecomingNoisy(false) // TV: no headphone-unplug pause
+            .build()
+            .apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(C.USAGE_GAME)
+                        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                        .build(),
+                    /* handleAudioFocus = */ true,
+                )
+                repeatMode = Player.REPEAT_MODE_ONE
+                // targetVolume, not MASTER_VOLUME: a host may mute (pause overlay during
+                // the countdown) before the player is ever built.
+                volume = targetVolume()
+                setMediaItem(MediaItem.fromUri(trackUri))
+                prepare() // decode/buffer ahead; do not play yet
+                playWhenReady = false
+            }
+    }
+    private val player: ExoPlayer by playerDelegate
 
-    private val beeps = BeepSynth() // precomputes TICK + GO PCM buffers once
+    private val beepsDelegate = lazy(LazyThreadSafetyMode.NONE) { BeepSynth() } // precomputes TICK + GO PCM once
+    private val beeps: BeepSynth by beepsDelegate
+
+    /** Pre-build the player + beep PCM ahead of first use (lobby idle, post-entrance). */
+    fun warmUp() {
+        playerDelegate.value
+        beepsDelegate.value
+    }
 
     private var muted = false
 
@@ -117,7 +134,9 @@ class MusicPlayer(context: Context) {
     fun setMuted(value: Boolean) {
         muted = value
         cancelFade()
-        player.volume = targetVolume() // instant, like Music.setMuted
+        // Not built yet (mute toggled from a countdown pause before GO): the lazy
+        // builder applies targetVolume(), so just record the flag.
+        if (playerDelegate.isInitialized()) player.volume = targetVolume() // instant, like Music.setMuted
     }
 
     /** Current host mute state (for callers that gate music start on it). */
@@ -142,6 +161,7 @@ class MusicPlayer(context: Context) {
     fun stop() {
         playing = false
         pausedByOverlay = false
+        if (!playerDelegate.isInitialized()) return // never started — nothing to fade
         fadeTo(0f, STOP_FADE_MS) {
             player.playWhenReady = false
             player.seekTo(0L)
@@ -192,7 +212,7 @@ class MusicPlayer(context: Context) {
      */
     fun pauseForBackground() {
         cancelFade()
-        player.playWhenReady = false
+        if (playerDelegate.isInitialized()) player.playWhenReady = false
     }
 
     /** App foregrounded (Activity onStart) while a match is live: restore playback at once. */
@@ -205,8 +225,8 @@ class MusicPlayer(context: Context) {
     /** Free native audio resources (Activity `onDestroy`). Safe to call once. */
     fun release() {
         cancelFade()
-        player.release()
-        beeps.release()
+        if (playerDelegate.isInitialized()) player.release()
+        if (beepsDelegate.isInitialized()) beeps.release()
     }
 
     companion object {

@@ -196,6 +196,9 @@ class BoardAnimations {
         active.clear()
     }
 
+    /** No animation in flight — the surface view's render thread may idle-skip frames. */
+    fun isIdle(): Boolean = active.isEmpty()
+
     // ── Anim hierarchy ────────────────────────────────────────────────────────
 
     private abstract class Anim(val startTimeMs: Double, val durationMs: Double) {

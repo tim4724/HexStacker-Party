@@ -268,6 +268,10 @@ class DisplayCoordinator(
     private suspend fun handleJoined(room: String, peers: List<Int>) {
         // The DISPLAY's own relay reconnect: reconcile the roster and re-welcome.
         this.room = room
+        // Re-confirm the lobby QR: the link was down (QR untrusted, rendered dimmed)
+        // and this `joined` proves the room survived, so the same code + QR are valid
+        // again. The room-gone path re-confirms via handleCreated instead.
+        output.roomReady(room, joinUrl(room, instance))
         // Reset the host-change dedup sentinel (web onDisplayRejoined): after a rejoin
         // any subsequent host broadcast must publish regardless of pre-drop state.
         lastBroadcastedHost = null

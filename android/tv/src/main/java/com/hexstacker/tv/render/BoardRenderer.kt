@@ -214,7 +214,9 @@ class BoardRenderer(
         outlinePath(geometry.outlineVertices(outset), boardX, boardY)
 
     // ──────────────────────────────────────────────────────────────────────────
-    fun render(canvas: Canvas, p: PlayerState, nowMs: Double) {
+    /** Returns true while a wall-clock pulse (near-clear / clearing glow) is on screen,
+     *  so the surface view keeps rendering frames even though the snapshot is unchanged. */
+    fun render(canvas: Canvas, p: PlayerState, nowMs: Double): Boolean {
         val tier = Theme.styleTier(p.level)
         currentTier = tier
 
@@ -246,9 +248,9 @@ class BoardRenderer(
 
         drawGhost(canvas, p)
         drawPreview(canvas, p)
-        drawNearClear(canvas, p, nowMs)
+        val nearClearPulsing = drawNearClear(canvas, p, nowMs)
         drawCurrentPiece(canvas, p, tier)
-        drawClearing(canvas, p, nowMs)
+        val clearingPulsing = drawClearing(canvas, p, nowMs)
 
         // HUD
         drawName(canvas)
@@ -257,6 +259,8 @@ class BoardRenderer(
         drawLevelLines(canvas, p)
         if (p.pendingGarbage > 0) drawGarbageMeter(canvas, p.pendingGarbage)
         if (!p.alive) drawKO(canvas)
+
+        return nearClearPulsing || clearingPulsing
     }
 
     // Resolved-stamp lookup: cache the (tier, pieceColors[typeId], size) stamp by typeId so
@@ -431,11 +435,12 @@ class BoardRenderer(
     }
 
     // ── 5. Near-clear pulse ───────────────────────────────────────────────────
-    private fun drawNearClear(canvas: Canvas, p: PlayerState, nowMs: Double) {
+    /** Returns true when the pulse was drawn (it animates on the wall clock). */
+    private fun drawNearClear(canvas: Canvas, p: PlayerState, nowMs: Double): Boolean {
         if (!p.alive) {
             cachedNcCells = emptyList()
             cachedNcGV = -1
-            return
+            return false
         }
         val clearing = !p.clearingCells.isNullOrEmpty()
         if (!clearing && p.gridVersion != cachedNcGV) {
@@ -443,7 +448,7 @@ class BoardRenderer(
             cachedNcCells = Zigzag.nearClear(COLS, grid.size, isFilled = { col, row -> grid[row][col] > 0 })
             cachedNcGV = p.gridVersion
         }
-        if (cachedNcCells.isEmpty()) return
+        if (cachedNcCells.isEmpty()) return false
 
         var rowFloor = -1
         if (clearing) for (cc in p.clearingCells!!) if (cc.row > rowFloor) rowFloor = cc.row
@@ -464,12 +469,13 @@ class BoardRenderer(
             nearClearPath.addHex(hexCenterX(cl.col, cl.row), hexCenterY(cl.col, cl.row), sCell)
             drawn = true
         }
-        if (!drawn) return
+        if (!drawn) return false
         val alpha = 0.60 + 0.20 * sin(2 * PI * nowMs / 600)
         nearClearPaint.color = Theme.nearClear.toArgb()
         nearClearPaint.alpha = a255(alpha)
         nearClearPaint.strokeWidth = gridLineWidth * 1.5f
         canvas.drawPath(nearClearPath, nearClearPaint)
+        return true
     }
 
     // ── 6. Current piece ──────────────────────────────────────────────────────
@@ -487,9 +493,10 @@ class BoardRenderer(
     }
 
     // ── 7. Clearing-cells glow ────────────────────────────────────────────────
-    private fun drawClearing(canvas: Canvas, p: PlayerState, nowMs: Double) {
-        val cells = p.clearingCells ?: return
-        if (cells.isEmpty()) return
+    /** Returns true when the glow was drawn (it animates on the wall clock). */
+    private fun drawClearing(canvas: Canvas, p: PlayerState, nowMs: Double): Boolean {
+        val cells = p.clearingCells ?: return false
+        if (cells.isEmpty()) return false
         val alpha = 0.3 + 0.2 * sin((nowMs / 150) * PI)
         clearingPath.rewind()
         var drawn = false
@@ -499,10 +506,11 @@ class BoardRenderer(
                 drawn = true
             }
         }
-        if (!drawn) return
+        if (!drawn) return false
         clearingPaint.color = TvColors.white.toArgb()
         clearingPaint.alpha = a255(alpha)
         canvas.drawPath(clearingPath, clearingPaint)
+        return true
     }
 
     // ── HUD: name / hold / next / level-lines / garbage / KO ──────────────────

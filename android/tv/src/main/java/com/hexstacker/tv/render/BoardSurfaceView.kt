@@ -57,8 +57,10 @@ internal class GarbageFx(
  *
  * Decoupled + stateless w.r.t. networking: the coordinator pushes data in via the
  * ingress methods below (game thread); a dedicated render thread reads the latest
- * and redraws every vsync (animations + pulses are wall-clock driven, so we redraw
- * even when the snapshot is unchanged — same as the web RAF loop). Embed in Compose
+ * and redraws every vsync while content changes. When nothing new was pushed AND no
+ * wall-clock animation/pulse is running (countdown, pause, results), the thread
+ * idle-skips instead of re-rendering an identical full-screen frame — see
+ * [contentVersion] and the activity flag [drawFrame] returns. Embed in Compose
  * later via `AndroidView({ BoardSurfaceView(it) })`.
  */
 class BoardSurfaceView @JvmOverloads constructor(
@@ -130,6 +132,11 @@ class BoardSurfaceView @JvmOverloads constructor(
     @Volatile private var running = false
     private var renderThread: Thread? = null
 
+    // Bumped whenever visible content changes; the render thread compares it against
+    // the last-drawn value to idle-skip identical frames. All writers are on the main
+    // thread (the coordinator runs on the main dispatcher), so `++` doesn't race.
+    @Volatile private var contentVersion = 0L
+
     init {
         holder.addCallback(this)
     }
@@ -143,21 +150,25 @@ class BoardSurfaceView @JvmOverloads constructor(
         this.playerCount = playerCount
         this.seats = seats
         this.layoutDirty = true
+        contentVersion++
     }
 
     /** Newest engine snapshot (volatile reference swap; render thread reads latest). */
     fun submitSnapshot(snapshot: GameSnapshot) {
         latestSnapshot = snapshot
+        contentVersion++
     }
 
     /** One PartyCore.frame() event → drives the animation layer. */
     fun onGameEvent(event: GameEvent) {
         eventQueue.add(event)
+        contentVersion++
     }
 
     /** Per-board disconnect/rejoin overlay; null clears it. */
     fun setDisconnected(playerId: Int, joinUrl: String?) {
         if (joinUrl == null) disconnects.remove(playerId) else disconnects[playerId] = joinUrl
+        contentVersion++
     }
 
     /** Clear snapshot/animations/disconnects (game end, return to lobby). */
@@ -165,6 +176,7 @@ class BoardSurfaceView @JvmOverloads constructor(
         latestSnapshot = null
         disconnects.clear()
         eventQueue.clear()
+        contentVersion++
     }
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -181,6 +193,7 @@ class BoardSurfaceView @JvmOverloads constructor(
         super.onConfigurationChanged(newConfig)
         animations.setPopupLabels(context.getString(R.string.double_clear), context.getString(R.string.triple_clear))
         layoutDirty = true
+        contentVersion++
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) {
@@ -192,6 +205,7 @@ class BoardSurfaceView @JvmOverloads constructor(
         surfaceW = width
         surfaceH = height
         layoutDirty = true
+        contentVersion++
     }
 
     /**
@@ -245,15 +259,29 @@ class BoardSurfaceView @JvmOverloads constructor(
     private inner class RenderThread : Thread("hex-render") {
         override fun run() {
             val h = holder
+            var lastDrawnVersion = -1L
+            var animating = true
             while (running) {
+                // Idle skip: nothing pushed since the last draw and no wall-clock
+                // animation/pulse running — the frame would be identical, so sleep
+                // instead of burning GPU on it (countdown, pause, and results screens
+                // spend nearly all their time here).
+                if (contentVersion == lastDrawnVersion && !animating) {
+                    sleep(8)
+                    continue
+                }
                 var canvas: Canvas? = null
                 try {
+                    // Capture BEFORE drawing: content pushed mid-draw keeps the version
+                    // ahead of lastDrawnVersion, so the next iteration re-renders it.
+                    val version = contentVersion
                     canvas = h.lockHardwareCanvas()
                     if (canvas == null) {
                         sleep(8)
                         continue
                     }
-                    drawFrame(canvas)
+                    animating = drawFrame(canvas)
+                    lastDrawnVersion = version
                 } catch (t: Throwable) {
                     // Surface-teardown races land here benignly (running flips false first);
                     // anything else would silently blank the board forever, so leave a trace.
@@ -275,7 +303,10 @@ class BoardSurfaceView @JvmOverloads constructor(
     @VisibleForTesting
     internal fun renderFrameForTest(canvas: Canvas) = drawFrame(canvas)
 
-    private fun drawFrame(canvas: Canvas) {
+    /** Returns true while any wall-clock animation is live (board pulses, overlay
+     *  anims, garbage fx) — the render thread must keep drawing frames for those even
+     *  though no new content arrives; false lets it idle-skip. */
+    private fun drawFrame(canvas: Canvas): Boolean {
         val nowMs = SystemClock.uptimeMillis().toDouble()
 
         if (layoutDirty) rebuildLayout()
@@ -286,12 +317,13 @@ class BoardSurfaceView @JvmOverloads constructor(
         drainEvents(nowMs)
         pruneGarbageFx(nowMs)
 
+        var pulsing = false
         val snap = latestSnapshot
         if (snap == null) {
             // Pre-game static boards.
             for (i in renderers.indices) {
                 val seat = seats.getOrNull(i) ?: continue
-                renderers[i].render(canvas, emptySnapshotFor(i, seat), nowMs)
+                pulsing = renderers[i].render(canvas, emptySnapshotFor(i, seat), nowMs) || pulsing
             }
         } else {
             val players = snap.players
@@ -304,7 +336,7 @@ class BoardSurfaceView @JvmOverloads constructor(
                     canvas.save()
                     canvas.translate(shake.x, shake.y)
                 }
-                r.render(canvas, player, nowMs)
+                pulsing = r.render(canvas, player, nowMs) || pulsing
                 r.drawGarbageEffects(canvas, garbageIndicator[player.id], nowMs, 0.2) // incoming attack
                 r.drawGarbageEffects(canvas, garbageDefence[player.id], nowMs, 0.3)   // defence flash
                 disconnects[player.id]?.let { url ->
@@ -320,6 +352,11 @@ class BoardSurfaceView @JvmOverloads constructor(
         animations.render(canvas)
 
         snap?.elapsed?.let { drawTimer(canvas, it) }
+
+        // Garbage fx maps are pruned to empty above once their windows expire, so
+        // non-empty means a meter flash is still animating.
+        return pulsing || !animations.isIdle() ||
+            garbageIndicator.isNotEmpty() || garbageDefence.isNotEmpty()
     }
 
     private fun drainEvents(nowMs: Double) {

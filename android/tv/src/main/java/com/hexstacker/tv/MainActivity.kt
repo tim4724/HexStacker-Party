@@ -50,9 +50,14 @@ import com.hexstacker.tv.ui.PauseOverlay
 import com.hexstacker.tv.ui.ResultCard
 import com.hexstacker.tv.ui.ResultsScreen
 import com.hexstacker.tv.ui.onRemoteKeys
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.android.awaitFrame
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -74,8 +79,20 @@ class MainActivity : ComponentActivity() {
     private lateinit var coordinator: DisplayCoordinator
     private lateinit var ui: TvDisplayOutput
 
-    private var engine: EngineBridge? = null
-    private val bundleText: String by lazy { assets.open("partycore.js").bufferedReader().use { it.readText() } }
+    // One QuickJS engine for the whole app, reused across matches (Bridge.create
+    // re-inits the game without re-parsing the bundle). Warmed up in the background
+    // during lobby idle (see onCreate) so the first START doesn't wait on the asset
+    // read + bundle compile; engineFactory awaits the SAME deferred, so a START that
+    // beats the warm-up just joins it instead of racing a second engine into being.
+    private var engineDeferred: Deferred<EngineBridge>? = null
+
+    /** Get-or-start the engine creation. Main-thread only (no lock needed: the
+     *  warm-up launcher and the coordinator's engineFactory both run on Main). */
+    private fun engineAsync(): Deferred<EngineBridge> =
+        engineDeferred ?: lifecycleScope.async(Dispatchers.IO) {
+            val bundle = assets.open("partycore.js").bufferedReader().use { it.readText() }
+            EngineBridge.create(bundle) // bootstraps on its own serial dispatcher
+        }.also { engineDeferred = it }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -85,6 +102,12 @@ class MainActivity : ComponentActivity() {
         // never receive it and the remote appears dead.
         board.isFocusable = false
         board.isFocusableInTouchMode = false
+        // Start hidden: the app always launches into the lobby, and a VISIBLE SurfaceView
+        // would create its surface + start the render thread at first layout, only for
+        // showScreen(LOBBY) to join the thread and destroy the surface a few hundred ms
+        // later (when the relay answers `created`) — a main-thread stall + window
+        // recomposite right in the middle of the lobby entrance animation.
+        board.visibility = View.GONE
         music = MusicPlayer(this)
         ui = TvDisplayOutput(board, music)
 
@@ -111,7 +134,7 @@ class MainActivity : ComponentActivity() {
             transport = relay,
             output = ui,
             engineFactory = { specs, seed ->
-                val b = engine ?: EngineBridge.create(bundleText).also { engine = it }
+                val b = engineAsync().await()
                 b.createGame(specs, seed)
                 b
             },
@@ -152,13 +175,48 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 var last = 0L
+                var acc = 0.0
                 while (isActive) {
                     val now = awaitFrame()
                     val dt = if (last == 0L) 0.0 else (now - last) / 1_000_000.0
                     last = now
-                    coordinator.tick(dt)
+                    acc += dt
+                    // In the lobby the tick's only work is 1s-granularity liveness/grace
+                    // polling, so ~4Hz is plenty — skipping the other frames drops the
+                    // per-frame Action.Tick + ack allocation churn while the app idles.
+                    // Every other screen (countdown/gameplay/results) ticks per frame.
+                    if (ui.state.value.screen == DisplayScreen.LOBBY) {
+                        if (acc < LOBBY_TICK_MS) continue
+                    } else if (acc > dt) {
+                        // First tick after leaving the lobby: drop the skipped lobby
+                        // frames' time so it can't eat into the 3-2-1 countdown.
+                        acc = dt
+                    }
+                    coordinator.tick(acc)
+                    acc = 0.0
                 }
             }
+        }
+
+        // Warm the heavy lazies during lobby idle, once the entrance animation has
+        // played out (~950ms): the QuickJS engine (asset read + bundle compile, so the
+        // first START is instant) and ExoPlayer + beep PCM (so the countdown/GO have
+        // nothing left to build). Both are safe to lose to lifecycle cancellation —
+        // first use re-creates them on demand.
+        lifecycleScope.launch {
+            awaitFrame()
+            delay(WARMUP_DELAY_MS)
+            engineAsync()
+            music.warmUp()
+        }
+
+        // TTFD for Play's startup metrics + cloud-profile aggregation: the launch is
+        // "fully drawn" once the real room's lobby (QR + join code) has rendered, not
+        // at the first frame of the waiting lobby.
+        lifecycleScope.launch {
+            ui.state.first { it.lobby != null }
+            awaitFrame()
+            reportFullyDrawn()
         }
     }
 
@@ -166,6 +224,33 @@ class MainActivity : ComponentActivity() {
     // so the first onStart of the process doesn't "resume" a connection that the
     // onCreate connect() is already opening.
     private var suspendedForBackground = false
+
+    // True between onStop and the next onResume, telling a real background
+    // round-trip (rejoin in flight, roomReady will re-confirm the QR) apart from a
+    // transient onPause with no onStop (e.g. a system dialog), where onResume must
+    // undo the precautionary QR dim itself because no rejoin will.
+    private var stoppedSincePause = false
+
+    /** Frames drawn between here and onStop feed the system's task snapshot — the
+     *  image shown during the whole return transition. Dim the QR now, while frames
+     *  still render, so a possibly-stale room code never presents as live on resume;
+     *  by onStop it would miss the snapshot, and the happy-path rejoin clears the
+     *  dim (roomReady) before the first live frame, making it invisible. */
+    override fun onPause() {
+        super.onPause()
+        if (!isFinishing) ui.setQrPending(true)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Transient pause (no onStop): the socket never suspended and the room is
+        // unchanged, so lift onPause's precautionary dim — unless the link is
+        // genuinely down, where roomReady clears it after the reconnect instead.
+        if (!stoppedSincePause && ui.state.value.connection == RelayTransport.ConnectionState.OPEN) {
+            ui.setQrPending(false)
+        }
+        stoppedSincePause = false
+    }
 
     /** Background: silence music and suspend the relay socket (the tick loop already
      *  stops via repeatOnLifecycle). Backgrounding is recoverable (Home and back), so
@@ -175,6 +260,7 @@ class MainActivity : ComponentActivity() {
      *  onDestroy's coordinator.stop() must still send close_room over a live socket. */
     override fun onStop() {
         super.onStop()
+        stoppedSincePause = true
         music.pauseForBackground()
         if (!isFinishing) {
             fastlane.closeAll() // controllers re-offer their P2P channels on rejoin
@@ -244,7 +330,10 @@ class MainActivity : ComponentActivity() {
         music.release()
         // close() suspends (takes the engine lock, frees on the engine thread), so block
         // briefly here: teardown must not race an in-flight frame() on the way out.
-        runBlocking { engine?.close() }
+        // A warm-up still in flight was already cancelled with lifecycleScope (create()'s
+        // catch closes the runtime itself); await() then throws and there is nothing to
+        // close, which runCatching swallows.
+        runBlocking { engineDeferred?.let { d -> runCatching { d.await().close() } } }
     }
 }
 
@@ -262,6 +351,11 @@ data class UiModel(
     // Terminal slot-0 eviction: another display took over this room. Distinguishes a
     // "replaced" CLOSED (no reconnect affordance) from an ordinary give-up CLOSED.
     val replaced: Boolean = false,
+    // The relay link dropped and the room hasn't been re-confirmed yet: the shown
+    // QR/code may point at a dead room (a rejoin can bounce off "Room not found"
+    // into a fresh room), so the lobby dims the QR card until `joined`/`created`
+    // lands (roomReady).
+    val qrPending: Boolean = false,
 )
 
 /**
@@ -308,7 +402,9 @@ class TvDisplayOutput(
     override fun roomReady(room: String, joinUrl: String) {
         this.room = room
         this.joinUrl = joinUrl
-        _state.value = _state.value.copy(lobby = buildLobby())
+        // The relay confirmed the room (`created`, or `joined` after a rejoin), so the
+        // QR is trustworthy again — this is the ONLY place that clears the pending dim.
+        _state.value = _state.value.copy(lobby = buildLobby(), qrPending = false)
     }
 
     override fun updateLobby(players: List<PlayerRecord>, hostPeerIndex: Int?) {
@@ -384,6 +480,12 @@ class TvDisplayOutput(
         _state.value = _state.value.copy(muted = muted)
     }
 
+    /** Direct QR-pending control for the Activity's pause/resume hooks (see
+     *  MainActivity.onPause); link-state transitions set it via setConnectionState. */
+    fun setQrPending(pending: Boolean) {
+        _state.value = _state.value.copy(qrPending = pending)
+    }
+
     fun setConnectionState(state: RelayTransport.ConnectionState, reconnectAttempt: Int = 0) {
         // Any non-CLOSED transition (a fresh/re-established link) clears a stale terminal
         // "replaced" flag. onReplaced sets it right after this posts CLOSED, so a CLOSED
@@ -392,6 +494,10 @@ class TvDisplayOutput(
             connection = state,
             reconnectAttempt = reconnectAttempt,
             replaced = if (state == RelayTransport.ConnectionState.CLOSED) _state.value.replaced else false,
+            // Any link loss makes the shown QR untrusted. OPEN does NOT clear it —
+            // the socket opens before the relay answers the join, and a "Room not
+            // found" bounce swaps the room; only roomReady re-confirms.
+            qrPending = if (state == RelayTransport.ConnectionState.OPEN) _state.value.qrPending else true,
         )
     }
 
@@ -422,6 +528,14 @@ class TvDisplayOutput(
         )
     }
 }
+
+// Lobby-idle coordinator tick interval (the tick work there is 1s-granularity
+// liveness/grace polling; see the render-clock loop in MainActivity.onCreate).
+private const val LOBBY_TICK_MS = 250.0
+
+// Post-entrance delay before warming the engine + audio (the lobby entrance
+// animation runs ~950ms; don't compete with it for CPU).
+private const val WARMUP_DELAY_MS = 1000L
 
 // Pre-room lobby: shown from launch until the relay answers `created`. Empty
 // joinUrl => blank QR panel; empty roster => empty player grid + "waiting for
@@ -542,6 +656,7 @@ internal fun DisplayChrome(
                         LobbyScreen(
                             data = model.lobby ?: WAITING_LOBBY,
                             onStart = onStart,
+                            qrPending = model.qrPending,
                             onOpenAbout = onOpenAbout,
                         )
                 }
