@@ -110,17 +110,20 @@ class UIRenderer {
 
   _updateCachedFonts() {
     var font = getDisplayFont();
+    var brandFont = getBrandFont();
     var labelSize = Math.max(THEME.font.minPx.label, this.cellSize * THEME.font.cellScale.label);
     var valueSize = Math.max(THEME.font.minPx.label, this.cellSize * THEME.font.cellScale.label * 1.3);
     this._labelSize = labelSize;
     this._valueSize = valueSize;
     this._rowHeight = labelSize + valueSize + this.cellSize * 0.4;
-    this._fontName = '700 ' + Math.max(THEME.font.minPx.name, this.cellSize * THEME.font.cellScale.name) + 'px ' + font;
+    // Player name is the identity voice (brand face); numeric HUD stays Orbitron.
+    this._fontName = '700 ' + Math.max(THEME.font.minPx.name, this.cellSize * THEME.font.cellScale.name) + 'px ' + brandFont;
     this._fontLabel = '700 ' + labelSize + 'px ' + font;
     this._fontValue = '700 ' + valueSize + 'px ' + font;
     this._fontKO = '900 ' + Math.max(20, this.cellSize * 2) + 'px ' + font;
     this._fontDisconnect = '600 ' + Math.max(10, this.cellSize * THEME.font.cellScale.name) + 'px ' + font;
     this._cachedFontFamily = font;
+    this._cachedBrandFamily = brandFont;
     // Panel chrome caches embed the label font — rebuild so the next frame
     // picks up Orbitron after it finishes loading.
     this._holdChromeCache = null;
@@ -134,7 +137,7 @@ class UIRenderer {
       this._nextChromeCache = null;
       this._cachedChromeTier = this._styleTier;
     }
-    if (getDisplayFont() !== this._cachedFontFamily) this._updateCachedFonts();
+    if (getDisplayFont() !== this._cachedFontFamily || getBrandFont() !== this._cachedBrandFamily) this._updateCachedFonts();
     var nextLayout = this._nextPanelLayout(playerState);
     this.drawPlayerName(playerState);
     this.drawHoldPanel(playerState);
