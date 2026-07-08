@@ -219,27 +219,30 @@ body.clip-logo .phone { display: none; }
 .title-card.hidden { display: none; }
 
 /* logo variant — drop the QR + URL + tagline; centre the brand wordmark on
-   the dark backdrop. The .title-card flexbox already centres its content,
-   so removing the side card and the URL/tag elements collapses naturally. */
+   the dark backdrop. Smaller optical lift than the winner card: with no URL
+   below, the lone lockup balances at ~3% above geometric centre (the
+   winner's -48px reads too high here, plain centring reads too low). */
 body.clip-logo .title-card__qr,
 body.clip-logo .title-card__url,
 body.clip-logo .title-card__tag { display: none; }
 body.clip-logo .title-card { gap: 0; }
-body.clip-logo .title-card__copy { align-items: center; }
+body.clip-logo .title-card__copy { align-items: center; transform: translateY(-32px); }
 body.clip-logo .title-card__brand { font-size: 120px; text-align: center; }
 
 /* winner variant — same brand-only treatment as logo, but with the URL
-   anchored at the bottom of the frame as a soft CTA. */
+   below the lockup as a soft CTA. Stays in the flex flow so the whole
+   lockup + URL group centres vertically in the frame. */
 body.clip-winner .title-card__qr,
 body.clip-winner .title-card__tag { display: none; }
 body.clip-winner .title-card { gap: 0; }
-body.clip-winner .title-card__copy { align-items: center; }
+/* Optical centering: geometric centering reads low because the wordmark
+   (the visual mass) sits below the group's midpoint and the small URL
+   trails underneath. Lift ~4.5% of frame height, same optical-correction
+   approach as the lobby lockup's -0.3em. */
+body.clip-winner .title-card__copy { align-items: center; transform: translateY(-48px); }
 body.clip-winner .title-card__brand { font-size: 120px; text-align: center; }
 body.clip-winner .title-card__url {
-  position: absolute;
-  bottom: 80px;
-  left: 0;
-  right: 0;
+  margin-top: 48px;
   text-align: center;
   font-size: 36px;
 }
