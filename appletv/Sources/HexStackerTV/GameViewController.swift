@@ -28,6 +28,7 @@ final class GameViewController: UIViewController {
         ("game-2p", "game-2p", 2),
         ("game-3p", "game-3p", 3),
         ("game-4p", "game-4p", 4),
+        ("game-8p", "game-8p", 8),
         ("pause", "pause", 4),
         ("pause-music", "pause-music", 4),
         ("disconnected-controller", "disconnected-controller", 4),

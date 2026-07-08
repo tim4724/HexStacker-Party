@@ -79,6 +79,13 @@
       "android": { "file": "game_4p" }
     },
     {
+      "key": "game-8p",
+      "title": "Game, 8 boards (mixed tiers + KO)",
+      "web": { "scenario": "playing", "players": 8, "params": { "variant": "8p" } },
+      "tvos": { "shot": "game-8p", "players": 8 },
+      "android": { "file": "game_8p" }
+    },
+    {
       "key": "pause",
       "title": "Paused",
       "web": { "scenario": "pause", "players": 4, "params": { "host": 0 } },

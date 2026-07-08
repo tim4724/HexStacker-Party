@@ -10,7 +10,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { GalleryFixtures } = require('../server/GalleryFixtures');
 
-const VARIANT_NAMES = ['solo', 'lv1', 'lv8', 'lv12', '2p', '3p', '4p'];
+const VARIANT_NAMES = ['solo', 'lv1', 'lv8', 'lv12', '2p', '3p', '4p', '8p'];
 
 test('roster is stable and slot == colorIndex == id', () => {
   const r = GalleryFixtures.roster(8);

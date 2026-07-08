@@ -73,7 +73,8 @@ var VARIANTS = {
   'lv12': { players: 4, levels: [12, 12, 12, 12], elapsed: 75000 },
   '2p':   { players: 2, levels: [3, 9],           garbage: { 1: 3 }, elapsed: 83000 },
   '3p':   { players: 3, levels: [1, 8, 12],       elapsed: 47000 },
-  '4p':   { players: 4, levels: [3, 9, 12, 1],    ko: [3], garbage: { 1: 3 }, elapsed: 132000 }
+  '4p':   { players: 4, levels: [3, 9, 12, 1],    ko: [3], garbage: { 1: 3 }, elapsed: 132000 },
+  '8p':   { players: 8, levels: [3, 9, 12, 1, 5, 8, 2, 12], ko: [5], garbage: { 1: 3, 6: 2 }, elapsed: 154000 }
 };
 
 function gameVariant(name) {
