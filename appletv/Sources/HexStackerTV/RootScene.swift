@@ -58,6 +58,7 @@ final class RootScene: SKScene, DisplayOutput {
 
     private var boardNodes: [Int: BoardNode] = [:]
     private var currentPlayerCount = -1
+    private var currentGridRows = 1           // board-grid rows, for the timer size (web cachedGridRows)
     private var lastBoardIds: [Int] = []   // the player-id set the boards were built for
     private var lastTime: TimeInterval = 0
     private var shotMode = false   // HEXSHOT: render one frozen state, no live tick
@@ -676,7 +677,11 @@ final class RootScene: SKScene, DisplayOutput {
         let str = String(format: "%02d:%02d", total / 60, total % 60)
         // Fixed size relative to scene height, not cell size, so the clock reads
         // the same regardless of board count and matches the web/Android renderers.
-        let fs = max(24, min(size.height * 0.04, 60))
+        // Two board rows (7-8 players) leave no free band above the top boards, so
+        // shrink the clock to sit inside the name-label band instead of overlapping
+        // the board frames (web drawTimer applies the same factor).
+        var fs = max(24, min(size.height * 0.04, 60))
+        if currentGridRows > 1 { fs *= 0.6 }
         // The text changes once a second; skip the per-frame glyph
         // re-rasterization (setStyledText re-runs layout + texture upload)
         // unless something that feeds the render actually changed.
@@ -958,6 +963,7 @@ final class RootScene: SKScene, DisplayOutput {
 
         let layout = LayoutEngine.layout(playerCount: snapshot.players.count,
                                          viewportW: playRect.width, viewportH: playRect.height)
+        currentGridRows = layout.gridRows
         for (i, placement) in layout.placements.enumerated() where i < snapshot.players.count {
             let player = snapshot.players[i]
             let rec = coordinator.flow.player(player.id)

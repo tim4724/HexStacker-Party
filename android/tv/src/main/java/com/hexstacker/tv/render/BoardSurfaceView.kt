@@ -92,6 +92,8 @@ class BoardSurfaceView @JvmOverloads constructor(
     // avoids a fresh allocation per board every frame while no match snapshot is present.
     private var emptySnapshots: Array<PlayerState?> = emptyArray()
 
+    // Board-grid rows of the current layout, for the timer size (web cachedGridRows).
+    private var gridRows = 1
     // Timer cache (render thread): the string changes once per second, not per frame.
     private var timerCachedSeconds = -1L
     private var timerCachedStr = ""
@@ -465,6 +467,7 @@ class BoardSurfaceView @JvmOverloads constructor(
         val marginX = w * Theme.Size.tvOverscan
         val marginY = h * Theme.Size.tvOverscan
         val layout = LayoutEngine.layout(n, w - 2 * marginX, h - 2 * marginY, textHeightOverride)
+        gridRows = layout.gridRows
 
         val newRenderers = ArrayList<BoardRenderer>(layout.placements.size)
         val idx = HashMap<Int, Int>()
@@ -509,7 +512,11 @@ class BoardSurfaceView @JvmOverloads constructor(
         // Fixed size relative to view height, not cell size, so the clock reads the
         // same regardless of board count and matches the web/tvOS renderers (all
         // three size off full screen height; only the position is title-safe inset).
-        val timerSize = max(24f, min(surfaceH * 0.04f, 60f))
+        // Two board rows (7-8 players) leave no free band above the top boards, so
+        // shrink the clock to sit inside the name-label band instead of overlapping
+        // the board frames (web drawTimer applies the same factor).
+        var timerSize = max(24f, min(surfaceH * 0.04f, 60f))
+        if (gridRows > 1) timerSize *= 0.6f
         // Nudge the clock into the same TV title-safe margin as the boards, matching
         // tvOS (which positions the timer inside playRect). Web has no inset (margin 0).
         val marginX = surfaceW * Theme.Size.tvOverscan.toFloat()
