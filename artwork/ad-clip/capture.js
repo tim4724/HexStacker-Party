@@ -40,8 +40,7 @@
 
 const path = require('path');
 const fs = require('fs');
-const crypto = require('crypto');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const { describeVariants, getCaptureClips, getVariants } = require('./variants');
 
 const PORT = parseInt(process.env.PORT, 10) || 4100;
@@ -92,11 +91,14 @@ const JPEG_QUALITY = Number.isFinite(JPEG_QUALITY_ENV) ? JPEG_QUALITY_ENV : (MAX
 // also aren't compute-bound — there's no fps headroom problem to solve.
 const NON_SCALABLE_CLIPS = new Set(['lobby-reveal', 'winner', 'logo']);
 
-// Per-clip threshold (ms) for the post-capture freeze sniff. If we observe
-// a longer run of byte-identical source frames than this, the iframe's
-// compositor cache likely went stale during capture and we retry. Static
-// card clips have multi-second static content by design — Infinity skips
-// the sniff for them.
+// Per-clip threshold (ms of output/game-time) for the post-capture freeze
+// sniff. The resampled frames are run through ffmpeg freezedetect; a visual
+// freeze longer than this means either the iframe's compositor cache went
+// stale OR the page's main thread stalled mid-capture (canvas RAF blocked
+// while compositor-driven CSS animations kept the frames byte-different,
+// a failure mode an md5-identical check can't see), and we retry.
+// Static card clips have multi-second static content by design; Infinity
+// skips the sniff for them.
 const FREEZE_THRESHOLD_MS = {
   'lobby-reveal': 1500,
   normal4p: 1000,
@@ -340,22 +342,6 @@ async function captureOne(browser, aspect, clip, opts) {
 
   console.log(`    captured ${frames.length} frames @ ~${(frames.length / actualClipMs * 1000).toFixed(1)} fps native`);
 
-  // Freeze sniff — scan source frames for the longest run of byte-identical
-  // images. If it exceeds this clip's threshold, the iframe layer almost
-  // certainly went stale mid-capture (the compositor-cache bug we work
-  // around with the heartbeat). Caller retries on the same browser.
-  // skipFreezeCheck=true is used by the last-resort retry path in
-  // captureWithRetry so that we always commit frames to disk after the
-  // attempt budget is exhausted (otherwise stitch would fail with no
-  // input dir for this clip).
-  const maxFreezeMs = detectMaxFreezeMs(frames);
-  const threshold = FREEZE_THRESHOLD_MS[clip.name] != null ? FREEZE_THRESHOLD_MS[clip.name] : 1000;
-  if (!skipFreezeCheck && maxFreezeMs > threshold) {
-    fs.rmSync(stagingDir, { recursive: true, force: true });
-    fs.rmSync(targetDir, { recursive: true, force: true });
-    return { freezeDetected: true, maxFreezeMs, threshold };
-  }
-
   // Resample staging frames → fixed-FPS sequence in targetDir. Both inputs
   // and output ticks are sorted by time, so a moving cursor finds nearest-
   // neighbour for every output tick in O(N).
@@ -390,6 +376,24 @@ async function captureOne(browser, aspect, clip, opts) {
     const dst = path.join(targetDir, `frame-${String(writeIdx).padStart(4, '0')}.jpg`);
     fs.copyFileSync(frames[cursor].path, dst);
     writeIdx++;
+  }
+
+  // Freeze sniff — run ffmpeg freezedetect over the resampled output frames
+  // and take the longest reported visual freeze. Runs on output frames (not
+  // staging) because they're uniformly timed (60fps game-time), so the
+  // thresholds read directly as visible-freeze milliseconds regardless of
+  // TIME_SCALE. If it exceeds this clip's threshold, the capture stalled
+  // (stale compositor cache or a main-thread hang) and the caller retries.
+  // skipFreezeCheck=true is used by the last-resort retry path in
+  // captureWithRetry so that we always commit frames to disk after the
+  // attempt budget is exhausted (otherwise stitch would fail with no
+  // input dir for this clip).
+  const threshold = FREEZE_THRESHOLD_MS[clip.name] != null ? FREEZE_THRESHOLD_MS[clip.name] : 1000;
+  const maxFreezeMs = threshold === Infinity ? 0 : detectMaxFreezeMs(targetDir, writeIdx);
+  if (!skipFreezeCheck && maxFreezeMs > threshold) {
+    fs.rmSync(stagingDir, { recursive: true, force: true });
+    fs.rmSync(targetDir, { recursive: true, force: true });
+    return { freezeDetected: true, maxFreezeMs, threshold };
   }
 
   fs.writeFileSync(path.join(targetDir, 'meta.json'), JSON.stringify({
@@ -452,31 +456,39 @@ async function captureWithRetry(browser, aspect, clip) {
   }
 }
 
-// Scan an array of {t, path} source frames and return the longest run of
-// byte-identical consecutive frames in milliseconds, measured by their
-// CDP wall-clock timestamps. Hashing is cheap (~50MB of JPEGs at SCALE=2,
-// md5 throughput on modern hardware ~500MB/s = sub-second per clip).
-function detectMaxFreezeMs(frames) {
-  if (frames.length < 2) return 0;
-  let maxMs = 0;
-  let runStart = 0;
-  let prevHash = hashFile(frames[0].path);
-  for (let i = 1; i < frames.length; i++) {
-    const hash = hashFile(frames[i].path);
-    if (hash !== prevHash) {
-      const runMs = (frames[i - 1].t - frames[runStart].t) * 1000;
-      if (runMs > maxMs) maxMs = runMs;
-      runStart = i;
-      prevHash = hash;
-    }
+// Longest visual freeze (ms) in a resampled frame directory, via ffmpeg
+// freezedetect. Pixel-difference based with a noise floor, NOT byte
+// equality: a main-thread stall leaves the canvas frozen while
+// compositor-thread CSS animations (the controller touch ripples) keep
+// every frame byte-different; md5 hashing missed exactly that hang.
+// n=0.001 was validated against a shipped 1.5s neon4p hang: the ripple
+// motion stays under the noise floor while any real gameplay change is
+// orders of magnitude above it. d=0.1 is just the reporting floor; the
+// caller compares the max against the per-clip threshold.
+function detectMaxFreezeMs(frameDir, frameCount) {
+  if (frameCount < 2) return 0;
+  const res = spawnSync('ffmpeg', [
+    '-hide_banner', '-loglevel', 'info',
+    '-framerate', String(FPS), '-i', path.join(frameDir, 'frame-%04d.jpg'),
+    '-vf', 'freezedetect=n=0.001:d=0.1',
+    '-f', 'null', '-',
+  ], { encoding: 'utf-8' });
+  if (res.error || res.status !== 0) {
+    const msg = res.error ? res.error.message : `exit ${res.status}`;
+    console.warn(`    [freeze sniff] ffmpeg unavailable or failed (${msg}), skipping sniff`);
+    return 0;
   }
-  const tailMs = (frames[frames.length - 1].t - frames[runStart].t) * 1000;
-  if (tailMs > maxMs) maxMs = tailMs;
-  return maxMs;
-}
-
-function hashFile(p) {
-  return crypto.createHash('md5').update(fs.readFileSync(p)).digest('hex');
+  // freezedetect logs freeze_start / freeze_duration pairs to stderr. A
+  // freeze still active at EOF gets a start but no duration; close it
+  // against the sequence end.
+  let maxSec = 0;
+  let openStart = null;
+  for (const [, key, value] of res.stderr.matchAll(/freezedetect\.freeze_(start|duration): ([\d.]+)/g)) {
+    if (key === 'start') openStart = parseFloat(value);
+    else { maxSec = Math.max(maxSec, parseFloat(value)); openStart = null; }
+  }
+  if (openStart != null) maxSec = Math.max(maxSec, frameCount / FPS - openStart);
+  return maxSec * 1000;
 }
 
 // Composition heartbeat — fires Page.captureScreenshot at COMPOSITION_HEARTBEAT_HZ
