@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,6 +56,12 @@ fun AboutScreen(
     modifier: Modifier = Modifier,
 ) {
     val licensesFocus = remember { FocusRequester() }
+    val context = LocalContext.current
+    val version = remember {
+        runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
+        }.getOrDefault("")
+    }
 
     Box(modifier.fillMaxSize().background(Tokens.bgPrimary)) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -111,6 +118,17 @@ fun AboutScreen(
                     fontSize = vp.vhSp(15f, 2f, 22f),
                 )
             }
+
+            // App version pinned to the bottom title-safe edge — a language-neutral
+            // marker (like the QR URLs), so it needs no i18n string.
+            Text(
+                text = version,
+                style = AppType.musicCredit.copy(
+                    fontSize = vp.vhSp(15f, 2.6f, 18f),
+                    color = Tokens.textFaint,
+                ),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = overscanV),
+            )
         }
     }
 

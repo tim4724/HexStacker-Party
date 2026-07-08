@@ -93,6 +93,24 @@ final class AboutOverlay {
         button.zPosition = 1
         button.setFocused(true)
         node.addChild(button)
+
+        // App version pinned to the bottom title-safe edge — a language-neutral
+        // marker, not translatable copy (like the QR URLs), so it needs no i18n string.
+        let version = SKLabelNode()
+        version.horizontalAlignmentMode = .center
+        version.verticalAlignmentMode = .bottom
+        version.setStyledText(Self.versionString(), font: AppFont.semibold,
+                              size: max(18, min(playRect.height * 0.026, 26)),
+                              color: SKTheme.textFaint, tracking: 0.02)
+        version.position = CGPoint(x: playRect.midX, y: playRect.minY + margin)
+        version.zPosition = 1
+        node.addChild(version)
+    }
+
+    /// The marketing version from the bundle Info.plist (CFBundleShortVersionString),
+    /// e.g. "1.0", or "" if absent (renders nothing). Display-only.
+    private static func versionString() -> String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
     }
 
     /// Total card height for a given width (label + QR square + URL, plus padding),
