@@ -1230,25 +1230,30 @@ final class RootScene: SKScene, DisplayOutput {
         hostLabel.zPosition = 1
         hostLabel.setStyledText(hostText, font: AppFont.semibold, size: w * 0.05,
                                 color: SKTheme.textSecondary, tracking: 0.04)
-        hostLabel.position = CGPoint(x: 0, y: pillCenterY + pillH * 0.24)
+        // With no room code (the gallery/adclip clean CTA) the host is the
+        // pill's only line — center it instead of leaving a code-sized gap.
+        hostLabel.position = CGPoint(x: 0, y: codeText.isEmpty ? pillCenterY : pillCenterY + pillH * 0.24)
         node.addChild(hostLabel)
 
-        let codeLabel = SKLabelNode()
-        codeLabel.verticalAlignmentMode = .center
-        codeLabel.zPosition = 1
-        codeLabel.setStyledText(codeText, font: AppFont.black, size: w * 0.09,
-                                color: SKTheme.accentSecondary, tracking: 0.16)
-        codeLabel.position = CGPoint(x: 0, y: pillCenterY - pillH * 0.18)
-        node.addChild(codeLabel)
+        if !codeText.isEmpty {
+            let codeLabel = SKLabelNode()
+            codeLabel.verticalAlignmentMode = .center
+            codeLabel.zPosition = 1
+            codeLabel.setStyledText(codeText, font: AppFont.black, size: w * 0.09,
+                                    color: SKTheme.accentSecondary, tracking: 0.16)
+            codeLabel.position = CGPoint(x: 0, y: pillCenterY - pillH * 0.18)
+            node.addChild(codeLabel)
+        }
 
         return node
     }
 
     /// "https://host/CODE#instance" -> ("host/", "CODE"). Mirrors renderJoinUrl.
+    /// A code-less URL (the gallery/adclip clean CTA) -> ("host", "").
     static func splitJoinURL(_ url: String) -> (host: String, code: String) {
         guard let u = URL(string: url), let host = u.host else { return ("", url) }
         let code = u.path.replacingOccurrences(of: "/", with: "")
-        return (host + "/", code.isEmpty ? url : code)
+        return code.isEmpty ? (host, "") : (host + "/", code)
     }
 
     private func buildPlayerCard(player: PlayerRecord?, slotIndex: Int, w: CGFloat, h: CGFloat) -> SKNode {

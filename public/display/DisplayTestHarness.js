@@ -408,33 +408,22 @@ function _freezeWelcomeBg() {
 }
 
 function _fakeLobbyQR() {
-  // Adclip mode shows the bare site (no room code) so the QR + URL function
-  // as a clean CTA. Gallery preview uses the shared JOIN fixture (the same
-  // host/code/QR target the tvOS and Android TV galleries render) so the
-  // join-url two-part rendering still gets verified and stays comparable.
+  // Lobby shots (gallery and adclip alike) show the bare site with no fake
+  // room code, so the QR + URL function as a clean CTA — the shared JOIN
+  // fixture carries the same host/QR target the tvOS and Android TV galleries
+  // render, keeping the columns comparable.
   var JOIN = GameEngine.GalleryFixtures.JOIN;
-  var qrTarget = _adclipMode ? 'https://hexstacker.com' : JOIN.qrText;
   if (joinUrlEl) {
     var hostEl = joinUrlEl.querySelector('.join-url__host');
     var codeEl = joinUrlEl.querySelector('.join-url__code');
-    if (_adclipMode) {
-      // Single-line "hexstacker.com" — drop the slash + room code that the
-      // gallery preview uses. Match by clearing the code span and dropping
-      // the trailing slash on host.
-      if (hostEl && codeEl) {
-        hostEl.textContent = 'hexstacker.com';
-        codeEl.textContent = '';
-      } else if (joinUrlEl) {
-        joinUrlEl.textContent = 'hexstacker.com';
-      }
-    } else if (hostEl && codeEl) {
+    if (hostEl && codeEl) {
       hostEl.textContent = JOIN.host;
       codeEl.textContent = JOIN.code;
     } else {
       joinUrlEl.textContent = JOIN.host + JOIN.code;
     }
   }
-  if (qrCode) renderQR(qrCode, buildQRMatrix(qrTarget));
+  if (qrCode) renderQR(qrCode, buildQRMatrix(JOIN.qrText));
 }
 
 // =====================================================================

@@ -59,21 +59,21 @@
     },
     {
       "key": "game-2p",
-      "title": "Game, 2 boards (mixed tiers + garbage meter)",
+      "title": "Game, 2 boards (Normal tier + garbage meter)",
       "web": { "scenario": "playing", "players": 2, "params": { "variant": "2p" } },
       "tvos": { "shot": "game-2p", "players": 2 },
       "android": { "file": "game_2p" }
     },
     {
       "key": "game-3p",
-      "title": "Game, 3 boards (mixed tiers)",
+      "title": "Game, 3 boards (Normal/Pillow mix)",
       "web": { "scenario": "playing", "players": 3, "params": { "variant": "3p" } },
       "tvos": { "shot": "game-3p", "players": 3 },
       "android": { "file": "game_3p" }
     },
     {
       "key": "game-4p",
-      "title": "Game, 4 boards (mixed tiers + KO)",
+      "title": "Game, 4 boards (Normal/Pillow mix)",
       "web": { "scenario": "playing", "players": 4, "params": { "variant": "4p" } },
       "tvos": { "shot": "game-4p", "players": 4 },
       "android": { "file": "game_4p" }
