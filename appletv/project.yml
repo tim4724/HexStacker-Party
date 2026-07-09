@@ -54,7 +54,12 @@ targets:
     info:
       path: Sources/HexStackerTV/Info.plist
       properties:
-        CFBundleDisplayName: HexStacker
+        CFBundleDisplayName: HexStacker Party
+        # Version + build single-sourced from the MARKETING_VERSION /
+        # CURRENT_PROJECT_VERSION build settings below, so Xcode's General tab and
+        # the shipped plist can't drift. Bump those, not these.
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UIRequiredDeviceCapabilities: [arm64]
         GCSupportsControllerUserInteraction: true
         # Only standard TLS (wss/https) is used — exempt from export compliance,
@@ -68,6 +73,20 @@ targets:
         NSLocalNetworkUsageDescription: >-
           HexStacker connects to phone controllers on your local network so their
           taps reach the game with the lowest possible delay.
+        # The bundled LiveKitWebRTC binary references the camera and microphone
+        # capture APIs (part of WebRTC's media stack), so Apple's static scanner
+        # requires purpose strings even though HexStacker only uses WebRTC data
+        # channels and never captures media. Without these, upload processing fails
+        # with ITMS-90683. The prompts never appear at runtime (the APIs are never
+        # called); the strings exist solely to satisfy the delivery check.
+        NSCameraUsageDescription: >-
+          HexStacker Party does not use the camera. This notice is required only
+          because its bundled real-time networking library references camera APIs
+          the game never calls.
+        NSMicrophoneUsageDescription: >-
+          HexStacker Party does not use the microphone. This notice is required only
+          because its bundled real-time networking library references microphone
+          APIs the game never calls.
         # Bundled variable fonts (Resources/fonts/): Orbitron for the HUD voice,
         # Baloo 2 for the brand voice (wordmark lockup, buttons).
         UIAppFonts:
@@ -79,18 +98,32 @@ targets:
         TARGETED_DEVICE_FAMILY: "3"            # tvOS
         SWIFT_VERSION: "5.9"
         ASSETCATALOG_COMPILER_APPICON_NAME: "App Icon & Top Shelf Image"
+        # App Store version (public-facing) and build number. Build must strictly
+        # increase per upload for the same version; bump CURRENT_PROJECT_VERSION on
+        # each new binary to App Store Connect.
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "2"
+        # Manual App Store distribution signing. Automatic signing can't archive
+        # this tvOS app without a registered device (it insists on minting a
+        # device-bound *development* profile for the target), so we sign directly
+        # with the Apple Distribution cert + an App Store provisioning profile —
+        # neither of which is device-bound. Lives here (not the Xcode UI) because
+        # XcodeGen regenerates the project. The profile named below must exist in
+        # the login keychain / ~/Library/MobileDevice/Provisioning Profiles.
+        DEVELOPMENT_TEAM: "5ZH48MPAM3"
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "Apple Distribution"
+        PROVISIONING_PROFILE_SPECIFIER: "HexStacker tvOS App Store"
         # LiveKitWebRTC ships only an arm64 tvOS-Simulator slice (no x86_64), so a
         # generic/CI simulator build that targets both archs fails to link the
         # x86_64 binary. Apple Silicon + real devices are arm64; exclude x86_64 for
         # the simulator SDK so `xcodebuild -sdk appletvsimulator` links cleanly.
         EXCLUDED_ARCHS[sdk=appletvsimulator*]: x86_64
-    # Run the UI test bundle under this scheme's test action so
-    # `xcodebuild -scheme HexStackerTV test` picks it up (screenshot capture +
-    # remote-driven smoke). The app itself needs no test-only code: the tests
-    # select state via the existing HEXSHOT / HEXDEMO launch hooks.
-    scheme:
-      testTargets:
-        - HexStackerTVUITests
+    # The scheme (build + test wiring AND the Archive post-action that synthesizes
+    # the LiveKit dSYM) is defined in the top-level `schemes:` block at the bottom
+    # of this file. The target-level `scheme:` shorthand can only attach actions to
+    # the BuildAction — it silently drops ArchiveAction post-actions — so the full
+    # Scheme spec is required to hook Product > Archive.
     preBuildScripts:
       - name: Sync engine JS
         basedOnDependencyAnalysis: false
@@ -116,3 +149,33 @@ targets:
         SWIFT_VERSION: "5.9"
         EXCLUDED_ARCHS[sdk=appletvsimulator*]: x86_64
         GENERATE_INFOPLIST_FILE: "YES"   # test bundle has no committed Info.plist
+
+schemes:
+  HexStackerTV:
+    build:
+      targets:
+        HexStackerTV: all
+    # Run the UI test bundle under the test action so `xcodebuild -scheme
+    # HexStackerTV test` picks it up (screenshot capture + remote-driven smoke).
+    # The app needs no test-only code: tests select state via HEXSHOT / HEXDEMO
+    # launch hooks.
+    test:
+      targets:
+        - HexStackerTVUITests
+    archive:
+      config: Release
+      # LiveKitWebRTC ships as a stripped closed binary with no dSYM, so every
+      # archive trips Apple's "archive did not include a dSYM for
+      # LiveKitWebRTC.framework" upload warning. This Archive post-action runs for
+      # GUI Product > Archive and CLI xcodebuild archive alike, synthesizing a
+      # UUID-matching dSYM from the embedded framework binary into the archive's
+      # dSYMs/ folder so uploads are clean. The binary is stripped, so the dSYM
+      # carries only the symbol table (function-level, no line info) — enough to
+      # satisfy Apple's presence check.
+      postActions:
+        - name: Synthesize LiveKitWebRTC dSYM
+          settingsTarget: HexStackerTV
+          script: |
+            set -eu
+            FW="${ARCHIVE_PATH}/Products/Applications/${PRODUCT_NAME}.app/Frameworks/LiveKitWebRTC.framework/LiveKitWebRTC"
+            [ -f "${FW}" ] && dsymutil "${FW}" -o "${ARCHIVE_PATH}/dSYMs/LiveKitWebRTC.framework.dSYM" || true
