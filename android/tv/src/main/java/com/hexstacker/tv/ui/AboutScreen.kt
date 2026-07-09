@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +15,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,6 +35,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import com.hexstacker.core.render.Theme
 import com.hexstacker.tv.R
 
@@ -80,9 +85,9 @@ fun AboutScreen(
             val overscan = Theme.Size.tvOverscan.toFloat() // TV title-safe, each edge
             val overscanH = (vp.wDp * overscan).dp
             val overscanV = (vp.hDp * overscan).dp
-            // Card width / gaps mirror the tvOS AboutOverlay metrics (cardW 320px,
+            // Card width / gaps mirror the tvOS AboutOverlay metrics (cardW 360px,
             // row gap 96px, cluster gap ~58px at 1080p) so the two TV ports align.
-            val cardW = vp.vminDp(180f, 30f, 213.3f)
+            val cardW = vp.vminDp(202.5f, 33.3f, 240f)
 
             // Back hint pinned to the top title-safe edge.
             Text(
@@ -126,7 +131,11 @@ fun AboutScreen(
                     tint = Tokens.accentPrimary,
                     onClick = onOpenLicenses,
                     focusRequester = licensesFocus,
-                    fontSize = vp.vhSp(15f, 2f, 22f),
+                    fontSize = vp.vhSp(15f, 2.7f, 19.5f),
+                    contentPadding = PaddingValues(
+                        horizontal = vp.vwDp(28f, 3.6f, 48f),
+                        vertical = vp.vhDp(10f, 2.4f, 18f),
+                    ),
                 )
             }
 
@@ -134,7 +143,7 @@ fun AboutScreen(
             // marker (like the QR URLs), so it needs no i18n string.
             Text(
                 text = version,
-                style = AppType.musicCredit.copy(
+                style = AppType.versionTag.copy(
                     fontSize = vp.vhSp(15f, 2.6f, 18f),
                     color = Tokens.textFaint,
                 ),
@@ -163,19 +172,22 @@ private fun LegalQrCard(
     val qr: ImageBitmap? by rememberQrBitmap(url, 480) // crisp at 1080p
     val cardShape = RoundedCornerShape(Tokens.radiusXl)
 
+    // Sizes mirror the tvOS AboutOverlay card fractions (pad 7%, gap 5%, label
+    // 0.58 of the 13% label band, URL 0.6 of the 10% URL band, QR inset 4%).
     Column(
         modifier
             .clip(cardShape)
             .background(Tokens.bgCard, cardShape)
             .border(1.dp, Tokens.border, cardShape)
-            .padding(vp.vminDp(10f, 2f, 20f)),
-        verticalArrangement = Arrangement.spacedBy(vp.vminDp(8f, 1.5f, 14f)),
+            .padding(vp.vminDp(10f, 2.35f, 17f)),
+        verticalArrangement = Arrangement.spacedBy(vp.vminDp(8f, 1.7f, 12.5f)),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = label.uppercase(), // chrome label style, like #qr-label
             style = AppType.qrScanLabel.copy(
-                fontSize = vp.vminSp(13f, 1.8f, 18f),
+                fontSize = vp.vminSp(13f, 2.5f, 18f),
+                letterSpacing = 0.12.em,
                 color = Tokens.textPrimary,
             ),
             maxLines = 1,
@@ -189,7 +201,7 @@ private fun LegalQrCard(
                 .aspectRatio(1f)
                 .clip(RoundedCornerShape(Tokens.radiusLg))
                 .background(Tokens.white)
-                .padding(vp.vminDp(4f, 0.8f, 10f)),
+                .padding(vp.vminDp(4f, 1.15f, 9f)),
             contentAlignment = Alignment.Center,
         ) {
             if (qr != null) {
@@ -202,15 +214,22 @@ private fun LegalQrCard(
             }
         }
 
-        Text(
+        // Auto-shrink instead of ellipsizing: the URL is the human-readable fallback
+        // for the QR, so a truncated path is useless (mirrors the tvOS fit clamp).
+        BasicText(
             text = url.removePrefix("https://"),
             style = AppType.joinHost.copy(
-                fontSize = vp.vminSp(11f, 1.5f, 15f),
+                fontSize = vp.vminSp(11f, 2f, 14.4f),
                 color = Tokens.textSecondary,
+                textAlign = TextAlign.Center,
             ),
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
+            autoSize = TextAutoSize.StepBased(
+                minFontSize = 8.sp,
+                maxFontSize = vp.vminSp(11f, 2f, 14.4f),
+                stepSize = 0.25.sp,
+            ),
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }

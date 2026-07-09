@@ -100,7 +100,10 @@ fun QrCard(
                 Text(
                     text = joinHost.lowercase(), // .join-url__host text-transform lowercase
                     style = AppType.joinHost.copy(
-                        fontSize = vp.vminSp(13.6f, 1.8f, 19.2f), // clamp(0.85rem,1.8vmin,1.2rem)
+                        // With no room code (the gallery/adclip clean CTA) the host is
+                        // the pill's only line — give it some of the code's visual weight.
+                        fontSize = if (joinCode.isEmpty()) vp.vminSp(17f, 2.25f, 24f)
+                        else vp.vminSp(13.6f, 1.8f, 19.2f), // clamp(0.85rem,1.8vmin,1.2rem)
                         color = Tokens.textSecondary,
                     ),
                     maxLines = 1,

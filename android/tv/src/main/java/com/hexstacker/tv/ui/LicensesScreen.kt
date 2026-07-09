@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.hexstacker.core.render.Theme
 import com.hexstacker.tv.R
@@ -84,11 +85,14 @@ fun LicensesScreen(
             val overscanH = (vp.wDp * overscan).dp
             val overscanV = (vp.hDp * overscan).dp
 
+            // Type / spacing mirror the tvOS LicensesOverlay metrics (title 5% of
+            // height capped at 52px, card gap / pad 1.6% / 2.2% of width at 1080p).
             Column(Modifier.fillMaxSize().padding(horizontal = overscanH, vertical = overscanV)) {
                 Text(
                     text = stringResource(R.string.licenses_title),
                     style = AppType.wordmarkMain.copy(
-                        fontSize = vp.vhSp(22f, 3f, 34f),
+                        fontSize = vp.vhSp(22f, 5f, 34.7f),
+                        letterSpacing = 0.08.em,
                         color = Tokens.textPrimary,
                     ),
                 )
@@ -98,16 +102,17 @@ fun LicensesScreen(
                         fontSize = vp.vhSp(18f, 3f, 21.3f),
                         color = Tokens.textFaint,
                     ),
-                    modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
+                    modifier = Modifier.padding(bottom = vp.vhDp(12f, 2.5f, 18f)),
                 )
 
                 LazyColumn(
                     Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(vp.vwDp(9f, 1.45f, 19f)),
                 ) {
                     itemsIndexed(entries, key = { i, e -> "${e.name}#$i" }) { index, entry ->
                         LicenseRow(
                             entry = entry,
+                            vp = vp,
                             modifier = if (index == 0) Modifier.focusRequester(firstRow) else Modifier,
                         )
                     }
@@ -124,7 +129,7 @@ fun LicensesScreen(
 
 /** A focusable, expand-in-place license row. Focus highlights it; select toggles the body. */
 @Composable
-private fun LicenseRow(entry: LicenseEntry, modifier: Modifier = Modifier) {
+private fun LicenseRow(entry: LicenseEntry, vp: Vp, modifier: Modifier = Modifier) {
     var focused by remember { mutableStateOf(false) }
     var expanded by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(Tokens.radiusMd)
@@ -141,7 +146,10 @@ private fun LicenseRow(entry: LicenseEntry, modifier: Modifier = Modifier) {
             )
             .onFocusChanged { focused = it.isFocused }
             .clickable { expanded = !expanded }
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .padding(
+                horizontal = vp.vwDp(20f, 2f, 26f),
+                vertical = vp.vwDp(12f, 1.45f, 19f),
+            ),
     ) {
         Row(
             Modifier.fillMaxWidth(),
@@ -177,7 +185,7 @@ private fun LicenseRow(entry: LicenseEntry, modifier: Modifier = Modifier) {
                 text = entry.body ?: entry.url ?: "",
                 style = androidx.compose.ui.text.TextStyle(
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp,
+                    fontSize = 13.5.sp, // tvOS Menlo 20px at 1080p
                     color = Tokens.textSecondary,
                 ),
                 modifier = Modifier.padding(top = 12.dp),

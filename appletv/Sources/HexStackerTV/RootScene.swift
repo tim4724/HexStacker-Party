@@ -1234,10 +1234,11 @@ final class RootScene: SKScene, DisplayOutput {
         let hostLabel = SKLabelNode()
         hostLabel.verticalAlignmentMode = .center
         hostLabel.zPosition = 1
-        hostLabel.setStyledText(hostText, font: AppFont.semibold, size: w * 0.05,
-                                color: SKTheme.textSecondary, tracking: 0.04)
         // With no room code (the gallery/adclip clean CTA) the host is the
-        // pill's only line — center it instead of leaving a code-sized gap.
+        // pill's only line — center it and give it some of the code's visual weight.
+        hostLabel.setStyledText(hostText, font: AppFont.semibold,
+                                size: codeText.isEmpty ? w * 0.0625 : w * 0.05,
+                                color: SKTheme.textSecondary, tracking: 0.04)
         hostLabel.position = CGPoint(x: 0, y: codeText.isEmpty ? pillCenterY : pillCenterY + pillH * 0.24)
         node.addChild(hostLabel)
 

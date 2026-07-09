@@ -73,7 +73,7 @@ final class AboutOverlay {
         // Privacy / Imprint QR cards + the "Open Source Licenses" button as one
         // vertically centered cluster (matches the Android About layout), rather than
         // the button pinned to the bottom edge with the cards floating above.
-        let cardW = min(playRect.width * 0.28, 320)
+        let cardW = min(playRect.width * 0.28, 360)
         let cardH = legalCardHeight(cardW)
         let btnH = max(48, playRect.height * 0.075)
         let clusterGap = playRect.height * 0.06
@@ -180,6 +180,11 @@ final class AboutOverlay {
         urlNode.setStyledText(url.replacingOccurrences(of: "https://", with: ""),
                               font: AppFont.semibold, size: urlH * 0.6,
                               color: SKTheme.textSecondary, tracking: 0.02)
+        // The English /en/ URLs are longer than the German ones and SKLabelNode has
+        // no max-width — shrink to the QR panel width so the URL never spills out.
+        if urlNode.frame.width > qrSide {
+            urlNode.setScale(qrSide / urlNode.frame.width)
+        }
         urlNode.position = CGPoint(x: 0, y: -h / 2 + pad + urlH / 2)
         node.addChild(urlNode)
 

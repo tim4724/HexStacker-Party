@@ -73,6 +73,7 @@ object AppType {
     val pauseTitle = brand(800, 0.15f) // "PAUSED"
     val musicLabel = brand(600, 0.05f) // "Game Music"
     val musicCredit = brand(400, 0.02f) // "Music by …" footer
+    val versionTag = hud(600, 0.02f) // About version marker (tvOS AppFont.semibold)
     val connHeading = brand(800, 0.12f) // "RECONNECTING" / "DISCONNECTED"
     val connStatus = brand(700, 0.08f) // "Connection lost..."
     val wordmarkMain = brand(800, 0.06f) // "HEX STACKER" (.brand-lockup)
