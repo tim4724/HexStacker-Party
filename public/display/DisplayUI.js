@@ -19,6 +19,11 @@ function buildCardLevelLabel() {
 }
 
 // --- Layout Calculation ---
+// Grid rows of the current board layout, cached for drawTimer: two-row grids
+// leave no free band above the top boards, so the clock shrinks to share the
+// name-label band instead of overlapping the board frames.
+var cachedGridRows = 1;
+
 function calculateLayout() {
   if (!ctx || playerOrder.length === 0) return;
   // Sort by join time so board positions are stable across color changes
@@ -83,6 +88,7 @@ function calculateLayout() {
     else { gridCols = 4; gridRows = 2; cellSize = cs4x2; }
   }
   if (!cellSize) cellSize = cellSizeFor(gridCols, gridRows);
+  cachedGridRows = gridRows;
   var geo = GameConstants.computeHexGeometry(boardCols, hexRows, cellSize);
   var boardWidthPx = geo.boardWidth;
   var boardHeightPx = geo.boardHeight;
@@ -436,6 +442,10 @@ function drawTimer(elapsedMs) {
   // Fixed size relative to screen height, not cell size, so the clock reads the
   // same regardless of board count and matches the tvOS/Android renderers.
   var timerSize = Math.max(24, Math.min(cachedH * 0.04, 60));
+  // Two board rows (7-8 players) leave no free band above the top boards, so
+  // shrink the clock to sit inside the name-label band instead of overlapping
+  // the board frames.
+  if (cachedGridRows > 1) timerSize *= 0.6;
 
   var labelSize = Math.round(timerSize);
   var digitAdvance = labelSize * 0.92;

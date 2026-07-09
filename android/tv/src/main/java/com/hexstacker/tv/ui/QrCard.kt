@@ -107,15 +107,19 @@ fun QrCard(
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,
                 )
-                Text(
-                    text = joinCode,
-                    style = AppType.joinCode.copy(
-                        fontSize = vp.vminSp(17.6f, 2.2f, 24f), // clamp(1.1rem,2.2vmin,1.5rem)
-                        color = Tokens.accentSecondary,
-                    ),
-                    maxLines = 1,
-                    textAlign = TextAlign.Center,
-                )
+                // No room code (the gallery/adclip clean CTA): the host line stands
+                // alone instead of an empty code-sized line below it.
+                if (joinCode.isNotEmpty()) {
+                    Text(
+                        text = joinCode,
+                        style = AppType.joinCode.copy(
+                            fontSize = vp.vminSp(17.6f, 2.2f, 24f), // clamp(1.1rem,2.2vmin,1.5rem)
+                            color = Tokens.accentSecondary,
+                        ),
+                        maxLines = 1,
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
         }
     }

@@ -880,7 +880,7 @@ public final class DisplayCoordinator {
     /// and Android TV galleries render, so a difference between gallery columns is
     /// always a renderer difference). No relay, no live tick: the caller stops
     /// ticking the coordinator so the state holds still for a capture. HEXPLAYERS
-    /// drives the roster-based states; the named board variants (game-2p/3p/4p)
+    /// drives the roster-based states; the named board variants (game-2p/3p/4p/8p)
     /// fix their own player count.
     public func renderShot(_ state: String, playerCount: Int = 4) {
         switch state {
@@ -902,6 +902,8 @@ public final class DisplayCoordinator {
             showGalleryGame(variant: "3p")
         case "game-4p":
             showGalleryGame(variant: "4p")
+        case "game-8p":
+            showGalleryGame(variant: "8p")
         case "pause":
             showGalleryGame(variant: "lv1")
             output?.setPaused(true)

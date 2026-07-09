@@ -36,12 +36,13 @@ function _rng(seed) {
   };
 }
 
-// Join-target data mirroring the web harness's historic lobby fake
-// (_fakeLobbyQR): the join URL renders as host+code, the QR encodes qrText.
+// Join-target data for the lobby shots: a clean CTA with no fake room code
+// (the pill reads the bare host, the QR encodes qrText), matching the ad-clip
+// lobby. qrText also seeds the per-board rejoin QR (+ ?claim=<peerIndex>).
 var JOIN = {
-  host: 'hexstacker.com/',
-  code: 'TEST',
-  qrText: 'https://hexstacker.com/TEST12'
+  host: 'hexstacker.com',
+  code: '',
+  qrText: 'https://hexstacker.com'
 };
 
 // Slot order == color index order. Levels are the lobby-badge variety; game
@@ -71,9 +72,10 @@ var VARIANTS = {
   'lv1':  { players: 4, levels: [1, 1, 1, 1],     elapsed: 75000 },
   'lv8':  { players: 4, levels: [8, 8, 8, 8],     elapsed: 75000 },
   'lv12': { players: 4, levels: [12, 12, 12, 12], elapsed: 75000 },
-  '2p':   { players: 2, levels: [3, 9],           garbage: { 1: 3 }, elapsed: 83000 },
-  '3p':   { players: 3, levels: [1, 8, 12],       elapsed: 47000 },
-  '4p':   { players: 4, levels: [3, 9, 12, 1],    ko: [3], garbage: { 1: 3 }, elapsed: 132000 }
+  '2p':   { players: 2, levels: [3, 5],           garbage: { 1: 3 }, elapsed: 83000 },
+  '3p':   { players: 3, levels: [1, 8, 4],        elapsed: 47000 },
+  '4p':   { players: 4, levels: [3, 9, 1, 7],     elapsed: 132000 },
+  '8p':   { players: 8, levels: [3, 9, 12, 1, 5, 8, 2, 12], ko: [5], garbage: { 1: 3, 6: 2 }, elapsed: 154000 }
 };
 
 function gameVariant(name) {

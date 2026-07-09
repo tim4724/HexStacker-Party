@@ -579,9 +579,9 @@ import Foundation
         let (coord, fo) = makeShotCoordinator()
         coord.renderShot("lobby", playerCount: 4)
         #expect(fo.screen == .lobby)
-        // Displayed host/code from JOIN.host + JOIN.code; QR from the distinct qrText.
-        #expect(fo.joinURL == "https://hexstacker.com/TEST", "displayed join URL is JOIN.host + JOIN.code")
-        #expect(fo.qrText == "https://hexstacker.com/TEST12", "QR encodes the separate JOIN.qrText")
+        // Clean CTA: the bare host with no fake room code; the QR encodes qrText.
+        #expect(fo.joinURL == "https://hexstacker.com", "displayed join URL is the bare JOIN.host")
+        #expect(fo.qrText == "https://hexstacker.com", "QR encodes JOIN.qrText")
         // Roster names/colors come from GalleryFixtures.roster(4).
         #expect(coord.flow.list().map(\.playerName) == ["Emma", "Jake", "Sofia", "Liam"])
         #expect(coord.flow.list().map(\.colorSlot) == [0, 1, 2, 3])
@@ -594,21 +594,21 @@ import Foundation
         let (coord, fo) = makeShotCoordinator()
         coord.renderShot("lobby-empty", playerCount: 0)
         #expect(fo.screen == .lobby)
-        #expect(fo.qrText == "https://hexstacker.com/TEST12")
+        #expect(fo.qrText == "https://hexstacker.com")
         #expect(coord.flow.size == 0, "empty lobby has no roster cards")
         #expect(fo.lobbyAmbient?.count == 16, "the waiting lobby still freezes the ambient background")
     }
 
     @Test func gameVariantShotRendersCanonicalSnapshot() {
         let (coord, fo) = makeShotCoordinator()
-        coord.renderShot("game-4p")   // player count comes from the variant, not HEXPLAYERS
+        coord.renderShot("game-8p")   // player count comes from the variant, not HEXPLAYERS
         #expect(fo.screen == .game)
         let snap = fo.lastSnapshot
-        #expect(snap?.players.count == 4, "the 4p variant fixes four boards")
-        #expect(snap?.elapsed == 132000, "the match timer shows the fixture elapsed (02:12)")
-        #expect(snap?.players.map(\.level) == [3, 9, 12, 1], "mixed tiers from the variant spec")
-        #expect(snap?.players.last?.alive == false, "the 4p variant KOs the last board")
-        #expect(coord.flow.list().map(\.playerName) == ["Emma", "Jake", "Sofia", "Liam"])
+        #expect(snap?.players.count == 8, "the 8p variant fixes eight boards")
+        #expect(snap?.elapsed == 154000, "the match timer shows the fixture elapsed (02:34)")
+        #expect(snap?.players.map(\.level) == [3, 9, 12, 1, 5, 8, 2, 12], "mixed tiers from the variant spec")
+        #expect(snap?.players[5].alive == false, "the 8p variant KOs board 5")
+        #expect(coord.flow.list().map(\.playerName) == ["Emma", "Jake", "Sofia", "Liam", "Mia", "Noah", "Ava", "Leo"])
     }
 
     @Test func countdownShotShowsEmptyRosterBoards() {
