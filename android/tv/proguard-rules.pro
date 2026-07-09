@@ -1,6 +1,16 @@
 # R8 keep rules for the release build.
 # OkHttp, Media3, Compose, and kotlinx-coroutines ship their own consumer rules;
-# we only need quickjs-kt (JNI) and kotlinx.serialization here.
+# we only need quickjs-kt (JNI), WebRTC, and kotlinx.serialization here.
+
+# ---- WebRTC: org.webrtc + the jni_zero JNI glue ----
+# libjingle_peerconnection_so.so registers natives and FindClass()es these Java
+# classes from its JNI_OnLoad — references R8 can't see, so it strips them and the
+# native load aborts (ClassNotFoundException: org.jni_zero.JniInit -> SIGTRAP on the
+# fastlane thread). Keep both packages intact. The AAR ships no consumer rules.
+-keep class org.webrtc.** { *; }
+-keep class org.jni_zero.** { *; }
+-dontwarn org.webrtc.**
+-dontwarn org.jni_zero.**
 
 # ---- quickjs-kt: JNI bridge reached via native methods / reflection ----
 -keep class com.dokar.quickjs.** { *; }
