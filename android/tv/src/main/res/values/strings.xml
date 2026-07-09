@@ -6,7 +6,7 @@
       at the render site (ChromeButton, #qr-label, .card-level__heading) as the code
       already does, NOT baked into the data.
     -->
-    <string name="app_name" translatable="false">HexStacker</string>
+    <string name="app_name" translatable="false">HexStacker Party</string>
 
     <!-- Brand wordmark (not in i18n.js; identical across all locales). -->
     <string name="wordmark_main" translatable="false">HEX STACKER</string>
