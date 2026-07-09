@@ -98,9 +98,11 @@ targets:
         TARGETED_DEVICE_FAMILY: "3"            # tvOS
         SWIFT_VERSION: "5.9"
         ASSETCATALOG_COMPILER_APPICON_NAME: "App Icon & Top Shelf Image"
-        # App Store version (public-facing) and build number. Build must strictly
-        # increase per upload for the same version; bump CURRENT_PROJECT_VERSION on
-        # each new binary to App Store Connect.
+        # App Store version (public-facing) and build number, used by local/dev
+        # builds only: CI release builds (release.yml) override both at archive
+        # time, MARKETING_VERSION from the bare-semver git tag (shared with the
+        # web release line) and CURRENT_PROJECT_VERSION from the workflow run
+        # number (ASC rejects reused build numbers).
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "2"
         # Manual App Store distribution signing. Automatic signing can't archive

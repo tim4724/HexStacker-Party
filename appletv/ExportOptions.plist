@@ -3,11 +3,12 @@
 <!-- xcodebuild -exportArchive options for the App Store .ipa (used by
      .github/workflows/release.yml and for local exports). Mirrors the manual
      signing setup in project.yml: Apple Distribution cert + the named App Store
-     provisioning profile. destination=export writes the .ipa to disk; the upload
-     to App Store Connect stays a separate manual step (Transporter) for now.
-     manageAppVersionAndBuildNumber=false keeps the committed MARKETING_VERSION /
-     CURRENT_PROJECT_VERSION untouched, so the build number stays reviewable in
-     project.yml. -->
+     provisioning profile. destination=export writes the .ipa to disk; release
+     tag builds flip it to "upload" at runtime (plutil, in release.yml) to push
+     the build to App Store Connect via the ASC API key.
+     manageAppVersionAndBuildNumber=false keeps xcodebuild from second-guessing
+     the version: release builds stamp MARKETING_VERSION (from the git tag) and
+     CURRENT_PROJECT_VERSION (run number) explicitly at archive time. -->
 <plist version="1.0">
 <dict>
 	<key>method</key>

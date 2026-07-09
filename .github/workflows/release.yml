@@ -1,8 +1,16 @@
 name: Release
 
-# Signed store artifacts: the Play Store .aab and the App Store .ipa, uploaded
-# as workflow artifacts. Build-only for now; pushing them to the store consoles
-# (Play Console / Transporter or TestFlight) stays a manual step.
+# Signed store builds:
+#   - Android: .aab signed with the Play upload keystore, uploaded as a workflow
+#     artifact; the Play Console upload stays manual.
+#   - tvOS: signed with the Apple Distribution cert + App Store profile. Tag
+#     builds upload straight to TestFlight via the ASC API key, stamping the
+#     bare-semver tag as MARKETING_VERSION and the run number as the build
+#     number (the app shares the web's 4.X.Y version line; project.yml's static
+#     values are xcodebuild-overridden, not edited). Dispatch builds export the
+#     .ipa as a workflow artifact instead, unless the testflight input forces
+#     the upload path (for testing it without cutting a release tag, which
+#     would also trigger the production web deploy).
 #
 # Triggers: a bare-semver release tag (the repo's tag convention) or manual
 # dispatch. Never runs for pull requests, so the signing secrets are only
@@ -17,11 +25,19 @@ name: Release
 #   APPLE_CERT_P12_B64         base64 .p12 export of the Apple Distribution cert + private key
 #   APPLE_CERT_P12_PASSWORD    password chosen for that .p12 export
 #   APPLE_PROFILE_B64          base64 of the "HexStacker tvOS App Store" .mobileprovision
+#   ASC_API_KEY_P8_BASE64      base64 of the App Store Connect API key .p8
+#   ASC_API_KEY_ID             key ID of that API key
+#   ASC_API_ISSUER_ID          issuer ID of the ASC API key's team
 on:
   push:
     tags:
       - '[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch:
+    inputs:
+      testflight:
+        description: 'Upload the tvOS build to TestFlight instead of exporting the .ipa artifact'
+        type: boolean
+        default: false
 
 concurrency:
   group: release-${{ github.ref }}
@@ -175,30 +191,70 @@ jobs:
       # Device SDK (generic/platform=tvOS), unlike the simulator builds in
       # tvos.yml. The scheme's Archive post-action synthesizes the LiveKitWebRTC
       # dSYM so the archive passes Apple's upload checks.
+      #
+      # ASC rejects reused build numbers, so stamp a unique one; tag builds take
+      # their marketing version from the tag (bare semver, shared with the web
+      # release line), others keep project.yml's. Both are xcodebuild-level
+      # overrides; project.yml's static values stay untouched.
       - name: Archive
         working-directory: appletv
         run: |
           set -o pipefail
+          VERSION_ARGS=("CURRENT_PROJECT_VERSION=$GITHUB_RUN_NUMBER")
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            VERSION_ARGS+=("MARKETING_VERSION=$GITHUB_REF_NAME")
+          fi
           xcodebuild archive \
             -project HexStacker.xcodeproj \
             -scheme HexStackerTV \
             -destination 'generic/platform=tvOS' \
             -archivePath build/HexStacker.xcarchive \
-            -derivedDataPath .build-xcode
+            -derivedDataPath .build-xcode \
+            "${VERSION_ARGS[@]}"
 
-      - name: Export App Store .ipa
+      # Tag builds (and testflight-flagged dispatches) upload to App Store
+      # Connect: the TestFlight build IS the release candidate, so no .ipa
+      # artifact. Plain dispatches export the .ipa to disk instead.
+      - name: Export .ipa (dispatch) or upload to TestFlight (tag)
         working-directory: appletv
+        env:
+          UPLOAD: ${{ github.ref_type == 'tag' || inputs.testflight == true }}
+          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
         run: |
           set -o pipefail
-          xcodebuild -exportArchive \
-            -archivePath build/HexStacker.xcarchive \
-            -exportOptionsPlist ExportOptions.plist \
-            -exportPath build/export
-          ls -la build/export
+          EXPORT_ARGS=(-archivePath build/HexStacker.xcarchive -exportOptionsPlist ExportOptions.plist)
+          if [ "$UPLOAD" = "true" ]; then
+            for v in ASC_API_KEY_P8_BASE64 ASC_API_KEY_ID ASC_API_ISSUER_ID; do
+              if [ -z "$(eval "echo \"\$$v\"")" ]; then
+                echo "::error::secret $v is not set"
+                exit 1
+              fi
+            done
+            plutil -replace destination -string upload ExportOptions.plist
+            echo "$ASC_API_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
+            EXPORT_ARGS+=(-authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8"
+                          -authenticationKeyID "$ASC_API_KEY_ID"
+                          -authenticationKeyIssuerID "$ASC_API_ISSUER_ID")
+          else
+            EXPORT_ARGS+=(-exportPath build/export)
+          fi
+          xcodebuild -exportArchive "${EXPORT_ARGS[@]}"
 
       - name: Upload .ipa artifact
+        if: github.ref_type != 'tag' && inputs.testflight != true
         uses: actions/upload-artifact@v7
         with:
           name: hexstacker-tvos-ipa
           path: appletv/build/export/*.ipa
+          if-no-files-found: error
+
+      # Keep the debug symbols with the build, needed to symbolicate crash
+      # reports for exactly this binary once the .ipa itself lives in TestFlight.
+      - name: Upload dSYMs artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: hexstacker-tvos-dsyms
+          path: appletv/build/HexStacker.xcarchive/dSYMs
           if-no-files-found: error
