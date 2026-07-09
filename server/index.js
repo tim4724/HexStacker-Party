@@ -279,6 +279,54 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Apple Universal Links: an iOS Camera scan of https://hexstacker.com/<room>
+  // opens the installed Couch Games app instead of Safari. Apple's CDN fetches
+  // this over HTTPS as application/json with no redirect; the app ships the
+  // matching applinks:hexstacker.com entitlement. Served inline (not from disk)
+  // so it can't fall into the generic static path — the file would have no
+  // extension (octet-stream) and a bare two-segment dotpath is easy to overlook.
+  // The 6-'?' pattern matches exactly the 6-char room code as the sole path
+  // segment; marketing/asset paths fall through to Safari, and the launcher's
+  // JoinResolver rejects any 6-char non-room code at runtime.
+  if (urlPath === '/.well-known/apple-app-site-association') {
+    sendJson(res, 200, {
+      applinks: {
+        details: [
+          {
+            appIDs: ['5ZH48MPAM3.com.couch-games.controller'],
+            components: [
+              { '/': '/??????', comment: '6-char room code opens the app' },
+            ],
+          },
+        ],
+      },
+    });
+    return;
+  }
+
+  // Android App Links: the Digital Asset Links statement lets a system QR scan /
+  // tapped hexstacker.com/<room> open the Couch Games app instead of Chrome, the
+  // counterpart to the AASA above. Fingerprints: the release/upload key and the
+  // debug key (for testing a locally-built install). NOTE: once the app enrols in
+  // Play App Signing, add Google's app-signing-key SHA-256 here too, or verified
+  // App Links break for Play-distributed installs (Play Console → App integrity).
+  if (urlPath === '/.well-known/assetlinks.json') {
+    sendJson(res, 200, [
+      {
+        relation: ['delegate_permission/common.handle_all_urls'],
+        target: {
+          namespace: 'android_app',
+          package_name: 'com.couchgames.controller',
+          sha256_cert_fingerprints: [
+            '77:7C:DA:32:03:3E:9D:91:54:7B:BF:C8:72:A0:77:95:A6:19:D0:92:C4:A5:A1:6E:F8:B9:89:7E:81:08:12:F8',
+            '17:56:F5:01:B4:93:67:B9:7D:A7:C9:97:10:42:D7:88:E0:B0:0E:45:A6:55:D9:24:A5:53:BD:D2:D8:55:13:7F',
+          ],
+        },
+      },
+    ]);
+    return;
+  }
+
   // Health check endpoint
   if (urlPath === '/health') {
     sendJson(res, 200, { status: 'ok' });
@@ -550,4 +598,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { pickEncoding, HASHED_BUNDLE };
+module.exports = { pickEncoding, HASHED_BUNDLE, server };
