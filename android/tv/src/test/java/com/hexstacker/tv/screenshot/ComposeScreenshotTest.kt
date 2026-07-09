@@ -185,7 +185,8 @@ class ComposeScreenshotTest {
     // ── About (through DisplayChrome: the lobby ⓘ sub-screen) ─────────────────────
 
     // Two QR cards (Privacy / Imprint) + the licenses drill-in. No fixture data needed
-    // — the QR URLs are constants and labels come from resources.
+    // — the QR URLs derive from the locale (English default → /en/) and labels come
+    // from resources.
     @Test
     fun about() = chromeShot("about", UiModel(screen = DisplayScreen.LOBBY), showAbout = true)
 

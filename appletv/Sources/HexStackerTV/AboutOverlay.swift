@@ -18,9 +18,18 @@ import HexStackerKit
 /// always shown focused, so Select activates it and Menu closes the overlay.
 final class AboutOverlay {
 
-    // The web legal pages the QR codes encode.
-    private static let privacyURL = "https://couch-games.com/privacy"
-    private static let imprintURL = "https://couch-games.com/imprint"
+    // The web legal pages the QR codes encode. The pages exist in only two
+    // languages: German at the root (/privacy) and English under /en/ — so a
+    // German display links the German pages and every other locale links the
+    // English ones, mirroring the website's own footer routing. Resolved from the
+    // active locale as the cards are laid out (locale is set once at startup).
+    private static var privacyURL: String { legalURL("privacy") }
+    private static var imprintURL: String { legalURL("imprint") }
+
+    private static func legalURL(_ page: String) -> String {
+        let prefix = Localization.shared.locale == "de" ? "" : "en/"
+        return "https://couch-games.com/\(prefix)\(page)"
+    }
 
     let node = SKNode()
     private(set) var isOpen = false

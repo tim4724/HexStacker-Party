@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -38,8 +39,16 @@ import com.hexstacker.tv.R
 // phones, so the phone the player is already holding is the right screen to read
 // long-form legal text on: the TV only offers a scannable link + the URL, and the
 // pages themselves stay single-sourced on the web (not re-rendered natively).
-private const val PRIVACY_URL = "https://couch-games.com/privacy"
-private const val IMPRINT_URL = "https://couch-games.com/imprint"
+//
+// The pages exist in only two languages: German at the root (/privacy) and English
+// under /en/. A German-locale TV links the German pages; every other locale links
+// the English ones, mirroring the website's own footer routing. See [legalUrl].
+private const val LEGAL_HOST = "https://couch-games.com"
+
+// Builds a legal-page URL from a locale prefix ("" for German → root pages,
+// "en/" for everything else) supplied by the caller, which reads it from the same
+// resolved config the `privacy` / `imprint` labels resolve against.
+private fun legalUrl(langPrefix: String, page: String) = "$LEGAL_HOST/$langPrefix$page"
 
 /**
  * About screen (reached from the lobby ⓘ button): two QR cards linking phones to the
@@ -57,6 +66,8 @@ fun AboutScreen(
 ) {
     val licensesFocus = remember { FocusRequester() }
     val context = LocalContext.current
+    // German locale → root (/privacy); everything else → English (/en/privacy).
+    val langPrefix = if (LocalConfiguration.current.locales[0].language == "de") "" else "en/"
     val version = remember {
         runCatching {
             context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
@@ -97,13 +108,13 @@ fun AboutScreen(
                 ) {
                     LegalQrCard(
                         label = stringResource(R.string.privacy),
-                        url = PRIVACY_URL,
+                        url = legalUrl(langPrefix, "privacy"),
                         vp = vp,
                         modifier = Modifier.width(cardW),
                     )
                     LegalQrCard(
                         label = stringResource(R.string.imprint),
-                        url = IMPRINT_URL,
+                        url = legalUrl(langPrefix, "imprint"),
                         vp = vp,
                         modifier = Modifier.width(cardW),
                     )
