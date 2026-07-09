@@ -65,7 +65,12 @@ val keystorePropsFile = rootProject.file("keystore.properties")
 val keystoreProps = Properties().apply {
     if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
 }
-val hasReleaseKeystore = keystoreProps.getProperty("storeFile") != null
+// storeFile is an absolute path to the upload keystore, so the .jks can live anywhere
+// on the machine, outside the repo. `file()` leaves an absolute path untouched —
+// unlike a relative one, which it would re-root under this module (android/tv), not
+// where the keystore actually is.
+val releaseStoreFile = keystoreProps.getProperty("storeFile")?.let { file(it) }
+val hasReleaseKeystore = releaseStoreFile != null
 
 android {
     namespace = "com.hexstacker.tv"
@@ -73,8 +78,7 @@ android {
     signingConfigs {
         if (hasReleaseKeystore) {
             create("release") {
-                // storeFile path is resolved relative to the android/ Gradle root.
-                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storeFile = releaseStoreFile
                 storePassword = keystoreProps.getProperty("storePassword")
                 keyAlias = keystoreProps.getProperty("keyAlias")
                 keyPassword = keystoreProps.getProperty("keyPassword")
