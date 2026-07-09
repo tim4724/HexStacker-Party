@@ -293,41 +293,53 @@ if (urlParams.get('test') === '1' || debugCount > 0 || _adclipMode) {
 // Debug State Builder
 // =====================================================================
 
-function _buildHexDebugState(debugPlayers, level) {
+// Stage a player's bottom `rows` rows as a near-clear: full except one
+// even-column gap per row. An even-column gap breaks both zigzag orientations
+// through that row, so the staged state contains nothing the engine would
+// already have cleared — it reads as a stack waiting for the final piece.
+// Returns replay hooks: fill() locks the missing cells, collapse() removes
+// the rows and shifts the stack down like the engine's clear, reset()
+// restores the staged state.
+function _stageNearClear(player, rows) {
   var HC = GameConstants.COLS;
   var HV = GameConstants.VISIBLE_ROWS;
-  var GC = GameConstants.GARBAGE_CELL;
-  var types = GameConstants.PIECE_TYPES;
-  var emptyRow = function() { var r = []; for (var i = 0; i < HC; i++) r.push(0); return r; };
-  var fullRow = function(gap) { var r = []; for (var i = 0; i < HC; i++) r.push(i === gap ? 0 : GC); return r; };
-  var state = { players: [], elapsed: 75000 };
-  for (var dj = 0; dj < debugPlayers.length; dj++) {
-    var grid = []; for (var r = 0; r < HV; r++) grid.push(emptyRow());
-    for (var br = HV - 3; br < HV; br++) {
-      for (var bc = 0; bc < HC; bc++) {
-        if ((bc + br + dj) % 4 !== 0) grid[br][bc] = ((bc + br) % types.length) + 1;
-      }
+  var nTypes = GameConstants.PIECE_TYPES.length;
+  var GAP_COLS = [2, 6, 4, 0];
+  var grid = player.grid;
+  var bump = function() { player.gridVersion = (player.gridVersion || 0) + 1; };
+  for (var i = 0; i < rows; i++) {
+    var r = HV - 1 - i;
+    for (var c = 0; c < HC; c++) {
+      if (grid[r][c] === 0) grid[r][c] = ((c + r) % nTypes) + 1;
     }
-    grid[HV - 1] = fullRow((dj * 2 + 3) % HC);
-    var pt = types[dj % types.length];
-    var piece = new PieceModule.Piece(pt);
-    var spawnCol = GameConstants.COLS >> 1;
-    piece.anchorCol = spawnCol; piece.anchorRow = 2;
-    var blocks = piece.getAbsoluteBlocks();
-    var ghostPiece = piece.clone();
-    PieceModule.dropToFloor(ghostPiece, grid, HV, HC);
-    state.players.push({
-      id: debugPlayers[dj].id, playerName: debugPlayers[dj].name,
-      grid: grid, lines: [24,16,10,5,20,12,8,3][dj % 8], level: level || [3,2,2,1,3,2,1,1][dj % 8],
-      alive: true,
-      currentPiece: { type: pt, typeId: piece.typeId, anchorCol: spawnCol, anchorRow: 2, cells: piece.cells, blocks: blocks },
-      ghost: { anchorCol: ghostPiece.anchorCol, anchorRow: ghostPiece.anchorRow, blocks: ghostPiece.getAbsoluteBlocks() },
-      nextPieces: [types[(dj+1)%types.length], types[(dj+2)%types.length], types[(dj+3)%types.length]],
-      holdPiece: types[(dj+4)%types.length],
-      pendingGarbage: dj % 3 === 0 ? 3 : 0
-    });
+    grid[r][GAP_COLS[i % GAP_COLS.length]] = 0;
   }
-  return state;
+  var template = grid.map(function(row) { return row.slice(); });
+  return {
+    fill: function() {
+      for (var i = 0; i < rows; i++) {
+        var r = HV - 1 - i;
+        var gap = GAP_COLS[i % GAP_COLS.length];
+        grid[r][gap] = ((gap + r) % nTypes) + 1;
+      }
+      bump();
+    },
+    collapse: function() {
+      grid.splice(HV - rows, rows);
+      for (var i = 0; i < rows; i++) {
+        var empty = [];
+        for (var c = 0; c < HC; c++) empty.push(0);
+        grid.unshift(empty);
+      }
+      bump();
+    },
+    reset: function() {
+      for (var r = 0; r < HV; r++) {
+        for (var c = 0; c < HC; c++) grid[r][c] = template[r][c];
+      }
+      bump();
+    }
+  };
 }
 
 function _buildDebugPlayers(count, level, hostSlot) {
@@ -362,9 +374,8 @@ function _buildDebugPlayers(count, level, hostSlot) {
 
 // Build the injectable game state from the shared GalleryFixtures module (the
 // same snapshots the tvOS and Android TV galleries render), remapped onto the
-// harness's debug roster ids. Used by the cross-platform gallery scenarios;
-// the web-only effect scenarios keep _buildHexDebugState, whose grid layout
-// their replay mutations depend on.
+// harness's debug roster ids. Every game-state scenario renders these boards;
+// the web-only effect scenarios stage their animations on top of them.
 function _buildFixtureState(playerCount, variantName, level) {
   var GF = GameEngine.GalleryFixtures;
   var spec = variantName ? GF.gameVariant(variantName) : null;
@@ -599,16 +610,10 @@ function initScenario(opts) {
     return;
   }
 
-  // Cross-platform gallery rows render the shared GalleryFixtures snapshot
-  // (identical on web / tvOS / Android TV); the web-only effect scenarios keep
-  // the local debug grid their replay mutations are tuned to.
-  var _fixtureScenarios = {
-    'playing': 1, 'pause': 1, 'reconnecting': 1, 'disconnected': 1,
-    'disconnected-controller': 1, 'results': 1
-  };
-  var state = _fixtureScenarios[scenario]
-    ? _buildFixtureState(playerCount, opts.variant, level)
-    : _buildHexDebugState(debugPlayers, level);
+  // Every game-state scenario renders the shared GalleryFixtures snapshot
+  // (identical on web / tvOS / Android TV) so all boards read as realistic
+  // mid-game stacks; the effect scenarios stage their animations on top.
+  var state = _buildFixtureState(playerCount, opts.variant, level);
   window.__TEST__.injectGameState(state);
   startRenderLoop();
 
@@ -625,35 +630,17 @@ function initScenario(opts) {
     return;
   }
   if (scenario === 'line-clear') {
-    var HC_lc = GameConstants.COLS;
-    var HV_lc = GameConstants.VISIBLE_ROWS;
-    var types_lc = GameConstants.PIECE_TYPES;
-    // Wipe slot 0 clean so only the rows about to be cleared are filled —
-    // otherwise the debug state's checkerboard on row HV-3 stays visible
-    // after the clear and it looks like the clear didn't work.
-    for (var rClean = 0; rClean < HV_lc; rClean++) {
-      for (var cClean = 0; cClean < HC_lc; cClean++) {
-        state.players[0].grid[rClean][cClean] = 0;
-      }
-    }
-    for (var lr = HV_lc - 2; lr < HV_lc; lr++) {
-      for (var lc = 0; lc < HC_lc; lc++) {
-        state.players[0].grid[lr][lc] = ((lc + lr) % types_lc.length) + 1;
-      }
-    }
-    state.players[0].gridVersion = 0;
+    // Slot 0's bottom rows become a near-clear; the replay fills the gaps as
+    // if the final piece just locked, fires the clear effect, then collapses
+    // the rows so the stack shifts down just like in a real game. The
+    // collapse waits out the engine's own clear delay (via GameConstants so
+    // it tracks any future tweak) — that's when BoardRenderer expects the
+    // rows to vanish.
+    var lcStage = _stageNearClear(state.players[0], 2);
     _delayTrigger(function() {
+      lcStage.fill();
       _fireLineClear(0, 2);
-      // Zero cells + bump gridVersion after the engine's own clear delay,
-      // so BoardRenderer cache invalidates and rows visibly vanish just like
-      // in a real game. Tied to engine timing via GameConstants so it tracks
-      // any future tweak.
-      setTimeout(function() {
-        for (var r2 = HV_lc - 2; r2 < HV_lc; r2++) {
-          for (var c2 = 0; c2 < HC_lc; c2++) state.players[0].grid[r2][c2] = 0;
-        }
-        state.players[0].gridVersion++;
-      }, GameConstants.LINE_CLEAR_DELAY_MS);
+      setTimeout(lcStage.collapse, GameConstants.LINE_CLEAR_DELAY_MS);
     });
     return;
   }
@@ -692,28 +679,14 @@ function initScenario(opts) {
     var nP = state.players.length;
     if (nP < 1) return;
 
-    var HC_c = GameConstants.COLS;
-    var HV_c = GameConstants.VISIBLE_ROWS;
-    var types_c = GameConstants.PIECE_TYPES;
-
     // "Before" state — boards are in the pre-animation configuration the
-    // replay will transition out of: board 0 has a filled stack to clear,
-    // board 1 has zero pending (incoming garbage will raise it), board 2
-    // has 3 pending (defend will cancel most of it), board 3 is alive
-    // (KO will take it down). gridVersion starts at 0 so the runEffects
-    // tick's `++` produces a clean 0→1 change for BoardRenderer to pick up.
+    // replay will transition out of: board 0's bottom rows are a near-clear
+    // (the replay fills the gaps and clears them), board 1 has zero pending
+    // (incoming garbage will raise it), board 2 has 3 pending (defend will
+    // cancel most of it), board 3 is alive (KO will take it down).
+    var comboStage = _stageNearClear(state.players[0], 2);
     function seedBoards() {
-      for (var rClean = 0; rClean < HV_c; rClean++) {
-        for (var cClean = 0; cClean < HC_c; cClean++) {
-          state.players[0].grid[rClean][cClean] = 0;
-        }
-      }
-      for (var lr = HV_c - 2; lr < HV_c; lr++) {
-        for (var lc = 0; lc < HC_c; lc++) {
-          state.players[0].grid[lr][lc] = ((lc + lr) % types_c.length) + 1;
-        }
-      }
-      state.players[0].gridVersion = 0;
+      comboStage.reset();
       if (nP > 1) state.players[1].pendingGarbage = 0;
       if (nP > 2) state.players[2].pendingGarbage = 3;
       if (nP > 3) state.players[3].alive = true;
@@ -722,13 +695,9 @@ function initScenario(opts) {
     function runEffects() {
       seedBoards();
       _delayTrigger(function() {
+        comboStage.fill();
         _fireLineClear(0, 2);
-        setTimeout(function() {
-          for (var r2 = HV_c - 2; r2 < HV_c; r2++) {
-            for (var c2 = 0; c2 < HC_c; c2++) state.players[0].grid[r2][c2] = 0;
-          }
-          state.players[0].gridVersion++;
-        }, GameConstants.LINE_CLEAR_DELAY_MS);
+        setTimeout(comboStage.collapse, GameConstants.LINE_CLEAR_DELAY_MS);
 
         // Garbage-in needs both a receiver (board 1) and a sender (board 2).
         if (nP > 2) {

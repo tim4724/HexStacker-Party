@@ -10,16 +10,20 @@
 // draws THIS data, so a visual difference between gallery columns is always a
 // renderer difference, never a fixture difference.
 //
-// Game boards are not hand-frozen grids: gameSnapshot() drives the real engine
-// (PartyCore) with a fixed seed and a scripted, arithmetic drop sequence, then
-// value-copies the result. All three platforms execute this same module inside
-// their JS engine (byte-exact per the frame-golden conformance tests), so the
-// boards are identical by construction.
+// Game boards are built by depositing a realistic mid-game stack (dense rows,
+// each kept un-clearable by construction) and then driving the real engine
+// (PartyCore) with a fixed seed and a scripted drop sequence on top. All three
+// platforms execute this same module inside their JS engine (byte-exact per
+// the frame-golden conformance tests), so the boards are identical by
+// construction.
 (function(exports) {
 
 var PartyCore = ((typeof require !== 'undefined') ? require('./PartyCore.js') : window.GameEngine).PartyCore;
 var GameConstants = ((typeof require !== 'undefined') ? require('./constants.js') : window.GameConstants);
 var PieceModule = (typeof require !== 'undefined') ? require('./Piece.js') : window.PieceModule;
+
+var COLS = GameConstants.COLS;
+var TOTAL_ROWS = GameConstants.TOTAL_ROWS;
 
 var SEED = 4207;
 
@@ -93,11 +97,65 @@ function step(pc, clock, ms) {
   }
 }
 
+// Deposit a realistic mid-game stack straight into a board's grid. Players
+// race to complete rows, so a live stack is dense at the bottom with only a
+// hole or two per row and a ragged crest — and it never contains a completed
+// line (the engine would have cleared it). Every deposited row keeps at least
+// one gap in an EVEN column, which breaks both zigzag orientations through
+// that row (a down-zigzag needs every column filled at row r, an up-zigzag
+// needs the even columns at row r), so no deposited row is clearable by
+// construction. Cell colors run in short same-color streaks so the fill reads
+// as locked pieces rather than confetti.
+function _depositStack(grid, rnd, rows) {
+  var numTypes = GameConstants.PIECE_TYPES.length;
+  var evenCols = (COLS + 1) >> 1;
+  var top = TOTAL_ROWS - rows;
+  var color = 1 + Math.floor(rnd() * numTypes);
+  for (var r = TOTAL_ROWS - 1; r >= top; r--) {
+    var fromCrest = r - top;
+    for (var c = 0; c < COLS; c++) {
+      if (rnd() < 0.45) color = 1 + Math.floor(rnd() * numTypes);
+      grid[r][c] = color;
+    }
+    grid[r][2 * Math.floor(rnd() * evenCols)] = 0;
+    // Extra holes: near-solid at depth, ragged toward the crest.
+    var extras = fromCrest === 0 ? 2 + Math.floor(rnd() * 3)
+               : fromCrest === 1 ? 1 + Math.floor(rnd() * 2)
+               : fromCrest < 4 ? Math.floor(rnd() * 2)
+               : (rnd() < 0.35 ? 1 : 0);
+    for (var e = 0; e < extras; e++) {
+      grid[r][Math.floor(rnd() * COLS)] = 0;
+    }
+  }
+  // The hole punching can strand a cell with nothing underneath — possible in
+  // play but it reads as a glitch in a still image. A hex rests on the cell
+  // directly below plus its two lower diagonal neighbours; odd columns sit
+  // half a hex lower, so an even column's lower diagonals are the SAME-row
+  // odd cells while an odd column's are in the row below. Sweep bottom-up,
+  // odd columns before even ones (their rests are already final), dropping
+  // anything unsupported so removals cascade to cells that rested on them.
+  for (var sr = TOTAL_ROWS - 2; sr >= top; sr--) {
+    for (var parity = 1; parity >= 0; parity--) {
+      for (var sc = parity; sc < COLS; sc += 2) {
+        if (grid[sr][sc] === 0) continue;
+        var below = sr + parity; // odd cols rest on the row below, even on their own row
+        var supported = grid[sr + 1][sc] !== 0 ||
+          (sc > 0 && grid[below][sc - 1] !== 0) ||
+          (sc < COLS - 1 && grid[below][sc + 1] !== 0);
+        if (!supported) grid[sr][sc] = 0;
+      }
+    }
+  }
+}
+
 // Build one deterministic mid-game snapshot for a variant spec:
-//   { players, levels?|level?, ko?, garbage?, elapsed?, drops? }
-// All boards run the scripted drops at startLevel 1 (identical gravity), so the
-// tier variants share the same board shapes and differ only in level styling —
-// mirroring how the web gallery's tier cards have always compared.
+//   { players, levels?|level?, ko?, garbage?, elapsed? }
+// Each board gets a deposited stack (see _depositStack), then a few real
+// engine drops settle on top so the crest, hold slot and piece queues come
+// from actual play. All boards run at startLevel 1 (identical gravity) and
+// the stack seed depends only on the slot, so the tier variants share the
+// same board shapes and differ only in level styling — mirroring how the web
+// gallery's tier cards have always compared.
 function gameSnapshot(spec) {
   var count = spec.players;
   var levels = [];
@@ -105,7 +163,6 @@ function gameSnapshot(spec) {
     levels.push(spec.levels ? spec.levels[li] : (spec.level || 1));
   }
   var ko = spec.ko || [];
-  var drops = (spec.drops != null) ? spec.drops : 10;
 
   var rosterMap = new Map();
   for (var ri = 0; ri < count; ri++) rosterMap.set(ri, { startLevel: 1 });
@@ -114,7 +171,17 @@ function gameSnapshot(spec) {
   var clock = { now: 0 };
   pc.frame(0); // prime the frame clock
 
-  for (var k = 0; k < drops; k++) {
+  for (var di = 0; di < count; di++) {
+    var dBoard = pc.game.boards.get(di);
+    var rnd = _rng((SEED + 77) ^ Math.imul(di + 1, 2654435761));
+    // KO boards fill nearly to the top so the top-out below reads as a real
+    // death; live boards vary between a modest and a threatening stack.
+    var rows = ko.indexOf(di) >= 0 ? 12 : 5 + Math.floor(rnd() * 4);
+    _depositStack(dBoard.grid, rnd, rows);
+    dBoard.gridVersion++;
+  }
+
+  for (var k = 0; k < 3; k++) {
     for (var i = 0; i < count; i++) {
       if (ko.indexOf(i) >= 0) continue; // KO boards top out separately below
       var rot = (k + i) % 3;
@@ -123,14 +190,14 @@ function gameSnapshot(spec) {
       for (var s = 0; s < Math.abs(shift); s++) {
         pc.processInput(i, shift < 0 ? 'left' : 'right');
       }
-      if (k === 2 && i % 2 === 0) pc.processInput(i, 'hold');
+      if (k === 1 && i % 2 === 0) pc.processInput(i, 'hold');
       pc.processInput(i, 'hard_drop');
     }
     step(pc, clock, 400);
   }
 
-  // Top out KO'd boards with an unmoved center stack (single column can never
-  // form a clearable zigzag, so the top-out is unconditional).
+  // Top out KO'd boards: hard-drop onto the near-full deposited stack until
+  // the spawn area is blocked.
   for (var kj = 0; kj < ko.length; kj++) {
     var koBoard = pc.game.boards.get(ko[kj]);
     var guard = 0;

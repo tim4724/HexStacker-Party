@@ -9,6 +9,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { GalleryFixtures } = require('../server/GalleryFixtures');
+const GameConstants = require('../server/constants');
 
 const VARIANT_NAMES = ['solo', 'lv1', 'lv8', 'lv12', '2p', '3p', '4p', '8p'];
 
@@ -51,6 +52,48 @@ test('variant snapshots honour their spec (players, levels, ko, garbage, elapsed
       }
       const filled = p.grid.flat().filter((c) => c !== 0).length;
       assert.ok(filled > 10, `${name}: board ${i} has a visible stack (${filled} cells)`);
+    }
+  }
+});
+
+test('variant boards read as realistic play (dense, no clearable or full rows)', () => {
+  const COLS = GameConstants.COLS;
+  for (const name of VARIANT_NAMES) {
+    const spec = GalleryFixtures.gameVariant(name);
+    const snap = GalleryFixtures.gameSnapshot(spec);
+    for (let i = 0; i < snap.players.length; i++) {
+      const grid = snap.players[i].grid;
+      // A completed line would have been cleared in a real game, so a
+      // snapshot must never contain one — neither a full flat row nor any
+      // clearable zigzag.
+      for (let r = 0; r < grid.length; r++) {
+        assert.ok(grid[r].some((c) => c === 0), `${name}: board ${i} row ${r} is completely filled`);
+      }
+      const res = GameConstants.findClearableZigzags(
+        COLS, grid.length, (col, row) => grid[row][col] !== 0, null, 0);
+      assert.equal(res.linesCleared, 0, `${name}: board ${i} has ${res.linesCleared} clearable lines`);
+      // Players fill from the bottom: the lowest rows carry only a few holes.
+      const filled = grid.flat().filter((c) => c !== 0).length;
+      assert.ok(filled >= 40, `${name}: board ${i} stack too sparse (${filled} cells)`);
+      for (let r = grid.length - 3; r < grid.length; r++) {
+        const rowFilled = grid[r].filter((c) => c !== 0).length;
+        assert.ok(rowFilled >= COLS - 3, `${name}: board ${i} bottom row ${r} too sparse (${rowFilled}/${COLS})`);
+      }
+      // No lone hex floating in the air: every filled cell above the floor
+      // touches at least one other filled cell (odd columns sit half a hex
+      // lower, so the diagonal neighbours' row depends on column parity).
+      const at = (col, row) =>
+        col >= 0 && col < COLS && row >= 0 && row < grid.length && grid[row][col] !== 0;
+      for (let r = 0; r < grid.length - 1; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (grid[r][c] === 0) continue;
+          const dr = (c & 1) ? 1 : 0;
+          const touching = at(c, r - 1) || at(c, r + 1) ||
+            at(c - 1, r - 1 + dr) || at(c + 1, r - 1 + dr) ||
+            at(c - 1, r + dr) || at(c + 1, r + dr);
+          assert.ok(touching, `${name}: board ${i} has an isolated cell at [${c}, ${r}]`);
+        }
+      }
     }
   }
 });

@@ -14,7 +14,7 @@
 set -euo pipefail
 
 DEV="${HEX_SIM:-BBB6AE86-6F9B-4D20-8966-3E9CDBF38632}"
-BUNDLE="com.hexstacker.HexStackerTV"
+BUNDLE="com.hexstacker.tv"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 APPLETV="$ROOT/appletv"
