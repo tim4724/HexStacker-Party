@@ -309,6 +309,9 @@ html, body {
   -webkit-appearance: none;
   background: transparent;
   border: 0;
+  /* Receives restored focus when the color picker closes; touch-only UI,
+     so suppress the UA focus ring (same as .rose-cell). */
+  outline: none;
   border-radius: 10px 10px 0 0;
   color: inherit;
   font: inherit;
@@ -488,6 +491,9 @@ html, body {
   border: 0;
   background: transparent;
   cursor: pointer;
+  /* Touch-only UI; the UA focus ring is a square around a hex-shaped
+     button and flashes on iOS's first programmatic focus. */
+  outline: none;
   /* Hit-testing is delegated to a hex-clipped child (.rose-cell__hit) so
      the rectangular button's empty corner triangles pass clicks through
      to the visible neighbour beneath. Putting the clip on the button
