@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- xcodebuild -exportArchive options for the App Store .ipa (used by
-     .github/workflows/release.yml and for local exports). Mirrors the manual
-     signing setup in project.yml: Apple Distribution cert + the named App Store
-     provisioning profile. destination=export writes the .ipa to disk; release
-     tag builds flip it to "upload" at runtime (plutil, in release.yml) to push
-     the build to App Store Connect via the ASC API key.
+<!-- xcodebuild -exportArchive options used by .github/workflows/release.yml.
+     Mirrors the manual signing setup in project.yml: Apple Distribution cert +
+     the named App Store provisioning profile. destination=upload pushes the
+     build to App Store Connect via the ASC API key (release.yml passes the
+     -authenticationKey* args); the TestFlight build is the deliverable, no
+     .ipa is written. For a one-off local .ipa, export with
+     -exportOptionsPlist <(plutil -replace destination -string export -o - ExportOptions.plist).
      manageAppVersionAndBuildNumber=false keeps xcodebuild from second-guessing
      the version: release builds stamp MARKETING_VERSION (from the git tag) and
      CURRENT_PROJECT_VERSION (run number) explicitly at archive time. -->
@@ -14,7 +15,7 @@
 	<key>method</key>
 	<string>app-store-connect</string>
 	<key>destination</key>
-	<string>export</string>
+	<string>upload</string>
 	<key>signingStyle</key>
 	<string>manual</string>
 	<key>teamID</key>
