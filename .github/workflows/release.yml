@@ -1,0 +1,204 @@
+name: Release
+
+# Signed store artifacts: the Play Store .aab and the App Store .ipa, uploaded
+# as workflow artifacts. Build-only for now; pushing them to the store consoles
+# (Play Console / Transporter or TestFlight) stays a manual step.
+#
+# Triggers: a bare-semver release tag (the repo's tag convention) or manual
+# dispatch. Never runs for pull requests, so the signing secrets are only
+# reachable by pushers. Each signing step fails fast with a named error when a
+# secret is missing, rather than silently producing a debug-signed artifact.
+#
+# Secrets (repo Settings > Secrets and variables > Actions):
+#   ANDROID_KEYSTORE_B64       base64 of the upload keystore .jks
+#   ANDROID_KEYSTORE_PASSWORD  keystore store password
+#   ANDROID_KEY_ALIAS          key alias (hexstacker-upload)
+#   ANDROID_KEY_PASSWORD       key password
+#   APPLE_CERT_P12_B64         base64 .p12 export of the Apple Distribution cert + private key
+#   APPLE_CERT_P12_PASSWORD    password chosen for that .p12 export
+#   APPLE_PROFILE_B64          base64 of the "HexStacker tvOS App Store" .mobileprovision
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      # The canonical engine bundle ships inside the app (see :tv's
+      # syncEngineBundle task), so it must exist before Gradle runs.
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'npm'
+      - run: npm ci
+      - name: Build engine bundle (QuickJS core)
+        run: npm run build:core
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+
+      # :tv's release signing reads android/keystore.properties (gitignored;
+      # storeFile must be an absolute path). Keep the decoded keystore outside
+      # the workspace.
+      - name: Materialize upload keystore from secrets
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -eu
+          for v in ANDROID_KEYSTORE_B64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "$(eval "echo \"\$$v\"")" ]; then
+              echo "::error::secret $v is not set"
+              exit 1
+            fi
+          done
+          echo "$ANDROID_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/upload-keystore.jks"
+          cat > android/keystore.properties <<EOF
+          storeFile=$RUNNER_TEMP/upload-keystore.jks
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+
+      - name: Build release bundle (.aab)
+        working-directory: android
+        run: ./gradlew :tv:bundleRelease --console=plain --stacktrace
+
+      # The Gradle build falls back to debug signing when keystore.properties is
+      # absent or unreadable, which would produce an artifact Play rejects.
+      # Verify the bundle really carries the upload key before publishing it.
+      - name: Verify release signature
+        run: |
+          set -eu
+          CERT=$(keytool -printcert -jarfile android/tv/build/outputs/bundle/release/tv-release.aab)
+          echo "$CERT"
+          if echo "$CERT" | grep -q "Android Debug"; then
+            echo "::error::AAB is debug-signed; the upload keystore was not picked up"
+            exit 1
+          fi
+
+      - name: Upload .aab artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: hexstacker-android-tv-aab
+          path: android/tv/build/outputs/bundle/release/tv-release.aab
+          if-no-files-found: error
+
+  tvos:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      # The app's "Sync engine JS" pre-build phase runs npm run build:core, so
+      # the repo-root deps must be installed before xcodebuild archives.
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'npm'
+      - run: npm ci
+
+      - name: Install XcodeGen
+        run: brew install --quiet xcodegen
+
+      - name: Generate the Xcode project
+        working-directory: appletv
+        run: xcodegen generate
+
+      # Same cache as tvos.yml: LiveKitWebRTC is a large binary xcframework.
+      - name: Cache SPM artifacts
+        uses: actions/cache@v6
+        with:
+          path: appletv/.build-xcode/SourcePackages
+          key: spm-${{ runner.os }}-${{ hashFiles('appletv/project.yml') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      # Import the Apple Distribution cert into a throwaway keychain and install
+      # the App Store provisioning profile named by project.yml. The keychain
+      # password is random and never leaves the step; the keychain dies with the
+      # ephemeral runner.
+      - name: Set up signing (keychain + provisioning profile)
+        env:
+          APPLE_CERT_P12_B64: ${{ secrets.APPLE_CERT_P12_B64 }}
+          APPLE_CERT_P12_PASSWORD: ${{ secrets.APPLE_CERT_P12_PASSWORD }}
+          APPLE_PROFILE_B64: ${{ secrets.APPLE_PROFILE_B64 }}
+        run: |
+          set -eu
+          for v in APPLE_CERT_P12_B64 APPLE_CERT_P12_PASSWORD APPLE_PROFILE_B64; do
+            if [ -z "$(eval "echo \"\$$v\"")" ]; then
+              echo "::error::secret $v is not set"
+              exit 1
+            fi
+          done
+
+          KEYCHAIN_PATH="$RUNNER_TEMP/release.keychain-db"
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          echo "$APPLE_CERT_P12_B64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN_PATH" \
+            -P "$APPLE_CERT_P12_PASSWORD" -T /usr/bin/codesign
+          # Let codesign use the imported key non-interactively.
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN_PATH" \
+            "$HOME/Library/Keychains/login.keychain-db"
+          rm "$RUNNER_TEMP/cert.p12"
+
+          # Install the profile under its UUID so Xcode's manual signing
+          # (PROVISIONING_PROFILE_SPECIFIER in project.yml) can resolve it by name.
+          PROFILE="$RUNNER_TEMP/profile.mobileprovision"
+          echo "$APPLE_PROFILE_B64" | base64 --decode > "$PROFILE"
+          UUID=$(security cms -D -i "$PROFILE" | plutil -extract UUID raw -o - -)
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$PROFILE" "$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.mobileprovision"
+
+      # Device SDK (generic/platform=tvOS), unlike the simulator builds in
+      # tvos.yml. The scheme's Archive post-action synthesizes the LiveKitWebRTC
+      # dSYM so the archive passes Apple's upload checks.
+      - name: Archive
+        working-directory: appletv
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project HexStacker.xcodeproj \
+            -scheme HexStackerTV \
+            -destination 'generic/platform=tvOS' \
+            -archivePath build/HexStacker.xcarchive \
+            -derivedDataPath .build-xcode
+
+      - name: Export App Store .ipa
+        working-directory: appletv
+        run: |
+          set -o pipefail
+          xcodebuild -exportArchive \
+            -archivePath build/HexStacker.xcarchive \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath build/export
+          ls -la build/export
+
+      - name: Upload .ipa artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: hexstacker-tvos-ipa
+          path: appletv/build/export/*.ipa
+          if-no-files-found: error

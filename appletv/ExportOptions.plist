@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- xcodebuild -exportArchive options for the App Store .ipa (used by
+     .github/workflows/release.yml and for local exports). Mirrors the manual
+     signing setup in project.yml: Apple Distribution cert + the named App Store
+     provisioning profile. destination=export writes the .ipa to disk; the upload
+     to App Store Connect stays a separate manual step (Transporter) for now.
+     manageAppVersionAndBuildNumber=false keeps the committed MARKETING_VERSION /
+     CURRENT_PROJECT_VERSION untouched, so the build number stays reviewable in
+     project.yml. -->
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>destination</key>
+	<string>export</string>
+	<key>signingStyle</key>
+	<string>manual</string>
+	<key>teamID</key>
+	<string>5ZH48MPAM3</string>
+	<key>signingCertificate</key>
+	<string>Apple Distribution</string>
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>com.hexstacker.tv</key>
+		<string>HexStacker tvOS App Store</string>
+	</dict>
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
+</dict>
+</plist>
