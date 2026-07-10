@@ -21,8 +21,10 @@ const RAW_DIR = path.join(OUTPUT_DIR, 'raw');
 const FRAME_EXT = 'jpg';
 const MUSIC_PATH = path.resolve(__dirname, '..', '..', 'public', 'shared', 'music', 'lunar-joyride.mp3');
 // The `clean` variant is the published trailer (display/index.html plays it
-// from /artwork/trailer.mp4). Mirroring at the end of stitch keeps the
-// output/ copies for side-by-side iteration without manual mirror steps.
+// from /artwork/trailer.mp4). Publishing at the end of stitch keeps the
+// output/ masters for side-by-side iteration and uploaders, while the
+// public/ copy is re-encoded at PUBLISH_CRF delivery quality so clients
+// don't download master-grade bytes.
 const PUBLISH_VARIANT = 'clean';
 const PUBLISH_ASPECT = '16x9';
 const PUBLISH_PATH = path.resolve(__dirname, '..', '..', 'public', 'artwork', 'trailer.mp4');
@@ -68,6 +70,12 @@ const OUT_SCALE = Number.isFinite(OUT_SCALE_ENV) ? OUT_SCALE_ENV : (MAX ? 1 : PR
 const CRF_ENV = parseInt(process.env.AD_CRF, 10);
 const CRF = Number.isFinite(CRF_ENV) ? CRF_ENV : (MAX ? 10 : PROD ? 14 : 18);
 
+// CRF for the in-app trailer served from public/artwork. Welcome-screen
+// playback doesn't need master-grade bytes: 23 cuts the download from
+// ~11 MB (CRF 10 master) to ~4 MB with no visible difference in the modal.
+const PUBLISH_CRF_ENV = parseInt(process.env.AD_PUBLISH_CRF, 10);
+const PUBLISH_CRF = Number.isFinite(PUBLISH_CRF_ENV) ? PUBLISH_CRF_ENV : 23;
+
 function main() {
   const variants = getVariants();
   console.log(describeVariants(variants));
@@ -93,8 +101,26 @@ function main() {
   const publishSource = path.join(OUTPUT_DIR, `final-${PUBLISH_VARIANT}-${PUBLISH_ASPECT}.mp4`);
   if (fs.existsSync(publishSource)) {
     fs.mkdirSync(path.dirname(PUBLISH_PATH), { recursive: true });
-    fs.copyFileSync(publishSource, PUBLISH_PATH);
-    console.log(`Published: ${path.relative(process.cwd(), PUBLISH_PATH)}`);
+    console.log(`Publishing (delivery CRF ${PUBLISH_CRF}): ${path.relative(process.cwd(), PUBLISH_PATH)}`);
+    try {
+      execFileSync('ffmpeg', [
+        '-y', '-loglevel', 'error', '-stats',
+        '-i', publishSource,
+        '-c:v', 'libx264',
+        '-pix_fmt', 'yuv420p',
+        '-preset', 'slow',
+        '-crf', String(PUBLISH_CRF),
+        '-profile:v', 'high', '-level', '4.2',
+        '-color_range', 'tv', '-colorspace', 'bt709',
+        '-color_primaries', 'bt709', '-color_trc', 'bt709',
+        '-c:a', 'copy',
+        '-movflags', '+faststart',
+        PUBLISH_PATH,
+      ], { stdio: 'inherit' });
+    } catch (err) {
+      console.error(`ffmpeg publish encode failed: ${err.message}`);
+      process.exit(1);
+    }
   } else {
     console.log(`Skipping publish: ${PUBLISH_VARIANT}/${PUBLISH_ASPECT} not produced this run.`);
   }
