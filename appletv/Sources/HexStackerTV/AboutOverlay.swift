@@ -3,15 +3,15 @@ import HexStackerKit
 
 /// About overlay for the tvOS display, opened from the lobby ⓘ button. Shows two QR
 /// cards — Privacy and Imprint — linking a phone to the web legal pages, plus a
-/// focusable "Open Source Licenses" button that drills into LicensesOverlay. Menu
-/// returns to the lobby.
+/// focusable "Licenses" button that drills into LicensesOverlay. Menu returns to
+/// the lobby.
 ///
 /// The game is played on phones, so the phone the player is already holding is the
 /// right screen for long-form legal text: this only offers a scan target + the URL,
 /// and the pages stay single-sourced on the web (not re-rendered natively). The card
 /// labels reuse the web i18n `privacy` / `imprint` strings via `tr()`, so no copy is
-/// TV-invented; the sole `Open Source Licenses` button, like LicensesOverlay, is the
-/// one English-only piece of TV chrome the web has no equivalent for.
+/// TV-invented; the sole `Licenses` button, like LicensesOverlay, is the one
+/// English-only piece of TV chrome the web has no equivalent for.
 ///
 /// Input model mirrors LicensesOverlay: while open, RootScene routes the remote here
 /// via the `isOpen` flag rather than the shared focus-menu grid. The single button is
@@ -35,7 +35,7 @@ final class AboutOverlay {
     private(set) var isOpen = false
     private var built = false
 
-    /// Set by RootScene: opens the Open Source Licenses overlay on top of this one.
+    /// Set by RootScene: opens the Licenses overlay on top of this one.
     var onOpenLicenses: (() -> Void)?
 
     init() {
@@ -70,7 +70,7 @@ final class AboutOverlay {
         hint.zPosition = 1
         node.addChild(hint)
 
-        // Privacy / Imprint QR cards + the "Open Source Licenses" button as one
+        // Privacy / Imprint QR cards + the "Licenses" button as one
         // vertically centered cluster (matches the Android About layout), rather than
         // the button pinned to the bottom edge with the cards floating above.
         let cardW = min(playRect.width * 0.28, 360)
@@ -88,11 +88,11 @@ final class AboutOverlay {
         node.addChild(buildLegalCard(label: trUpper("imprint"), url: Self.imprintURL, width: cardW,
                                      center: CGPoint(x: playRect.midX + rowW / 2 - cardW / 2, y: cardsCenterY)))
 
-        // "Open Source Licenses" button below the cards, always shown focused — the
-        // only actionable item while About is open (RootScene calls activate()).
+        // "Licenses" button below the cards, always shown focused — the only
+        // actionable item while About is open (RootScene calls activate()).
         // Uppercased for parity with web `.btn { text-transform: uppercase }` and
         // the Android ChromeButton (styling, not new copy).
-        let btnText = "Open Source Licenses".uppercased()
+        let btnText = "Licenses".uppercased()
         let probe = SKLabelNode()
         probe.setStyledText(btnText, font: AppFont.brandBold, size: btnH * 0.36, color: .white, tracking: 0.08)
         let btnW = probe.frame.width + min(playRect.width * 0.04, 96) * 2
@@ -205,6 +205,6 @@ final class AboutOverlay {
         isOpen = false
     }
 
-    /// Select while open: drill into the Open Source Licenses overlay.
+    /// Select while open: drill into the Licenses overlay.
     func activate() { onOpenLicenses?() }
 }

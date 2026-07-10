@@ -1,10 +1,12 @@
 import SpriteKit
 import HexStackerKit
 
-/// Full-screen "Open Source Licenses" overlay for the tvOS display, reached from
-/// the lobby footer link. Lists the third-party components the app actually bundles
-/// with their full license text, scrolled with the Siri Remote d-pad (Up/Down);
-/// Menu returns to the lobby.
+/// Full-screen "Licenses" overlay for the tvOS display, reached from the lobby
+/// footer link. Lists the third-party components the app actually bundles,
+/// one focusable row per component (mirroring the Android LicensesScreen): the
+/// Siri Remote d-pad (Up/Down) moves focus, Select toggles the full license text
+/// open in place, and Menu returns to the lobby. The list scrolls as needed to
+/// keep the focused row visible.
 ///
 /// The list is short by design: unlike Android (which bundles the whole AndroidX /
 /// Compose Apache stack), the tvOS app runs on Apple system frameworks
@@ -26,6 +28,19 @@ final class LicensesOverlay {
     private var maxScroll: CGFloat = 0
     private var viewportHeight: CGFloat = 0
     private var built = false
+
+    // Fold/expand state (mirrors the Android LicenseRow): rows collapse to their
+    // header (name / license / author) and Select expands the body in place.
+    // Row geometry is content-local (top y ≤ 0, descending) and rebuilt with the
+    // content whenever an expansion changes the stack heights.
+    private var focusIndex = 0
+    private var expanded: Set<Int> = []
+    private var rowCards: [SKShapeNode] = []
+    private var rowRings: [SKShapeNode] = []
+    private var rowTops: [CGFloat] = []
+    private var rowHeights: [CGFloat] = []
+    private var contentWidth: CGFloat = 0
+    private var contentLeftX: CGFloat = 0
 
     private struct Entry {
         let name: String
@@ -59,7 +74,7 @@ final class LicensesOverlay {
         let title = SKLabelNode()
         title.horizontalAlignmentMode = .left
         title.verticalAlignmentMode = .top
-        title.setStyledText("Open Source Licenses", font: AppFont.brandExtraBold,
+        title.setStyledText("Licenses", font: AppFont.brandExtraBold,
                             size: titleSize, color: SKTheme.textPrimary(), tracking: 0.08)
         title.position = CGPoint(x: playRect.minX, y: playRect.maxY - margin)
         title.zPosition = 1
@@ -89,22 +104,34 @@ final class LicensesOverlay {
         node.addChild(crop)
 
         crop.addChild(content)
-        let contentHeight = buildContent(width: playRect.width, leftX: playRect.minX)
+        contentWidth = playRect.width
+        contentLeftX = playRect.minX
+        rebuildContent()
+    }
+
+    /// Rebuild the row stack for the current fold/expand state and refresh the
+    /// scroll extent (expansions change the stack heights).
+    private func rebuildContent() {
+        let contentHeight = buildContent(width: contentWidth, leftX: contentLeftX)
         maxScroll = max(0, contentHeight - viewportHeight)
     }
 
     /// Lay the attributions out top-to-bottom as cards, matching the Android licenses
-    /// list: each entry is a rounded card (name left, license right, author subtitle,
-    /// full license text below). Content-local y starts at 0 and descends; returns the
-    /// total stack height for the scroll extent.
+    /// list: each entry is a rounded card (name left, license right, author subtitle),
+    /// with the full license text below only while expanded. Content-local y starts at
+    /// 0 and descends; returns the total stack height for the scroll extent.
     private func buildContent(width: CGFloat, leftX: CGFloat) -> CGFloat {
         content.removeAllChildren()
+        rowCards.removeAll()
+        rowRings.removeAll()
+        rowTops.removeAll()
+        rowHeights.removeAll()
         var y: CGFloat = 0
         let cardGap = width * 0.016
         let padX = width * 0.022
         let padY = width * 0.016
         let innerW = width - padX * 2
-        let radius = width * 0.012
+        let radius: CGFloat = 12   // var(--radius-md), matching MenuButton / the Android rows
 
         for (i, e) in Self.entries.enumerated() {
             if i > 0 { y -= cardGap }
@@ -140,29 +167,73 @@ final class LicensesOverlay {
                                  color: SKTheme.textFaint, tracking: 0.02)
             author.position = CGPoint(x: leftX + padX, y: inner)
             content.addChild(author)
-            inner -= author.frame.height + padY * 0.7
+            inner -= author.frame.height
 
-            let body = multilineLabel(e.body, width: innerW)
-            body.zPosition = 1
-            body.position = CGPoint(x: leftX + padX, y: inner)
-            content.addChild(body)
-            inner -= body.frame.height
+            if expanded.contains(i) {
+                inner -= padY * 0.7
+                let body = multilineLabel(e.body, width: innerW)
+                body.zPosition = 1
+                body.position = CGPoint(x: leftX + padX, y: inner)
+                content.addChild(body)
+                inner -= body.frame.height
+            }
 
             // Card background sized to the accumulated content, drawn behind it.
             let cardBottom = inner - padY
+            let h = cardTop - cardBottom
             let card = SKShapeNode(path: CGPath(roundedRect: CGRect(x: leftX, y: cardBottom, width: width,
-                                                                    height: cardTop - cardBottom),
+                                                                    height: h),
                                                 cornerWidth: radius, cornerHeight: radius, transform: nil))
-            card.fillColor = SKTheme.bgSecondary
-            card.strokeColor = SKTheme.border
-            card.lineWidth = 1
             card.zPosition = 0
             content.addChild(card)
+
+            // Focus ring on its own inset path: SKShapeNode strokes straddle the
+            // path, so a ring on the card edge pokes half its width outside the
+            // card — the scroll viewport would crop it on the first/last row.
+            // Inset by half the stroke it stays inside the card bounds, matching
+            // Compose's border (which always draws inside the shape) on Android.
+            let ringInset: CGFloat = 2
+            let ring = SKShapeNode(path: CGPath(
+                roundedRect: CGRect(x: leftX + ringInset, y: cardBottom + ringInset,
+                                    width: width - ringInset * 2, height: h - ringInset * 2),
+                cornerWidth: radius - ringInset, cornerHeight: radius - ringInset, transform: nil))
+            ring.fillColor = .clear
+            ring.lineWidth = 4
+            ring.isAntialiased = true
+            ring.zPosition = 2
+            content.addChild(ring)
+
+            rowCards.append(card)
+            rowRings.append(ring)
+            rowTops.append(cardTop)
+            rowHeights.append(h)
+            styleCard(i)
 
             y = cardBottom
         }
         return -y
     }
+
+    /// Focus visuals follow the game-UI convention (MenuButton / MusicSwitch, and the
+    /// Android rows): 4px white ring + 6% white wash; unfocused rows are the plain
+    /// secondary card with a 1px hairline.
+    private func styleCard(_ i: Int) {
+        guard rowCards.indices.contains(i) else { return }
+        let focused = i == focusIndex
+        rowCards[i].fillColor = focused ? Self.focusFill : SKTheme.bgSecondary
+        rowCards[i].strokeColor = focused ? .clear : SKTheme.border
+        rowCards[i].lineWidth = 1
+        rowRings[i].strokeColor = focused ? .white : .clear
+    }
+
+    /// The MusicSwitch focus wash (6% white over the fill), precomputed because
+    /// SKShapeNode has a single flat fill rather than stacked layers.
+    private static let focusFill: UIColor = {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        SKTheme.bgSecondary.getRed(&r, green: &g, blue: &b, alpha: &a)
+        let mix: (CGFloat) -> CGFloat = { $0 + (1 - $0) * 0.06 }
+        return UIColor(red: mix(r), green: mix(g), blue: mix(b), alpha: a)
+    }()
 
     /// A left-aligned, top-anchored monospace paragraph. License text is
     /// pre-wrapped, so `numberOfLines = 0` just honours the embedded newlines; the
@@ -182,11 +253,19 @@ final class LicensesOverlay {
         return label
     }
 
+    /// Open at the top with everything folded and the first row focused (matches
+    /// the Android screen seating focus on the first row on entry).
     func open() {
         node.isHidden = false
         isOpen = true
-        scrollY = 0
-        content.position = CGPoint(x: 0, y: contentTopY)
+        focusIndex = 0
+        if !expanded.isEmpty {
+            expanded = []
+            rebuildContent()
+        } else {
+            for i in rowCards.indices { styleCard(i) }
+        }
+        setScroll(0)
     }
 
     func close() {
@@ -194,11 +273,75 @@ final class LicensesOverlay {
         isOpen = false
     }
 
-    /// Scroll by a fraction of a viewport per press; positive scrolls down (reveals
-    /// lower text). Clamped to the content extent.
-    func scroll(pages: CGFloat) {
-        guard isOpen else { return }
-        scrollY = min(max(0, scrollY + pages * viewportHeight * 0.5), maxScroll)
+    /// D-pad Up/Down: move focus one row (clamped, like the Android list — no wrap)
+    /// and scroll just enough to keep the focused row visible. A focused row taller
+    /// than the viewport (an expanded license body) scrolls in place instead, so the
+    /// whole text is readable; focus leaves it only once its far edge is on screen.
+    func moveFocus(_ delta: Int) {
+        guard isOpen, !rowCards.isEmpty else { return }
+        if scrollWithinFocused(delta) { return }
+        let target = min(max(0, focusIndex + delta), rowCards.count - 1)
+        guard target != focusIndex else { return }
+        let previous = focusIndex
+        focusIndex = target
+        styleCard(previous)
+        styleCard(target)
+        ensureFocusedVisible(entering: delta)
+    }
+
+    /// Half-viewport step through a focused row that overflows the viewport, clamped
+    /// so the last step lands its far edge exactly on the viewport edge. Returns
+    /// false once there is nothing left to reveal in `delta`'s direction (or the row
+    /// fits), letting the press move focus instead.
+    private func scrollWithinFocused(_ delta: Int) -> Bool {
+        guard rowHeights.indices.contains(focusIndex), rowHeights[focusIndex] > viewportHeight else { return false }
+        let top = rowTops[focusIndex]                       // content-local, ≤ 0
+        let bottom = top - rowHeights[focusIndex]
+        let step = viewportHeight * 0.5
+        if delta > 0 {
+            let bottomAligned = -bottom - viewportHeight    // scrollY showing the row's bottom
+            guard scrollY < bottomAligned - 0.5 else { return false }
+            setScroll(min(scrollY + step, bottomAligned))
+        } else {
+            let topAligned = -top                           // scrollY showing the row's top
+            guard scrollY > topAligned + 0.5 else { return false }
+            setScroll(max(scrollY - step, topAligned))
+        }
+        return true
+    }
+
+    /// Select: toggle the focused row's license body open/closed in place.
+    func toggleFocused() {
+        guard isOpen, rowCards.indices.contains(focusIndex) else { return }
+        if expanded.contains(focusIndex) {
+            expanded.remove(focusIndex)
+        } else {
+            expanded.insert(focusIndex)
+        }
+        rebuildContent()
+        ensureFocusedVisible()
+    }
+
+    /// Scroll so the focused row is fully on screen. A row taller than the viewport
+    /// (an expanded license body) shows its nearest edge instead — the top when focus
+    /// entered from above (`entering` ≥ 0), the bottom when it entered from below —
+    /// so scrollWithinFocused then walks through the rest.
+    private func ensureFocusedVisible(entering: Int = 1) {
+        guard rowTops.indices.contains(focusIndex) else { return }
+        let top = rowTops[focusIndex]                       // content-local, ≤ 0
+        let bottom = top - rowHeights[focusIndex]
+        var target = scrollY
+        if rowHeights[focusIndex] >= viewportHeight {
+            target = entering >= 0 ? -top : -bottom - viewportHeight
+        } else {
+            if target > -top { target = -top }                                   // row above the viewport
+            if target < -bottom - viewportHeight { target = -bottom - viewportHeight }  // row below it
+        }
+        setScroll(target)
+    }
+
+    private func setScroll(_ y: CGFloat) {
+        scrollY = min(max(0, y), maxScroll)
         content.position = CGPoint(x: 0, y: contentTopY + scrollY)
     }
 

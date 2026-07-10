@@ -9,7 +9,7 @@ import com.hexstacker.tv.R
 import com.mikepenz.aboutlibraries.Libs
 
 /**
- * One row of the Open Source Licenses screen: a shipped component and the license it
+ * One row of the Licenses screen: a shipped component and the license it
  * ships under. [body] is the full license text when available, otherwise null — the
  * screen then shows only the license name + [url].
  */
@@ -64,20 +64,23 @@ private fun buildLicenseEntries(context: Context): List<LicenseEntry> {
         url = "https://creativecommons.org/licenses/by/3.0/",
         body = CC_BY_MUSIC,
     )
+    // The raw OFL text is font-neutral; each font contributes its own copyright
+    // header (tvOS parameterises the same way in LicensesOverlay.ofl11).
+    val ofl = rawText(context, R.raw.license_ofl_1_1)
     val fonts = listOf(
         LicenseEntry(
             name = "Baloo 2",
             author = "Ek Type",
             license = "SIL Open Font License 1.1",
             url = "https://github.com/EkType/Baloo2",
-            body = rawText(context, R.raw.license_ofl_1_1),
+            body = "$OFL_BALOO\n\n$ofl",
         ),
         LicenseEntry(
             name = "Orbitron",
             author = "The Orbitron Project Authors",
             license = "SIL Open Font License 1.1",
             url = "https://github.com/theleagueof/orbitron",
-            body = rawText(context, R.raw.license_ofl_1_1),
+            body = "$OFL_ORBITRON\n\n$ofl",
         ),
     )
     val quickJs = LicenseEntry(
@@ -91,7 +94,7 @@ private fun buildLicenseEntries(context: Context): List<LicenseEntry> {
 }
 
 /**
- * Final display order for the Open Source Licenses screen: the app's most
+ * Final display order for the Licenses screen: the app's most
  * audible/visible credits lead — [music] then the bundled [fonts] — followed
  * by the Gradle [deps] sorted alphabetically, with the bundled MIT QuickJS
  * engine ([quickJs]) trailing. Pure (no Android context) so the ordering is
@@ -117,6 +120,13 @@ private fun fallbackBody(context: Context, licenseName: String?): String? {
 
 private fun rawText(context: Context, @RawRes id: Int): String =
     context.resources.openRawResource(id).bufferedReader().use { it.readText() }
+
+// Per-font OFL copyright headers, mirroring each font's upstream OFL.txt.
+private const val OFL_BALOO =
+    "Copyright 2019 The Baloo 2 Project Authors (https://github.com/EkType/Baloo2)"
+private const val OFL_ORBITRON =
+    "Copyright 2018 The Orbitron Project Authors (https://github.com/theleagueof/orbitron), " +
+        "with Reserved Font Name: \"Orbitron\""
 
 // CC licenses are canonically referenced by their deed URL rather than a bundled
 // legal text; this is the standard CC-BY attribution for the lobby track.

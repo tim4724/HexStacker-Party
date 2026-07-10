@@ -2,7 +2,7 @@ import SpriteKit
 import HexStackerKit
 
 /// A small circular focusable ⓘ button — the lobby entry to the About screen
-/// (Privacy / Imprint QR + Open Source Licenses). Icon-only, so there is no TV-only
+/// (Privacy / Imprint QR + Licenses). Icon-only, so there is no TV-only
 /// string to mirror. Focus adds a bright ring + slight scale, matching MenuButton's
 /// focus convention. Navigable with the Siri Remote d-pad like any other Focusable.
 final class InfoButton: SKNode, Focusable {

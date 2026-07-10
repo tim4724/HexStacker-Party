@@ -3,6 +3,7 @@ package com.hexstacker.tv.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -13,12 +14,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,9 +43,10 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.hexstacker.core.render.Theme
 import com.hexstacker.tv.R
+import kotlinx.coroutines.launch
 
 /**
- * Open Source Licenses screen (reached from the lobby footer). A single
+ * Licenses screen (reached from the lobby footer). A single
  * D-pad-focusable, scrolling list — one focusable row per shipped component; select
  * (DPAD center) toggles the full license text open in place. Back / Menu returns to
  * the lobby via [onClose].
@@ -62,6 +66,30 @@ fun LicensesScreen(
     modifier: Modifier = Modifier,
 ) {
     val firstRow = remember { FocusRequester() }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    var focusedIndex by remember { mutableStateOf(0) }
+
+    // A focused row taller than the viewport (an expanded license body) scrolls in
+    // place by half a viewport per press, so the whole text is readable; the press
+    // falls through to the focus engine (which moves focus and brings the next row
+    // into view) only once the row's far edge is on screen. Mirrors the tvOS
+    // LicensesOverlay.scrollWithinFocused.
+    fun scrollWithinFocused(dir: Int): Boolean {
+        val info = listState.layoutInfo
+        val item = info.visibleItemsInfo.firstOrNull { it.index == focusedIndex } ?: return false
+        val viewport = info.viewportEndOffset - info.viewportStartOffset
+        if (item.size <= viewport) return false
+        val step = viewport * 0.5f
+        val overflow = if (dir > 0) {
+            item.offset + item.size - info.viewportEndOffset   // below the viewport
+        } else {
+            info.viewportStartOffset - item.offset             // above it
+        }
+        if (overflow <= 1) return false
+        scope.launch { listState.animateScrollBy(dir * minOf(step, overflow.toFloat())) }
+        return true
+    }
 
     Box(
         modifier
@@ -75,6 +103,8 @@ fun LicensesScreen(
                 if (ev.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (ev.key) {
                     Key.Menu -> { onClose(); true }
+                    Key.DirectionDown -> scrollWithinFocused(1)
+                    Key.DirectionUp -> scrollWithinFocused(-1)
                     else -> false
                 }
             },
@@ -107,12 +137,14 @@ fun LicensesScreen(
 
                 LazyColumn(
                     Modifier.fillMaxSize(),
+                    state = listState,
                     verticalArrangement = Arrangement.spacedBy(vp.vwDp(9f, 1.45f, 19f)),
                 ) {
                     itemsIndexed(entries, key = { i, e -> "${e.name}#$i" }) { index, entry ->
                         LicenseRow(
                             entry = entry,
                             vp = vp,
+                            onFocused = { focusedIndex = index },
                             modifier = if (index == 0) Modifier.focusRequester(firstRow) else Modifier,
                         )
                     }
@@ -127,9 +159,19 @@ fun LicensesScreen(
     }
 }
 
-/** A focusable, expand-in-place license row. Focus highlights it; select toggles the body. */
+/**
+ * A focusable, expand-in-place license row. Focus highlights it (the game-UI focus
+ * convention shared with ChromeButton / MusicSwitch: 4dp white ring + 6% white wash,
+ * minus the scale pop, which reads wrong on a full-width list row); select toggles
+ * the body.
+ */
 @Composable
-private fun LicenseRow(entry: LicenseEntry, vp: Vp, modifier: Modifier = Modifier) {
+private fun LicenseRow(
+    entry: LicenseEntry,
+    vp: Vp,
+    onFocused: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
     var focused by remember { mutableStateOf(false) }
     var expanded by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(Tokens.radiusMd)
@@ -138,13 +180,14 @@ private fun LicenseRow(entry: LicenseEntry, vp: Vp, modifier: Modifier = Modifie
         modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(if (focused) Tokens.bgCard else Tokens.bgSecondary, shape)
+            .background(Tokens.bgSecondary, shape)
+            .then(if (focused) Modifier.background(Tokens.white.copy(alpha = 0.06f), shape) else Modifier)
             .border(
-                width = if (focused) 2.dp else 1.dp,
+                width = if (focused) 4.dp else 1.dp,
                 color = if (focused) Tokens.white else Tokens.border,
                 shape = shape,
             )
-            .onFocusChanged { focused = it.isFocused }
+            .onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocused() }
             .clickable { expanded = !expanded }
             .padding(
                 horizontal = vp.vwDp(20f, 2f, 26f),

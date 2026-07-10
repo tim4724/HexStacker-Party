@@ -48,11 +48,12 @@ final class RootScene: SKScene, DisplayOutput {
     private let connStatus = SKLabelNode()
     private weak var connButton: MenuButton?
 
-    // "Open Source Licenses" overlay, drilled into from the About screen and
-    // scrolled with the d-pad. Above every other overlay so it owns the remote.
+    // "Licenses" overlay, drilled into from the About screen and
+    // navigated with the d-pad (Up/Down moves row focus, Select folds/expands).
+    // Above every other overlay so it owns the remote.
     private let licenses = LicensesOverlay()
 
-    // About overlay (Privacy / Imprint QR + the Open Source Licenses drill-in),
+    // About overlay (Privacy / Imprint QR + the Licenses drill-in),
     // opened from the lobby ⓘ button. Sits just below the licenses overlay.
     private let about = AboutOverlay()
 
@@ -273,7 +274,7 @@ final class RootScene: SKScene, DisplayOutput {
         case "about":         // full-screen About overlay (Privacy / Imprint QR + Licenses drill-in)
             coordinator.renderShot("lobby-empty", playerCount: pc)
             openAbout()
-        case "licenses":      // full-screen Open Source Licenses overlay (scrolled to top)
+        case "licenses":      // full-screen Licenses overlay (scrolled to top)
             coordinator.renderShot("lobby-empty", playerCount: pc)
             openLicenses()
         default:
@@ -612,11 +613,11 @@ final class RootScene: SKScene, DisplayOutput {
         refreshFocus()
     }
 
-    /// Select: activate the focused item. No-op during gameplay (no menu) and while
-    /// the licenses page is up (it is a document, not a menu). While About is up it
-    /// drills into the licenses page (its single button is always the target).
+    /// Select: activate the focused item. No-op during gameplay (no menu). While the
+    /// licenses page is up it folds/expands the focused row (Android parity); while
+    /// About is up it drills into the licenses page (its single button is the target).
     func remotePrimary() {
-        if licenses.isOpen { return }
+        if licenses.isOpen { licenses.toggleFocused(); return }
         if about.isOpen { about.activate(); return }
         guard menuRows.indices.contains(focusRC.r), menuRows[focusRC.r].indices.contains(focusRC.c) else { return }
         let item = menuRows[focusRC.r][focusRC.c]
@@ -628,12 +629,12 @@ final class RootScene: SKScene, DisplayOutput {
     /// behind them.
     func remotePlayPause() { if licenses.isOpen || about.isOpen { return }; coordinator?.remotePlayPause() }
 
-    // While the licenses page is up the d-pad scrolls it instead of moving focus;
-    // About is a single screen, so the d-pad does nothing there.
+    // While the licenses page is up the d-pad moves its own row focus (the list
+    // scrolls to follow); About is a single screen, so the d-pad does nothing there.
     func remoteLeft() { if licenses.isOpen || about.isOpen { return }; moveFocus(dRow: 0, dCol: -1) }
     func remoteRight() { if licenses.isOpen || about.isOpen { return }; moveFocus(dRow: 0, dCol: 1) }
-    func remoteUp() { if licenses.isOpen { licenses.scroll(pages: -1); return }; if about.isOpen { return }; moveFocus(dRow: -1, dCol: 0) }
-    func remoteDown() { if licenses.isOpen { licenses.scroll(pages: 1); return }; if about.isOpen { return }; moveFocus(dRow: 1, dCol: 0) }
+    func remoteUp() { if licenses.isOpen { licenses.moveFocus(-1); return }; if about.isOpen { return }; moveFocus(dRow: -1, dCol: 0) }
+    func remoteDown() { if licenses.isOpen { licenses.moveFocus(1); return }; if about.isOpen { return }; moveFocus(dRow: 1, dCol: 0) }
 
     /// Menu button: steps back one level (licenses -> About -> lobby); else
     /// pause/resume during a game or the 3-2-1 countdown; returns false otherwise so

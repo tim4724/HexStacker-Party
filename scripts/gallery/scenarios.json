@@ -155,7 +155,7 @@
     },
     {
       "key": "licenses",
-      "title": "Open Source Licenses",
+      "title": "Licenses",
       "tvos": { "shot": "licenses", "players": 0 },
       "android": { "file": "licenses" }
     }
