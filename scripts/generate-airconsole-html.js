@@ -11,17 +11,22 @@
  *  - Strips the controller name-screen legal-links footer (name screen is
  *    bypassed in AC mode; the anchors are external couch-games.com legal
  *    links, irrelevant to the AC entry)
- *  - Strips test harness <script> tags (gallery / Playwright only — gated
- *    on URL params the AC iframe never has)
- *  - Strips share-helper.js (the only caller is the device-choice share
- *    banner, and device-choice is CSS-hidden in AC mode)
  *  - Strips the <picture> element inside the device-choice overlay (the
  *    /artwork/* sources aren't bundled into the AC zip; without this the
  *    browser would still fetch them and 404, even though the overlay is
  *    CSS-hidden)
  *  - Converts absolute paths ("/shared/...") to relative ("shared/...")
- *  - Injects AirConsole SDK <script> before first engine script
- *  - Injects bootstrap script before the entry-point script
+ *  - Replaces the web <!--*_SCRIPTS--> marker with the AirConsole SDK tag
+ *    followed by the AC scripts marker (<!--AC_CONTROLLER_SCRIPTS--> /
+ *    <!--AC_DISPLAY_SCRIPTS-->)
+ *
+ * WHICH scripts load (and their order) is not decided here: the AC script
+ * sets are derived in scripts/asset-manifest.js (AC_CONTROLLER_SCRIPTS /
+ * AC_DISPLAY_SCRIPTS — web list minus AC-dead modules, plus the AC
+ * bootstrap). The AC markers are expanded by server/index.js at serve time
+ * (dev: individual file tags; SERVE_BUNDLES: the hashed AC bundle) and by
+ * finalize-airconsole-html.js at ZIP-build time (relative AC bundle tag).
+ * The <!--*_STYLES--> markers pass through untouched for the same treatment.
  *
  * Usage:
  *   node scripts/generate-airconsole-html.js [--sdk-version 1.10.0]
@@ -29,37 +34,17 @@
 
 const fs = require('fs');
 const path = require('path');
-const { CONTROLLER_SCRIPTS, DISPLAY_SCRIPTS, CONTROLLER_STYLES, DISPLAY_STYLES } = require('./asset-manifest.js');
 
 const PUBLIC = path.join(__dirname, '..', 'public');
 
-// The AC zip is a self-contained bundle of individual files (no server, no
-// content-hashing), so expand the app's <!--*_SCRIPTS--> / <!--*_STYLES-->
-// markers back to individual tags before transform() runs — its SDK/bootstrap
-// injection, path-absolutization, and test-harness stripping all key off the
-// individual engine/entry/harness tags. Styles need no ?v= cache-bust: the zip
-// is versioned as a whole and served without a caching server.
-function tagsFor(scripts) {
-  return scripts.map(function (s) { return '<script src="' + s + '"></script>'; }).join('\n  ');
-}
-function styleTagsFor(styles) {
-  return styles.map(function (s) { return '<link rel="stylesheet" href="' + s + '">'; }).join('\n  ');
-}
-function expandScripts(html) {
-  return html
-    .replaceAll('<!--CONTROLLER_SCRIPTS-->', tagsFor(CONTROLLER_SCRIPTS))
-    .replaceAll('<!--DISPLAY_SCRIPTS-->', tagsFor(DISPLAY_SCRIPTS))
-    .replaceAll('<!--CONTROLLER_STYLES-->', styleTagsFor(CONTROLLER_STYLES))
-    .replaceAll('<!--DISPLAY_STYLES-->', styleTagsFor(DISPLAY_STYLES));
-}
 const SDK_VERSION = getArg('--sdk-version') || '1.11.0';
-const SDK_TAG = `  <script src="https://www.airconsole.com/api/airconsole-${SDK_VERSION}.js"></script>\n`;
+const SDK_TAG = `<script src="https://www.airconsole.com/api/airconsole-${SDK_VERSION}.js"></script>`;
 
 // ---------------------------------------------------------------------------
 // Shared transforms
 // ---------------------------------------------------------------------------
 
-function transform(html, { bootstrapScript }) {
+function transform(html, { scriptsMarker, acScriptsMarker }) {
   // 1. Add class="airconsole" to <body>
   html = html.replace('<body>', '<body class="airconsole">');
 
@@ -73,45 +58,22 @@ function transform(html, { bootstrapScript }) {
   // 3. Strip the controller name-screen legal-links footer (dead DOM in AC).
   html = html.replace(/^\s*<div class="legal-links">[\s\S]*?<\/div>\n/m, '');
 
-  // 4. Strip test harness <script> tags — gallery / Playwright only.
-  html = html.replace(/^\s*<script src="[^"]*TestHarness\.js"><\/script>\n/gm, '');
-
-  // 4b. Strip the Couch Games shell bootstrap — self-gated on ?cgv=1, which
-  // the AC iframe never carries, so it's dead code there.
-  html = html.replace(/^\s*<script src="[^"]*controller-couchgames\.js"><\/script>\n/m, '');
-
-  // 5. Drop share-helper.js. Only the display's device-choice share
-  // banner calls HexStacker.share, and device-choice is CSS-hidden in AC.
-  html = html.replace(/^\s*<script src="[^"]*share-helper\.js"><\/script>\n/m, '');
-
-  // 6. Drop PartyConnection.js and PartyFastlane.js. The AC bootstrap
-  // reassigns the global `PartyConnection` to an AirConsoleAdapter factory
-  // before any caller uses it, and the fastlane is explicitly gated by
-  // `!window.airconsole` at both call sites — so both files are dead code
-  // in AC mode (~26 KB raw).
-  html = html.replace(/^\s*<script src="[^"]*Party(Connection|Fastlane)\.js"><\/script>\n/gm, '');
-
-  // 7. Strip <picture> inside the device-choice overlay. The /artwork/*
+  // 4. Strip <picture> inside the device-choice overlay. The /artwork/*
   // sources aren't bundled into the AC zip; without this the browser
   // would still resolve and fetch them (returning 404) even though the
   // overlay itself is CSS-hidden in AC.
   html = html.replace(/^\s*<picture>[\s\S]*?<\/picture>\n/m, '');
 
-  // 8. Convert absolute paths to relative in src/href attributes
+  // 5. Convert absolute paths to relative in src/href attributes. The zip
+  // serves screen.html/controller.html from its root; the web server keeps
+  // them working by rewriting /screen.html -> /display/screen.html while the
+  // browser URL stays at the root, so the relative paths resolve either way.
   html = html.replace(/(src|href)="\/(?!\/)/g, '$1="');
 
-  // 9. Inject AirConsole SDK before first engine script
-  html = html.replace(
-    /^(\s*<script src="engine\/)/m,
-    `${SDK_TAG}\n$1`
-  );
-
-  // 10. Inject bootstrap script before the entry-point script
-  const entryFile = path.basename(bootstrapScript).replace('-airconsole', '');
-  html = html.replace(
-    new RegExp(`^(\\s*<script src="[^"]*${entryFile}"></script>)`, 'm'),
-    `  <script src="${bootstrapScript}"></script>\n$1`
-  );
+  // 6. Replace the web scripts marker with the AirConsole SDK tag + the AC
+  // scripts marker. The SDK must load before the app scripts (the AC
+  // bootstrap constructs `new AirConsole(...)` at load time).
+  html = html.replace(scriptsMarker, SDK_TAG + '\n  ' + acScriptsMarker);
 
   return html;
 }
@@ -120,19 +82,19 @@ function transform(html, { bootstrapScript }) {
 // Generate
 // ---------------------------------------------------------------------------
 
-// Display: index.html → screen.html. expandScripts() is load-bearing: transform()
-// below strips/rewrites individual <script> tags, so the placeholder must be
-// expanded to real tags first or those transforms silently no-op.
-const displaySrc = expandScripts(fs.readFileSync(path.join(PUBLIC, 'display', 'index.html'), 'utf8'));
+// Display: index.html → screen.html
+const displaySrc = fs.readFileSync(path.join(PUBLIC, 'display', 'index.html'), 'utf8');
 const screenHtml = transform(displaySrc, {
-  bootstrapScript: 'display/display-airconsole.js',
+  scriptsMarker: '<!--DISPLAY_SCRIPTS-->',
+  acScriptsMarker: '<!--AC_DISPLAY_SCRIPTS-->',
 });
 fs.writeFileSync(path.join(PUBLIC, 'display', 'screen.html'), screenHtml);
 
 // Controller: index.html → controller.html
-const ctrlSrc = expandScripts(fs.readFileSync(path.join(PUBLIC, 'controller', 'index.html'), 'utf8'));
+const ctrlSrc = fs.readFileSync(path.join(PUBLIC, 'controller', 'index.html'), 'utf8');
 const ctrlHtml = transform(ctrlSrc, {
-  bootstrapScript: 'controller/controller-airconsole.js',
+  scriptsMarker: '<!--CONTROLLER_SCRIPTS-->',
+  acScriptsMarker: '<!--AC_CONTROLLER_SCRIPTS-->',
 });
 fs.writeFileSync(path.join(PUBLIC, 'controller', 'controller.html'), ctrlHtml);
 

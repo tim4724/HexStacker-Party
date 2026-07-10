@@ -39,7 +39,7 @@ const VERSION_LABEL = APP_VERSION + (APP_ENV !== 'production' && getShortSha(GIT
 // cross-file hoisting live) without flipping the rest of production mode — most
 // importantly keeping the dev CSP that the AirConsole mock's http.airconsole.com
 // framing relies on.
-const { CONTROLLER_SCRIPTS, DISPLAY_SCRIPTS, CONTROLLER_STYLES, DISPLAY_STYLES, PRERENDERED_PAGES, resolveAsset } = require('../scripts/asset-manifest.js');
+const { CONTROLLER_SCRIPTS, DISPLAY_SCRIPTS, AC_CONTROLLER_SCRIPTS, AC_DISPLAY_SCRIPTS, CONTROLLER_STYLES, DISPLAY_STYLES, PRERENDERED_PAGES, resolveAsset } = require('../scripts/asset-manifest.js');
 const { renderShell } = require('../scripts/render-shell.js');
 const SERVE_BUNDLES = APP_ENV === 'production' || process.env.SERVE_BUNDLES === '1';
 const WEB_MANIFEST = (function () {
@@ -58,9 +58,11 @@ if (SERVE_BUNDLES && !WEB_MANIFEST) {
 
 // Build the <script> markup that replaces an app's <!--*_SCRIPTS--> placeholder.
 // Bundle mode with a built manifest -> a single hashed tag; otherwise the files.
-function scriptTagsFor(app, scripts) {
+// `dir` is the public/ directory the bundle lives in — it matches `app` for the
+// web bundles but not for the AC variants ('controller-ac' lives in controller/).
+function scriptTagsFor(app, dir, scripts) {
   if (SERVE_BUNDLES && WEB_MANIFEST && WEB_MANIFEST[app]) {
-    return '<script src="/' + app + '/' + WEB_MANIFEST[app].js + '"></script>';
+    return '<script src="/' + dir + '/' + WEB_MANIFEST[app].js + '"></script>';
   }
   return scripts.map(function (s) { return '<script src="' + s + '"></script>'; }).join('\n  ');
 }
@@ -91,8 +93,10 @@ function renderPage(html) {
   return renderShell(html, {
     versionLabel: VERSION_LABEL,
     appVersion: APP_VERSION,
-    controllerScripts: scriptTagsFor('controller', CONTROLLER_SCRIPTS),
-    displayScripts: scriptTagsFor('display', DISPLAY_SCRIPTS),
+    controllerScripts: scriptTagsFor('controller', 'controller', CONTROLLER_SCRIPTS),
+    displayScripts: scriptTagsFor('display', 'display', DISPLAY_SCRIPTS),
+    acControllerScripts: scriptTagsFor('controller-ac', 'controller', AC_CONTROLLER_SCRIPTS),
+    acDisplayScripts: scriptTagsFor('display-ac', 'display', AC_DISPLAY_SCRIPTS),
     controllerStyles: styleTagsFor('controller', CONTROLLER_STYLES),
     displayStyles: styleTagsFor('display', DISPLAY_STYLES),
   });

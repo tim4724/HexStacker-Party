@@ -5,9 +5,12 @@
 node_modules/
 dist/
 # Content-hashed web bundles emitted by scripts/build.js (the dotted hash segment
-# keeps these from matching the un-hashed source files controller.js / display.js)
+# keeps these from matching the un-hashed source files controller.js / display.js;
+# the -ac variants are the AirConsole bundles, which have no un-hashed source)
 public/controller/controller.*.js*
 public/display/display.*.js*
+public/controller/controller-ac.*.js*
+public/display/display-ac.*.js*
 public/controller/controller.*.css*
 public/display/display.*.css*
 # Local-only Claude Code state — keeps the .claude/ root committable for

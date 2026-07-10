@@ -3,6 +3,14 @@
 #
 # AirConsole expects screen.html and controller.html at the root of the ZIP,
 # with all assets referenced via relative paths.
+#
+# All JS ships as ONE content-hashed esbuild bundle per app (the AC variants
+# from scripts/build.js — web load order minus AC-dead modules, plus the AC
+# bootstrap), and the CSS as the same bundles the web serves. One tag per app
+# means a load is atomic: a flaky fetch on the AC CDN can no longer half-load
+# the app and cascade into ReferenceErrors (uploads up to 4.4.4 shipped ~25
+# individual <script> tags and did exactly that). The bundles are already
+# minified and es2017-lowered, so the old per-file transpile step is gone too.
 
 set -e
 
@@ -14,84 +22,52 @@ ZIP_FILE="$PROJECT_DIR/build/hexstacker-party-airconsole-$APP_VERSION.zip"
 
 echo "Building AirConsole package..."
 
-# Generate AirConsole HTML from canonical index.html files
+# Fresh bundles (incl. the AC variants + dist/web-manifest.json) and the AC
+# HTML entry points with their script/style markers.
+node "$SCRIPT_DIR/build.js"
 node "$SCRIPT_DIR/generate-airconsole-html.js"
 
 # Clean previous build
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
-# Copy public files (shared, display, controller assets). Favicons are
+# Copy public asset trees (shared, display, controller). Favicons are
 # intentionally not copied — they belong to the top-level document and the
 # AC iframe can't surface them to the browser tab.
 cp -r "$PROJECT_DIR/public/shared" "$BUILD_DIR/shared"
 cp -r "$PROJECT_DIR/public/display" "$BUILD_DIR/display"
 cp -r "$PROJECT_DIR/public/controller" "$BUILD_DIR/controller"
 
-# PartyPlug framework (transport layer) — lives at the repo root, served under
-# /partyplug/. generate-airconsole-html.js rewrites its absolute paths to
-# relative ("partyplug/..."), so it ships at the zip root like the other dirs.
-cp -r "$PROJECT_DIR/partyplug" "$BUILD_DIR/partyplug"
-# Drop dev/package artifacts — only the runtime .js modules belong in the zip.
-rm -rf "$BUILD_DIR/partyplug/tests"
-rm -f "$BUILD_DIR/partyplug/package.json" "$BUILD_DIR/partyplug"/*.d.ts "$BUILD_DIR/partyplug/README.md"
+# Drop everything the bundles replace: all source JS, plus the web bundle
+# artifacts / sourcemaps / precompressed siblings the tree copy picked up.
+find "$BUILD_DIR" -type f \( -name '*.js' -o -name '*.js.map' -o -name '*.br' -o -name '*.gz' \) -delete
+# Same for the bundled stylesheets and the web-only legal css. The @font-face
+# sheets (shared/fonts/*.css) stay: they're linked directly and carry relative
+# url() references to their woff2 siblings.
+rm -f "$BUILD_DIR/shared/theme.css" "$BUILD_DIR/shared/results.css" \
+      "$BUILD_DIR/shared/device-choice.css" "$BUILD_DIR/shared/legal.css" \
+      "$BUILD_DIR/controller/controller.css" "$BUILD_DIR/display/display.css"
 
-# Copy engine modules (from server/ to engine/ for browser access).
-# Every server/*.js except index.js is assumed to be a browser-compatible
-# UMD engine module and gets bundled into the AC ZIP — if a Node-only
-# utility is ever added to server/, exclude it here.
-mkdir -p "$BUILD_DIR/engine"
-for f in "$PROJECT_DIR"/server/*.js; do
-  name="$(basename "$f")"
-  [ "$name" = "index.js" ] && continue
-  cp "$f" "$BUILD_DIR/engine/$name"
-done
+# Copy the content-hashed bundles this build produced (names from the build
+# manifest). JS: the AC variants; CSS: the same bundles the web serves.
+CTRL_JS=$(node -p "require('$PROJECT_DIR/dist/web-manifest.json')['controller-ac'].js")
+DISP_JS=$(node -p "require('$PROJECT_DIR/dist/web-manifest.json')['display-ac'].js")
+CTRL_CSS=$(node -p "require('$PROJECT_DIR/dist/web-manifest.json').controller.css")
+DISP_CSS=$(node -p "require('$PROJECT_DIR/dist/web-manifest.json').display.css")
+cp "$PROJECT_DIR/public/controller/$CTRL_JS" "$BUILD_DIR/controller/"
+cp "$PROJECT_DIR/public/display/$DISP_JS" "$BUILD_DIR/display/"
+cp "$PROJECT_DIR/public/controller/$CTRL_CSS" "$BUILD_DIR/controller/"
+cp "$PROJECT_DIR/public/display/$DISP_CSS" "$BUILD_DIR/display/"
 
-# Copy AirConsole entry points to root
-cp "$BUILD_DIR/display/screen.html" "$BUILD_DIR/screen.html"
-cp "$BUILD_DIR/controller/controller.html" "$BUILD_DIR/controller.html"
+# AirConsole entry points at the zip root: expand the AC markers to relative
+# bundle tags and bake the version (replaces the old sed pass).
+node "$SCRIPT_DIR/finalize-airconsole-html.js" "$BUILD_DIR"
 
-# Bake the build version into the HTML <meta name="app-version"> tag.
-# Clients read it from the app-version meta tag. Mirrors server/index.js,
-# which does the same substitution at HTTP-serve time for the web flow.
-# Using @ as the sed delimiter so a slash in APP_VERSION wouldn't break the
-# pattern; semver disallows slashes/backslashes/ampersands so no escaping
-# of the replacement is needed.
-# Portable sed -i (macOS requires '' suffix, Linux doesn't)
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  sed -i '' "s@__APP_VERSION__@$APP_VERSION@g" "$BUILD_DIR/screen.html" "$BUILD_DIR/controller.html"
-else
-  sed -i "s@__APP_VERSION__@$APP_VERSION@g" "$BUILD_DIR/screen.html" "$BUILD_DIR/controller.html"
-fi
-echo "Injected version: $APP_VERSION"
-
-# Remove standalone-only entry points and duplicate AirConsole HTML from subdirs
+# Remove standalone-only entry points and the duplicate AC HTML from subdirs
 rm -f "$BUILD_DIR/display/index.html"
 rm -f "$BUILD_DIR/controller/index.html"
 rm -f "$BUILD_DIR/display/screen.html"
 rm -f "$BUILD_DIR/controller/controller.html"
-
-# Drop test harnesses (gallery / Playwright only) and legal-page assets
-# (privacy.html / imprint.html aren't part of the AC zip).
-rm -f "$BUILD_DIR/controller/ControllerTestHarness.js"
-# Couch Games shell bootstrap — stripped from controller.html by the generator
-rm -f "$BUILD_DIR/controller/controller-couchgames.js"
-rm -f "$BUILD_DIR/display/DisplayTestHarness.js"
-rm -f "$BUILD_DIR/shared/legal-back.js"
-rm -f "$BUILD_DIR/shared/legal.css"
-
-# Drop relay-transport modules — generate-airconsole-html.js already strips
-# their <script> tags, so the files would just sit in the zip unloaded.
-rm -f "$BUILD_DIR/partyplug/PartyConnection.js"
-rm -f "$BUILD_DIR/partyplug/PartyFastlane.js"
-
-# Down-level all shipped JS to ES2017. The AC ZIP loads raw source as individual
-# <script> tags, so ES2020 syntax (optional chaining / nullish coalescing) would
-# reach older AirConsole client engines and throw SyntaxError. Mirrors the web
-# bundle target in scripts/build.js. Runs last so only files that actually ship
-# (post-copy, post-removal) are touched.
-echo "Transpiling shipped JS to ES2017..."
-node "$SCRIPT_DIR/transpile-dir.js" "$BUILD_DIR"
 
 # Create ZIP
 cd "$BUILD_DIR"

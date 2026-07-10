@@ -101,6 +101,40 @@ const DISPLAY_SCRIPTS = [
   '/display/display.js',
 ];
 
+// AirConsole variants: the same load order minus modules that are dead inside
+// the AC iframe, with the AC bootstrap spliced in just before the app entry
+// (the bootstrap wraps globals like connect/showScreen at load time and must
+// run after everything it wraps, before the entry's init reads them). These
+// lists feed the AC bundles (scripts/build.js) and the expansion of the
+// <!--AC_*_SCRIPTS--> markers that generate-airconsole-html.js leaves in
+// screen.html / controller.html (server: dev tags or the AC bundle;
+// finalize-airconsole-html.js: the relative AC bundle tag for the ZIP).
+const AC_DEAD = [
+  // The AC bootstrap replaces the global PartyConnection with an
+  // AirConsoleAdapter factory before any caller constructs one, and
+  // PartyFastlane is gated on !window.airconsole at both call sites.
+  '/partyplug/PartyConnection.js',
+  '/partyplug/PartyFastlane.js',
+  // Only caller is the device-choice share banner, CSS-hidden in AC mode.
+  '/shared/share-helper.js',
+  // Couch Games shell bootstrap, self-gated on ?cgv=1 — never set in AC.
+  '/controller/controller-couchgames.js',
+  // Gallery/Playwright-only harnesses, gated on URL params AC never carries.
+  '/controller/ControllerTestHarness.js',
+  '/display/DisplayTestHarness.js',
+];
+
+function airconsoleVariant(scripts, bootstrap, entry) {
+  const out = scripts.filter(function (s) { return AC_DEAD.indexOf(s) === -1; });
+  const at = out.indexOf(entry);
+  if (at === -1) throw new Error('airconsoleVariant: entry ' + entry + ' missing from script list');
+  out.splice(at, 0, bootstrap);
+  return out;
+}
+
+const AC_CONTROLLER_SCRIPTS = airconsoleVariant(CONTROLLER_SCRIPTS, '/controller/controller-airconsole.js', '/controller/controller.js');
+const AC_DISPLAY_SCRIPTS = airconsoleVariant(DISPLAY_SCRIPTS, '/display/display-airconsole.js', '/display/display.js');
+
 // Canonical CSS load order per app, bundled the same way as the scripts above.
 // The two @font-face stylesheets (/shared/fonts/*.css) are deliberately NOT
 // here: they carry relative url() references to their woff2 siblings that a
@@ -153,6 +187,8 @@ module.exports = {
   ROOT: ROOT,
   CONTROLLER_SCRIPTS: CONTROLLER_SCRIPTS,
   DISPLAY_SCRIPTS: DISPLAY_SCRIPTS,
+  AC_CONTROLLER_SCRIPTS: AC_CONTROLLER_SCRIPTS,
+  AC_DISPLAY_SCRIPTS: AC_DISPLAY_SCRIPTS,
   CONTROLLER_STYLES: CONTROLLER_STYLES,
   DISPLAY_STYLES: DISPLAY_STYLES,
   PRERENDERED_PAGES: PRERENDERED_PAGES,

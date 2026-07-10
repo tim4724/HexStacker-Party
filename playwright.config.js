@@ -11,12 +11,12 @@ module.exports = defineConfig({
     actionTimeout: 5000,
   },
   webServer: {
-    // Build first and force bundle serving (SERVE_BUNDLES=1) so the e2e project
-    // runs against the real content-hashed bundle, exercising the concatenation
-    // (strict-mode flattening, cross-file hoisting) that ships to users. The
-    // AirConsole entries use individual files by design, so e2e-airconsole is
-    // unaffected. SERVE_BUNDLES (not APP_ENV=production) keeps the dev CSP the AC
-    // mock's http.airconsole.com framing needs.
+    // Build first and force bundle serving (SERVE_BUNDLES=1) so both projects
+    // run against the real content-hashed bundles, exercising the concatenation
+    // (strict-mode flattening, cross-file hoisting) that ships to users — the
+    // e2e project gets the web bundles, e2e-airconsole the AC variants that go
+    // into the AirConsole ZIP. SERVE_BUNDLES (not APP_ENV=production) keeps the
+    // dev CSP the AC mock's http.airconsole.com framing needs.
     command: 'npm run build && node server/index.js',
     env: {
       ...process.env,

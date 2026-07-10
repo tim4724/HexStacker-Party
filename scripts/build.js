@@ -11,9 +11,8 @@
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const zlib = require('zlib');
 const esbuild = require('esbuild');
-const { ROOT, CONTROLLER_SCRIPTS, DISPLAY_SCRIPTS, CONTROLLER_STYLES, DISPLAY_STYLES, resolveAsset } = require('./asset-manifest.js');
+const { ROOT, CONTROLLER_SCRIPTS, DISPLAY_SCRIPTS, AC_CONTROLLER_SCRIPTS, AC_DISPLAY_SCRIPTS, CONTROLLER_STYLES, DISPLAY_STYLES, resolveAsset } = require('./asset-manifest.js');
 const { writeCompressed } = require('./write-compressed.js');
 
 // Portable native core: server/core-entry.js -> dist/partycore.js as an iife
@@ -82,11 +81,13 @@ function buildLocale() {
 // Web app bundle: concatenate the app's scripts in load order, then run the
 // result through esbuild.transform (whitespace + syntax minify only). Identifier
 // minification is OFF on purpose: the shells are global-scope scripts whose
-// names are reached from OUTSIDE the bundle (the separately-loaded test harness,
-// inline HTML handlers, the AirConsole bootstrap, and cross-file references),
-// and transform (vs build) keeps everything at top-level script scope so those
-// globals survive. Output is content-hashed so it can be cached immutably.
-async function buildApp(name, scripts) {
+// names are reached from OUTSIDE the bundle (inline HTML handlers and cross-file
+// references), and transform (vs build) keeps everything at top-level script
+// scope so those globals survive. Output is content-hashed so it can be cached
+// immutably. `appDir` is the public/ directory the bundle is emitted into —
+// same as `name` for the web bundles, the parent app dir for the AC variants
+// ('controller-ac' lives in public/controller/).
+async function buildApp(appDir, name, scripts) {
   let source = '';
   for (const urlPath of scripts) {
     source += '// ==== ' + urlPath + ' ====\n'
@@ -109,34 +110,28 @@ async function buildApp(name, scripts) {
   const file = name + '.' + hash + '.js';
   // Bundles live beside their source dir so the existing /controller/, /display/
   // static routes serve them with no new route.
-  const dir = path.join(ROOT, 'public', name);
+  const dir = path.join(ROOT, 'public', appDir);
   // Sweep stale content-hashed bundles (+ .map) so repeated local builds don't
   // leave orphans behind. The un-prefixed regex matches both `<name>.<hash>.js`
   // and its `.map`; the source files `<name>.js` lack the hash segment and are
-  // untouched. (CI/Docker start from a clean tree, so this only matters locally.)
+  // untouched, as are sibling bundles sharing the dir ('controller-ac.…' has no
+  // dot after 'controller', so the 'controller' sweep skips it and vice versa).
+  // (CI/Docker start from a clean tree, so this only matters locally.)
   const stale = new RegExp('^' + name + '\\.[0-9a-f]{10}\\.js');
   for (const f of fs.readdirSync(dir)) {
     if (stale.test(f)) fs.rmSync(path.join(dir, f));
   }
   const js = result.code + '\n//# sourceMappingURL=' + file + '.map\n';
   const jsPath = path.join(dir, file);
-  fs.writeFileSync(jsPath, js);
-  fs.writeFileSync(jsPath + '.map', result.map);
-  // Pre-compressed siblings for the immutable bundle. server/index.js negotiates
-  // these via Accept-Encoding, so a browser downloads ~1/4 the bytes with zero
-  // per-request CPU. This is a build-time one-shot on a content-hashed artifact,
-  // so we spend max effort (brotli 11 / gzip 9). Only the .js is compressed — the
-  // .map is a rare, devtools-only fetch. The stale-sweep regex above already
-  // matches these (they share the `<name>.<hash>.js` prefix), so old ones are
+  // writeCompressed emits the .js plus `.br`/`.gz` siblings (brotli 11 / gzip 9
+  // — a build-time one-shot on a content-hashed artifact). server/index.js
+  // negotiates the siblings via Accept-Encoding, so a browser downloads ~1/4
+  // the bytes with zero per-request CPU. Only the .js is compressed — the .map
+  // is a rare, devtools-only fetch. The stale-sweep regex above already matches
+  // the siblings (they share the `<name>.<hash>.js` prefix), so old ones are
   // cleaned on rebuild alongside the .js/.map.
-  const jsBuf = Buffer.from(js);
-  fs.writeFileSync(jsPath + '.br', zlib.brotliCompressSync(jsBuf, {
-    params: {
-      [zlib.constants.BROTLI_PARAM_QUALITY]: 11,
-      [zlib.constants.BROTLI_PARAM_SIZE_HINT]: jsBuf.length,
-    },
-  }));
-  fs.writeFileSync(jsPath + '.gz', zlib.gzipSync(jsBuf, { level: 9 }));
+  writeCompressed(jsPath, Buffer.from(js));
+  fs.writeFileSync(jsPath + '.map', result.map);
   return file;
 }
 
@@ -185,21 +180,28 @@ async function main() {
   // tests don't also sweep and rewrite the git-ignored public/ hashed web bundles.
   if (process.argv.includes('--core')) return;
 
-  // Independent (different output dirs/files, no shared state), so build the JS
-  // and CSS bundles for both apps concurrently — `npm start` runs this on boot.
-  const [controller, display, controllerCss, displayCss] = await Promise.all([
-    buildApp('controller', CONTROLLER_SCRIPTS),
-    buildApp('display', DISPLAY_SCRIPTS),
+  // Independent (different output files, no shared state), so build the JS and
+  // CSS bundles for both apps — plus the AirConsole JS variants — concurrently;
+  // `npm start` runs this on boot. The AC variants share the web CSS bundles
+  // (same style lists), so only the JS differs.
+  const [controller, display, controllerAc, displayAc, controllerCss, displayCss] = await Promise.all([
+    buildApp('controller', 'controller', CONTROLLER_SCRIPTS),
+    buildApp('display', 'display', DISPLAY_SCRIPTS),
+    buildApp('controller', 'controller-ac', AC_CONTROLLER_SCRIPTS),
+    buildApp('display', 'display-ac', AC_DISPLAY_SCRIPTS),
     buildStyles('controller', CONTROLLER_STYLES),
     buildStyles('display', DISPLAY_STYLES),
   ]);
   const manifest = {
     controller: { js: controller, css: controllerCss },
     display: { js: display, css: displayCss },
+    'controller-ac': { js: controllerAc },
+    'display-ac': { js: displayAc },
   };
   fs.writeFileSync(path.join(ROOT, 'dist', 'web-manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   console.log('build: public/controller/' + manifest.controller.js + ' + ' + manifest.controller.css);
   console.log('build: public/display/' + manifest.display.js + ' + ' + manifest.display.css);
+  console.log('build: public/controller/' + manifest['controller-ac'].js + ' + public/display/' + manifest['display-ac'].js + ' (AirConsole)');
   // The prod HTML pages are rendered + cached at server boot (server/index.js
   // HTML_CACHE), not here — the version label they carry is per-deployment and
   // only known at runtime.

@@ -18,19 +18,23 @@ const SUBS = {
   displayScripts: '<script src="/display/display.def4567890.js"></script>',
   controllerStyles: '<link rel="stylesheet" href="/controller/controller.aaaaaaaaaa.css">',
   displayStyles: '<link rel="stylesheet" href="/display/display.bbbbbbbbbb.css">',
+  acControllerScripts: '<script src="/controller/controller-ac.abc1234567.js"></script>',
+  acDisplayScripts: '<script src="/display/display-ac.def4567890.js"></script>',
 };
 
 test('renderShell expands every placeholder kind', () => {
   const html =
     '<meta name="app-version" content="__APP_VERSION__">' +
     '<link href="/shared/fonts/baloo2.css?v=__APP_V__">' +
-    '<!--CONTROLLER_SCRIPTS--><!--CONTROLLER_STYLES-->';
+    '<!--CONTROLLER_SCRIPTS--><!--CONTROLLER_STYLES-->' +
+    '<!--AC_CONTROLLER_SCRIPTS--><!--AC_DISPLAY_SCRIPTS-->';
   const out = renderShell(html, SUBS);
   assert.equal(
     out,
     '<meta name="app-version" content="4.2.0 (#abc1234)">' +
     '<link href="/shared/fonts/baloo2.css?v=4.2.0">' +
-    SUBS.controllerScripts + SUBS.controllerStyles
+    SUBS.controllerScripts + SUBS.controllerStyles +
+    SUBS.acControllerScripts + SUBS.acDisplayScripts
   );
   assert.ok(!out.includes('__APP'));
   assert.ok(!out.includes('<!--'));

@@ -18,6 +18,8 @@ function renderShell(html, subs) {
     .replaceAll('__APP_V__', subs.appVersion)
     .replaceAll('<!--CONTROLLER_SCRIPTS-->', subs.controllerScripts)
     .replaceAll('<!--DISPLAY_SCRIPTS-->', subs.displayScripts)
+    .replaceAll('<!--AC_CONTROLLER_SCRIPTS-->', subs.acControllerScripts)
+    .replaceAll('<!--AC_DISPLAY_SCRIPTS-->', subs.acDisplayScripts)
     .replaceAll('<!--CONTROLLER_STYLES-->', subs.controllerStyles)
     .replaceAll('<!--DISPLAY_STYLES-->', subs.displayStyles);
 }
