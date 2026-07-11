@@ -885,9 +885,9 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  /* Name and lines/level read as one unit — the bigger name supplies
-     enough separation on its own. */
-  gap: 2px;
+  /* Name and lines/level read as one unit — the name's line box supplies
+     the separation on its own. */
+  gap: 0;
   min-width: 0;
 }
 
@@ -895,6 +895,9 @@ html, body {
   font-size: clamp(1.35rem, 6.5vw, 1.8rem);
   font-weight: 900;
   letter-spacing: 0.03em;
+  /* Tight line box so the stats line tucks right under the name (Baloo's
+     default line boxes are tall — same trim as .brand-lockup). */
+  line-height: 1.1;
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
