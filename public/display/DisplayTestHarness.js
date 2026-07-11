@@ -489,10 +489,16 @@ function initScenario(opts) {
     return;
   }
 
-  // Lobby: populate players and show lobby screen.
+  // Lobby: populate players and show lobby screen. `hint=1` freezes the
+  // join line on its scan-hint phase (the live cycle never runs under the
+  // harness, so this is the only way to review the hint deterministically).
   if (scenario === 'lobby') {
     window.__TEST__.addPlayers(_buildDebugPlayers(playerCount, level, hostSlot));
     _fakeLobbyQR();
+    if (new URLSearchParams(location.search).get('hint') === '1') {
+      var joinLine = document.getElementById('join-line');
+      if (joinLine) joinLine.classList.add('show-hint');
+    }
     showScreen(SCREEN.LOBBY);
     _freezeWelcomeBg();
     return;

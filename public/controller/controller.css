@@ -204,6 +204,13 @@ html, body {
   margin-left: auto;
 }
 
+/* Optical centering: the "<" chevron's two open stroke ends sit on its
+   right, so the geometrically centered glyph reads shifted right inside
+   the circle — nudge it toward the apex. */
+#lobby-back-btn svg {
+  transform: translateX(-5%);
+}
+
 .controller-shell__frame--lobby {
   flex: 1;
   height: auto;
@@ -921,7 +928,7 @@ html, body {
 }
 
 .result-name {
-  font-size: clamp(1.2rem, 5.5vw, 1.6rem);
+  font-size: clamp(1.35rem, 6.5vw, 1.8rem);
   font-weight: 900;
   letter-spacing: 0.03em;
   white-space: normal;
@@ -1536,7 +1543,7 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   }
 
   .result-name {
-    font-size: clamp(1.05rem, 4.6vw, 1.3rem);
+    font-size: clamp(1.15rem, 5vw, 1.45rem);
     line-height: 1.15;
   }
 

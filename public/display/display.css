@@ -375,22 +375,35 @@ html:not(.in-session) #relay-status-bar { display: none; }
   animation: fadeIn 0.6s 0.3s ease-out both;
 }
 
+/* Body column: the QR + cards row with the join/hint line tucked close
+   beneath it (the line belongs to the join section, not to START). */
 #lobby-body {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(1rem, 3vmin, 2.5rem);
+  gap: clamp(10px, 2.2vmin, 22px);
   width: 100%;
   max-width: 1400px;
   /* Shrink-to-fit so #lobby-screen's space-evenly distribution keeps the
      four bands (title, body, START, edges) evenly spaced even when the
      QR + cards content would otherwise claim its full intrinsic height
      and squeeze the gaps. min-height: 0 lets nested overflow clip behind
-     the z-indexed #lobby-cta rather than expanding the body box. */
+     the z-indexed START rather than expanding the body box. */
   flex: 0 1 auto;
   min-height: 0;
   animation: fadeUp 0.6s 0.15s ease-out both;
+}
+
+/* QR + player cards — column on portrait, row on landscape. */
+#lobby-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(1rem, 3vmin, 2.5rem);
+  width: 100%;
+  min-height: 0;
 }
 
 /* Frameless join block — no card, no label: the white code floats with a
@@ -416,17 +429,6 @@ html:not(.in-session) #relay-status-bar { display: none; }
   padding: clamp(6px, 1.2vmin, 14px);
   display: block;
   box-shadow: var(--shadow-sm);
-}
-
-/* CTA block: the join URL on one line, centered above the START button. */
-#lobby-cta {
-  position: relative;
-  z-index: 5;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: clamp(8px, 1.8vmin, 16px);
-  max-width: 90vw;
 }
 
 /* Join line — crossfades between the URL and the localized "scan to
@@ -586,7 +588,7 @@ html:not(.in-session) #relay-status-bar { display: none; }
 /* --- Landscape: split QR | cards horizontally; with 5+ players use 4
    columns so the grid stays wide-and-short next to the QR. --- */
 @media (orientation: landscape) {
-  #lobby-body { flex-direction: row; }
+  #lobby-main { flex-direction: row; }
   #player-list.pl--lg {
     grid-template-columns: repeat(4, minmax(0, clamp(150px, 24vmin, 280px)));
   }
@@ -666,9 +668,9 @@ body.airconsole #qr-container,
   text-align: center;
 }
 
-/* Layering above overflowing #lobby-body content comes from #lobby-cta's
-   z-index; the button only carries its own entrance. */
 #start-btn {
+  position: relative;
+  z-index: 5;
   animation: fadeUp 0.5s 0.45s ease-out backwards;
 }
 
@@ -772,12 +774,17 @@ body.airconsole #qr-container,
   display: none;
 }
 
+/* Tracks the toolbar circle (clamp(44px, 5vh, 64px)) so the glyph keeps
+   the same icon-to-button ratio as the scaled SVG icons (~48%), with bar
+   thickness matching their ~2px stroke weight. */
+#pause-btn .pause-icon {
+  gap: clamp(5px, 0.7vh, 8px);
+}
+
 #pause-btn .pause-icon::before,
 #pause-btn .pause-icon::after {
-  /* Tracks the toolbar circle (clamp(44px, 5vh, 64px)) so the bars keep
-     the same icon-to-button ratio as the scaled SVG icons (~48%). */
-  width: clamp(5px, 0.55vh, 7px);
-  height: clamp(20px, 2.4vh, 30px);
+  width: clamp(3px, 0.4vh, 4.5px);
+  height: clamp(18px, 2.2vh, 26px);
   border-radius: 1.5px;
 }
 

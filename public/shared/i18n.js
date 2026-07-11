@@ -12,7 +12,7 @@ var LOCALES = {
     lines: 'LINES',
     ko: 'KO',
     go: 'GO',
-    scan_to_rejoin: 'SCAN TO REJOIN',
+    scan_to_rejoin: 'SCAN',
     triple: 'TRIPLE!',
     double: 'DOUBLE',
 
@@ -32,7 +32,6 @@ var LOCALES = {
     new_game: 'New Game',
     continue_btn: 'Continue',
     reconnect: 'RECONNECT',
-    rejoin: 'REJOIN',
     join: 'JOIN',
     share_aria: 'Share hexstacker.com',
 
@@ -123,7 +122,7 @@ var LOCALES = {
 
   de: {
     hold: 'HOLD', next: 'NEXT', level: 'LEVEL', lines: 'ZEILEN',
-    ko: 'K.O.', go: 'LOS', scan_to_rejoin: 'ERNEUT SCANNEN',
+    ko: 'K.O.', go: 'LOS', scan_to_rejoin: 'SCANNEN',
     triple: 'TRIPLE!', double: 'DOUBLE',
     scan_to_join: 'Scannen',
     scan_hint: 'Code mit dem Handy scannen',
@@ -133,7 +132,7 @@ var LOCALES = {
     play_again: 'Nochmal',
     new_game: 'Neues Spiel',
     continue_btn: 'Weiter',
-    reconnect: 'NEU VERBINDEN', rejoin: 'ZURÜCK', join: 'BEITRETEN',
+    reconnect: 'NEU VERBINDEN', join: 'BEITRETEN',
     share_aria: 'hexstacker.com teilen',
     reconnecting: 'VERBINDE NEU', disconnected: 'GETRENNT',
     connecting: 'VERBINDE', connection_lost: 'Verbindung verloren',
@@ -178,7 +177,7 @@ var LOCALES = {
 
   fr: {
     hold: 'HOLD', next: 'SUIVANT', level: 'NIVEAU', lines: 'LIGNES',
-    ko: 'K.O.', go: 'GO', scan_to_rejoin: 'SCANNER POUR REJOINDRE',
+    ko: 'K.O.', go: 'GO', scan_to_rejoin: 'SCANNER',
     triple: 'TRIPLE !', double: 'DOUBLE',
     scan_to_join: 'Scanner pour rejoindre',
     scan_hint: 'Scanne le code avec ton téléphone',
@@ -188,7 +187,7 @@ var LOCALES = {
     play_again: 'Rejouer',
     new_game: 'Nouvelle partie',
     continue_btn: 'Continuer',
-    reconnect: 'SE RECONNECTER', rejoin: 'REJOINDRE', join: 'REJOINDRE',
+    reconnect: 'SE RECONNECTER', join: 'REJOINDRE',
     share_aria: 'Partager hexstacker.com',
     reconnecting: 'RECONNEXION', disconnected: 'DÉCONNECTÉ',
     connecting: 'CONNEXION', connection_lost: 'Connexion perdue',
@@ -233,7 +232,7 @@ var LOCALES = {
 
   pt: {
     hold: 'HOLD', next: 'NEXT', level: 'NÍVEL', lines: 'LINHAS',
-    ko: 'K.O.', go: 'JÁ!', scan_to_rejoin: 'ESCANEIA PARA VOLTAR',
+    ko: 'K.O.', go: 'JÁ!', scan_to_rejoin: 'ESCANEIA',
     triple: 'TRIPLE!', double: 'DOUBLE',
     scan_to_join: 'Escaneia para entrar',
     scan_hint: 'Escaneia o código com o celular',
@@ -243,7 +242,7 @@ var LOCALES = {
     play_again: 'Jogar novamente',
     new_game: 'Novo jogo',
     continue_btn: 'Continuar',
-    reconnect: 'RECONECTAR', rejoin: 'VOLTAR', join: 'ENTRAR',
+    reconnect: 'RECONECTAR', join: 'ENTRAR',
     share_aria: 'Partilhar hexstacker.com',
     reconnecting: 'RECONECTANDO', disconnected: 'DESCONECTADO',
     connecting: 'CONECTANDO', connection_lost: 'Conexão perdida',
@@ -288,7 +287,7 @@ var LOCALES = {
 
   es: {
     hold: 'HOLD', next: 'NEXT', level: 'NIVEL', lines: 'LÍNEAS',
-    ko: 'K.O.', go: '¡YA!', scan_to_rejoin: 'ESCANEA PARA VOLVER',
+    ko: 'K.O.', go: '¡YA!', scan_to_rejoin: 'ESCANEA',
     triple: '¡TRIPLE!', double: 'DOBLE',
     scan_to_join: 'Escanea para unirte',
     scan_hint: 'Escanea el código con tu móvil',
@@ -298,7 +297,7 @@ var LOCALES = {
     play_again: 'Jugar de nuevo',
     new_game: 'Nueva partida',
     continue_btn: 'Continuar',
-    reconnect: 'RECONECTAR', rejoin: 'VOLVER', join: 'UNIRSE',
+    reconnect: 'RECONECTAR', join: 'UNIRSE',
     share_aria: 'Compartir hexstacker.com',
     reconnecting: 'RECONECTANDO', disconnected: 'DESCONECTADO',
     connecting: 'CONECTANDO', connection_lost: 'Conexión perdida',
@@ -343,7 +342,7 @@ var LOCALES = {
 
   zh: {
     hold: '暂存', next: '下一个', level: '等级', lines: '行数',
-    ko: 'K.O.', go: '开始', scan_to_rejoin: '扫码重新加入',
+    ko: 'K.O.', go: '开始', scan_to_rejoin: '扫码',
     triple: '三连消!', double: '二连消',
     scan_to_join: '扫码加入',
     scan_hint: '用手机扫描二维码',
@@ -353,7 +352,7 @@ var LOCALES = {
     play_again: '再来一局',
     new_game: '新游戏',
     continue_btn: '继续',
-    reconnect: '重新连接', rejoin: '重新加入', join: '加入',
+    reconnect: '重新连接', join: '加入',
     share_aria: '分享 hexstacker.com',
     reconnecting: '正在重连', disconnected: '已断开连接',
     connecting: '正在连接', connection_lost: '连接已断开',
@@ -397,7 +396,7 @@ var LOCALES = {
 
   ja: {
     hold: 'ホールド', next: 'ネクスト', level: 'レベル', lines: 'ライン',
-    ko: 'K.O.', go: 'GO', scan_to_rejoin: 'スキャンで再参加',
+    ko: 'K.O.', go: 'GO', scan_to_rejoin: 'スキャン',
     triple: '3ライン!', double: '2ライン',
     scan_to_join: 'スキャンして参加',
     scan_hint: 'スマホでコードをスキャン',
@@ -407,7 +406,7 @@ var LOCALES = {
     play_again: 'もう一度',
     new_game: '新しいゲーム',
     continue_btn: '続ける',
-    reconnect: '再接続', rejoin: '再参加', join: '参加',
+    reconnect: '再接続', join: '参加',
     share_aria: 'hexstacker.com を共有',
     reconnecting: '再接続中', disconnected: '切断された',
     connecting: '接続中', connection_lost: '接続が切れた',
@@ -452,7 +451,7 @@ var LOCALES = {
 
   ko: {
     hold: '홀드', next: '다음', level: '레벨', lines: '줄',
-    ko: 'K.O.', go: 'GO', scan_to_rejoin: '스캔하여 재참가',
+    ko: 'K.O.', go: 'GO', scan_to_rejoin: '스캔',
     triple: '3줄!', double: '2줄',
     scan_to_join: '스캔하여 참가',
     scan_hint: '휴대폰으로 코드를 스캔',
@@ -462,7 +461,7 @@ var LOCALES = {
     play_again: '다시 하기',
     new_game: '새 게임',
     continue_btn: '계속',
-    reconnect: '재연결', rejoin: '재참가', join: '참가',
+    reconnect: '재연결', join: '참가',
     share_aria: 'hexstacker.com 공유',
     reconnecting: '재연결 중', disconnected: '연결 끊김',
     connecting: '연결 중', connection_lost: '연결 끊겼어',
@@ -506,7 +505,7 @@ var LOCALES = {
 
   ru: {
     hold: 'ХОЛД', next: 'ДАЛЕЕ', level: 'УРОВЕНЬ', lines: 'ЛИНИИ',
-    ko: 'K.O.', go: 'СТАРТ', scan_to_rejoin: 'СКАНИРУЙ И ВЕРНИСЬ',
+    ko: 'K.O.', go: 'СТАРТ', scan_to_rejoin: 'СКАНИРУЙ',
     triple: 'TRIPLE!', double: 'DOUBLE',
     scan_to_join: 'Сканируй и заходи',
     scan_hint: 'Сканируй код телефоном',
@@ -519,7 +518,7 @@ var LOCALES = {
     play_again: 'Играть снова',
     new_game: 'Новая игра',
     continue_btn: 'Продолжить',
-    reconnect: 'ПЕРЕПОДКЛЮЧИТЬСЯ', rejoin: 'ВЕРНУТЬСЯ', join: 'ВОЙТИ',
+    reconnect: 'ПЕРЕПОДКЛЮЧИТЬСЯ', join: 'ВОЙТИ',
     share_aria: 'Поделиться hexstacker.com',
     reconnecting: 'ПЕРЕПОДКЛЮЧЕНИЕ', disconnected: 'ОТКЛЮЧЕНО',
     connecting: 'ПОДКЛЮЧЕНИЕ', connection_lost: 'Соединение потеряно',
@@ -567,7 +566,7 @@ var LOCALES = {
 
   it: {
     hold: 'HOLD', next: 'NEXT', level: 'LIVELLO', lines: 'LINEE',
-    ko: 'K.O.', go: 'VIA!', scan_to_rejoin: 'SCANSIONA PER RIENTRARE',
+    ko: 'K.O.', go: 'VIA!', scan_to_rejoin: 'SCANSIONA',
     triple: 'TRIPLE!', double: 'DOUBLE',
     scan_to_join: 'Scansiona per unirti',
     scan_hint: 'Scansiona il codice con il telefono',
@@ -577,7 +576,7 @@ var LOCALES = {
     play_again: 'Gioca ancora',
     new_game: 'Nuova partita',
     continue_btn: 'Continua',
-    reconnect: 'RICONNETTI', rejoin: 'RIENTRA', join: 'UNISCITI',
+    reconnect: 'RICONNETTI', join: 'UNISCITI',
     share_aria: 'Condividi hexstacker.com',
     reconnecting: 'RICONNESSIONE', disconnected: 'DISCONNESSO',
     connecting: 'CONNESSIONE', connection_lost: 'Connessione persa',
@@ -622,7 +621,7 @@ var LOCALES = {
 
   tr: {
     hold: 'HOLD', next: 'NEXT', level: 'SEVİYE', lines: 'SATIR',
-    ko: 'K.O.', go: 'BAŞLA!', scan_to_rejoin: 'TEKRAR KATILMAK İÇİN TARA',
+    ko: 'K.O.', go: 'BAŞLA!', scan_to_rejoin: 'TARA',
     triple: 'ÜÇLÜ!', double: 'İKİLİ',
     scan_to_join: 'Katılmak için tara',
     scan_hint: 'Kodu telefonunla tara',
@@ -632,7 +631,7 @@ var LOCALES = {
     play_again: 'Tekrar oyna',
     new_game: 'Yeni oyun',
     continue_btn: 'Devam',
-    reconnect: 'YENİDEN BAĞLAN', rejoin: 'TEKRAR KATIL', join: 'KATIL',
+    reconnect: 'YENİDEN BAĞLAN', join: 'KATIL',
     share_aria: 'hexstacker.com paylaş',
     reconnecting: 'YENİDEN BAĞLANIYOR', disconnected: 'BAĞLANTI KESİLDİ',
     connecting: 'BAĞLANIYOR', connection_lost: 'Bağlantı kesildi',

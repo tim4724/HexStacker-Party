@@ -19,7 +19,7 @@
     <string name="lines">LINES</string>
     <string name="ko">KO</string>
     <string name="go">GO</string>
-    <string name="scan_to_rejoin">SCAN TO REJOIN</string>
+    <string name="scan_to_rejoin">SCAN</string>
 
     <!-- Line-clear popups (i18n double / triple; drawn verbatim like the web). -->
     <string name="double_clear">DOUBLE</string>

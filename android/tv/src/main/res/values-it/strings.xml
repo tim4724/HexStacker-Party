@@ -6,7 +6,7 @@
     <string name="lines">LINEE</string>
     <string name="ko">K.O.</string>
     <string name="go">VIA!</string>
-    <string name="scan_to_rejoin">SCANSIONA PER RIENTRARE</string>
+    <string name="scan_to_rejoin">SCANSIONA</string>
 
     <string name="double_clear">DOUBLE</string>
     <string name="triple_clear">TRIPLE!</string>

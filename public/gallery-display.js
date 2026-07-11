@@ -4,17 +4,20 @@
 // through a real session. Cards-per-row is set by the header control.
 //
 // Card shape:
-//   { key, title, hostVariant?, level?, animated? }
+//   { key, title, hostVariant?, level?, animated?, params? }
 // hostVariant cards swap their `host` URL param when the view-as selector
-// changes (no iframe rebuild).
+// changes (no iframe rebuild). `params` adds extra harness URL params
+// (e.g. hint=1 freezes the lobby join line on its scan-hint phase).
 var DISPLAY_CARDS = [
   { key: 'welcome',          title: 'Welcome' },
   { key: 'lobby',            title: 'Lobby (Standard)',   hostVariant: true },
+  { key: 'lobby',            title: 'Lobby (Scan hint)',  hostVariant: true, params: { hint: 1 } },
   { key: 'airconsole-lobby', title: 'Lobby (AirConsole)', hostVariant: true },
   { key: 'countdown',        title: 'Countdown', replayable: true },
   { key: 'effects-combo',    title: 'Game (Normal · Lv 1)',  level: 1,  animated: true, replayable: true },
   { key: 'effects-combo',    title: 'Game (Pillow · Lv 8)',  level: 8,  animated: true, replayable: true },
   { key: 'effects-combo',    title: 'Game (Neon · Lv 12)',   level: 12, animated: true, replayable: true },
+  { key: 'ko',               title: 'KO' },
   { key: 'create-error-retry', title: 'Create failed (retrying)' },
   { key: 'create-error',       title: 'Create failed (disconnected)' },
   { key: 'reconnecting',     title: 'Reconnecting' },
@@ -54,8 +57,8 @@ var allCards = [];
 var hostVariantCards = [];
 
 function cardURL(c) {
-  if (c.hostVariant) return Gallery.displayURL(state, c.key, undefined, { host: state.viewAs });
-  return Gallery.displayURL(state, c.key, c.level);
+  if (c.hostVariant) return Gallery.displayURL(state, c.key, undefined, Object.assign({ host: state.viewAs }, c.params));
+  return Gallery.displayURL(state, c.key, c.level, c.params);
 }
 
 function cardTag(c) {
