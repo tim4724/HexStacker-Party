@@ -164,7 +164,7 @@ private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, vp: Vp) {
     // Web's .result-stats has no font-family override — it inherits the plain
     // system font (Roboto), unlike the Baloo name / Orbitron rank. Match that.
     val statsStyle = AppType.resultStats.copy(fontFamily = FontFamily.Default, fontWeight = FontWeight.Medium)
-    val gap = 20.dp // .result-row gap 1.25rem
+    val gap = 13.3.dp // .result-row gap 1.25rem = 20px (web-px/1.5)
 
     // Stagger entrance: fade + slide up, delay 0.2 + i*0.08 s.
     val enter = remember(index) { Animatable(0f) }
@@ -193,12 +193,15 @@ private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, vp: Vp) {
     }
 
     Row(
+        // Web paddings (all bounds web-px/1.5 in dp — the right cap and the
+        // vertical floor are active at 1080p): left clamp(0.7rem,1.3vw,1.3rem),
+        // right clamp(1.2rem,2.4vw,2.4rem), vertical clamp(0.8rem,1.6vh,1.5rem).
         bordered.padding(
             PaddingValues(
-                start = vp.vwDp(11.2f, 1.3f, 20.8f),
-                end = vp.vwDp(19.2f, 2.4f, 38.4f),
-                top = vp.vhDp(12.8f, 1.6f, 24f),
-                bottom = vp.vhDp(12.8f, 1.6f, 24f),
+                start = vp.vwDp(7.5f, 1.3f, 13.9f),
+                end = vp.vwDp(12.8f, 2.4f, 25.6f),
+                top = vp.vhDp(8.5f, 1.6f, 16f),
+                bottom = vp.vhDp(8.5f, 1.6f, 16f),
             ),
         ),
         verticalAlignment = Alignment.CenterVertically,
@@ -207,7 +210,7 @@ private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, vp: Vp) {
             Text(
                 text = if (res.newPlayer) lateJoinerRank else res.rank?.toString().orEmpty(),
                 style = AppType.resultRank.copy(fontSize = rankSize, color = playerCol ?: Tokens.textSecondary),
-                modifier = Modifier.widthIn(min = 24.dp),
+                modifier = Modifier.widthIn(min = 16.dp), // web min-width 1ch (~24px)
             )
             Spacer(Modifier.width(gap))
         }
@@ -225,7 +228,7 @@ private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, vp: Vp) {
                 style = statsStyle.copy(fontSize = statsSize, color = Tokens.textSecondary),
             )
         } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) { // .result-stats gap 1.5rem
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) { // .result-stats gap 1.5rem = 24px (web-px/1.5)
                 Text(
                     text = pluralStringResource(R.plurals.n_lines, res.lines ?: 0, res.lines ?: 0),
                     style = statsStyle.copy(fontSize = statsSize, color = Tokens.textSecondary),

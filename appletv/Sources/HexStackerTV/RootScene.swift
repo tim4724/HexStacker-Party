@@ -481,10 +481,10 @@ final class RootScene: SKScene, DisplayOutput {
             let hostColor = hostColorOpt ?? SKTheme.accentPrimary
 
             // "Game Music" settings row above the action buttons (reachable with
-            // d-pad Up), spanning the button pair's width so its focus frame is
-            // proportional. ON tint = host color (web --player-color).
+            // d-pad Up); content-hugging with a snug focus frame (Android parity).
+            // ON tint = host color (web --player-color).
             let muted = coordinator?.isMuted ?? false
-            let musicRow = MusicSwitch(width: btnW * 2 + gap, height: btnH, isOn: !muted,
+            let musicRow = MusicSwitch(height: btnH, isOn: !muted,
                                        tint: hostColorOpt ?? SKTheme.accentSecondary) { [weak self] in self?.toggleMusic() }
             musicRow.position = CGPoint(x: cx, y: cy)
             musicToggle = musicRow
@@ -855,7 +855,8 @@ final class RootScene: SKScene, DisplayOutput {
         let status = connAttempt > 0
             ? tr("attempt_n_of_m", connAttempt, connMax)
             : tr("connection_lost")
-        connStatus.setStyledText(status, font: AppFont.brandBold, size: min(size.height * 0.022, 28),
+        // Web .game-overlay__status clamp(1.2rem, 2.4vh, 1.6rem): couch-legible.
+        connStatus.setStyledText(status, font: AppFont.brandBold, size: min(max(19.2, size.height * 0.024), 25.6),
                                  color: SKTheme.textSecondary, tracking: 0.08)
         connStatus.position = CGPoint(x: cx, y: connHeading.position.y - playRect.height * 0.08)
 
@@ -889,8 +890,9 @@ final class RootScene: SKScene, DisplayOutput {
     func updateReconnectStatus(attempt: Int, max: Int) {
         connAttempt = attempt; connMax = max
         guard !connLayer.isHidden, !connStatus.isHidden else { return }
+        // Swift.max: the `max` parameter shadows the stdlib function here.
         connStatus.setStyledText(tr("attempt_n_of_m", attempt, max),
-                                 font: AppFont.brandBold, size: min(size.height * 0.022, 28),
+                                 font: AppFont.brandBold, size: min(Swift.max(19.2, size.height * 0.024), 25.6),
                                  color: SKTheme.textSecondary, tracking: 0.08)
     }
 
@@ -1121,8 +1123,8 @@ final class RootScene: SKScene, DisplayOutput {
         let joinLineH = joinSize * 1.3
         let joinGap = min(vmin * 0.022, 22)
 
-        var cardW = min(vmin * 0.255, 290)            // web card clamp(150, 24vmin, 280)
-        var qrW = min(vmin * 0.38, 380)               // web QR  clamp(190, 40vmin, 360)
+        var cardW = min(vmin * 0.24, 280)             // web card clamp(150, 24vmin, 280)
+        var qrW = min(vmin * 0.40, 360)               // web QR  clamp(190, 40vmin, 360)
         // Keep the QR square + join line within the band height.
         qrW = min(qrW, bandH * 0.98 - joinGap - joinLineH)
         // Horizontal fit: shrink proportionally if the widest row would overflow.
@@ -1434,11 +1436,17 @@ final class RootScene: SKScene, DisplayOutput {
         // No heading: the web results screen has no title (and the port mirrors the
         // web copy). The frosted boards + ranked rows carry the screen.
         let solo = sorted.count == 1
-        let rowW = min(W * 0.62, 880)   // web #results-list max-width 860px
-        // Snug rows like the web/Android list (name + web-scale vertical padding),
-        // not the taller block the earlier pass produced.
-        let rowH = max(60, H * 0.072)
-        let rowGap: CGFloat = 14
+        let rowW = min(W * 0.9, 860)   // web #results-list width 90%, max-width 860px
+        // Row metrics from the web clamps (vh against the full scene height, like
+        // the browser viewport): name/rank clamp(1.5rem,3vh,2.8rem), stats
+        // clamp(1.2rem,2.6vh,2.2rem), vertical padding clamp(0.8rem,1.6vh,1.5rem).
+        // The row height is the Baloo natural line box (~1.6em) plus the padding,
+        // matching the web's content-driven flex row.
+        let nameSize = min(max(24, size.height * 0.03), 44.8)
+        let statsSize = min(max(19.2, size.height * 0.026), 35.2)
+        let rowPadV = min(max(12.8, size.height * 0.016), 24)
+        let rowH = nameSize * 1.6 + rowPadV * 2
+        let rowGap = min(max(8, size.height * 0.01), 16)   // #results-list gap clamp(0.5rem,1vh,1rem)
         let rowsBlockH = CGFloat(sorted.count) * rowH + CGFloat(max(0, sorted.count - 1)) * rowGap
 
         // Action-button metrics (needed up-front to balance the group).
@@ -1457,7 +1465,8 @@ final class RootScene: SKScene, DisplayOutput {
         for (i, res) in sorted.enumerated() {
             let isNew = (res["newPlayer"] as? Bool) ?? false
             let color = (res["colorIndex"] as? Int).map { SKTheme.player(slot: $0) }
-            let row = buildResultRow(res, solo: solo, isNew: isNew, color: color, w: rowW, h: rowH)
+            let row = buildResultRow(res, solo: solo, isNew: isNew, color: color, w: rowW, h: rowH,
+                                     nameSize: nameSize, statsSize: statsSize)
             row.position = CGPoint(x: W / 2, y: y - 10)
             row.alpha = 0
             let fade = SKAction.fadeIn(withDuration: 0.4); fade.timingMode = .easeOut
@@ -1488,7 +1497,8 @@ final class RootScene: SKScene, DisplayOutput {
     }
 
     private func buildResultRow(_ res: [String: Any], solo: Bool, isNew: Bool,
-                                color: UIColor?, w: CGFloat, h: CGFloat) -> SKNode {
+                                color: UIColor?, w: CGFloat, h: CGFloat,
+                                nameSize: CGFloat, statsSize: CGFloat) -> SKNode {
         let node = SKNode()
         let rect = CGRect(x: -w / 2, y: -h / 2, width: w, height: h)
 
@@ -1508,24 +1518,27 @@ final class RootScene: SKScene, DisplayOutput {
         node.addChild(card)
 
         // One horizontal line: rank | name (left) | stats (right), centered.
-        let pad = h * 0.32
-        var textLeft = -w / 2 + pad
+        // Web paddings: left clamp(0.7rem,1.3vw,1.3rem), right clamp(1.2rem,2.4vw,2.4rem);
+        // rank sits in a ~1ch tabular column with a 1.25rem gap to the name.
+        let padL = min(max(11.2, size.width * 0.013), 20.8)
+        let padR = min(max(19.2, size.width * 0.024), 38.4)
+        var textLeft = -w / 2 + padL
         if !solo {
             let rank = SKLabelNode(text: isNew ? "–" : "\(res["rank"] as? Int ?? 0)")
             rank.fontName = AppFont.black           // same size as the name; heavier weight reads the rank
-            rank.fontSize = h * 0.44
+            rank.fontSize = nameSize
             rank.fontColor = isNew ? SKTheme.textSecondary : (color ?? SKTheme.textSecondary)
             rank.verticalAlignmentMode = .center
             rank.horizontalAlignmentMode = .center
             rank.zPosition = 1
-            rank.position = CGPoint(x: -w / 2 + pad + h * 0.22, y: 0)
+            rank.position = CGPoint(x: -w / 2 + padL + nameSize * 0.4, y: 0)
             node.addChild(rank)
-            textLeft = -w / 2 + pad + h * 0.7
+            textLeft = -w / 2 + padL + nameSize * 0.8 + 20
         }
 
         let name = SKLabelNode(text: (res["playerName"] as? String) ?? tr("player"))
         name.fontName = AppFont.brandBold
-        name.fontSize = h * 0.44
+        name.fontSize = nameSize
         name.fontColor = color ?? SKTheme.textSecondary   // web fallback for unnamed players
         name.verticalAlignmentMode = .center
         name.horizontalAlignmentMode = .left
@@ -1544,13 +1557,13 @@ final class RootScene: SKScene, DisplayOutput {
         // system-ui font (not Orbitron); match that with the tvOS system font.
         let stats = SKLabelNode()
         stats.attributedText = NSAttributedString(string: statsText, attributes: [
-            .font: UIFont.systemFont(ofSize: h * 0.38, weight: .medium),   // web stats:name ratio (2.6vh : 3vh)
+            .font: UIFont.systemFont(ofSize: statsSize, weight: .medium),   // web clamp(1.2rem,2.6vh,2.2rem)
             .foregroundColor: SKTheme.textSecondary,
         ])
         stats.verticalAlignmentMode = .center
         stats.horizontalAlignmentMode = .right
         stats.zPosition = 1
-        stats.position = CGPoint(x: w / 2 - pad, y: 0)
+        stats.position = CGPoint(x: w / 2 - padR, y: 0)
         node.addChild(stats)
 
         return node

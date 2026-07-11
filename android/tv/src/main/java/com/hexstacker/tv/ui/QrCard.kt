@@ -46,9 +46,10 @@ fun QrBlock(
         modifier
             .aspectRatio(1f)
             // #qr-code: radius clamp(14px,2.4vmin,22px), padding clamp(6px,1.2vmin,14px).
-            .clip(RoundedCornerShape(vp.vminDp(14f, 2.4f, 22f)))
+            // Both caps are active at 1080p, so they are web-px/1.5 in dp.
+            .clip(RoundedCornerShape(vp.vminDp(9.3f, 2.4f, 14.7f)))
             .background(Tokens.white)
-            .padding(vp.vminDp(6f, 1.2f, 14f)),
+            .padding(vp.vminDp(4f, 1.2f, 9.3f)),
         contentAlignment = Alignment.Center,
     ) {
         if (qrBitmap != null) {

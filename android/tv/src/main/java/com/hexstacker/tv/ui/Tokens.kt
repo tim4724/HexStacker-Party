@@ -66,7 +66,9 @@ object Tokens {
     val radiusBtn = 16.dp
     val radiusLg = 18.dp
     val radiusXl = 22.dp
-    val radiusCard = 20.dp // .player-card / .result-row 20px
+    // .player-card / .result-row 20px. Web-px/1.5 (like the sp rule): a 20dp
+    // radius renders 30px at the TV density and reads visibly rounder than web.
+    val radiusCard = 13.3.dp
 }
 
 /** Player identity color from the single-source `:core` [Theme] spectrum (slots 0..7). */

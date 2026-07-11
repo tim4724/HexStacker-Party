@@ -125,8 +125,11 @@ fun LobbyScreen(
                             QrBlock(
                                 qrBitmap = qrBitmap,
                                 vp = vp,
+                                // Web #qr-container clamp(190px, 40vmin, 360px): the 360px
+                                // cap IS active at 1080p, so it must be web-px/1.5 in dp
+                                // (like the sp caps) or the QR renders a third too big.
                                 modifier = Modifier
-                                    .width(vp.vminDp(190f, 40f, 360f))
+                                    .width(vp.vminDp(126.7f, 40f, 240f))
                                     .alpha(if (qrPending) QR_PENDING_ALPHA else 1f),
                             )
                             PlayerGrid(players = data.players, vp = vp)
