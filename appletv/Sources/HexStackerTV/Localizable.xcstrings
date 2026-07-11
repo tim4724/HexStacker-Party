@@ -1760,73 +1760,73 @@
         }
       }
     },
-    "scan_to_join" : {
+    "scan_hint" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Scannen"
+            "value" : "Code mit dem Handy scannen"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Scan to join"
+            "value" : "Scan code with your phone"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Escanea para unirte"
+            "value" : "Escanea el código con tu móvil"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Scanner pour rejoindre"
+            "value" : "Scanne le code avec ton téléphone"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Scansiona per unirti"
+            "value" : "Scansiona il codice con il telefono"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "スキャンして参加"
+            "value" : "スマホでコードをスキャン"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "스캔하여 참가"
+            "value" : "휴대폰으로 코드를 스캔"
           }
         },
         "pt" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Escaneia para entrar"
+            "value" : "Escaneia o código com o celular"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Сканируй и заходи"
+            "value" : "Сканируй код телефоном"
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Katılmak için tara"
+            "value" : "Kodu telefonunla tara"
           }
         },
         "zh" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "扫码加入"
+            "value" : "用手机扫描二维码"
           }
         }
       }
