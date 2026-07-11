@@ -250,6 +250,13 @@
   transform: translateY(1px);
 }
 
+/* Icons scale with the circle — the inline SVG width/height attributes
+   are fixed (18-22px) and read tiny inside the larger buttons. */
+.icon-btn > svg {
+  width: 48%;
+  height: 48%;
+}
+
 /* Tonal player card — borderless; the player color is mixed into the
    surface (oklab keeps hues true) and carried by the name text. */
 .player-card {

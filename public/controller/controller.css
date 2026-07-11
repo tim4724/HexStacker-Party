@@ -921,7 +921,7 @@ html, body {
 }
 
 .result-name {
-  font-size: clamp(1rem, 5vw, 1.4rem);
+  font-size: clamp(1.2rem, 5.5vw, 1.6rem);
   font-weight: 900;
   letter-spacing: 0.03em;
   white-space: normal;
@@ -1524,6 +1524,9 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   .result-row {
     gap: 10px;
     padding: 6px 12px;
+    /* The compact landscape rows are much shorter than portrait's — the
+       full 20px radius reads as a pill here, so scale it down with them. */
+    border-radius: 14px;
   }
 
   /* Pack name + stats close together so all rows fit on short
@@ -1533,7 +1536,7 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   }
 
   .result-name {
-    font-size: clamp(0.95rem, 4.2vw, 1.15rem);
+    font-size: clamp(1.05rem, 4.6vw, 1.3rem);
     line-height: 1.15;
   }
 
@@ -1834,20 +1837,10 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   }
 }
 
-/* Lobby title can return on short landscape now that the picker lives in
-   an overlay — the only remaining vertical occupants are the identity
-   card and the START button. Threshold relaxed from 400px to 301px to
-   match the name-screen branch above. */
-@media (orientation: landscape) and (min-aspect-ratio: 5/4) and (max-height: 499px) and (min-height: 301px) {
-  .controller-shell__frame--lobby .controller-shell__title {
-    display: block;
-    animation: none;
-  }
-
-  .controller-shell__frame--lobby .controller-shell__body {
-    margin-top: 16px;
-  }
-}
+/* The lobby title stays hidden on ALL short landscape (≤499px): with the
+   bigger identity card + stepper it clips off-screen in the 301-499px
+   window, and the lobby reads fine without it (the name screen keeps its
+   title via the branch above — its content is shorter). */
 
 /* Landscape keyboard open — collapse everything except the input field.
    Android: CSS media query fires via interactive-widget=resizes-content.

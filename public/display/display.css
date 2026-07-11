@@ -161,6 +161,11 @@ body.airconsole #lobby-version-label { display: block; }
   transition: background var(--transition-normal);
 }
 
+.trailer-modal__close svg {
+  width: 48%;
+  height: 48%;
+}
+
 .trailer-modal__close:hover,
 .trailer-modal__close:focus-visible {
   background: var(--bg-card-soft);
@@ -769,9 +774,11 @@ body.airconsole #qr-container,
 
 #pause-btn .pause-icon::before,
 #pause-btn .pause-icon::after {
-  width: clamp(3px, 0.4vh, 5px);
-  height: clamp(12px, 1.6vh, 18px);
-  border-radius: 1px;
+  /* Tracks the toolbar circle (clamp(44px, 5vh, 64px)) so the bars keep
+     the same icon-to-button ratio as the scaled SVG icons (~48%). */
+  width: clamp(5px, 0.55vh, 7px);
+  height: clamp(20px, 2.4vh, 30px);
+  border-radius: 1.5px;
 }
 
 #pause-btn:hover:not(:disabled) .pause-icon::before,
@@ -789,8 +796,14 @@ body.airconsole #qr-container,
   transform: none;
 }
 
-#pause-overlay h1 {
+/* One heading scale for every full-screen overlay state — PAUSED,
+   Reconnecting, Disconnected all read at the same weight on the TV. */
+#pause-overlay h1,
+#reconnect-overlay h1 {
   font-size: clamp(1.6rem, 4vh, 3.5rem);
+}
+
+#pause-overlay h1 {
   margin-bottom: clamp(1.5rem, 3vh, 3rem);
 }
 
@@ -845,12 +858,24 @@ body.airconsole #qr-container,
   filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.45));
 }
 
+/* Scrolls when the ranking outgrows the screen (8 players on a small
+   display); min-height: 0 lets the flex column give the list less than
+   its intrinsic height. Scrollbar chrome hidden like the controller's
+   list; the padding keeps row shadows from clipping at the edges. */
 #results-list {
   display: flex;
   flex-direction: column;
   gap: clamp(0.5rem, 1vh, 1rem);
   width: 90%;
   max-width: 860px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px;
+  scrollbar-width: none;
+}
+
+#results-list::-webkit-scrollbar {
+  display: none;
 }
 
 .result-row {
