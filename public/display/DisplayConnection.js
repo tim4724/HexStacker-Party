@@ -233,6 +233,10 @@ function applyRoomCreated(partyRoomCode, newJoinUrl) {
     joinUrlEl.setAttribute('aria-label', t('copy_url'));
     var showCopiedToast = function() {
       var copiedLabel = t('copied') || 'Copied';
+      // Pin the URL while the toast is up so the user sees what landed
+      // in their clipboard (the hint cycle also skips data-copied ticks).
+      var jl = document.getElementById('join-line');
+      if (jl) jl.classList.remove('show-hint');
       joinUrlEl.setAttribute('data-copied-label', copiedLabel);
       joinUrlEl.setAttribute('data-copied', '1');
       // Reflect the success state for screen readers — the ::after toast
@@ -271,6 +275,20 @@ function applyRoomCreated(partyRoomCode, newJoinUrl) {
     joinUrlEl.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copyToClipboard(); }
     });
+
+    // Alternate the join line between the URL and the localized "scan to
+    // join" hint. Starts on the URL so the address is the first thing a
+    // player can act on; holds the URL while the copied toast is visible.
+    var joinLineEl = document.getElementById('join-line');
+    if (joinLineEl) {
+      setInterval(function() {
+        if (joinUrlEl.hasAttribute('data-copied')) {
+          joinLineEl.classList.remove('show-hint');
+          return;
+        }
+        joinLineEl.classList.toggle('show-hint');
+      }, 4500);
+    }
   }
 
   // Reset local state

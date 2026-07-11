@@ -137,30 +137,38 @@ body.airconsole #lobby-version-label { display: block; }
   max-height: 100%;
   background: #000;
   border-radius: 8px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--shadow-sm);
   outline: none;
 }
 
+/* Round utility button (same recipe as .icon-btn — kept standalone since
+   this element carries its own absolute positioning). */
 .trailer-modal__close {
   position: absolute;
   top: clamp(0.75rem, 2vh, 1.5rem);
   right: clamp(0.75rem, 2vw, 1.5rem);
-  width: 40px;
-  height: 40px;
+  width: 52px;
+  height: 52px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: none;
+  border: 1px solid rgba(255, 248, 236, 0.12);
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(21, 18, 31, 0.4);
   color: var(--text-primary);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   transition: background var(--transition-normal);
+}
+
+.trailer-modal__close svg {
+  width: 48%;
+  height: 48%;
 }
 
 .trailer-modal__close:hover,
 .trailer-modal__close:focus-visible {
-  background: rgba(255, 255, 255, 0.22);
+  background: var(--bg-card-soft);
   outline: none;
 }
 
@@ -296,17 +304,18 @@ html:not(.in-session) #relay-status-bar { display: none; }
   height: 8px;
   border-radius: 50%;
   background: var(--ping-good);
-  box-shadow: 0 0 6px currentColor;
   color: var(--ping-good);
   transition: background var(--transition-normal), color var(--transition-normal);
 }
 .relay-chip__dot.ping-ok  { background: var(--ping-ok);  color: var(--ping-ok); }
 .relay-chip__dot.ping-bad { background: var(--ping-bad); color: var(--ping-bad); }
 
+/* Same fill + hairline family as the round utility buttons, pill-shaped
+   for the text label. */
 .relay-report-btn {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
+  background: rgba(21, 18, 31, 0.4);
+  border: 1px solid rgba(255, 248, 236, 0.12);
+  border-radius: var(--radius-pill);
   color: var(--text-secondary);
   font-family: system-ui, -apple-system, sans-serif;
   font-size: clamp(11px, 1.3vw, 13px);
@@ -318,7 +327,7 @@ html:not(.in-session) #relay-status-bar { display: none; }
 .relay-report-btn:hover,
 .relay-report-btn:focus-visible {
   color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 248, 236, 0.3);
 }
 .relay-report-btn.hidden { display: none; }
 
@@ -353,12 +362,27 @@ html:not(.in-session) #relay-status-bar { display: none; }
   text-align: center;
 }
 
+/* Triad corner badge — the mark's spot now that the h1 is the pure
+   wordmark. Mirrors #lobby-version-label's edge spacing on the left;
+   ~46px on a 720p viewport, scaling with vmin like the rest of the lobby. */
+.brand-badge {
+  position: absolute;
+  top: clamp(1rem, 2.5vh, 1.5rem);
+  left: clamp(1rem, 2vw, 2rem);
+  width: clamp(40px, 6.4vmin, 80px);
+  height: auto;
+  z-index: 5;
+  animation: fadeIn 0.6s 0.3s ease-out both;
+}
+
+/* Body column: the QR + cards row with the join/hint line tucked close
+   beneath it (the line belongs to the join section, not to START). */
 #lobby-body {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(1rem, 3vmin, 2.5rem);
+  gap: clamp(10px, 2.2vmin, 22px);
   width: 100%;
   max-width: 1400px;
   /* Shrink-to-fit so #lobby-screen's space-evenly distribution keeps the
@@ -371,80 +395,113 @@ html:not(.in-session) #relay-status-bar { display: none; }
   animation: fadeUp 0.6s 0.15s ease-out both;
 }
 
+/* QR + player cards — column on portrait, row on landscape. */
+#lobby-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(1rem, 3vmin, 2.5rem);
+  width: 100%;
+  min-height: 0;
+}
+
+/* Frameless join block — no card, no label: the white code floats with a
+   soft shadow. The join URL lives in #lobby-cta above the START button. */
 #qr-container {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: clamp(6px, 1vmin, 12px);
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  padding: clamp(8px, 1.5vmin, 18px);
-  width: clamp(180px, 36vmin, 360px);
+  align-items: center;
+  gap: clamp(8px, 1.6vmin, 14px);
+  width: clamp(190px, 40vmin, 360px);
   max-width: 90vw;
-  overflow: hidden;
 }
 
 #qr-code {
   width: 100%;
   aspect-ratio: 1 / 1;
   height: auto;
-  border-radius: var(--radius-lg);
+  border-radius: clamp(14px, 2.4vmin, 22px);
   background: #fff;
-  padding: clamp(4px, 0.8vmin, 10px);
+  /* Quiet zone lives in the CSS padding (white covers the padding box);
+     slightly wider than before since there's no card behind it anymore. */
+  padding: clamp(6px, 1.2vmin, 14px);
   display: block;
+  box-shadow: var(--shadow-sm);
 }
 
-#qr-info {
+/* Join line — crossfades between the URL and the localized "scan to
+   join" hint every few seconds (.show-hint toggled by DisplayConnection).
+   The hint overlays the URL absolutely so the line's box never moves. */
+#join-line {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: clamp(4px, 0.8vmin, 8px);
-  text-align: center;
-}
-
-#qr-label {
-  margin: 0;
-  font-size: clamp(11px, 1.8vmin, 15px);
-  color: var(--text-faint);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  font-family: var(--font-brand);
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  justify-content: center;
   max-width: 100%;
 }
 
-/* Join URL — host on top line, code below. Click to copy the full URL;
-   shows a brief toast via #join-url[data-copied]. */
+#join-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Same HUD face and scale as the URL it swaps with, so the crossfade
+     reads as one line changing content, not two different elements. */
+  font-family: var(--font-hud);
+  font-weight: 600;
+  font-size: clamp(1.05rem, 2.2vmin, 1.5rem);
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.45s ease;
+}
+
+#join-url .join-url__host,
+#join-url .join-url__code {
+  transition: opacity 0.45s ease;
+}
+
+#join-line.show-hint .join-url__host,
+#join-line.show-hint .join-url__code {
+  opacity: 0;
+}
+
+#join-line.show-hint #join-hint {
+  opacity: 1;
+}
+
+/* Join URL — host + code on one line. Click to copy the full URL;
+   shows a brief toast via #join-url[data-copied]. Transparent at rest
+   (frameless block); a faint recessed fill appears on hover as the
+   click-to-copy affordance. */
 #join-url {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  align-self: stretch;
+  flex-direction: row;
+  align-items: baseline;
   gap: 0;
   margin: 0;
   font-family: var(--font-hud);
   line-height: 1.2;
   max-width: 100%;
-  padding: clamp(4px, 1vmin, 8px) clamp(8px, 1.5vmin, 14px);
-  background: rgba(0, 0, 0, 0.22);
+  padding: clamp(4px, 1vmin, 8px) clamp(10px, 2vmin, 18px);
   border-radius: var(--radius-md);
   cursor: pointer;
   position: relative;
   transition: background var(--transition-fast);
   user-select: none;
+  animation: fadeUp 0.5s 0.4s ease-out backwards;
 }
 
 #join-url:hover {
-  background: rgba(0, 0, 0, 0.32);
+  background: rgba(21, 18, 31, 0.35);
 }
 
 #join-url:active {
-  background: rgba(0, 0, 0, 0.38);
+  background: rgba(21, 18, 31, 0.5);
 }
 
 #join-url::after {
@@ -453,15 +510,18 @@ html:not(.in-session) #relay-status-bar { display: none; }
   top: -28px;
   left: 50%;
   transform: translateX(-50%) translateY(4px);
-  padding: 4px 10px;
-  background: var(--accent-secondary);
-  color: var(--bg-primary);
+  padding: 4px 12px;
+  /* Tonal accent chip (same recipe as the bail toast); solid fallback
+     first for engines without color-mix. */
+  background: var(--bg-card);
+  background: color-mix(in oklab, var(--accent-secondary) 20%, var(--bg-card));
+  color: var(--accent-secondary);
   font-family: var(--font-hud);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease, transform 0.2s ease;
@@ -474,7 +534,7 @@ html:not(.in-session) #relay-status-bar { display: none; }
 }
 
 .join-url__host {
-  font-size: clamp(0.85rem, 1.8vmin, 1.2rem);
+  font-size: clamp(1.05rem, 2.2vmin, 1.5rem);
   font-weight: 600;
   color: var(--text-secondary);
   letter-spacing: 0.04em;
@@ -486,7 +546,7 @@ html:not(.in-session) #relay-status-bar { display: none; }
 }
 
 .join-url__code {
-  font-size: clamp(1.1rem, 2.2vmin, 1.5rem);
+  font-size: clamp(1.05rem, 2.2vmin, 1.5rem);
   font-weight: 900;
   color: var(--accent-secondary);
   letter-spacing: 0.18em;
@@ -509,49 +569,50 @@ html:not(.in-session) #relay-status-bar { display: none; }
 }
 
 .player-card {
-  /* Layout (flex column, 2:1 aspect, 50/50 halves) lives in theme.css.
-     Display-only: scale-down hint for nested elements + min-width: 0 so
-     the card can shrink inside the grid's min-content track. */
+  /* Layout (flex column, 2:1 aspect) lives in theme.css. Display-only:
+     scale-down hint for nested elements + min-width: 0 so the card can
+     shrink inside the grid's min-content track. The 50/50 halves are a
+     controller concern (touch targets); here name + pill collapse to
+     content height and group around the card center with a small gap. */
   font-size: clamp(0.85rem, 1.8vmin, 1.4rem);
   min-width: 0;
+  justify-content: center;
+  gap: clamp(3px, 0.9vmin, 9px);
+}
+
+#player-list .player-card__top,
+#player-list .card-level {
+  flex: 0 0 auto;
 }
 
 /* --- Landscape: split QR | cards horizontally; with 5+ players use 4
    columns so the grid stays wide-and-short next to the QR. --- */
 @media (orientation: landscape) {
-  #lobby-body { flex-direction: row; }
+  #lobby-main { flex-direction: row; }
   #player-list.pl--lg {
     grid-template-columns: repeat(4, minmax(0, clamp(150px, 24vmin, 280px)));
   }
 }
 
-/* --- AirConsole / no-QR overrides: just hide QR; player list sizing is class-driven --- */
+/* --- AirConsole / no-QR overrides: hide QR + join URL; player list sizing
+   is class-driven. (The URL used to live inside #qr-container, so no-qr
+   hid it implicitly — keep that behavior now that it sits in #lobby-cta.) --- */
 body.airconsole #qr-container,
-#lobby-screen.no-qr #qr-container {
+#lobby-screen.no-qr #qr-container,
+#lobby-screen.no-qr #join-line {
   display: none;
 }
 
-.player-card.empty {
-  background: transparent;
-  border: 2px dashed var(--text-secondary);
-  color: var(--text-secondary);
+/* Socket styling for .player-card.empty lives in theme.css. Display only
+   sizes the faint hex opening for 10-foot viewing. */
+.player-card__opening svg {
+  width: clamp(28px, 5.5vmin, 56px);
+  height: auto;
 }
 
-.player-card.empty .card-level {
-  opacity: 0.45;
-}
-
-.player-card.empty .card-level::before {
-  background: var(--text-secondary);
-}
-
-/* Display-specific name color — uses --text-secondary as the fallback
-   (display empty slots want a muted name) instead of the controller's
-   --text-primary. Layout for .identity-name lives in theme.css; the size
-   override scales the name up for 10-foot viewing (the theme.css clamp
-   is tuned for the phone). */
+/* Display-specific name size — scales the name up for 10-foot viewing
+   (the theme.css clamp is tuned for the phone). */
 .player-card .identity-name {
-  color: var(--player-color, var(--text-secondary));
   font-size: clamp(1.5rem, 4.5vmin, 2.4rem);
 }
 
@@ -575,23 +636,23 @@ body.airconsole #qr-container,
   min-width: 0;
 }
 
-/* Layout/divider for .card-level lives in theme.css. Display only adds
-   the heading + value typography below — nested classes are unique to the
-   display lobby's static label (controller renders +/- buttons + a value
-   span and uses different selectors). */
+/* Layout for .card-level and the pill chip live in theme.css. Display only
+   adds the heading + value typography — nested classes are unique to the
+   display lobby's static pill (controller renders +/- buttons + a value
+   span and uses different selectors). Deliberately quiet: the level is
+   metadata under the colored name. */
 .card-level__heading {
-  /* Larger than the controller .level-heading clamp: 10-foot viewing. */
-  font-size: clamp(1rem, 2.6vmin, 1.5rem);
+  font-size: clamp(0.65rem, 1.6vmin, 0.95rem);
   font-weight: 700;
   color: var(--text-secondary);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
 }
 
 .card-level__value {
-  /* Larger than the controller #level-display clamp: 10-foot viewing. */
-  font-size: clamp(1rem, 2.6vmin, 1.5rem);
-  font-weight: 800;
+  font-family: var(--font-hud);
+  font-size: clamp(0.65rem, 1.6vmin, 0.95rem);
+  font-weight: 700;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
@@ -611,16 +672,6 @@ body.airconsole #qr-container,
   position: relative;
   z-index: 5;
   animation: fadeUp 0.5s 0.45s ease-out backwards;
-}
-
-#start-btn:disabled {
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  cursor: not-allowed;
-  /* Override .btn-primary:disabled's opacity 0.5 — the grey bg + muted text
-     already convey "disabled", and the opacity snap from 1 → 0.5 at the
-     end of the fadeUp animation reads as a glitch. */
-  opacity: 1;
 }
 
 /* ============================================
@@ -715,19 +766,26 @@ body.airconsole #qr-container,
 }
 
 #game-toolbar .icon-btn {
-  width: clamp(36px, 4vh, 52px);
-  height: clamp(36px, 4vh, 52px);
+  width: clamp(44px, 5vh, 64px);
+  height: clamp(44px, 5vh, 64px);
 }
 
 #game-toolbar .hidden {
   display: none;
 }
 
+/* Tracks the toolbar circle (clamp(44px, 5vh, 64px)) so the glyph keeps
+   the same icon-to-button ratio as the scaled SVG icons (~48%), with bar
+   thickness matching their ~2px stroke weight. */
+#pause-btn .pause-icon {
+  gap: clamp(5px, 0.7vh, 8px);
+}
+
 #pause-btn .pause-icon::before,
 #pause-btn .pause-icon::after {
-  width: clamp(3px, 0.4vh, 5px);
-  height: clamp(12px, 1.6vh, 18px);
-  border-radius: 1px;
+  width: clamp(3px, 0.4vh, 4.5px);
+  height: clamp(18px, 2.2vh, 26px);
+  border-radius: 1.5px;
 }
 
 #pause-btn:hover:not(:disabled) .pause-icon::before,
@@ -745,8 +803,14 @@ body.airconsole #qr-container,
   transform: none;
 }
 
-#pause-overlay h1 {
+/* One heading scale for every full-screen overlay state — PAUSED,
+   Reconnecting, Disconnected all read at the same weight on the TV. */
+#pause-overlay h1,
+#reconnect-overlay h1 {
   font-size: clamp(1.6rem, 4vh, 3.5rem);
+}
+
+#pause-overlay h1 {
   margin-bottom: clamp(1.5rem, 3vh, 3rem);
 }
 
@@ -791,8 +855,6 @@ body.airconsole #qr-container,
   z-index: 20;
   background: radial-gradient(ellipse at 50% 30%, var(--winner-glow, rgba(255, 215, 0, 0.06)) 0%, transparent 60%),
               var(--overlay-bg);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
   animation: fadeIn 0.5s ease both;
 }
 
@@ -803,12 +865,24 @@ body.airconsole #qr-container,
   filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.45));
 }
 
+/* Scrolls when the ranking outgrows the screen (8 players on a small
+   display); min-height: 0 lets the flex column give the list less than
+   its intrinsic height. Scrollbar chrome hidden like the controller's
+   list; the padding keeps row shadows from clipping at the edges. */
 #results-list {
   display: flex;
   flex-direction: column;
   gap: clamp(0.5rem, 1vh, 1rem);
   width: 90%;
   max-width: 860px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px;
+  scrollbar-width: none;
+}
+
+#results-list::-webkit-scrollbar {
+  display: none;
 }
 
 .result-row {
@@ -888,7 +962,7 @@ body.airconsole #qr-container,
 
 /* --- AirConsole overrides --- */
 body.airconsole #qr-container,
-body.airconsole #join-url,
+body.airconsole #join-line,
 body.airconsole #welcome-footer { display: none !important; }
 body.airconsole #lobby-footer { display: flex !important; }
 body.airconsole #welcome-screen { display: none !important; }

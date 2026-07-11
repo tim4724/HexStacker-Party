@@ -48,10 +48,6 @@
         </div>
       </div>
       <div class="controller-shell__actions controller-shell__actions--name">
-        <div class="controller-shell__copy">
-          <p id="name-status-text"></p>
-          <p id="name-status-detail"></p>
-        </div>
         <button id="name-join-btn" class="btn btn-primary" data-i18n="join">JOIN</button>
       </div>
       <div class="legal-links">
@@ -79,9 +75,8 @@
               <span id="player-identity-name" class="identity-name"></span>
             </button>
             <div id="level-selector" class="card-level">
-              <span class="level-heading" data-i18n="level_heading">Level</span>
               <button id="level-minus-btn" class="level-btn" data-i18n-aria-label="level_minus" aria-label="Decrease level"><svg width="20" height="20" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/></svg></button>
-              <span id="level-display">1</span>
+              <span class="level-center"><span class="level-heading" data-i18n="level_heading">Level</span><span id="level-display">1</span></span>
               <button id="level-plus-btn" class="level-btn" data-i18n-aria-label="level_plus" aria-label="Increase level"><svg width="20" height="20" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/><line x1="7" y1="2" x2="7" y2="12"/></svg></button>
             </div>
           </div>
@@ -95,10 +90,6 @@
           <div id="color-picker" class="rose" role="group" data-i18n-aria-label="color_choose_heading" aria-label="Choose your color"></div>
         </div>
 
-        <div class="controller-shell__copy">
-          <p id="status-text"></p>
-          <p id="status-detail"></p>
-        </div>
       </div>
       <div class="controller-shell__actions controller-shell__actions--lobby">
         <p id="waiting-action-text" class="status-banner hidden"></p>
@@ -150,7 +141,7 @@
   <div id="reconnect-overlay" class="game-overlay hidden">
     <h1 id="reconnect-heading" data-i18n="reconnecting">RECONNECTING</h1>
     <p id="reconnect-status" class="game-overlay__status"></p>
-    <button id="reconnect-rejoin-btn" class="btn btn-primary hidden" data-i18n="rejoin">REJOIN</button>
+    <button id="reconnect-rejoin-btn" class="btn btn-primary hidden" data-i18n="reconnect">RECONNECT</button>
   </div>
 
   <!-- Settings overlay — lives outside all screens so it can be opened
@@ -189,7 +180,10 @@
           <span class="settings-row__value" id="sensitivity-value">1.00</span>
         </span>
         <input type="range" id="sensitivity-slider" min="0.55" max="1.75" step="0.05" value="1" aria-labelledby="sensitivity-label-text">
-        <canvas id="sensitivity-preview" class="settings-preview" width="280" height="120" aria-hidden="true"></canvas>
+        <div class="settings-preview-wrap">
+          <canvas id="sensitivity-preview" class="settings-preview" width="280" height="120" aria-hidden="true"></canvas>
+          <span class="settings-preview__label" data-i18n="touchpad" aria-hidden="true">Touchpad</span>
+        </div>
       </div>
       <button id="settings-close" class="btn btn-primary" data-i18n="settings_done">DONE</button>
       <footer class="settings-about">

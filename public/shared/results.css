@@ -33,26 +33,29 @@
   }
 }
 
-/* --- Result rows — neutral card treatment; rank color is set via inline
-   style from the player's palette in JS (no medal podium). --- */
+/* --- Result rows — borderless card treatment matching the lobby's tonal
+   cards; rank color is set via inline style from the player's palette in
+   JS (no medal podium). --- */
 
 .result-row {
   display: flex;
   align-items: center;
-  border-radius: var(--radius-md);
+  border-radius: 20px;
   background: var(--bg-card);
-  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
   animation: resultRowIn 0.4s ease-out both;
   animation-delay: var(--row-delay, 0.2s);
 }
 
-/* Non-participant who sat out this round (late joiner), not ranked. Muted
-   card + dashed border so it reads as "you'll be in the next one" rather than
-   a player who placed last. Overrides only the border style set above; on the
-   controller the is-me outline still applies on top. */
+/* Non-participant who sat out this round (late joiner), not ranked.
+   Recessed-socket treatment (same recipe as the lobby's empty slots) so it
+   reads as "a seat waiting for the next round" rather than a player who
+   placed last. */
 .result-row--joining {
   opacity: 0.75;
-  border-style: dashed;
+  background: rgba(21, 18, 31, 0.55);
+  border: 1px solid rgba(255, 248, 236, 0.05);
+  box-shadow: none;
 }
 
 /* --- Rank ordinal — color set via inline style from JS; fallback keeps it

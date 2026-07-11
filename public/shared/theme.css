@@ -98,6 +98,7 @@
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 12px;
+  --radius-btn: 16px;
   --radius-lg: 18px;
   --radius-xl: 22px;
   --radius-pill: 999px;
@@ -109,11 +110,15 @@
 
 .btn {
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-btn);
   font-family: var(--font-brand);
   font-weight: 700;
   text-transform: uppercase;
   cursor: pointer;
+  /* The html/body reset alone doesn't reliably kill the mobile tap flash
+     on buttons (Android draws it per tapped element) — set it on every
+     button primitive explicitly. */
+  -webkit-tap-highlight-color: transparent;
   transition: transform var(--transition-fast), filter var(--transition-fast);
 }
 
@@ -135,8 +140,12 @@
   box-shadow: none;
 }
 
+/* Disabled: quiet card surface, no tint, no shadow — the gradient rules
+   below are all gated on :not(:disabled) so this wins without !important. */
 .btn-primary:disabled {
-  opacity: 0.5;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  box-shadow: none;
   cursor: not-allowed;
   transform: none;
 }
@@ -168,14 +177,14 @@
 }
 
 .btn-secondary {
-  background: var(--bg-card);
-  border: 1px solid var(--border-strong);
+  background: var(--bg-card-soft);
+  border: none;
   color: var(--text-primary);
   box-shadow: var(--shadow-sm);
 }
 
 .btn-secondary:hover {
-  background: var(--bg-card-soft);
+  filter: brightness(1.15);
 }
 
 .btn-secondary:active {
@@ -201,106 +210,68 @@
 /* Focus-visible ring — accessibility, matches palette secondary */
 .btn:focus-visible,
 .icon-btn:focus-visible,
-.input:focus-visible {
+.level-btn:focus-visible {
   outline: 2px solid var(--accent-secondary);
   outline-offset: 2px;
 }
 
-/* ==========================================================
-   Shared Component Classes
-   ========================================================== */
-
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 16px;
-}
-
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: var(--bg-card-soft);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  font-family: var(--font-brand);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-
-.pill--accent {
-  background: rgba(var(--accent-primary-rgb), 0.18);
-  border-color: rgba(var(--accent-primary-rgb), 0.35);
-  color: var(--accent-primary);
-}
-
-.input {
-  background: var(--bg-card);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  padding: 14px 18px;
-  font-size: 16px;
-  color: var(--text-primary);
-  font-family: var(--font-brand);
-  font-weight: 500;
-  outline: none;
-  width: 100%;
-  transition: border-color var(--transition-fast);
-}
-
-.input:focus {
-  border-color: var(--accent-secondary);
-}
-
-.input::placeholder {
-  color: var(--text-faint);
-}
-
-.modal {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  padding: 28px 32px;
-  max-width: 320px;
-}
-
+/* Round utility button — the one circular component for corner icons
+   (sound/fullscreen/pause), controller back/settings, picker close, and
+   the level steppers. Contexts may override the 52px size (e.g. the
+   display game toolbar scales with viewport height) but keep the circle
+   + hairline ring. */
 .icon-btn {
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: var(--bg-card);
+  width: 52px;
+  height: 52px;
+  border: 1px solid rgba(255, 248, 236, 0.12);
+  border-radius: 50%;
+  background: rgba(21, 18, 31, 0.4);
   color: var(--text-primary);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: var(--shadow-sm);
+  -webkit-tap-highlight-color: transparent;
   transition: background var(--transition-fast), transform var(--transition-fast);
 }
 
-.icon-btn:hover:not(:disabled) {
-  background: var(--bg-card-soft);
+/* Hover only where hovering exists — on touch, tap would apply the hover
+   fill as a sticky purple wash on top of the press state. */
+@media (hover: hover) {
+  .icon-btn:hover:not(:disabled) {
+    background: var(--bg-card-soft);
+  }
 }
 
+/* Pressed = deeper recess (darker translucent fill), not a lighter wash. */
 .icon-btn:active {
+  background: rgba(21, 18, 31, 0.7);
   transform: translateY(1px);
-  box-shadow: none;
 }
 
+/* Icons scale with the circle — the inline SVG width/height attributes
+   are fixed (18-22px) and read tiny inside the larger buttons. */
+.icon-btn > svg {
+  width: 48%;
+  height: 48%;
+}
+
+/* Tonal player card — borderless; the player color is mixed into the
+   surface (oklab keeps hues true) and carried by the name text. */
 .player-card {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   width: 100%;
   padding: 0;
-  border-radius: var(--radius-md);
+  border-radius: 20px;
+  /* Two-declaration fallback for older TV browsers without color-mix()
+     (same pattern as the host-tinted CTAs above): they keep the solid
+     card surface, modern engines get the tonal mix. */
   background: var(--bg-card);
-  border: 2px solid var(--player-color, var(--border-strong));
+  background: color-mix(in oklab, var(--player-color, var(--bg-card-soft)) 20%, var(--bg-card));
+  box-shadow: var(--shadow-sm);
   font-family: var(--font-brand);
   font-weight: 600;
   letter-spacing: 0.05em;
@@ -326,10 +297,9 @@
   padding: 0 clamp(8px, 1.4vmin, 14px);
 }
 
-/* Bottom half of the card — level pill. Mirror geometry to the top via
-   flex: 1 1 0. Position relative + ::before draws a 1px divider at the
-   very top of the box, inset on both sides so it doesn't touch the card
-   edges. */
+/* Bottom half of the card — level row. Mirror geometry to the top via
+   flex: 1 1 0. No divider: the display renders a quiet pill
+   (.card-level__pill), the controller its interactive stepper row. */
 .card-level {
   flex: 1 1 0;
   min-height: 0;
@@ -338,19 +308,19 @@
   justify-content: center;
   width: 100%;
   padding: 0 clamp(8px, 1.4vmin, 14px);
-  position: relative;
   font-family: var(--font-brand);
   gap: clamp(0.4rem, 0.7vmin, 0.65rem);
 }
 
-.card-level::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: clamp(8px, 1.4vmin, 14px);
-  right: clamp(8px, 1.4vmin, 14px);
-  height: 1px;
-  background: var(--bg-glass);
+/* Quiet "LEVEL n" pill on the display card — recessed dark chip so the
+   level reads as metadata under the colored name. */
+.card-level__pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5em;
+  background: rgba(21, 18, 31, 0.35);
+  border-radius: var(--radius-pill);
+  padding: 0.3em 1em 0.24em;
 }
 
 /* Player name typography — same on both surfaces. Single line; long
@@ -372,11 +342,46 @@
 }
 
 /* Stop the body-level --player-color (set by applyHostTint for CTA tints)
-   from cascading into empty slots — otherwise their fallback branch would
-   pick up the host's color via inheritance. .empty overrides border/color
-   explicitly today so there's no visible bug, but this keeps the reset
-   defensive against future rules that read --player-color on empty cards. */
+   from cascading into empty slots — otherwise the tonal background above
+   would pick up the host's color via inheritance before .empty's own
+   background override wins. */
 .player-card.empty { --player-color: initial; }
+
+/* Empty slot — recessed socket: flat dark inset with a hairline ring and
+   a faint hex opening, breathing slowly. Reads as "a seat waiting for a
+   piece", not a broken card. Name/level halves are hidden; the centered
+   .player-card__opening (hex outline SVG, built by DisplayUI) shows
+   instead. */
+.player-card.empty {
+  background: rgba(21, 18, 31, 0.55);
+  border: 1px solid rgba(255, 248, 236, 0.05);
+  box-shadow: none;
+  align-items: center;
+  justify-content: center;
+  animation: breathe 3.2s ease-in-out infinite;
+}
+
+.player-card.empty .player-card__top,
+.player-card.empty .card-level {
+  display: none;
+}
+
+.player-card__opening {
+  display: none;
+  opacity: 0.5;
+}
+
+.player-card.empty .player-card__opening {
+  display: flex;
+}
+
+@keyframes breathe {
+  50% { opacity: 0.55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-card.empty { animation: none; }
+}
 
 /* HEX STACKER lockup — triad mark (shared/brand-mark.svg: teal/red/honey
    cells from the party palette) above a single-color wordmark. The palette
@@ -405,29 +410,6 @@
   /* Leading indent balances the trailing letter-space after the last glyph
      so the centered line is optically centered (same trick on the sub). */
   text-indent: 0.06em;
-}
-
-/* Compact row variant — mark beside the wordmark instead of above it, for
-   screens where the stacked lockup eats too much height (display lobby,
-   device-choice). */
-.brand-lockup--row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5em;
-  /* Optical centering: the flex row centers [mark + text] as a unit, but
-     the colorful mark carries less "title weight" than the wordmark, so a
-     small leftward nudge (~1/4 of the way toward centering the text alone,
-     which would be -1.1em) makes the lockup read centered to the eye.
-     position/left rather than margin (`.device-choice__brand h1` resets
-     margins) or transform (fadeDown animates transform). */
-  position: relative;
-  left: -0.3em;
-}
-
-.brand-lockup--row .brand-lockup__mark {
-  width: 1.7em;
-  margin: 0;
 }
 
 .brand-lockup__sub {
@@ -496,8 +478,6 @@
     calc(var(--safe-bottom) + 16px)
     max(var(--safe-left), 12px);
   background: var(--overlay-bg);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
   animation: fadeIn 0.3s ease both;
 }
 
@@ -514,7 +494,9 @@
 }
 
 .game-overlay__status {
-  font-size: 14px;
+  /* Legible from the couch and on the phone — scales with the overlay
+     heading rather than sitting at a fixed 14px caption size. */
+  font-size: clamp(1.2rem, 2.4vh, 1.6rem);
   font-weight: 600;
   color: var(--text-secondary);
   letter-spacing: 0.04em;

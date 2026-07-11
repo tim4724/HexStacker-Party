@@ -6,7 +6,7 @@
     <string name="lines">SATIR</string>
     <string name="ko">K.O.</string>
     <string name="go">BAŞLA!</string>
-    <string name="scan_to_rejoin">TEKRAR KATILMAK İÇİN TARA</string>
+    <string name="scan_to_rejoin">TARA</string>
 
     <string name="double_clear">İKİLİ</string>
     <string name="triple_clear">ÜÇLÜ!</string>

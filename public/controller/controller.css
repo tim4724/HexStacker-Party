@@ -96,16 +96,9 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 18px;
-  margin-top: 24px;
-}
-
-.controller-shell__copy {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  text-align: center;
+  /* Breathing room under the brand title on tall phones; collapses back
+     to the old 24px when vertical space is tight. */
+  margin-top: clamp(24px, 5vh, 44px);
 }
 
 .controller-shell__actions {
@@ -114,6 +107,15 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* Space between the body content (name input / identity card) and the
+   primary button below it. Used to come implicitly from a now-removed
+   status wrapper inside the actions block; landscape rules override
+   with their own tighter margins. */
+.controller-shell__actions--name,
+.controller-shell__actions--lobby {
+  margin-top: 16px;
 }
 
 /* When the actions block contains a status banner (e.g. the late-joiner
@@ -202,17 +204,18 @@ html, body {
   margin-left: auto;
 }
 
+/* Optical centering: the "<" chevron's two open stroke ends sit on its
+   right, so the geometrically centered glyph reads shifted right inside
+   the circle — nudge it toward the apex. */
+#lobby-back-btn svg {
+  transform: translateX(-5%);
+}
+
 .controller-shell__frame--lobby {
   flex: 1;
   height: auto;
   justify-content: center;
 }
-
-.icon-btn {
-  width: 56px;
-  height: 56px;
-}
-
 
 .hidden {
   display: none !important;
@@ -227,16 +230,18 @@ html, body {
   animation: fadeUp 0.5s 0.15s ease-out both;
 }
 
+/* Dark inset field — recessed into the background rather than raised on
+   a card, matching the socket/pill recess language. */
 #name-input {
   width: 100%;
   padding: 14px 20px;
-  border-radius: var(--radius-md);
-  border: 1.5px solid var(--border);
-  background: var(--bg-card);
+  border-radius: var(--radius-btn);
+  border: 1px solid var(--border-strong);
+  background: rgba(21, 18, 31, 0.6);
   color: var(--text-primary);
   font-family: var(--font-brand);
   font-size: clamp(1.1rem, 5vw, 1.4rem);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-align: center;
   outline: none;
@@ -251,7 +256,7 @@ html, body {
 }
 
 #name-input:focus {
-  border-color: var(--player-color, var(--accent-secondary));
+  border-color: var(--accent-secondary);
 }
 
 /* Unified sizing for every primary action button on the controller —
@@ -277,13 +282,6 @@ html, body {
    reuse it. --player-color is set on <body> by the controller
    (see ControllerGame.js). */
 
-#name-join-btn:disabled,
-#start-btn:disabled {
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  cursor: default;
-}
-
 #name-join-btn,
 #start-btn {
   animation: fadeUp 0.5s 0.4s ease-out backwards;
@@ -302,8 +300,8 @@ html, body {
 /* Identity trigger button — adds button-specific styling on top of the
    shared .player-card__top layout (in theme.css). The trigger fills the
    entire top half of the card so the whole region is tappable. Inner
-   border-radius matches the card's outer (--radius-md = 12px) minus the
-   2px card border so the :active highlight tucks under the border. */
+   border-radius matches the borderless card's outer 20px so the :active
+   highlight follows the card corners. */
 .identity-trigger {
   appearance: none;
   -webkit-appearance: none;
@@ -312,7 +310,7 @@ html, body {
   /* Receives restored focus when the color picker closes; touch-only UI,
      so suppress the UA focus ring (same as .rose-cell). */
   outline: none;
-  border-radius: 10px 10px 0 0;
+  border-radius: 20px 20px 0 0;
   color: inherit;
   font: inherit;
   cursor: pointer;
@@ -323,34 +321,52 @@ html, body {
   background: rgba(255, 255, 255, 0.08);
 }
 
-/* Tight gap override for the +/- control cluster — overrides the wider
-   gap in shared .card-level (which is sized for display's heading + value
-   pair). The heading-to-minus distance is bumped via the heading's own
-   margin-right below. */
+/* Bigger name on the phone card — matches the display card's proportions
+   (the theme.css clamp is tuned for the smaller display-grid cards). */
+.identity-trigger .identity-name {
+  font-size: clamp(1.9rem, 9.5vmin, 2.5rem);
+}
+
+/* Symmetric stepper row — minus left, plus right, "Level" stacked above
+   the value in the center block. Wider gap than the shared .card-level
+   default so the circles don't crowd the value. */
 #level-selector {
-  gap: 0.35rem;
+  gap: 16px;
+}
+
+/* Center block: heading above value. min-width keeps the +/- circles from
+   shifting when the value changes digit count. The heading is absolutely
+   positioned above the block so the value itself sits on the same
+   horizontal axis as the +/- circles (the row centers the block, and the
+   block's in-flow height is just the value). */
+#level-selector .level-center {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 4.5em;
 }
 
 #level-selector .level-heading {
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  text-align: center;
   font-family: var(--font-brand);
-  /* Larger floor than display's .card-level__heading clamp — phones
-     pin to the floor (vmin ≈ vw is small in portrait), so the floor is
-     what's actually rendered on a controller. */
-  font-size: clamp(1.05rem, 4.5vmin, 1.35rem);
+  font-size: 0.7rem;
   font-weight: 700;
   color: var(--text-secondary);
-  letter-spacing: 0.06em;
+  /* text-indent balances the trailing letter-space so the heading centers
+     over the value (same trick as .brand-lockup__sub). */
+  letter-spacing: 0.24em;
+  text-indent: 0.24em;
   text-transform: uppercase;
-  /* Wider gap before the minus button so "Level" reads as a label,
-     not as part of the +/− control cluster. */
-  margin-right: 0.7rem;
 }
 
 #level-display {
-  font-family: var(--font-brand);
-  /* Larger floor than display's .card-level__value clamp — see note on
-     .level-heading above. */
-  font-size: clamp(1.05rem, 4.5vmin, 1.35rem);
+  font-family: var(--font-hud);
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--text-primary);
   min-width: 1.4em;
@@ -359,23 +375,24 @@ html, body {
 }
 
 #level-selector .level-btn {
-  /* Always fits inside the .card-level half: height capped at 75% of
-     the parent (= card_width/4 due to .player-card's 2:1 aspect), with
-     a 2.8rem ceiling (≈44.8px = standard min touch target) so it stops
-     growing on tablets. aspect-ratio:1 mirrors width to height, so the
-     button is always square and never forces the card past aspect —
-     regardless of card width. */
-  height: min(2.8rem, 75%);
+  /* Round utility button (same family as .icon-btn, same 52px size).
+     Height capped at 75% of the .card-level half so it always fits inside
+     the card; aspect-ratio:1 mirrors width to height so the circle never
+     forces the card past its 2:1 aspect. */
+  height: min(52px, 75%);
   aspect-ratio: 1;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 248, 236, 0.12);
+  border-radius: 50%;
+  background: rgba(21, 18, 31, 0.4);
   color: var(--text-primary);
   padding: 0;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Kill the mobile tap flash — these are the most-tapped buttons in the
+     lobby (theme.css does the same for .btn/.icon-btn). */
+  -webkit-tap-highlight-color: transparent;
   transition: background var(--transition-fast);
 }
 
@@ -387,8 +404,12 @@ html, body {
   max-height: 55%;
 }
 
+/* Pressed = deeper recess. A lightening fill (--bg-card-soft) reads as a
+   cool purple flash against the warm tonal card surfaces, so press
+   feedback darkens the translucent fill instead. */
 #level-selector .level-btn:active:not(:disabled) {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(21, 18, 31, 0.7);
+  transform: translateY(1px);
 }
 
 #level-selector .level-btn:disabled {
@@ -453,9 +474,9 @@ html, body {
   /* Starts non-interactive (matches the overlay + rose cells); the
      pickerEnableInteractive animation flips it back to "auto" after
      the fade. Without this, the close button's default auto would
-     make it tappable during the fade window. Width/height inherit
-     from .icon-btn (56px) so the close X visually matches the back
-     and settings buttons in the lobby top bar. */
+     make it tappable during the fade window. Size/shape inherit from
+     .icon-btn so the close X visually matches the back and settings
+     buttons in the lobby top bar. */
   pointer-events: none;
 }
 
@@ -549,7 +570,7 @@ html, body {
 /* --- Color picker animations -------------------------------------------
    When #color-picker-overlay loses .hidden, the rose fades + pops in with
    a slight overshoot, and the 7 cells stagger from the centre outward.
-   The .game-overlay base class already provides the backdrop blur +
+   The .game-overlay base class already provides the dark backdrop +
    safe-area padding + a fadeIn entrance for the overlay itself; we layer
    the rose-specific motion on top.
    ----------------------------------------------------------------------- */
@@ -620,44 +641,6 @@ html, body {
   animation: fadeUp 0.5s 0.35s ease-out both;
 }
 
-#status-text,
-#name-status-text,
-#room-gone-heading {
-  font-family: var(--font-brand);
-  font-size: clamp(1.2rem, 5.8vw, 1.85rem);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: rgba(var(--accent-secondary-rgb), 0.9);
-  text-align: center;
-}
-
-#status-text,
-#name-status-text {
-  animation: fadeUp 0.5s 0.15s ease-out both;
-}
-
-#status-detail,
-#name-status-detail,
-#room-gone-detail {
-  font-size: clamp(1rem, 4.5vw, 1.2rem);
-  color: var(--text-secondary);
-  letter-spacing: 0.04em;
-  text-align: center;
-}
-
-#status-detail,
-#name-status-detail {
-  animation: fadeUp 0.5s 0.25s ease-out both;
-  max-width: 30ch;
-  line-height: 1.45;
-}
-
-#status-text:empty,
-#status-detail:empty,
-#name-status-text:empty,
-#name-status-detail:empty,
-#room-gone-heading:empty,
-#room-gone-detail:empty,
 #gameover-status:empty {
   display: none;
 }
@@ -889,10 +872,12 @@ html, body {
   line-height: 1;
 }
 
-/* "This is you" highlight */
+/* "This is you" highlight — tonal row in your own color, same recipe as
+   the lobby's tonal player cards (replaces the old outline highlight).
+   Two-declaration fallback for engines without color-mix. */
 .result-row.is-me {
-  outline: 1.5px solid rgba(255, 255, 255, 0.4);
-  outline: 1.5px solid color-mix(in srgb, var(--me-color, #888) 70%, transparent);
+  background: var(--bg-card-soft);
+  background: color-mix(in oklab, var(--me-color, var(--bg-card-soft)) 20%, var(--bg-card));
 }
 
 .result-info {
@@ -900,14 +885,19 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
+  /* Name and lines/level read as one unit — the name's line box supplies
+     the separation on its own. */
+  gap: 0;
   min-width: 0;
 }
 
 .result-name {
-  font-size: clamp(1rem, 5vw, 1.4rem);
+  font-size: clamp(1.35rem, 6.5vw, 1.8rem);
   font-weight: 900;
   letter-spacing: 0.03em;
+  /* Tight line box so the stats line tucks right under the name (Baloo's
+     default line boxes are tall — same trim as .brand-lockup). */
+  line-height: 1.1;
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
@@ -1017,9 +1007,9 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  /* Borderless 20px card, matching the tonal player-card language. */
   background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: 20px;
   padding: 22px 14px;
   overflow-y: auto;
   scrollbar-width: none;
@@ -1069,17 +1059,20 @@ html, body {
   flex: 1;
 }
 
+/* Quiet HUD readout — metadata, not a headline (the test pad below is
+   the real feedback for the value). */
 .settings-row__value {
-  font-size: 0.85rem;
+  font-family: var(--font-hud);
+  font-size: 0.72rem;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-faint);
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
 }
 
 .settings-row__hint {
-  font-size: 0.82rem;
-  color: var(--text-secondary);
+  font-size: 0.72rem;
+  color: var(--text-faint);
   text-align: center;
   margin-top: 2px;
   letter-spacing: 0.03em;
@@ -1099,13 +1092,14 @@ html, body {
   pointer-events: none;
 }
 
-/* Toggle switch */
+/* Toggle switch — off-state uses the recessed fill so it matches the
+   segmented control and slider track beside it. */
 .settings-switch {
   width: 52px;
   height: 30px;
   border: none;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(21, 18, 31, 0.55);
   position: relative;
   padding: 0;
   cursor: pointer;
@@ -1132,13 +1126,14 @@ html, body {
   transform: translateX(22px);
 }
 
-/* Segmented control (haptic strength) */
+/* Segmented control (haptic strength) — recessed dark group like the
+   slider track, radius from the shared button token. */
 .settings-segmented {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 0;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-md);
+  background: rgba(21, 18, 31, 0.4);
+  border-radius: var(--radius-btn);
   padding: 3px;
 }
 
@@ -1151,7 +1146,7 @@ html, body {
   font-weight: 700;
   letter-spacing: 0.05em;
   padding: 10px 4px;
-  border-radius: calc(var(--radius-md) - 3px);
+  border-radius: calc(var(--radius-btn) - 3px);
   cursor: pointer;
   transition: background var(--transition-fast), color var(--transition-fast);
 }
@@ -1169,19 +1164,37 @@ html, body {
   width: 100%;
   -webkit-appearance: none;
   appearance: none;
-  height: 6px;
-  /* Center-marker painted into the track itself so the thumb (native
+  height: 8px;
+  /* Recessed track (same inset recipe as the lobby sockets). Layers, top
+     to bottom: the 1.00 center tick, the player-tinted progress fill up
+     to the thumb (--value-pct, set in JS like --center-pct), the dark
+     base. Two-declaration fallback: engines without color-mix keep the
+     tick + recessed base and just lose the fill.
+
+     Center-marker painted into the track itself so the thumb (native
      pseudo-element) always renders on top of it — no stacking tricks
-     needed. Position comes from --center-pct (set in JS) so the tick
-     lands on the real 1.00 value: bounds are linear [min, max] but 1.00
-     sits at (1 - min) / (max - min) which isn't exactly 50%. */
+     needed. Position comes from --center-pct so the tick lands on the
+     real 1.00 value: bounds are linear [min, max] but 1.00 sits at
+     (1 - min) / (max - min) which isn't exactly 50%. */
+  border: 1px solid rgba(255, 248, 236, 0.05);
   background:
     linear-gradient(to right,
       transparent calc(var(--center-pct, 50%) - 1px),
       rgba(255, 255, 255, 0.55) calc(var(--center-pct, 50%) - 1px) calc(var(--center-pct, 50%) + 1px),
       transparent calc(var(--center-pct, 50%) + 1px)
     ),
-    rgba(255, 255, 255, 0.12);
+    rgba(21, 18, 31, 0.55);
+  background:
+    linear-gradient(to right,
+      transparent calc(var(--center-pct, 50%) - 1px),
+      rgba(255, 255, 255, 0.55) calc(var(--center-pct, 50%) - 1px) calc(var(--center-pct, 50%) + 1px),
+      transparent calc(var(--center-pct, 50%) + 1px)
+    ),
+    linear-gradient(to right,
+      color-mix(in srgb, var(--player-color, var(--accent-secondary)) 55%, transparent) var(--value-pct, 50%),
+      transparent var(--value-pct, 50%)
+    ),
+    rgba(21, 18, 31, 0.55);
   border-radius: 999px;
   outline: none;
   cursor: pointer;
@@ -1205,6 +1218,27 @@ html, body {
   background: var(--player-color, var(--accent-secondary));
   cursor: pointer;
   border: none;
+}
+
+/* Wrapper exists only to anchor the corner label over the canvas. */
+.settings-preview-wrap {
+  position: relative;
+  width: 100%;
+}
+
+/* Faint corner tag naming the preview — reuses the existing "touchpad"
+   string so it's translated everywhere. */
+.settings-preview__label {
+  position: absolute;
+  top: 9px;
+  left: 14px;
+  font-family: var(--font-brand);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(247, 241, 232, 0.35);
+  pointer-events: none;
 }
 
 /* Preview canvas — mirrors the real touchpad (controller.css:#touch-pad)
@@ -1351,7 +1385,7 @@ body.airconsole #ac-status-overlay { display: flex; }
 body.airconsole #ac-status-overlay.hidden { display: none; }
 
 /* --- Results scrolling — scroll on the list, not the body,
-   so the .is-me outline isn't clipped. Hide the scrollbar chrome since
+   so the rows' box-shadow isn't clipped. Hide the scrollbar chrome since
    desktop and mobile render it differently; swiping still works. --- */
 #results-list {
   overflow-y: auto;
@@ -1380,6 +1414,21 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
 /* Keep "HEX STACKER" on one line on narrow phones rather than wrapping. */
 .controller-shell__frame--results .controller-shell__title {
   white-space: nowrap;
+}
+
+/* Results title drops its triad mark when vertical space is contested —
+   either the viewport is short, or the ranking list is long (5+ players)
+   and every reclaimed row of height shows another placement. Same
+   "wordmark alone still brands the page" reasoning as the device-choice
+   overlay's ≤640px rule. */
+.controller-shell__frame--results:has(.result-row:nth-child(5)) .brand-lockup__mark {
+  display: none;
+}
+
+@media (max-height: 700px) {
+  .controller-shell__frame--results .brand-lockup__mark {
+    display: none;
+  }
 }
 
 /* --- Landscape layout ---
@@ -1493,6 +1542,9 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   .result-row {
     gap: 10px;
     padding: 6px 12px;
+    /* The compact landscape rows are much shorter than portrait's — the
+       full 20px radius reads as a pill here, so scale it down with them. */
+    border-radius: 14px;
   }
 
   /* Pack name + stats close together so all rows fit on short
@@ -1502,7 +1554,7 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   }
 
   .result-name {
-    font-size: clamp(0.95rem, 4.2vw, 1.15rem);
+    font-size: clamp(1.15rem, 5vw, 1.45rem);
     line-height: 1.15;
   }
 
@@ -1710,7 +1762,7 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   }
 
   /* Left column: gesture hints, vertically centred.
-     min-width matches the button column (icon-btn = 56px + padding). */
+     min-width matches the button column (--side-col floor + padding). */
   #gesture-hints {
     grid-column: 1;
     grid-row: 1;
@@ -1803,20 +1855,10 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   }
 }
 
-/* Lobby title can return on short landscape now that the picker lives in
-   an overlay — the only remaining vertical occupants are the identity
-   card and the START button. Threshold relaxed from 400px to 301px to
-   match the name-screen branch above. */
-@media (orientation: landscape) and (min-aspect-ratio: 5/4) and (max-height: 499px) and (min-height: 301px) {
-  .controller-shell__frame--lobby .controller-shell__title {
-    display: block;
-    animation: none;
-  }
-
-  .controller-shell__frame--lobby .controller-shell__body {
-    margin-top: 16px;
-  }
-}
+/* The lobby title stays hidden on ALL short landscape (≤499px): with the
+   bigger identity card + stepper it clips off-screen in the 301-499px
+   window, and the lobby reads fine without it (the name screen keeps its
+   title via the branch above — its content is shorter). */
 
 /* Landscape keyboard open — collapse everything except the input field.
    Android: CSS media query fires via interactive-widget=resizes-content.
@@ -1827,9 +1869,7 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
 @media (orientation: landscape) and (min-aspect-ratio: 5/4) and (max-height: 220px) {
   .controller-shell__brand,
   .controller-shell__actions,
-  .legal-links,
-  #room-gone-message,
-  .controller-shell__copy {
+  .legal-links {
     visibility: hidden;
     height: 0;
     margin: 0;
@@ -1852,9 +1892,7 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
 /* iOS Safari fallback — JS sets .keyboard-compact via visualViewport */
 .keyboard-compact .controller-shell__brand,
 .keyboard-compact .controller-shell__actions,
-.keyboard-compact .legal-links,
-.keyboard-compact #room-gone-message,
-.keyboard-compact .controller-shell__copy {
+.keyboard-compact .legal-links {
   visibility: hidden;
   height: 0;
   margin: 0;

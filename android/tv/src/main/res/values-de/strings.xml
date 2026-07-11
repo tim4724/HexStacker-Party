@@ -6,7 +6,7 @@
     <string name="lines">ZEILEN</string>
     <string name="ko">K.O.</string>
     <string name="go">LOS</string>
-    <string name="scan_to_rejoin">ERNEUT SCANNEN</string>
+    <string name="scan_to_rejoin">SCANNEN</string>
 
     <string name="double_clear">DOUBLE</string>
     <string name="triple_clear">TRIPLE!</string>

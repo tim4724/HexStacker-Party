@@ -134,11 +134,11 @@ describe('i18n', function () {
     var requiredKeys = [
       'hold', 'next', 'level', 'lines', 'ko', 'go',
       'scan_to_rejoin', 'triple', 'double',
-      'scan_to_join',
+      'scan_to_join', 'scan_hint',
       'waiting_for_players', 'start_n_players', 'start',
       'start_new_game', 'play_again',
       'new_game', 'continue_btn',
-      'reconnect', 'rejoin', 'join', 'share_aria',
+      'reconnect', 'join', 'share_aria',
       'reconnecting', 'disconnected', 'connecting', 'connection_lost',
       'attempt_n_of_m', 'display_reconnecting', 'bad_connection',
       'paused', 'device_choice_continue',

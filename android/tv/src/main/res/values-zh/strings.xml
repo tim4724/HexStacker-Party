@@ -7,7 +7,7 @@
     <string name="lines">行数</string>
     <string name="ko">K.O.</string>
     <string name="go">开始</string>
-    <string name="scan_to_rejoin">扫码重新加入</string>
+    <string name="scan_to_rejoin">扫码</string>
 
     <string name="double_clear">二连消</string>
     <string name="triple_clear">三连消!</string>

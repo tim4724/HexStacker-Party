@@ -166,8 +166,6 @@ if (window.visualViewport) {
 var nameForm = document.getElementById('name-form');
 var nameInput = document.getElementById('name-input');
 var nameJoinBtn = document.getElementById('name-join-btn');
-var nameStatusText = document.getElementById('name-status-text');
-var nameStatusDetail = document.getElementById('name-status-detail');
 var nameScreen = document.getElementById('name-screen');
 var lobbyScreen = document.getElementById('lobby-screen');
 var lobbyBackBtn = document.getElementById('lobby-back-btn');
@@ -176,8 +174,6 @@ var gameScreen = document.getElementById('game-screen');
 var gameoverScreen = document.getElementById('gameover-screen');
 var playerIdentity = document.getElementById('player-identity');
 var startBtn = document.getElementById('start-btn');
-var statusText = document.getElementById('status-text');
-var statusDetail = document.getElementById('status-detail');
 var playerNameEl = document.getElementById('player-name');
 var playerIdentityName = document.getElementById('player-identity-name');
 var touchArea = document.getElementById('touch-area');

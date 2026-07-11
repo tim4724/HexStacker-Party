@@ -419,8 +419,6 @@ function performDisconnect() {
   nameJoinBtn.disabled = false;
   nameJoinBtn.textContent = t('join');
   nameInput.disabled = false;
-  nameStatusText.textContent = '';
-  nameStatusDetail.textContent = '';
   reconnectOverlay.classList.add('hidden');
   showScreen('name');
   nameInput.focus();
