@@ -24,8 +24,8 @@ const PARTY_PALETTE = Object.freeze([
 // --- Piece colors (1=I3, 2=V3, 3=T3, 4=o, 5=d, 6=b, 9=garbage) ---
 // The 6-piece casual bag uses palette slots 0-5; slots 6 (Indigo) and 7
 // (Tangerine) are unused and available for future pieces or accents.
-// The near-clear pulse uses white (extending the "white = clear-related"
-// vocabulary of the clear preview and clear glow).
+// The near-clear pulse uses warm cream (extending the "cream =
+// clear-related" vocabulary of the clear preview and clear glow).
 const PIECE_COLORS = {
   0: '#000000',             // empty
   1: PARTY_PALETTE[0],      // I3 - red
