@@ -4,11 +4,11 @@ import kotlin.math.ceil
 import kotlin.math.sqrt
 import kotlin.random.Random
 
-/** One falling background particle. [x]/[y] are the piece-anchor screen position. */
+/** One falling background particle. [x]/[y] are the piece-anchor position. */
 class FallingPiece(
     val cells: List<IntArray>, // axial [q, r] offsets of the chosen rotation
-    val blockSize: Float, // hex circumradius (12..32 px)
-    val speed: Float, // px/s downward
+    val blockSize: Float, // hex circumradius (12..32 reference px)
+    val speed: Float, // reference px/s downward
     val opacity: Float, // 0..1 (already includes per-color boost)
     val colorArgb: Int,
     var x: Float,
@@ -21,6 +21,10 @@ class FallingPiece(
  * advance. Android `Canvas`/Compose is Y-down like the web, so there is NO sign
  * flip (unlike the SpriteKit tvOS port). Kept framework-free so the math is
  * unit-testable on the JVM.
+ *
+ * Coordinates are in whatever space [resize] is given: LobbyBackground feeds the
+ * 1920-wide reference space and scales to the canvas at draw time, keeping the
+ * hardcoded 12..32px sizes resolution-independent (web CSS px / tvOS points).
  */
 class FallingPieceField(
     val poolSize: Int = 15, // WelcomeBackground constructor default

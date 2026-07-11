@@ -47,10 +47,13 @@ private val SQRT3 = sqrt(3f)
  * ([PieceStampCache], the web `getHexStamp` cache) with the piece opacity applied
  * at draw time (web `globalAlpha`), so the frame loop allocates nothing.
  *
+ * The piece field lives in a 1920-wide reference space (the web/tvOS coordinate
+ * space; height follows the canvas aspect) and is scaled to the canvas at draw
+ * time, so pieces keep the same apparent size and speed on 1080p and 4K surfaces.
+ *
  * When [fixedPieces] is non-null (screenshot fixtures), the live animation is
- * skipped entirely and exactly those pieces are painted, scaled from the
- * 1920x1080 reference space they are authored in to the canvas — so the gallery
- * lobby shows the SAME frozen ambient columns as the web/tvOS galleries. Production
+ * skipped entirely and exactly those pieces are painted — so the gallery lobby
+ * shows the SAME frozen ambient columns as the web/tvOS galleries. Production
  * callers pass nothing and get the live field.
  */
 @Composable
@@ -69,7 +72,9 @@ fun LobbyBackground(
     // A frozen fixture skips the loop outright — the shot must not race an animation.
     LaunchedEffect(size, active, fixedPieces != null) {
         if (fixedPieces != null || size == IntSize.Zero || !active) return@LaunchedEffect
-        field.resize(size.width.toFloat(), size.height.toFloat())
+        // Simulate in the reference space (drawFallingPiece scales to the canvas);
+        // raw canvas px would halve the apparent piece size/speed on 4K surfaces.
+        field.resize(REF_W, REF_W * size.height / size.width)
         var last = 0L
         while (isActive) {
             val now = withFrameNanos { it }
@@ -88,36 +93,14 @@ fun LobbyBackground(
                 .onSizeChanged { size = it },
         ) {
             tick.value // read so the draw phase re-runs each frame
-            if (fixedPieces != null) drawFixedPieces(fixedPieces, stamps)
-            else for (p in field.pool) drawFallingPiece(p, stamps)
+            for (p in fixedPieces ?: field.pool) drawFallingPiece(p, stamps)
         }
     }
 }
 
-/** Reference space the fixture pieces are authored in (matches the web/tvOS gallery). */
+/** Reference width the piece field simulates in and fixtures are authored in
+ *  (matches the web/tvOS 1920x1080 space); scaled to the canvas at draw time. */
 private const val REF_W = 1920f
-private const val REF_H = 1080f
-
-/** Paint the frozen fixture pieces, scaling positions + hex size from the 1920x1080
- *  reference space to the actual canvas (scale 1 at the 1080p gallery viewport). */
-private fun DrawScope.drawFixedPieces(pieces: List<FallingPiece>, stamps: PieceStampCache) {
-    val sx = size.width / REF_W
-    val sy = size.height / REF_H
-    for (p in pieces) {
-        drawFallingPiece(
-            FallingPiece(
-                cells = p.cells,
-                blockSize = p.blockSize * sx,
-                speed = 0f,
-                opacity = p.opacity,
-                colorArgb = p.colorArgb,
-                x = p.x * sx,
-                y = p.y * sy,
-            ),
-            stamps,
-        )
-    }
-}
 
 /** Accent-red radial glow baked behind the falling pieces (web `display.js`:
  *  cx 0.5, cy 0.3, alpha 0.06, stop end 0.55), painted over the parent's
@@ -140,18 +123,20 @@ private fun DrawScope.drawLobbyGlow() {
 }
 
 /** Draw one particle's hex cells by stamping the cached pillow bitmap at each cell,
- *  weighted by the particle opacity (web `globalAlpha` over a `getHexStamp` stamp). */
+ *  weighted by the particle opacity (web `globalAlpha` over a `getHexStamp` stamp).
+ *  Positions/sizes are reference-space and scaled to the canvas here (scale 1 on a
+ *  1080p surface, 2 on 4K); the stamp is rendered at the scaled size so it stays crisp. */
 private fun DrawScope.drawFallingPiece(p: FallingPiece, stamps: PieceStampCache) {
-    val size = p.blockSize
-    val stamp = stamps.get(p.colorArgb, size)
+    val scale = size.width / REF_W
+    val stamp = stamps.get(p.colorArgb, p.blockSize * scale)
     val halfW = stamp.width / 2f
     val halfH = stamp.height / 2f
     val alpha = p.opacity.coerceIn(0f, 1f)
     for (cell in p.cells) {
         val q = cell[0]
         val r = cell[1]
-        val cx = p.x + size * 1.5f * q
-        val cy = p.y + size * SQRT3 * (r + q / 2f)
+        val cx = (p.x + p.blockSize * 1.5f * q) * scale
+        val cy = (p.y + p.blockSize * SQRT3 * (r + q / 2f)) * scale
         drawImage(stamp, topLeft = Offset(cx - halfW, cy - halfH), alpha = alpha)
     }
 }
@@ -163,8 +148,9 @@ private fun DrawScope.drawFallingPiece(p: FallingPiece, stamps: PieceStampCache)
  * with a top-left radial gloss and a bottom-edge shadow line. Rendering a stamp
  * once and blitting it per cell replaces the previous per-cell-per-frame
  * `Brush.radialGradient` (a native shader allocation) — the 60fps loop now only
- * does bitmap draws. Bounded: block sizes span 12..32px and there are 6 piece
- * colors, so at most ~126 tiny bitmaps live here for the lobby's lifetime.
+ * does bitmap draws. Bounded: block sizes span 12..32 reference px times the fixed
+ * canvas scale (≤64px on 4K) and there are 6 piece colors, so at most a few hundred
+ * tiny bitmaps live here for the lobby's lifetime.
  */
 private class PieceStampCache {
     private val cache = HashMap<Long, ImageBitmap>()
