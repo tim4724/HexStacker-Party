@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -93,22 +95,34 @@ fun PlayerCard(
     }
 
     val color = playerColor(player.colorIndex)
+    // Web stacks the name's 1.15em line box (.identity-name line-height), the
+    // gap, and the pill box, centered as a group — capping the name's box (the
+    // Wordmark pattern: Baloo's natural box is ~1.6em and would push the pill
+    // down) seats the pair a touch above the card middle, like the browser.
+    val nameLineH = with(androidx.compose.ui.platform.LocalDensity.current) { nameSize.toDp() } * 1.15f
     Column(
         modifier
             .aspectRatio(2f)
+            .shadowSm(Tokens.radiusCard) // web .player-card box-shadow: var(--shadow-sm)
             .clip(shape)
             .background(Tokens.tonalCard(color), shape),
         verticalArrangement = Arrangement.spacedBy(contentGap, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            text = player.name,
-            style = AppType.cardName.copy(fontSize = nameSize, color = color),
-            modifier = Modifier.fillMaxWidth().padding(horizontal = padH),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-        )
+        Box(Modifier.height(nameLineH).fillMaxWidth().padding(horizontal = padH), contentAlignment = Alignment.Center) {
+            Text(
+                text = player.name,
+                style = AppType.cardName.copy(
+                    fontSize = nameSize,
+                    color = color,
+                    platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
+                ),
+                modifier = Modifier.wrapContentHeight(unbounded = true),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+            )
+        }
         // Quiet "LEVEL n" pill — recessed dark chip so the level reads as
         // metadata under the colored name (web .card-level__pill).
         Row(

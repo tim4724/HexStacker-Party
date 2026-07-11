@@ -22,6 +22,9 @@ final class ScreenshotTests: XCTestCase {
     func testCaptureEveryDisplayState() {
         let app = XCUIApplication()
         app.launchEnvironment["HEXGALLERY"] = "1"
+        // Capture in English regardless of the simulator locale, so the gallery
+        // columns read the same as the web/Android references.
+        app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20),
                       "app did not reach the foreground")

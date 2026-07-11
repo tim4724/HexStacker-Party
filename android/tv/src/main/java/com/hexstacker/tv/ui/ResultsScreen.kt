@@ -173,23 +173,26 @@ private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, vp: Vp) {
         enter.animateTo(1f, tween(400))
     }
 
-    // Borderless card matching the lobby's tonal cards (web .result-row A2);
-    // late joiners get the recessed socket treatment (.result-row--joining)
-    // instead of a dashed rim.
+    // Borderless card matching the lobby's tonal cards (web .result-row A2:
+    // bg-card + --shadow-sm); late joiners get the recessed socket treatment
+    // (.result-row--joining: no shadow) instead of a dashed rim.
     val base = Modifier
         .fillMaxWidth()
         .graphicsLayer {
             alpha = enter.value * if (res.newPlayer) 0.75f else 1f
             translationY = (1f - enter.value) * 10.dp.toPx()
         }
-        .clip(shape)
 
     val bordered = if (res.newPlayer) {
         base
+            .clip(shape)
             .background(Tokens.socketEmpty, shape)
             .border(1.dp, Tokens.hairlineFaint, shape)
     } else {
-        base.background(Tokens.bgCard, shape)
+        base
+            .shadowSm(Tokens.radiusCard)
+            .clip(shape)
+            .background(Tokens.bgCard, shape)
     }
 
     Row(

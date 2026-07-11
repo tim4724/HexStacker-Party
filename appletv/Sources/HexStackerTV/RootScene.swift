@@ -1187,6 +1187,30 @@ final class RootScene: SKScene, DisplayOutput {
         UIBezierPath(roundedRect: rect, cornerRadius: radius).cgPath
     }
 
+    /// A rounded card baked with the web's one shadow token
+    /// (--shadow-sm: 0 2px 4px rgba(0,0,0,0.32)) — SKShapeNode can't drop
+    /// shadows, so the fill + shadow are rendered to a texture. The returned
+    /// sprite is `pad` larger than the card on every side; its center is the
+    /// card's center.
+    private static let cardShadowPad: CGFloat = 8
+    private static func bakeShadowCard(width w: CGFloat, height h: CGFloat,
+                                       radius: CGFloat, fill: UIColor) -> SKSpriteNode {
+        let pad = cardShadowPad
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: w + pad * 2, height: h + pad * 2))
+        let image = renderer.image { rctx in
+            let ctx = rctx.cgContext
+            ctx.setShadow(offset: CGSize(width: 0, height: 2), blur: 4,
+                          color: UIColor(white: 0, alpha: 0.32).cgColor)
+            ctx.addPath(UIBezierPath(roundedRect: CGRect(x: pad, y: pad, width: w, height: h),
+                                     cornerRadius: radius).cgPath)
+            ctx.setFillColor(fill.cgColor)
+            ctx.fillPath()
+        }
+        let sprite = SKSpriteNode(texture: SKTexture(image: image))
+        sprite.size = CGSize(width: w + pad * 2, height: h + pad * 2)
+        return sprite
+    }
+
     /// Fade + slide a node into place (web fadeDown/fadeUp entrance). `fromDy` is
     /// the starting vertical offset (positive = starts above and drops).
     private func playEntrance(_ node: SKNode, fromDy: CGFloat, delay: TimeInterval) {
@@ -1288,13 +1312,13 @@ final class RootScene: SKScene, DisplayOutput {
     private func buildPlayerCard(player: PlayerRecord?, slotIndex: Int, w: CGFloat, h: CGFloat) -> SKNode {
         let node = SKNode()
         let rect = CGRect(x: -w / 2, y: -h / 2, width: w, height: h)
-        let card = SKShapeNode(path: roundedRect(rect, radius: 20))   // web .player-card 20px
         let color = player.map { SKTheme.player(slot: $0.colorSlot) }
 
         guard let player, let color else {
             // Empty slot — recessed socket (web .player-card.empty): flat dark
             // inset with a hairline ring and a faint hex opening, breathing
-            // slowly. No text — the opening is the only content.
+            // slowly. No text, no shadow — the opening is the only content.
+            let card = SKShapeNode(path: roundedRect(rect, radius: 20))   // web .player-card 20px
             card.fillColor = SKTheme.socket(0.55)
             card.strokeColor = SKTheme.hairline(0.05)
             card.lineWidth = 1
@@ -1322,10 +1346,10 @@ final class RootScene: SKScene, DisplayOutput {
         }
 
         // Tonal card — borderless; the player color is mixed into the surface
-        // and carried by the name text (web .player-card A2).
-        card.fillColor = SKTheme.tonalCard(color)
-        card.strokeColor = .clear
-        node.addChild(card)
+        // and carried by the name text (web .player-card A2), dropping the one
+        // shadow token (--shadow-sm).
+        node.addChild(Self.bakeShadowCard(width: w, height: h, radius: 20,
+                                          fill: SKTheme.tonalCard(color)))
 
         // Name (web .identity-name: weight 800, 0.04em tracking). Fixed size +
         // ellipsis truncation (never scaled), so every chip matches.
@@ -1335,6 +1359,9 @@ final class RootScene: SKScene, DisplayOutput {
         let name = SKLabelNode()
         name.verticalAlignmentMode = .center
         name.horizontalAlignmentMode = .center
+        // Above the baked card sprite: equal-z sibling order is undefined under
+        // ignoresSiblingOrder, and the texture would raster over the labels.
+        name.zPosition = 1
         var nameText = player.playerName
         name.setStyledText(nameText, font: AppFont.brandExtraBold, size: nameSize, color: color, tracking: 0.04)
         while name.frame.width > w * 0.86 && nameText.count > 1 {
@@ -1360,25 +1387,32 @@ final class RootScene: SKScene, DisplayOutput {
                             color: SKTheme.textPrimary(), tracking: 0)
         let textGap = pillFontSize * 0.5
         let textW = heading.frame.width + textGap + value.frame.width
-        let pillH = pillFontSize * 1.7
+        // Web pill box: 0.3em/0.24em padding around the ~1.6em natural line
+        // box ≈ 2.3em tall at the pill font size (measured 35px at 1080p).
+        let pillH = pillFontSize * 2.3
         let pillW = textW + pillFontSize * 2   // 1em side padding
         let pill = SKShapeNode(path: roundedRect(
             CGRect(x: -pillW / 2, y: -pillH / 2, width: pillW, height: pillH), radius: pillH / 2))
         pill.fillColor = SKTheme.socket(0.35)
         pill.strokeColor = .clear
+        pill.zPosition = 1   // above the baked card sprite (see name)
         heading.position = CGPoint(x: -textW / 2, y: 0)
         value.position = CGPoint(x: -textW / 2 + heading.frame.width + textGap, y: 0)
         pill.addChild(heading)
         pill.addChild(value)
         node.addChild(pill)
 
-        // Name + pill group around the card center with a small gap (web: the
-        // display card collapses the 50/50 halves to content height; gap
-        // clamp(3px, 0.9vmin, 9px)).
+        // Name + pill stacked like the web's flex boxes: the name occupies its
+        // 1.15 line box (.identity-name line-height), then the gap
+        // (clamp(3px, 0.9vmin, 9px)), then the pill box — the whole stack
+        // centered in the card. Centering the line BOXES (not the glyph
+        // heights) is what seats the group a touch above the card middle,
+        // exactly like the browser.
         let gap = min(min(size.width, size.height) * 0.009, 9)
-        let contentH = nameSize + gap + pillH
-        name.position = CGPoint(x: 0, y: contentH / 2 - nameSize / 2)
-        pill.position = CGPoint(x: 0, y: -contentH / 2 + pillH / 2)
+        let nameLine = nameSize * 1.15
+        let contentH = nameLine + gap + pillH
+        name.position = CGPoint(x: 0, y: contentH / 2 - nameLine / 2)
+        pill.position = CGPoint(x: 0, y: contentH / 2 - nameLine - gap - pillH / 2)
         return node
     }
 
@@ -1503,19 +1537,19 @@ final class RootScene: SKScene, DisplayOutput {
         let rect = CGRect(x: -w / 2, y: -h / 2, width: w, height: h)
 
         // Borderless card matching the lobby's tonal cards (web .result-row:
-        // 20px radius, bg-card, no border). Late joiners get the recessed
-        // socket treatment (.result-row--joining) instead of a dashed rim.
-        let card = SKShapeNode(path: roundedRect(rect, radius: 20))
+        // 20px radius, bg-card, --shadow-sm, no border). Late joiners get the
+        // recessed socket treatment (.result-row--joining: no shadow) instead
+        // of a dashed rim.
         if isNew {
+            let card = SKShapeNode(path: roundedRect(rect, radius: 20))
             card.fillColor = SKTheme.socket(0.55)
             card.strokeColor = SKTheme.hairline(0.05)
             card.lineWidth = 1
             node.alpha = 0.75
+            node.addChild(card)
         } else {
-            card.fillColor = SKTheme.bgCard
-            card.strokeColor = .clear
+            node.addChild(Self.bakeShadowCard(width: w, height: h, radius: 20, fill: SKTheme.bgCard))
         }
-        node.addChild(card)
 
         // One horizontal line: rank | name (left) | stats (right), centered.
         // Web paddings: left clamp(0.7rem,1.3vw,1.3rem), right clamp(1.2rem,2.4vw,2.4rem);

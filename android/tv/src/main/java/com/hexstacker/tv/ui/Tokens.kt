@@ -63,7 +63,9 @@ object Tokens {
     // Radii (theme.css)
     val radiusSm = 6.dp
     val radiusMd = 12.dp
-    val radiusBtn = 16.dp
+    // --radius-btn 16px, web-px/1.5 like radiusCard (a 16dp corner renders 24px
+    // at the TV density and reads visibly rounder than the web buttons).
+    val radiusBtn = 10.7.dp
     val radiusLg = 18.dp
     val radiusXl = 22.dp
     // .player-card / .result-row 20px. Web-px/1.5 (like the sp rule): a 20dp
