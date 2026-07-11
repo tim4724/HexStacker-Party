@@ -20,8 +20,10 @@ final class InfoButton: SKNode, Focusable {
         // gives crisp, coverage-antialiased edges); live SKShapeNode fills render
         // pixely at this size and blur further when scaled on focus. Same
         // texture-bake pattern as MenuButton / MusicSwitch.
+        // Round utility button (A2 .icon-btn): recessed translucent disc +
+        // warm hairline ring, not a card-colored chip.
         let face = SKSpriteNode(texture: Self.bakeFace(diameter: diameter,
-                                                       disc: SKTheme.bgCard,
+                                                       disc: SKTheme.socket(0.4),
                                                        glyph: SKTheme.textPrimary()))
         face.size = CGSize(width: diameter, height: diameter)
         face.zPosition = 0
@@ -42,7 +44,7 @@ final class InfoButton: SKNode, Focusable {
     func activate() { action() }
 
     func setFocused(_ focused: Bool) {
-        ring.strokeColor = focused ? .white : SKTheme.borderStrong
+        ring.strokeColor = focused ? .white : SKTheme.hairline(0.12)
         ring.lineWidth = focused ? 4 : 1
         setScale(focused ? 1.06 : 1.0)
     }

@@ -105,27 +105,40 @@ fun LobbyScreen(
                 verticalArrangement = Arrangement.SpaceEvenly,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                // Title band — fadeDown.
+                // Title band — fadeDown. The pure wordmark centers exactly (A2:
+                // the triad mark moved to the corner badge below).
                 EntranceBand(startOffsetY = (-16).dp, durationMs = 600, delayMs = 0) {
                     Wordmark(mainSize = vp.vminSp(25.6f, 7f, 80f))
                 }
 
-                // Body band (QR | grid) — fadeUp 0.15s.
+                // Body band (web #lobby-body): the QR | grid row (#lobby-main)
+                // with the join/hint line tucked close beneath it — fadeUp 0.15s.
                 EntranceBand(startOffsetY = 16.dp, durationMs = 600, delayMs = 150) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(vp.vminDp(16f, 3f, 40f)),
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(vp.vminDp(10f, 2.2f, 22f)),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        QrCard(
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(vp.vminDp(16f, 3f, 40f)),
+                        ) {
+                            QrBlock(
+                                qrBitmap = qrBitmap,
+                                vp = vp,
+                                modifier = Modifier
+                                    .width(vp.vminDp(190f, 40f, 360f))
+                                    .alpha(if (qrPending) QR_PENDING_ALPHA else 1f),
+                            )
+                            PlayerGrid(players = data.players, vp = vp)
+                        }
+                        JoinLine(
                             joinHost = data.joinHost,
                             joinCode = data.joinCode,
-                            qrBitmap = qrBitmap,
                             vp = vp,
-                            modifier = Modifier
-                                .width(vp.vminDp(180f, 36f, 360f))
-                                .alpha(if (qrPending) QR_PENDING_ALPHA else 1f),
+                            // The stale-room pending dim covers the code too (the
+                            // line is what could mislead), matching the QR.
+                            modifier = Modifier.alpha(if (qrPending) QR_PENDING_ALPHA else 1f),
                         )
-                        PlayerGrid(players = data.players, vp = vp)
                     }
                 }
 
@@ -153,6 +166,16 @@ fun LobbyScreen(
                         onClick = onStart,
                     )
                 }
+            }
+
+            // Triad corner badge — the mark's spot now that the h1 is the pure
+            // wordmark (web .brand-badge, fadeIn 0.6s after 0.3s).
+            BadgeFadeIn(
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(top = overscanV, start = overscanH),
+            ) {
+                TriadMark(Modifier.size(vp.vminDp(40f, 6.4f, 80f)))
             }
 
             // Top-right ⓘ: the entry to the About screen (Privacy / Imprint QR +
@@ -184,14 +207,16 @@ private fun InfoButton(
 ) {
     var focused by remember { mutableStateOf(false) }
     val ringFocused = onOpen != null && focused
+    // Round utility button (A2 .icon-btn): recessed translucent disc + warm
+    // hairline ring, not a card-colored chip.
     Box(
         modifier
             .size(diameter)
             .clip(CircleShape)
-            .background(Tokens.bgCard, CircleShape)
+            .background(Tokens.socketBtn, CircleShape)
             .border(
                 width = if (ringFocused) 3.dp else 1.dp,
-                color = if (ringFocused) Tokens.white else Tokens.borderStrong,
+                color = if (ringFocused) Tokens.white else Tokens.hairlineRing,
                 shape = CircleShape,
             )
             .then(
@@ -251,9 +276,9 @@ private fun PlayerGrid(players: List<LobbyPlayer>, vp: Vp) {
                             val player = players.getOrNull(slot)
                             key(player?.peerIndex ?: "empty-$slot") {
                                 if (player != null) {
-                                    JoinPop { PlayerCard(player, slot, vp, Modifier.width(cardW)) }
+                                    JoinPop { PlayerCard(player, vp, Modifier.width(cardW)) }
                                 } else {
-                                    PlayerCard(null, slot, vp, Modifier.width(cardW))
+                                    PlayerCard(null, vp, Modifier.width(cardW))
                                 }
                             }
                         }
@@ -297,6 +322,16 @@ private fun JoinPop(content: @Composable () -> Unit) {
             compositingStrategy = CompositingStrategy.ModulateAlpha
         },
     ) { content() }
+}
+
+/** Plain fade-in for the corner brand badge (web .brand-badge: fadeIn 0.6s 0.3s). */
+@Composable
+private fun BadgeFadeIn(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val anim = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        anim.animateTo(1f, tween(durationMillis = 600, delayMillis = 300, easing = FastOutSlowInEasing))
+    }
+    Box(modifier.graphicsLayer { alpha = anim.value }) { content() }
 }
 
 /** fadeDown/fadeUp entrance: vertical offset → 0 with alpha 0 → 1, played once. */

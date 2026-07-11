@@ -1,17 +1,15 @@
 import UIKit
 import HexStackerKit
 
-/// Bakes the HEX STACKER title lockup as an image: the party-palette triad mark
-/// (public/shared/brand-mark.svg) to the left of a single-color wordmark with a
-/// cream "PARTY" subtitle. Mirrors the web display lobby's `.brand-lockup--row`
-/// (theme.css). SpriteKit labels can't lay out the mark + text together, so the
-/// whole lockup is rendered to an SKTexture.
+/// Bakes the HEX STACKER title as an image: a single-color wordmark with a
+/// cream "PARTY" subtitle (web `.brand-lockup`; since A2 the triad mark lives
+/// as a separate corner badge — see `markImage`). SpriteKit labels can't
+/// kern/stack the two lines, so the lockup is rendered to an SKTexture.
 enum TitleTexture {
     private static let sqrt3 = CGFloat(3).squareRoot()
 
     /// `mainSize` is the wordmark font size in points. Returns an opaque-on-clear
-    /// image sized to fit [mark · wordmark/sub] (mark left, text right, both
-    /// vertically centered) with padding.
+    /// image of the pure wordmark + PARTY sub, centered, with padding.
     static func make(main: String = "HEX STACKER", sub: String = "PARTY", mainSize: CGFloat) -> UIImage {
         let subSize = mainSize * 0.42
         let mainFont = UIFont(name: AppFont.brandExtraBold, size: mainSize) ?? .systemFont(ofSize: mainSize, weight: .heavy)
@@ -41,47 +39,44 @@ enum TitleTexture {
         let textW = max(mainBounds.width, subBounds.width)
         let textH = mainLineH + subGap + subLineH
 
-        // Triad mark on the left; row gap 0.5em of the main size (.brand-lockup--row).
-        // markW is the mark bbox width for the packing drawMark lays out (3.5R wide,
-        // 2√3·R tall).
-        let markH = mainSize * 1.7
-        let markW = markH * 3.5 / (2 * sqrt3)
-        let gap = mainSize * 0.5
-
-        let lockupW = markW + gap + textW
-        let lockupH = max(markH, textH)
-
         let pad = mainSize * 0.3   // glyph overshoot headroom
-        let w = ceil(lockupW + pad * 2)
-        let h = ceil(lockupH + pad * 2)
+        let w = ceil(textW + pad * 2)
+        let h = ceil(textH + pad * 2)
         let size = CGSize(width: w, height: h)
 
         let format = UIGraphicsImageRendererFormat.preferred()
         format.opaque = false
         let renderer = UIGraphicsImageRenderer(size: size, format: format)
-        return renderer.image { rctx in
-            let ctx = rctx.cgContext
-            let centerY = h / 2
-
-            // Mark bbox vertically centered on the lockup.
-            drawMark(ctx, originX: pad, topY: centerY - markH / 2, markHeight: markH)
-
-            // Text block vertically centered against the mark.
-            let textLeft = pad + markW + gap
-            let textTop = centerY - textH / 2
+        return renderer.image { _ in
+            let textTop = h / 2 - textH / 2
             // Center each line within the text block (web text-align: center);
             // the trailing kern after the last glyph is already inside size().
             // The y offset centers the string's natural line box inside the 1.1em
             // line box (CSS half-leading), so the baseline lands where the web's
             // line-height:1.1 puts it and PARTY sits tight under the wordmark.
             mainStr.draw(at: CGPoint(
-                x: textLeft + (textW - mainBounds.width) / 2,
+                x: pad + (textW - mainBounds.width) / 2,
                 y: textTop + (mainLineH - mainBounds.height) / 2
             ))
             subStr.draw(at: CGPoint(
-                x: textLeft + (textW - subBounds.width) / 2,
+                x: pad + (textW - subBounds.width) / 2,
                 y: textTop + mainLineH + subGap + (subLineH - subBounds.height) / 2
             ))
+        }
+    }
+
+    /// The triad mark alone (web .brand-badge: the corner badge now that the
+    /// h1 is the pure wordmark). `width` is the mark bbox width; the bbox is
+    /// 3.5R × 2√3·R, mirroring brand-mark.svg's proportions.
+    static func markImage(width: CGFloat) -> UIImage {
+        let R = width / 3.5
+        let markH = 2 * sqrt3 * R
+        let size = CGSize(width: ceil(width), height: ceil(markH))
+        let format = UIGraphicsImageRendererFormat.preferred()
+        format.opaque = false
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        return renderer.image { rctx in
+            drawMark(rctx.cgContext, originX: 0, topY: 0, markHeight: markH)
         }
     }
 

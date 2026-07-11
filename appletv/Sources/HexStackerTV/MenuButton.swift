@@ -3,9 +3,10 @@ import HexStackerKit
 
 /// A focusable text button for the lobby / results / pause menus, navigable with
 /// the Siri Remote (d-pad to move focus, Select to activate). Mirrors the web
-/// `.btn-primary` / `.btn-secondary`: a 12px rounded rect (var(--radius-md)),
-/// primary = top→bottom gradient of the tint, secondary = card fill + rim. The
-/// focused state adds a bright ring + slight scale (the tvOS focus convention).
+/// `.btn-primary` / `.btn-secondary`: a 16px rounded rect (var(--radius-btn)),
+/// primary = top→bottom gradient of the tint, secondary = borderless soft-card
+/// fill (A2). The focused state adds a bright ring + slight scale (the tvOS
+/// focus convention).
 final class MenuButton: SKNode, Focusable {
     let action: () -> Void
     let enabled: Bool
@@ -27,11 +28,15 @@ final class MenuButton: SKNode, Focusable {
         self.labelSize = height * 0.36
         super.init()
 
-        let radius: CGFloat = 12   // var(--radius-md)
+        let radius: CGFloat = 16   // var(--radius-btn)
         let top: UIColor, bottom: UIColor
         if enabled && primary {
             top = tint; bottom = Self.scaled(tint, 0.82)
+        } else if enabled {
+            // Secondary: borderless soft-card fill (web .btn-secondary A2).
+            top = SKTheme.bgCardSoft; bottom = SKTheme.bgCardSoft
         } else {
+            // Disabled: quiet card surface, no tint (web .btn-primary:disabled).
             top = SKTheme.bgCard; bottom = SKTheme.bgCard
         }
         let fill = SKSpriteNode(texture: Self.bakeFill(width: width, height: height, radius: radius,
@@ -66,17 +71,12 @@ final class MenuButton: SKNode, Focusable {
         label.setStyledText(labelText, font: AppFont.brandBold, size: labelSize, color: textColor, tracking: 0.08)
 
         guard enabled else {
-            ring.strokeColor = SKTheme.border; ring.lineWidth = 1
+            ring.strokeColor = .clear; ring.lineWidth = 0
             setScale(1.0); return
         }
-        if primary {
-            ring.strokeColor = focused ? .white : .clear
-            ring.lineWidth = focused ? 4 : 0
-        } else {
-            // Neutral secondary: 1px strong border; focus overrides to a white ring.
-            ring.strokeColor = focused ? .white : SKTheme.borderStrong
-            ring.lineWidth = focused ? 4 : 1
-        }
+        // Both variants are borderless at rest (A2); focus adds the white ring.
+        ring.strokeColor = focused ? .white : .clear
+        ring.lineWidth = focused ? 4 : 0
         setScale(focused ? 1.06 : 1.0)
     }
 

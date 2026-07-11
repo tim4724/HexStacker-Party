@@ -87,13 +87,15 @@ final class HexStampFactory {
             ctx.drawLinearGradient(grad, start: CGPoint(x: cx, y: cy - cr),
                                    end: CGPoint(x: cx, y: cy + cr), options: [])
         }
-        // Top highlight + bottom shadow + inner shine.
-        ctx.setFillColor(UIColor(white: 1, alpha: Theme.Opacity.highlight).cgColor)
+        // Top highlight + bottom shadow + inner shine. Highlight/shine in warm
+        // cream (247,241,232 = text.primary) rather than pure white — cool
+        // flashes read as chrome against the warm plum surfaces (CanvasUtils).
+        ctx.setFillColor(UIColor(Theme.nearClear, alpha: Theme.Opacity.highlight).cgColor)
         ctx.fill(CGRect(x: cx - cr * 0.5, y: cy - cr * 0.88, width: cr, height: size * 0.08))
         ctx.setFillColor(UIColor(white: 0, alpha: Theme.Opacity.shadow).cgColor)
         ctx.fill(CGRect(x: cx - cr * 0.5, y: cy + cr * 0.76, width: cr, height: size * 0.08))
         let sh = size * 0.35
-        ctx.setFillColor(UIColor(white: 1, alpha: Theme.Opacity.subtle).cgColor)
+        ctx.setFillColor(UIColor(Theme.nearClear, alpha: Theme.Opacity.subtle).cgColor)
         ctx.fill(CGRect(x: cx - cr * 0.35, y: cy - cr * 0.5, width: sh, height: sh * 0.36))
         ctx.restoreGState()
     }

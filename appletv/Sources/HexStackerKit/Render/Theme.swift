@@ -38,17 +38,24 @@ public enum Theme {
 
     // Background colors.
     public static let bgPrimary = RGB(0x1E, 0x1A, 0x2B)    // main canvas
-    public static let bgSecondary = RGB(0x18, 0x14, 0x21)  // well gradient top
-    public static let bgBoard = RGB(0x15, 0x12, 0x1F)      // well gradient bottom / board
-    public static let nearClear = RGB(0xFF, 0xFF, 0xFF)
+    public static let bgSecondary = RGB(0x18, 0x14, 0x21)  // deeper plum panel bg
+    public static let bgBoard = RGB(0x15, 0x12, 0x1F)      // flat recessed well fill / socket base
+    // Warm-paper hairline for socket rims and ring strokes — mirrors the
+    // rgba(255,248,236,X) --border family in theme.css (THEME.color.hairline).
+    public static let hairline = RGB(0xFF, 0xF8, 0xEC)
+    // Cream outline pulse (== text.primary) — extends the "cream =
+    // clear-related" vocabulary shared with the clear preview and clear glow.
+    public static let nearClear = RGB(0xF7, 0xF1, 0xE8)
 
     // Opacity tokens.
     public enum Opacity {
         public static let boardTint = 0.12
         public static let grid = 0.18
-        public static let strong = 0.7
-        public static let highlight = 0.22
+        public static let hairline = 0.12  // socket-rim hairline strokes (× hairline color)
+        public static let wall = 0.5       // board wall stroke (player color)
+        public static let highlight = 0.16
         public static let shadow = 0.25
+        public static let overlay = 0.75   // dark overlays (board-area KO/disconnect dim)
         public static let subtle = 0.08
     }
 

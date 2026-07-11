@@ -18,7 +18,7 @@ data class ShakeOffset(val x: Float, val y: Float)
 
 /**
  * On-board feedback animations: lock-flash sparkles, line-clear flash + popup +
- * confetti, garbage shake, and the KO red/white flash. Port of
+ * confetti, garbage shake, and the KO cream/danger flash. Port of
  * `public/display/Animations.js`.
  *
  * A SINGLE instance per surface (confetti/popups cross board boundaries). All
@@ -40,8 +40,10 @@ class BoardAnimations {
     private val popupPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val koAnimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
 
-    private val whiteInt = TvColors.white.toArgb()
-    private val redInt = com.hexstacker.core.render.Rgb(255, 0, 0).toArgb()
+    // Clear/KO flashes speak warm cream (text primary) and the danger token —
+    // never pure white / pure red (web Animations.js A2).
+    private val creamInt = Theme.textPrimary.toArgb()
+    private val koFlashInt = TvColors.koText.toArgb()
 
     /** Set the monotonic clock for this frame BEFORE draining events into ingress. */
     fun beginFrame(nowMs: Double) {
@@ -67,7 +69,7 @@ class BoardAnimations {
         active.add(Sparkle(now, duration, x, y, vx, vy, colorInt, rotStart, rotSpeed, size))
     }
 
-    /** Line-clear: white flash + shrink, DOUBLE/TRIPLE popup, confetti burst. */
+    /** Line-clear: cream flash + shrink, DOUBLE/TRIPLE popup, confetti burst. */
     fun addHexCellClear(br: BoardRenderer, cells: List<Cell>, linesCleared: Int) {
         if (cells.isEmpty()) return
         val isTriple = linesCleared == 3
@@ -98,7 +100,7 @@ class BoardAnimations {
             if (isTriple) {
                 addTextPopup(px, py, tripleLabel, colorInt(TvColors.triple), true, br.cellSize.toDouble())
             } else if (linesCleared == 2) {
-                addTextPopup(px, py, doubleLabel, whiteInt, false, br.cellSize.toDouble())
+                addTextPopup(px, py, doubleLabel, creamInt, false, br.cellSize.toDouble())
             }
         }
 
@@ -111,7 +113,7 @@ class BoardAnimations {
                 val color = if (isTriple) {
                     colorInt(Theme.pieceColors[CELEBRATION[Random.nextInt(CELEBRATION.size)]] ?: TvColors.white)
                 } else {
-                    whiteInt
+                    creamInt
                 }
                 addSparkle(sx + (Random.nextDouble() - 0.5) * hexSize * 2, sy, color, 200 + Random.nextDouble() * 400, hexSize.toDouble())
             }
@@ -149,7 +151,7 @@ class BoardAnimations {
         active.add(TextPopup(now, x, y, text, colorInt, hasGlow, cellSize))
     }
 
-    /** KO one-shot: red/white flash clipped to the board outline + 12 edge sparkles. */
+    /** KO one-shot: cream/danger flash clipped to the board outline + 12 edge sparkles. */
     fun addKO(boardX: Float, boardY: Float, boardW: Float, boardH: Float, cellSize: Double, outline: Path) {
         active.add(Ko(now, boardX, boardY, boardW, boardH, outline))
         for (i in 0 until 12) {
@@ -243,7 +245,7 @@ class BoardAnimations {
         val hexSize: Float,
     ) : Anim(start, Theme_timing_lineClear) {
         override fun render(canvas: Canvas, progress: Double) {
-            flashPaint.color = whiteInt
+            flashPaint.color = creamInt
             if (progress < 0.25) {
                 flashPaint.alpha = a255(0.9 * (1 - (progress / 0.25) * 0.5))
                 flashPath.rewind()
@@ -286,8 +288,8 @@ class BoardAnimations {
             popupPaint.alpha = a255(alpha)
             canvas.drawTextB(text, 0f, 0f, popupPaint, TextBaseline.MIDDLE)
             if (hasGlow) {
-                popupPaint.color = whiteInt
-                popupPaint.alpha = a255(0.3 * alpha) // web: white@0.3 under globalAlpha=alpha
+                popupPaint.color = creamInt
+                popupPaint.alpha = a255(0.3 * alpha) // web: cream@0.3 under globalAlpha=alpha
                 canvas.drawTextB(text, 0f, highlightY, popupPaint, TextBaseline.MIDDLE)
             }
             canvas.restore()
@@ -321,11 +323,11 @@ class BoardAnimations {
             val alpha: Double
             when {
                 progress < 0.15 -> {
-                    fill = whiteInt
+                    fill = creamInt
                     alpha = (1 - progress / 0.15) * 0.7
                 }
                 progress < 0.4 -> {
-                    fill = redInt
+                    fill = koFlashInt
                     alpha = ((0.4 - progress) / 0.25) * 0.4
                 }
                 else -> return

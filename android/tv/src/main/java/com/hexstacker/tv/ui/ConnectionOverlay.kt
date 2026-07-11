@@ -16,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.hexstacker.tv.R
 
 /**
@@ -63,7 +62,10 @@ fun ConnectionOverlay(
                        else stringResource(R.string.reconnecting),
                 style = AppType.connHeading,
                 color = Tokens.textPrimary,
-                fontSize = vp.vwSp(20.8f, 6f, 28.8f), // web .game-overlay h1: clamp(1.3rem,6vw,1.8rem)
+                // One heading scale for every full-screen overlay state — PAUSED,
+                // Reconnecting, Disconnected all read at the same weight (web A2:
+                // #pause-overlay h1, #reconnect-overlay h1: clamp(1.6rem,4vh,3.5rem)).
+                fontSize = vp.vhSp(25.6f, 4f, 56f),
             )
             // Status line only while reconnecting (web/tvOS show none in the terminal
             // disconnected state — that screen is just heading + RECONNECT button).
@@ -79,7 +81,9 @@ fun ConnectionOverlay(
                     },
                     style = AppType.connStatus,
                     color = Tokens.textSecondary,
-                    fontSize = 14.sp, // web .game-overlay__status: fixed 14px
+                    // Legible from the couch (web A2 .game-overlay__status:
+                    // clamp(1.2rem,2.4vh,1.6rem)).
+                    fontSize = vp.vhSp(12.8f, 2.4f, 17.1f),
                 )
             }
             if (disconnected && showReconnect) {

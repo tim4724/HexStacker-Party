@@ -26,13 +26,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -50,7 +46,7 @@ import kotlin.math.max
 /**
  * Results overlay (web `renderResults` / `#results-screen`, tvOS `buildResults`).
  * Ranked rows over the frozen board: winner radial glow, player-colored rank +
- * name, lines/level stats, dashed late-joiner rows. NO title/heading (web
+ * name, lines/level stats, recessed-socket late-joiner rows. NO title/heading (web
  * `#results-screen` is just the list + buttons, no logo). The PLAY AGAIN primary
  * CTA is host-tinted (web `applyHostTint`). No anti-misclick gate on the TV (a
  * couch remote, not a phone): buttons are live and focusable immediately.
@@ -156,7 +152,7 @@ fun ResultsScreen(
 
 @Composable
 private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, vp: Vp) {
-    val shape = RoundedCornerShape(Tokens.radiusMd)
+    val shape = RoundedCornerShape(Tokens.radiusCard) // .result-row 20px (A2)
     // Hoisted so they can be used inside non-composable lambdas / branches below.
     val lateJoinerRank = stringResource(R.string.late_joiner_rank) // DisplayUI '–' rank
     val playerFallback = stringResource(R.string.player)
@@ -177,6 +173,9 @@ private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, vp: Vp) {
         enter.animateTo(1f, tween(400))
     }
 
+    // Borderless card matching the lobby's tonal cards (web .result-row A2);
+    // late joiners get the recessed socket treatment (.result-row--joining)
+    // instead of a dashed rim.
     val base = Modifier
         .fillMaxWidth()
         .graphicsLayer {
@@ -184,25 +183,13 @@ private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, vp: Vp) {
             translationY = (1f - enter.value) * 10.dp.toPx()
         }
         .clip(shape)
-        .background(Tokens.bgCard, shape)
 
     val bordered = if (res.newPlayer) {
-        base.drawBehind {
-            val stroke = 1.dp.toPx()
-            drawRoundRect(
-                color = Tokens.border,
-                topLeft = Offset(stroke / 2f, stroke / 2f),
-                size = Size(size.width - stroke, size.height - stroke),
-                cornerRadius = CornerRadius(Tokens.radiusMd.toPx()),
-                // dp-scaled (not raw px) so the dash density matches across 720p..4K panels.
-                style = Stroke(
-                    width = stroke,
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(10.dp.toPx(), 7.dp.toPx())),
-                ),
-            )
-        }
+        base
+            .background(Tokens.socketEmpty, shape)
+            .border(1.dp, Tokens.hairlineFaint, shape)
     } else {
-        base.border(1.dp, Tokens.border, shape)
+        base.background(Tokens.bgCard, shape)
     }
 
     Row(

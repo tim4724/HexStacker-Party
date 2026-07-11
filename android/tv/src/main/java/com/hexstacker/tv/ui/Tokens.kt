@@ -35,20 +35,38 @@ object Tokens {
 
     // Off-white border ramp (#FFF8EC = 255,248,236)
     val border = Color(0x14FFF8EC) // --border        rgba(.,.,.,0.08)
-    val borderStrong = Color(0x29FFF8EC) // --border-strong rgba(.,.,.,0.16)
 
     val btnPrimaryText = Color(0xFF1E1A2B) // --btn-primary-text (dark text on tinted CTAs)
     val overlayBg = Color(0xE01E1A2B) // --overlay-bg rgba(bgPrimary,0.88)
 
-    val joinPillBg = Color(0x38000000) // #join-url background rgba(0,0,0,0.22)
     val partySubColor = Color(0xFFFFF3C2) // .brand-lockup__sub color #fff3c2
     val white = Color(0xFFFFFFFF)
+
+    // A2 socket family — bgBoard (rgb 21,18,31) at alpha: the shared recessed
+    // fill for empty player slots, level pills, and round utility buttons.
+    val socketEmpty = Color(0x8C15121F) // .player-card.empty bg rgba(21,18,31,0.55)
+    val socketPill = Color(0x5915121F) // .card-level__pill bg rgba(21,18,31,0.35)
+    val socketBtn = Color(0x6615121F) // .icon-btn bg rgba(21,18,31,0.4)
+
+    // Warm-paper hairline family (#FFF8EC) beyond the border ramp above.
+    val hairlineRing = Color(0x1FFFF8EC) // .icon-btn ring rgba(255,248,236,0.12)
+    val hairlineFaint = Color(0x0DFFF8EC) // .player-card.empty ring rgba(255,248,236,0.05)
+
+    // Tonal card surface — srgb approximation of the A2 recipe
+    // color-mix(in oklab, <color> 20%, var(--bg-card)).
+    fun tonalCard(color: Color, mix: Float = 0.2f): Color = Color(
+        red = color.red * mix + bgCard.red * (1f - mix),
+        green = color.green * mix + bgCard.green * (1f - mix),
+        blue = color.blue * mix + bgCard.blue * (1f - mix),
+    )
 
     // Radii (theme.css)
     val radiusSm = 6.dp
     val radiusMd = 12.dp
+    val radiusBtn = 16.dp
     val radiusLg = 18.dp
     val radiusXl = 22.dp
+    val radiusCard = 20.dp // .player-card / .result-row 20px
 }
 
 /** Player identity color from the single-source `:core` [Theme] spectrum (slots 0..7). */

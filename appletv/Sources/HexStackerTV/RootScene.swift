@@ -19,9 +19,10 @@ final class RootScene: SKScene, DisplayOutput {
     private let lobbyContent = SKNode()
 
     private let gameLayer = SKNode()
-    // Wraps gameLayer so the results screen can blur the frozen boards behind it
-    // (the web's frosted-glass --overlay-bg + backdrop blur). Effects stay OFF
-    // during play (zero cost); showScreen toggles them only for results.
+    // Wraps gameLayer so the results screen can rasterize the frozen boards
+    // behind its plum scrim (web --overlay-bg; the A2 flat rule dropped the
+    // backdrop blur). Rasterization stays OFF during play (zero cost);
+    // showScreen toggles it only for results.
     private let gameEffect = SKEffectNode()
     private let resultsLayer = SKNode()
     private let timerNode = SKNode()          // container for the fixed-advance timer glyphs
@@ -101,9 +102,8 @@ final class RootScene: SKScene, DisplayOutput {
         layoutLobbyGlow()
 
         addChild(lobbyLayer)
-        gameEffect.shouldEnableEffects = false   // OFF during play; on only for results
+        gameEffect.shouldEnableEffects = false   // no filter — flat rule, no blur
         gameEffect.shouldRasterize = false       // rasterize only for the static results screen (showScreen)
-        gameEffect.filter = CIFilter(name: "CIGaussianBlur", parameters: [kCIInputRadiusKey: 18])
         gameEffect.addChild(gameLayer)
         addChild(gameEffect)
         resultsLayer.zPosition = 1               // above the (blurred) game layer
@@ -347,12 +347,14 @@ final class RootScene: SKScene, DisplayOutput {
         // controller while one is open) must not leave it stranded over the game.
         if screen != .lobby { closeLicenses(); closeAbout() }
         lobbyLayer.isHidden = screen != .lobby
-        // Results overlays the frozen, blurred boards (web frosted-glass look), so
-        // the game layer stays visible underneath and the blur turns on for results.
+        // Results overlays the frozen boards under a plum scrim (web
+        // --overlay-bg; no blur — A2 flat rule), so the game layer stays
+        // visible underneath.
         gameLayer.isHidden = screen != .game && screen != .results
-        // Effects + rasterization scoped to the static results screen: leaving
-        // rasterization on across the every-frame-mutating game layer would force a
-        // full-screen re-bake whenever a board changes.
+        // Effects (filterless = plain rasterization) scoped to the static
+        // results screen: leaving rasterization on across the every-frame-
+        // mutating game layer would force a full-screen re-bake whenever a
+        // board changes.
         gameEffect.shouldEnableEffects = screen == .results
         gameEffect.shouldRasterize = screen == .results
         resultsLayer.isHidden = screen != .results
@@ -702,7 +704,7 @@ final class RootScene: SKScene, DisplayOutput {
         var cursor: CGFloat = 0
         for (i, c) in chars.enumerated() {
             let l = timerGlyphs[i]
-            l.setStyledText(String(c), font: AppFont.name, size: fs, color: UIColor(white: 1, alpha: 0.6), tracking: 0)
+            l.setStyledText(String(c), font: AppFont.name, size: fs, color: SKTheme.textPrimary(0.6), tracking: 0)
             l.position = CGPoint(x: cursor + advances[i] / 2, y: 0)   // web charX = cursor + advance/2
             cursor += advances[i]
         }
@@ -727,17 +729,12 @@ final class RootScene: SKScene, DisplayOutput {
         addChild(countdownLayer)
 
         countdownDim.path = CGPath(rect: CGRect(origin: .zero, size: size), transform: nil)
-        // Scrim matching the web #countdown-overlay: rgba(bg-primary, 0.85) under
-        // the radial accent glow (the empty wells stay faintly visible behind it).
-        countdownDim.fillColor = UIColor(Theme.bgPrimary, alpha: 0.85)
+        // Flat plum scrim — same backdrop as every other game overlay (web
+        // #countdown-overlay: var(--overlay-bg), the A2 flat rule dropped the
+        // radial accent glow).
+        countdownDim.fillColor = UIColor(Theme.bgPrimary, alpha: 0.88)
         countdownDim.strokeColor = .clear
         countdownLayer.addChild(countdownDim)
-
-        // Soft red radial glow behind the number (web radial-gradient tint).
-        let glowD = min(size.width, size.height) * 0.7
-        let glow = Self.makeGlow(diameter: glowD, color: SKTheme.accentPrimary, centerAlpha: 0.08)
-        glow.position = CGPoint(x: size.width / 2, y: size.height / 2)
-        countdownLayer.addChild(glow)
 
         countdownNumber.fontName = AppFont.black
         countdownNumber.fontSize = min(size.height * 0.15, 224)   // web clamp(6rem,15vh,14rem)
@@ -843,8 +840,11 @@ final class RootScene: SKScene, DisplayOutput {
         connDim.path = CGPath(rect: CGRect(origin: .zero, size: size), transform: nil)
         let cx = playRect.midX, cy = playRect.midY
         let heading = reconnecting ? tr("reconnecting") : tr("disconnected")
+        // One heading scale for every full-screen overlay state — PAUSED,
+        // Reconnecting, Disconnected all read at the same weight (web A2:
+        // #pause-overlay h1, #reconnect-overlay h1 share clamp(1.6rem,4vh,3.5rem)).
         connHeading.setStyledText(heading,
-                                  font: AppFont.brandExtraBold, size: min(size.height * 0.045, 64),
+                                  font: AppFont.brandExtraBold, size: min(size.height * 0.04, 56),
                                   color: SKTheme.textPrimary(), tracking: 0.12)
         connHeading.position = CGPoint(x: cx, y: cy + playRect.height * (reconnecting ? 0.04 : 0.05))
         // Web shows the status line only while reconnecting; the lost state is
@@ -1014,19 +1014,31 @@ final class RootScene: SKScene, DisplayOutput {
         let animateEntrance = !lobbyEntranceDone
         lobbyEntranceDone = true
 
-        // --- Title lockup (baked triad mark + HEX STACKER wordmark + PARTY sub),
-        // mirroring the web display lobby's .brand-lockup--row. Sized to ~7.5% of
-        // the play height to match the web wordmark (clamp(1.6rem, 7vmin, 5rem)).
+        // --- Title: the pure HEX STACKER wordmark + PARTY sub, centered exactly
+        // (web A2: the h1 lost the inline mark, so no optical nudge is needed).
+        // Sized to ~7.5% of the play height to match the web wordmark
+        // (clamp(1.6rem, 7vmin, 5rem)).
         let mainSize = max(44, min(H * 0.075, 84))
         let titleImg = TitleTexture.make(mainSize: mainSize)
         let title = SKSpriteNode(texture: SKTexture(image: titleImg))
         title.size = titleImg.size
-        // The sprite is center-anchored, so centering its (now wider) texture on
-        // W/2 centers the whole lockup; the -0.3em nudge is the row variant's
-        // optical-centering shift (web .brand-lockup--row left: -0.3em).
-        title.position = CGPoint(x: W / 2 - mainSize * 0.3, y: H - margin - titleImg.size.height / 2)
+        title.position = CGPoint(x: W / 2, y: H - margin - titleImg.size.height / 2)
         lobbyContent.addChild(title)
         if animateEntrance { playEntrance(title, fromDy: 16, delay: 0) }   // fadeDown
+
+        // --- Triad corner badge — the mark's spot now that the h1 is the pure
+        // wordmark (web .brand-badge: width clamp(40px, 6.4vmin, 80px), top-left).
+        let badgeW = max(40, min(min(size.width, size.height) * 0.064, 80))
+        let badgeImg = TitleTexture.markImage(width: badgeW)
+        let badge = SKSpriteNode(texture: SKTexture(image: badgeImg))
+        badge.size = badgeImg.size
+        badge.position = CGPoint(x: margin * 0.4 + badgeImg.size.width / 2,
+                                 y: H - margin * 0.4 - badgeImg.size.height / 2)
+        lobbyContent.addChild(badge)
+        if animateEntrance {
+            badge.alpha = 0
+            badge.run(.sequence([.wait(forDuration: 0.3), .fadeIn(withDuration: 0.6)]))
+        }
 
         // --- Bottom: Start button (focusable; host-tinted), sized to its text
         // plus padding (web .btn is content-width, not a fixed wide pill).
@@ -1079,12 +1091,12 @@ final class RootScene: SKScene, DisplayOutput {
             infoBtn.run(.sequence([.wait(forDuration: 0.6), .fadeIn(withDuration: 0.5)]))
         }
 
-        // --- Body band: QR card (left) + player grid (right) as a centered row,
-        // vertically centered against each other (web #lobby-body: flex row,
-        // align-items center). Sizes are CAPPED like the web clamps (a touch
-        // larger for TV) so cards stay one size for any player count — just more
-        // columns. The QR is sized independently (big + scannable), not shrunk to
-        // the grid height.
+        // --- Body band: frameless QR (left) + player grid (right) as a centered
+        // row (web #lobby-main), with the join/hint line tucked close beneath the
+        // row (web #join-line — the line belongs to the join section). Sizes are
+        // CAPPED like the web clamps (a touch larger for TV) so cards stay one
+        // size for any player count — just more columns. The QR is sized
+        // independently (big + scannable), not shrunk to the grid height.
         let titleBottom = H - margin - titleImg.size.height
         let bodyTop = titleBottom - margin * 0.5
         let bodyBottom = pillY + pillH / 2 + margin * 0.5
@@ -1103,9 +1115,16 @@ final class RootScene: SKScene, DisplayOutput {
         let cardGap = min(vmin * 0.016, 18)
         let gapMid = min(vmin * 0.032, 40)
 
+        // Join line metrics (web: same HUD face/size for URL and hint,
+        // clamp(1.05rem, 2.2vmin, 1.5rem); body gap clamp(10px, 2.2vmin, 22px)).
+        let joinSize = min(vmin * 0.022, 24)
+        let joinLineH = joinSize * 1.3
+        let joinGap = min(vmin * 0.022, 22)
+
         var cardW = min(vmin * 0.255, 290)            // web card clamp(150, 24vmin, 280)
-        var qrW = min(vmin * 0.38, 380)               // web QR  clamp(180, 36vmin, 360)
-        qrW = min(qrW, bandH * 0.98 / Self.qrAspect)  // keep the QR card within the band height
+        var qrW = min(vmin * 0.38, 380)               // web QR  clamp(190, 40vmin, 360)
+        // Keep the QR square + join line within the band height.
+        qrW = min(qrW, bandH * 0.98 - joinGap - joinLineH)
         // Horizontal fit: shrink proportionally if the widest row would overflow.
         let rowWidth = qrW + gapMid + CGFloat(cols) * cardW + CGFloat(cols - 1) * cardGap
         let budget = W * 0.96
@@ -1118,14 +1137,26 @@ final class RootScene: SKScene, DisplayOutput {
         let totalW = qrW + gapMid + gridW
         let startX = (W - totalW) / 2
 
-        let qrCard = buildQRCard(joinURL: joinURL, width: qrW, center: CGPoint(x: startX + qrW / 2, y: bodyMidY))
-        qrCard.alpha = qrPending ? Self.qrPendingAlpha : 1
-        qrCardNode = qrCard
-        lobbyContent.addChild(qrCard)
-        if animateEntrance { playEntrance(qrCard, fromDy: -16, delay: 0.15) }   // fadeUp
+        // Stack [main row | join line] as one centered column (web #lobby-body).
+        let mainH = max(qrW, gridH)
+        let bodyContentH = mainH + joinGap + joinLineH
+        let mainMidY = bodyMidY + bodyContentH / 2 - mainH / 2
+        let joinLineY = bodyMidY - bodyContentH / 2 + joinLineH / 2
+
+        // The frameless QR + the join/hint line share one container so the
+        // stale-room pending dim covers both (the code in the line is what
+        // could mislead).
+        let qrGroup = SKNode()
+        qrGroup.addChild(buildQRBlock(width: qrW, center: CGPoint(x: startX + qrW / 2, y: mainMidY)))
+        qrGroup.addChild(buildJoinLine(joinURL: joinURL, fontSize: joinSize,
+                                       center: CGPoint(x: W / 2, y: joinLineY)))
+        qrGroup.alpha = qrPending ? Self.qrPendingAlpha : 1
+        qrCardNode = qrGroup
+        lobbyContent.addChild(qrGroup)
+        if animateEntrance { playEntrance(qrGroup, fromDy: -16, delay: 0.15) }   // fadeUp
 
         let gridLeftX = startX + qrW + gapMid
-        let gridTopY = bodyMidY + gridH / 2
+        let gridTopY = mainMidY + gridH / 2
 
         var present: Set<Int> = []
         for slot in 0..<visibleSlots {
@@ -1164,90 +1195,83 @@ final class RootScene: SKScene, DisplayOutput {
         node.run(.sequence([.wait(forDuration: delay), .group([fade, move])]))
     }
 
-    // QR card height : width. Mostly a big QR square with a compact code below
-    // (matches the web's near-square QR card, not a tall narrow one).
-    static let qrAspect: CGFloat = 1.32
-
-    private func buildQRCard(joinURL: String, width w: CGFloat, center: CGPoint) -> SKNode {
+    /// Frameless join block (web A2 #qr-container): no card, no label — the
+    /// white QR square floats on its own. `width` is the full white square side;
+    /// the quiet zone lives in its padding (web #qr-code CSS padding).
+    private func buildQRBlock(width w: CGFloat, center: CGPoint) -> SKNode {
         let node = SKNode()
         node.position = center
-        let h = w * Self.qrAspect
-        let card = SKShapeNode(path: roundedRect(CGRect(x: -w / 2, y: -h / 2, width: w, height: h), radius: w * 0.09))
-        card.fillColor = SKTheme.bgCard
-        card.strokeColor = SKTheme.border
-        card.lineWidth = 1
-        node.addChild(card)
 
-        // Equal padding top + bottom; a large QR square up top, the join-URL pill
-        // fills the remaining height down to the bottom padding (no empty gap).
-        let pad = w * 0.06
-        let qrSide = w - pad * 2
-        let qrCenterY = h / 2 - pad - qrSide / 2
+        // Corner radius clamp(14px, 2.4vmin, 22px); padding clamp(6px, 1.2vmin, 14px).
+        let vmin = min(size.width, size.height)
+        let radius = max(14, min(vmin * 0.024, 22))
+        let pad = max(6, min(vmin * 0.012, 14))
 
-        let qrBg = SKShapeNode(path: roundedRect(CGRect(x: -qrSide / 2, y: qrCenterY - qrSide / 2,
-                                                        width: qrSide, height: qrSide), radius: w * 0.06))
+        let qrBg = SKShapeNode(path: roundedRect(CGRect(x: -w / 2, y: -w / 2, width: w, height: w),
+                                                 radius: radius))
         qrBg.fillColor = .white
         qrBg.strokeColor = .clear
         node.addChild(qrBg)
-        // The QR encodes lobbyQRText (== joinURL in production; a distinct target in
-        // the gallery JOIN fixture), while the pill below shows the joinURL host/code.
-        // Empty payload = no room yet (the pre-room / create-failure lobby): leave the
-        // white square blank, matching the web lobby's empty QR canvas.
-        let qrPayload = lobbyQRText ?? joinURL
+        // The QR encodes lobbyQRText (== joinURL in production; a distinct target
+        // in the gallery JOIN fixture). Empty payload = no room yet (the pre-room /
+        // create-failure lobby): leave the white square blank, matching the web
+        // lobby's empty QR canvas.
+        let qrPayload = lobbyQRText ?? lobbyJoinURL ?? ""
         if !qrPayload.isEmpty, let qr = QRCode.image(for: qrPayload) {
             let sprite = SKSpriteNode(texture: SKTexture(image: qr))
-            let inset = qrSide * 0.92
+            let inset = w - pad * 2
             sprite.size = CGSize(width: inset, height: inset)
-            sprite.position = CGPoint(x: 0, y: qrCenterY)
+            sprite.zPosition = 1
             node.addChild(sprite)
         }
+        return node
+    }
 
-        let labelY = qrCenterY - qrSide / 2 - w * 0.075
-        let scan = SKLabelNode()
-        scan.verticalAlignmentMode = .center
-        scan.zPosition = 1
-        // display.css #qr-label clamp(11px,1.8vmin,15px) — 15px cap at 1080p.
-        scan.setStyledText(trUpper("scan_to_join"), font: AppFont.brandBold, size: min(w * 0.068, 15),
-                           color: SKTheme.textFaint, tracking: 0.16)
-        scan.position = CGPoint(x: 0, y: labelY)
-        node.addChild(scan)
-
-        // Join URL on a dark pill (web #join-url background rgba(0,0,0,0.22)):
-        // host line (muted) + room code (accent, heavy). The pill fills from
-        // below SCAN to the bottom padding so the card isn't bottom-empty.
+    /// Join line (web A2 #join-line): host + room code on one baseline,
+    /// crossfading with the localized "scan to join" hint every few seconds
+    /// (web DisplayConnection toggles .show-hint every 4.5s; 0.45s fade).
+    /// Starts on the URL so the address is the first thing a player can act on.
+    private func buildJoinLine(joinURL: String, fontSize: CGFloat, center: CGPoint) -> SKNode {
+        let node = SKNode()
+        node.position = center
         let (hostText, codeText) = Self.splitJoinURL(joinURL)
-        let pillTop = labelY - w * 0.06
-        let pillBottom = -h / 2 + pad
-        let pillH = pillTop - pillBottom
-        let pillCenterY = (pillTop + pillBottom) / 2
-        let pill = SKShapeNode(path: roundedRect(
-            CGRect(x: -qrSide / 2, y: pillBottom, width: qrSide, height: pillH), radius: w * 0.05))
-        pill.fillColor = UIColor(white: 0, alpha: 0.22)
-        pill.strokeColor = .clear
-        pill.zPosition = 0.5
-        node.addChild(pill)
+        guard !hostText.isEmpty || !codeText.isEmpty else { return node }
 
+        // URL row: host (muted, weight 600) + code (accent, heavy, 0.18em
+        // tracking) at ONE shared size (web .join-url__host/.join-url__code).
+        let urlRow = SKNode()
         let hostLabel = SKLabelNode()
         hostLabel.verticalAlignmentMode = .center
-        hostLabel.zPosition = 1
-        // With no room code (the gallery/adclip clean CTA) the host is the
-        // pill's only line — center it and give it some of the code's visual weight.
-        hostLabel.setStyledText(hostText, font: AppFont.semibold,
-                                size: codeText.isEmpty ? w * 0.0625 : w * 0.05,
+        hostLabel.horizontalAlignmentMode = .left
+        hostLabel.setStyledText(hostText, font: AppFont.semibold, size: fontSize,
                                 color: SKTheme.textSecondary, tracking: 0.04)
-        hostLabel.position = CGPoint(x: 0, y: codeText.isEmpty ? pillCenterY : pillCenterY + pillH * 0.24)
-        node.addChild(hostLabel)
+        let codeLabel = SKLabelNode()
+        codeLabel.verticalAlignmentMode = .center
+        codeLabel.horizontalAlignmentMode = .left
+        codeLabel.setStyledText(codeText, font: AppFont.black, size: fontSize,
+                                color: SKTheme.accentSecondary, tracking: 0.18)
+        let totalW = hostLabel.frame.width + codeLabel.frame.width
+        hostLabel.position = CGPoint(x: -totalW / 2, y: 0)
+        codeLabel.position = CGPoint(x: -totalW / 2 + hostLabel.frame.width, y: 0)
+        urlRow.addChild(hostLabel)
+        if !codeText.isEmpty { urlRow.addChild(codeLabel) }
+        node.addChild(urlRow)
 
-        if !codeText.isEmpty {
-            let codeLabel = SKLabelNode()
-            codeLabel.verticalAlignmentMode = .center
-            codeLabel.zPosition = 1
-            codeLabel.setStyledText(codeText, font: AppFont.black, size: w * 0.09,
-                                    color: SKTheme.accentSecondary, tracking: 0.16)
-            codeLabel.position = CGPoint(x: 0, y: pillCenterY - pillH * 0.18)
-            node.addChild(codeLabel)
-        }
+        // Localized scan hint, overlaying the URL (same face + scale so the
+        // crossfade reads as one line changing content).
+        let hint = SKLabelNode()
+        hint.verticalAlignmentMode = .center
+        hint.horizontalAlignmentMode = .center
+        hint.setStyledText(tr("scan_hint"), font: AppFont.semibold, size: fontSize,
+                           color: SKTheme.textSecondary, tracking: 0.06)
+        hint.alpha = 0
+        node.addChild(hint)
 
+        let fade: TimeInterval = 0.45, holdFor: TimeInterval = 4.5
+        urlRow.run(.repeatForever(.sequence([.wait(forDuration: holdFor), .fadeOut(withDuration: fade),
+                                             .wait(forDuration: holdFor), .fadeIn(withDuration: fade)])))
+        hint.run(.repeatForever(.sequence([.wait(forDuration: holdFor), .fadeIn(withDuration: fade),
+                                           .wait(forDuration: holdFor), .fadeOut(withDuration: fade)])))
         return node
     }
 
@@ -1262,74 +1286,115 @@ final class RootScene: SKScene, DisplayOutput {
     private func buildPlayerCard(player: PlayerRecord?, slotIndex: Int, w: CGFloat, h: CGFloat) -> SKNode {
         let node = SKNode()
         let rect = CGRect(x: -w / 2, y: -h / 2, width: w, height: h)
-        let card = SKShapeNode(path: roundedRect(rect, radius: min(w, h) * 0.12))
+        let card = SKShapeNode(path: roundedRect(rect, radius: 20))   // web .player-card 20px
         let color = player.map { SKTheme.player(slot: $0.colorSlot) }
 
-        if let color {
-            card.fillColor = SKTheme.bgCard
-            card.strokeColor = color
-            card.lineWidth = 2
-        } else {
-            card.fillColor = .clear
-            card.strokeColor = SKTheme.textSecondary
-            card.lineWidth = 2
-            // Dashed border for empty slots (matches .player-card.empty).
-            if let dashed = card.path?.copy(dashingWithPhase: 0, lengths: [h * 0.10, h * 0.07]) {
-                card.path = dashed
-            }
+        guard let player, let color else {
+            // Empty slot — recessed socket (web .player-card.empty): flat dark
+            // inset with a hairline ring and a faint hex opening, breathing
+            // slowly. No text — the opening is the only content.
+            card.fillColor = SKTheme.socket(0.55)
+            card.strokeColor = SKTheme.hairline(0.05)
+            card.lineWidth = 1
+            node.addChild(card)
+
+            // Faint rounded-hex opening (web .player-card__opening, sized
+            // clamp(28px, 5.5vmin, 56px) wide for 10-foot viewing, at 0.5 alpha).
+            let vmin = min(size.width, size.height)
+            let openW = max(28, min(vmin * 0.055, 56))
+            let opening = SKShapeNode(path: Self.roundedHexPath(circumradius: openW / 2,
+                                                                cornerR: openW * 0.06))
+            opening.fillColor = SKTheme.hairline(0.03)
+            opening.strokeColor = SKTheme.textPrimary(0.45)
+            opening.lineWidth = 2
+            opening.isAntialiased = true
+            opening.alpha = 0.5
+            node.addChild(opening)
+
+            // Breathe: card opacity 1 → 0.55 → 1 over 3.2s, ease-in-out (web
+            // @keyframes breathe on the whole card).
+            let dim = SKAction.fadeAlpha(to: 0.55, duration: 1.6); dim.timingMode = .easeInEaseOut
+            let lift = SKAction.fadeAlpha(to: 1.0, duration: 1.6); lift.timingMode = .easeInEaseOut
+            node.run(.repeatForever(.sequence([dim, lift])))
+            return node
         }
+
+        // Tonal card — borderless; the player color is mixed into the surface
+        // and carried by the name text (web .player-card A2).
+        card.fillColor = SKTheme.tonalCard(color)
+        card.strokeColor = .clear
         node.addChild(card)
 
-        // Top half: name (web .player-name: weight 800, 0.04em tracking). Fixed
-        // size + ellipsis truncation (never scaled), so every chip matches.
+        // Name (web .identity-name: weight 800, 0.04em tracking). Fixed size +
+        // ellipsis truncation (never scaled), so every chip matches.
         // display.css .player-card .identity-name clamp(1.5rem,4.5vmin,2.4rem):
         // the 10-foot override caps at 38.4px on a 1080p TV.
         let nameSize = min(h * 0.37, 38.4)
-        let nameColor = color ?? SKTheme.textSecondary
         let name = SKLabelNode()
         name.verticalAlignmentMode = .center
         name.horizontalAlignmentMode = .center
-        name.position = CGPoint(x: 0, y: h * 0.25)
-        var nameText = player?.playerName ?? "P\(slotIndex + 1)"
-        name.setStyledText(nameText, font: AppFont.brandExtraBold, size: nameSize, color: nameColor, tracking: 0.04)
+        var nameText = player.playerName
+        name.setStyledText(nameText, font: AppFont.brandExtraBold, size: nameSize, color: color, tracking: 0.04)
         while name.frame.width > w * 0.86 && nameText.count > 1 {
             nameText = String(nameText.dropLast())
-            name.setStyledText(nameText + "…", font: AppFont.brandExtraBold, size: nameSize, color: nameColor, tracking: 0.04)
+            name.setStyledText(nameText + "…", font: AppFont.brandExtraBold, size: nameSize, color: color, tracking: 0.04)
         }
         node.addChild(name)
 
-        // Divider.
-        let divider = SKShapeNode(path: {
-            let p = CGMutablePath()
-            p.move(to: CGPoint(x: -w * 0.4, y: 0)); p.addLine(to: CGPoint(x: w * 0.4, y: 0)); return p
-        }())
-        divider.strokeColor = (color == nil) ? SKTheme.textSecondary : SKTheme.glass
-        divider.lineWidth = 1
-        node.addChild(divider)
-
-        // Bottom half: "LEVEL N" centered as a group (label muted, value bright).
-        let levelGroup = SKNode()
-        levelGroup.position = CGPoint(x: 0, y: -h * 0.25)
+        // Quiet "LEVEL n" pill under the name — recessed dark chip so the level
+        // reads as metadata (web .card-level__pill; heading/value at
+        // clamp(0.65rem, 1.6vmin, 0.95rem), 0.2em tracking on the heading).
+        let pillFontSize = min(h * 0.12, 15.2)
         let heading = SKLabelNode()
         heading.verticalAlignmentMode = .center
-        heading.horizontalAlignmentMode = .center
-        // display.css .card-level__heading clamp(1rem,2.6vmin,1.5rem) — 24px cap.
-        heading.setStyledText(trUpper("level_heading"), font: AppFont.brandBold, size: min(h * 0.19, 24),
-                              color: SKTheme.textSecondary, tracking: 0.1)
+        heading.horizontalAlignmentMode = .left
+        heading.setStyledText(trUpper("level_heading"), font: AppFont.brandBold, size: pillFontSize,
+                              color: SKTheme.textSecondary, tracking: 0.2)
         let value = SKLabelNode()
         value.verticalAlignmentMode = .center
-        value.horizontalAlignmentMode = .center
-        value.setStyledText(player.map { "\($0.startLevel)" } ?? "—", font: AppFont.brandExtraBold,
-                            size: min(h * 0.225, 24), color: player == nil ? SKTheme.textSecondary : SKTheme.textPrimary(), tracking: 0)
-        let groupGap = h * 0.10
-        let groupW = heading.frame.width + groupGap + value.frame.width
-        heading.position = CGPoint(x: -groupW / 2 + heading.frame.width / 2, y: 0)
-        value.position = CGPoint(x: groupW / 2 - value.frame.width / 2, y: 0)
-        levelGroup.addChild(heading)
-        levelGroup.addChild(value)
-        if player == nil { levelGroup.alpha = 0.45 }
-        node.addChild(levelGroup)
+        value.horizontalAlignmentMode = .left
+        // Value in the HUD voice (web .card-level__value: font-hud, 700).
+        value.setStyledText("\(player.startLevel)", font: AppFont.name, size: pillFontSize,
+                            color: SKTheme.textPrimary(), tracking: 0)
+        let textGap = pillFontSize * 0.5
+        let textW = heading.frame.width + textGap + value.frame.width
+        let pillH = pillFontSize * 1.7
+        let pillW = textW + pillFontSize * 2   // 1em side padding
+        let pill = SKShapeNode(path: roundedRect(
+            CGRect(x: -pillW / 2, y: -pillH / 2, width: pillW, height: pillH), radius: pillH / 2))
+        pill.fillColor = SKTheme.socket(0.35)
+        pill.strokeColor = .clear
+        heading.position = CGPoint(x: -textW / 2, y: 0)
+        value.position = CGPoint(x: -textW / 2 + heading.frame.width + textGap, y: 0)
+        pill.addChild(heading)
+        pill.addChild(value)
+        node.addChild(pill)
+
+        // Name + pill group around the card center with a small gap (web: the
+        // display card collapses the 50/50 halves to content height; gap
+        // clamp(3px, 0.9vmin, 9px)).
+        let gap = min(min(size.width, size.height) * 0.009, 9)
+        let contentH = nameSize + gap + pillH
+        name.position = CGPoint(x: 0, y: contentH / 2 - nameSize / 2)
+        pill.position = CGPoint(x: 0, y: -contentH / 2 + pillH / 2)
         return node
+    }
+
+    /// Flat-top hexagon with tangent-arc rounded corners, centered on origin —
+    /// the empty-socket opening (web buildSocketOpening's SVG path).
+    private static func roundedHexPath(circumradius r: CGFloat, cornerR: CGFloat) -> CGPath {
+        let pts = (0..<6).map { i -> CGPoint in
+            let a = CGFloat.pi / 3 * CGFloat(i)
+            return CGPoint(x: r * cos(a), y: r * sin(a))
+        }
+        func mid(_ a: CGPoint, _ b: CGPoint) -> CGPoint { CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2) }
+        let p = CGMutablePath()
+        p.move(to: mid(pts[5], pts[0]))
+        for i in 0..<6 {
+            p.addArc(tangent1End: pts[i], tangent2End: mid(pts[i], pts[(i + 1) % 6]), radius: cornerR)
+        }
+        p.closeSubpath()
+        return p
     }
 
     // MARK: - Results
@@ -1427,14 +1492,19 @@ final class RootScene: SKScene, DisplayOutput {
         let node = SKNode()
         let rect = CGRect(x: -w / 2, y: -h / 2, width: w, height: h)
 
-        let card = SKShapeNode(path: roundedRect(rect, radius: 12))
-        card.fillColor = SKTheme.bgCard
-        card.strokeColor = SKTheme.border          // web keeps the faint base border, even for late joiners
-        card.lineWidth = 1
-        if isNew, let dashed = card.path?.copy(dashingWithPhase: 0, lengths: [h * 0.12, h * 0.08]) {
-            card.path = dashed                      // only the dash pattern marks a late joiner
+        // Borderless card matching the lobby's tonal cards (web .result-row:
+        // 20px radius, bg-card, no border). Late joiners get the recessed
+        // socket treatment (.result-row--joining) instead of a dashed rim.
+        let card = SKShapeNode(path: roundedRect(rect, radius: 20))
+        if isNew {
+            card.fillColor = SKTheme.socket(0.55)
+            card.strokeColor = SKTheme.hairline(0.05)
+            card.lineWidth = 1
+            node.alpha = 0.75
+        } else {
+            card.fillColor = SKTheme.bgCard
+            card.strokeColor = .clear
         }
-        if isNew { node.alpha = 0.75 }
         node.addChild(card)
 
         // One horizontal line: rank | name (left) | stats (right), centered.

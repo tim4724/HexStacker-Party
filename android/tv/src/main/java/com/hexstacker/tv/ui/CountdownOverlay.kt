@@ -7,6 +7,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
@@ -16,24 +17,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import com.hexstacker.tv.R
-import kotlin.math.hypot
-import kotlin.math.max
 import kotlin.math.min
 
 /**
- * Countdown overlay (web `#countdown-overlay`, tvOS `showCountdown`): a dim scrim
- * + soft accent radial glow with the big accent-colored "3 / 2 / 1 / GO". Numbers
- * pulse (countdownBeat 1→1.06→1, 1s loop); each value pops in. Non-focusable — it
- * never steals focus from the screen beneath.
+ * Countdown overlay (web `#countdown-overlay`, tvOS `showCountdown`): a flat plum
+ * scrim (same backdrop as every other game overlay — A2 dropped the radial glow)
+ * with the big accent-colored "3 / 2 / 1 / GO". Numbers pulse (countdownBeat
+ * 1→1.06→1, 1s loop); each value pops in. Non-focusable — it never steals focus
+ * from the screen beneath.
  *
  * Stateless: the host drives the value sequence and clears the overlay after the
  * GO exit (this composable renders appearance only).
@@ -43,20 +39,7 @@ fun CountdownOverlay(value: CountdownValue, modifier: Modifier = Modifier) {
     BoxWithConstraints(
         modifier
             .fillMaxSize()
-            .drawBehind {
-                // web bg: rgba(bg-primary,0.85) + radial accent glow @ 0.08, fade by 60%.
-                drawRect(Tokens.bgPrimary.copy(alpha = 0.85f))
-                val cx = size.width / 2f
-                val cy = size.height / 2f
-                drawRect(
-                    Brush.radialGradient(
-                        colors = listOf(Tokens.accentPrimary.copy(alpha = 0.08f), Color.Transparent),
-                        center = Offset(cx, cy),
-                        // web: 60% of the farthest-corner distance from the glow center
-                        radius = 0.6f * hypot(max(cx, size.width - cx), max(cy, size.height - cy)),
-                    ),
-                )
-            },
+            .background(Tokens.overlayBg), // web: var(--overlay-bg), flat
         contentAlignment = Alignment.Center,
     ) {
         val fontSize = min(maxHeight.value * 0.15f, 224f).sp // clamp(6rem,15vh,14rem)

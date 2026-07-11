@@ -67,8 +67,8 @@ object AppType {
     val joinHost = hud(600, 0.04f) // join-url host (lowercase)
     val joinCode = hud(900, 0.18f) // join-url code (.join-url__code 0.18em)
     val cardName = brand(800, 0.04f) // player name (.identity-name)
-    val cardLevelHeading = brand(700, 0.10f) // "LEVEL" (.card-level__heading)
-    val cardLevelValue = brand(800, 0.0f) // level value (.card-level__value)
+    val cardLevelHeading = brand(700, 0.2f) // "LEVEL" (.card-level__heading, A2 quiet-metadata tracking)
+    val cardLevelValue = hud(700, 0.0f) // level value (.card-level__value, A2 font-hud tabular)
     val countdownNumber = hud(900, 0.05f) // "3/2/1/GO" (#countdown-overlay)
     val pauseTitle = brand(800, 0.15f) // "PAUSED"
     val musicLabel = brand(600, 0.05f) // "Game Music"

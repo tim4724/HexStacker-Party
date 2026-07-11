@@ -98,15 +98,16 @@ class HexStampCache(private val maxEntries: Int = 256) {
         c.drawPath(path, fillPaint)
         fillPaint.shader = null
 
-        // Top highlight band (white @ highlight).
-        bandPaint.color = TvColors.white.argb(Theme.Opacity.highlight)
+        // Top highlight band — warm cream (text primary) rather than pure white:
+        // cool flashes read as chrome against the warm plum surfaces (CanvasUtils A2).
+        bandPaint.color = Theme.textPrimary.argb(Theme.Opacity.highlight)
         c.drawRect(cx - cr * 0.5f, cy - cr * 0.88f, cx - cr * 0.5f + cr, cy - cr * 0.88f + size * 0.08f, bandPaint)
         // Bottom shadow band (black @ shadow).
         bandPaint.color = TvColors.black.argb(Theme.Opacity.shadow)
         c.drawRect(cx - cr * 0.5f, cy + cr * 0.76f, cx - cr * 0.5f + cr, cy + cr * 0.76f + size * 0.08f, bandPaint)
-        // Inner shine (white @ subtle).
+        // Inner shine (cream @ subtle).
         val sh = size * 0.35f
-        bandPaint.color = TvColors.white.argb(Theme.Opacity.subtle)
+        bandPaint.color = Theme.textPrimary.argb(Theme.Opacity.subtle)
         c.drawRect(cx - cr * 0.35f, cy - cr * 0.5f, cx - cr * 0.35f + sh, cy - cr * 0.5f + sh * 0.36f, bandPaint)
 
         c.restore()

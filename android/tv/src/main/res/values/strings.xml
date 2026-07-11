@@ -26,16 +26,13 @@
     <string name="triple_clear">TRIPLE!</string>
 
     <!-- Lobby. -->
-    <string name="scan_to_join">Scan to join</string>
+    <string name="scan_hint">Scan code with your phone</string>
     <string name="waiting_for_players">Waiting for players</string>
     <string name="level_heading">Level</string>
 
     <!-- Music attribution. CC-BY 3.0 requires crediting "Lunar Joyride" by
          FoxSynergy (res/raw/lunar_joyride.mp3). Mirrors web i18n `music_by`. -->
     <string name="music_by">Music by FoxSynergy (CC-BY 3.0)</string>
-
-    <!-- Empty-slot placeholder name: DisplayUI `'P' + (idx+1)` (not localized). -->
-    <string name="player_placeholder" translatable="false">P%1$d</string>
 
     <!-- Results. -->
     <string name="level_n">Level %1$d</string>

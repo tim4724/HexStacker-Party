@@ -80,7 +80,7 @@ class BoardSurfaceView @JvmOverloads constructor(
     private val timerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = fonts.bold
         textAlign = Paint.Align.CENTER
-        color = TvColors.white.argb(Theme.Opacity.label)
+        color = Theme.textPrimary.argb(Theme.Opacity.label) // cream, web drawTimer (A2)
         letterSpacing = 0.15f
     }
 
@@ -400,9 +400,10 @@ class BoardSurfaceView @JvmOverloads constructor(
                 val oldPending = pendingByPlayer[pid] ?: 0
                 val cancelled = minOf(lines, oldPending)
                 if (cancelled > 0) {
-                    // Flash the rows that vanish from the TOP of the old meter (white defence).
+                    // Flash the rows that vanish from the TOP of the old meter
+                    // (cream defence — web _getDefenceColor = text.primary, A2).
                     garbageDefence.getOrPut(pid) { mutableListOf() }
-                        .add(GarbageFx(nowMs, 400.0, 0.9, TvColors.white.toArgb(), cancelled, VIS_ROWS - oldPending))
+                        .add(GarbageFx(nowMs, 400.0, 0.9, Theme.textPrimary.toArgb(), cancelled, VIS_ROWS - oldPending))
                 }
                 // Front-trim indicator effects by the cancelled amount (defended garbage).
                 garbageIndicator[pid]?.let { list ->

@@ -12,7 +12,7 @@
     <string name="double_clear">DOUBLE</string>
     <string name="triple_clear">TRIPLE!</string>
 
-    <string name="scan_to_join">Сканируй и заходи</string>
+    <string name="scan_hint">Сканируй код телефоном</string>
     <string name="waiting_for_players">Ждём игроков</string>
     <string name="level_heading">Уровень</string>
     <string name="music_by">Музыка: FoxSynergy (CC-BY 3.0)</string>

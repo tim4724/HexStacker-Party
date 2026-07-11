@@ -1,14 +1,10 @@
 package com.hexstacker.tv.ui
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -29,13 +25,11 @@ import com.hexstacker.tv.render.addRoundedHex
 import kotlin.math.sqrt
 
 /**
- * HEX STACKER brand lockup (web `.brand-lockup--row`, tvOS `TitleTexture`):
- * triad mark beside a single-color cream wordmark with the PARTY subtitle,
- * nudged left by 0.3em of [mainSize] so the lockup reads optically centered
- * (the mark carries less "title weight" than the wordmark).
+ * HEX STACKER brand title (web `.brand-lockup`, tvOS `TitleTexture`): the pure
+ * single-color cream wordmark with the PARTY subtitle, centered exactly (A2
+ * moved the triad mark to a corner badge — see [TriadMark]).
  *
- * [mainSize] is the "HEX STACKER" font size; the subtitle is 0.42em of it,
- * the mark is 1.7em tall, the mark/text gap is 0.5em.
+ * [mainSize] is the "HEX STACKER" font size; the subtitle is 0.42em of it.
  */
 // Web tightens the lockup with `.brand-lockup { line-height: 1.1 }`; CSS lets a
 // line box shrink below the font's natural metrics, but Compose's `lineHeight`
@@ -54,12 +48,7 @@ fun Wordmark(mainSize: TextUnit, modifier: Modifier = Modifier) {
     val density = LocalDensity.current
     val mainDp = with(density) { mainSize.toDp() }
     val subDp = mainDp * 0.42f // .brand-lockup__sub font-size 0.42em
-    Row(
-        modifier.offset(x = -mainDp * 0.3f),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(mainDp * 0.5f),
-    ) {
-        TriadMark(Modifier.size(mainDp * 1.7f))
+    Box(modifier) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.height(mainDp * LINE_HEIGHT), contentAlignment = Alignment.Center) {
                 androidx.compose.material3.Text(
@@ -100,9 +89,11 @@ fun Wordmark(mainSize: TextUnit, modifier: Modifier = Modifier) {
  * The canonical triad mark (shared/brand-mark.svg): teal top-left, red below
  * it, honey right-center — pillow-shaded flat-top cells with tangent-rounded
  * corners. Same 70x70 proportions as the SVG: cell circumradius = size/3.5.
+ * Public since A2: the lobby places it as a top-left corner badge
+ * (web `.brand-badge`), no longer inside the wordmark lockup.
  */
 @Composable
-private fun TriadMark(modifier: Modifier = Modifier) {
+fun TriadMark(modifier: Modifier = Modifier) {
     // PARTY_PALETTE triad = spectrum slots 4 (teal), 0 (red), 2 (honey).
     val cells = listOf(
         Triple(0f, 0f, playerColor(4)), // teal, top-left

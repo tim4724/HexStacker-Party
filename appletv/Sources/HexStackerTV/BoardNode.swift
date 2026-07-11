@@ -26,8 +26,8 @@ final class BoardNode: SKNode {
     private let bg = SKSpriteNode()
     private let lockedLayer = SKNode()
     private let ghostLayer = SKNode()
-    private let previewLayer = SKNode()      // zigzag clear preview (white highlight)
-    private let nearClearLayer = SKNode()    // near-clear pulse (white outline)
+    private let previewLayer = SKNode()      // zigzag clear preview (cream highlight)
+    private let nearClearLayer = SKNode()    // near-clear pulse (cream outline)
     private let pieceLayer = SKNode()
     private let clearingLayer = SKNode()     // clearing-cells glow during line clear
     private let hudLayer = SKNode()
@@ -155,23 +155,24 @@ final class BoardNode: SKNode {
         }
     }
 
-    /// White flash + shrink on cleared cells, confetti on every clear (more +
+    /// Cream flash + shrink on cleared cells, confetti on every clear (more +
     /// palette-colored on a triple), and a popup label for double/triple.
     func lineClearEffect(_ cells: [Cell], lines: Int) {
         for c in cells where c.row >= 0 && c.row < geo.visibleRows {
             let p = localPoint(col: c.col, row: c.row)
             let path = CGMutablePath(); addHex(to: path, center: .zero, radius: CGFloat(geo.hexSize))
             let node = SKShapeNode(path: path)
-            node.fillColor = UIColor(white: 1, alpha: 0.9)
+            // Clear flash in warm cream, matching the preview/near-clear vocabulary.
+            node.fillColor = SKTheme.textPrimary(0.9)
             node.strokeColor = .clear
             node.position = p; node.zPosition = 9
             effectsLayer.addChild(node)
             node.run(.sequence([.group([.fadeOut(withDuration: 0.6), .scale(to: 0.1, duration: 0.6)]), .removeFromParent()]))
-            // Confetti fires on EVERY clear (web addLineClearConfetti): white on
-            // single/double, palette-random on triple; triples throw more.
+            // Confetti fires on EVERY clear (web addLineClearConfetti): warm cream
+            // on single/double, palette-random on triple; triples throw more.
             let count = lines >= 3 ? 5 : 2
             for _ in 0..<count {
-                let color = lines >= 3 ? UIColor(Theme.pieceColors[Int.random(in: 1...6)] ?? RGB(255, 255, 255)) : UIColor.white
+                let color = lines >= 3 ? UIColor(Theme.pieceColors[Int.random(in: 1...6)] ?? RGB(255, 255, 255)) : SKTheme.textPrimary()
                 sparkle(at: p, color: color)
             }
         }
@@ -180,7 +181,7 @@ final class BoardNode: SKNode {
             let label = SKLabelNode(text: lines >= 3 ? tr("triple") : tr("double"))
             label.fontName = AppFont.black
             label.fontSize = cs * 0.73
-            label.fontColor = lines >= 3 ? UIColor(RGB(0xFF, 0xE0, 0x66)) : .white
+            label.fontColor = lines >= 3 ? UIColor(RGB(0xFF, 0xE0, 0x66)) : SKTheme.textPrimary()
             label.position = p; label.zPosition = 11
             label.verticalAlignmentMode = .center
             effectsLayer.addChild(label)
@@ -195,19 +196,19 @@ final class BoardNode: SKNode {
         }
     }
 
-    /// KO flash: a brief white pop, then a red flash, plus a 12-particle red
-    /// sparkle burst (web addKO). The persistent red wash + KO label live in showKO.
+    /// KO flash: a brief cream pop, then a danger-red flash, plus a 12-particle
+    /// red sparkle burst (web addKO). The persistent dim + KO label live in showKO.
     func flashKO() {
         let w = CGFloat(geo.boardWidth), h = CGFloat(geo.boardHeight)
         // Clip the flashes to the board's zigzag outline (web addKO), so they don't
         // bleed into the rectangular corners outside the well.
-        let white = SKShapeNode(path: outlinePathFlipped(outset: 0))
-        white.fillColor = UIColor(white: 1, alpha: 0.7); white.strokeColor = .clear; white.zPosition = 8
-        effectsLayer.addChild(white)
-        white.run(.sequence([.fadeOut(withDuration: 0.18), .removeFromParent()]))
+        let flash = SKShapeNode(path: outlinePathFlipped(outset: 0))
+        flash.fillColor = SKTheme.textPrimary(0.7); flash.strokeColor = .clear; flash.zPosition = 8
+        effectsLayer.addChild(flash)
+        flash.run(.sequence([.fadeOut(withDuration: 0.18), .removeFromParent()]))
 
         let red = SKShapeNode(path: outlinePathFlipped(outset: 0))
-        red.fillColor = UIColor(red: 1, green: 0, blue: 0, alpha: 0.4); red.strokeColor = .clear; red.zPosition = 8
+        red.fillColor = SKTheme.danger.withAlphaComponent(0.4); red.strokeColor = .clear; red.zPosition = 8
         effectsLayer.addChild(red)
         red.run(.sequence([.fadeOut(withDuration: 0.5), .removeFromParent()]))
 
@@ -223,10 +224,10 @@ final class BoardNode: SKNode {
         garbageFlash(lines: lines, color: color, duration: 1.0, maxAlpha: 0.94, stripeAlpha: 0.2)
     }
 
-    /// Defence/cancel flash: a white pulse over the bottom `lines` meter cells,
-    /// fading over ~0.4s (web drawGarbageDefenceEffects).
+    /// Defence/cancel flash: a cream pulse over the bottom `lines` meter cells,
+    /// fading over ~0.4s (web drawGarbageDefenceEffects, _getDefenceColor).
     func flashGarbageDefence(lines: Int) {
-        garbageFlash(lines: lines, color: .white, duration: 0.4, maxAlpha: 0.9, stripeAlpha: 0.3)
+        garbageFlash(lines: lines, color: SKTheme.textPrimary(), duration: 0.4, maxAlpha: 0.9, stripeAlpha: 0.3)
     }
 
     private func garbageFlash(lines: Int, color: UIColor, duration: TimeInterval,
@@ -234,7 +235,7 @@ final class BoardNode: SKNode {
         let n = min(max(lines, 1), geo.visibleRows)
         let meterX = -cs * 1.07          // same column as rebuildMeter
         let r = CGFloat(geo.sCell)
-        // White top-edge bevel stripe on each meter cell (web _drawGarbageEffects).
+        // Cream top-edge bevel stripe on each meter cell (web _drawGarbageEffects).
         let topEdgeOffset = r * CGFloat(3.0.squareRoot()) / 2
         let stripeInset = r * 0.05, stripeH = r * 0.06, halfStripeW = r / 2
         let fillPath = CGMutablePath()
@@ -256,7 +257,7 @@ final class BoardNode: SKNode {
         fill.fillColor = color; fill.strokeColor = .clear
         container.addChild(fill)
         let stripe = SKShapeNode(path: stripePath)
-        stripe.fillColor = UIColor(white: 1, alpha: stripeAlpha); stripe.strokeColor = .clear
+        stripe.fillColor = SKTheme.textPrimary(stripeAlpha); stripe.strokeColor = .clear
         container.addChild(stripe)
         effectsLayer.addChild(container)
         container.run(.sequence([.fadeOut(withDuration: duration), .removeFromParent()]))
@@ -269,9 +270,10 @@ final class BoardNode: SKNode {
         let boardW = CGFloat(geo.boardWidth), boardH = CGFloat(geo.boardHeight)
 
         // Dim only the well, clipped to the board's zigzag hex outline (web
-        // _fillBoardArea), not the rectangular bounding box (THEME.opacity.overlay).
+        // _fillBoardArea), not the rectangular bounding box. Brand-plum at
+        // overlay alpha — the canvas twin of --overlay-bg (never a black wash).
         let dim = SKShapeNode(path: outlinePathFlipped(outset: 0))
-        dim.fillColor = UIColor(white: 0, alpha: 0.75)
+        dim.fillColor = UIColor(Theme.bgPrimary, alpha: CGFloat(Theme.Opacity.overlay))
         dim.strokeColor = .clear
         dim.zPosition = 0
         dim.isAntialiased = true
@@ -341,10 +343,11 @@ final class BoardNode: SKNode {
     }
 
     private func showKO() {
-        // Red wash over the well (clipped to the board outline), like the web.
+        // Brand-plum dim over the well (never a black/red-black wash) with the
+        // danger red on top — the canvas twin of --overlay-bg (web A2).
         let wash = SKShapeNode(path: outlinePathFlipped(outset: 0))
         wash.name = "koWash"
-        wash.fillColor = UIColor(red: 30 / 255, green: 0, blue: 0, alpha: 0.6)
+        wash.fillColor = UIColor(Theme.bgPrimary, alpha: CGFloat(Theme.Opacity.overlay))
         wash.strokeColor = .clear
         wash.zPosition = 7
         effectsLayer.addChild(wash)
@@ -353,7 +356,7 @@ final class BoardNode: SKNode {
         label.name = "ko"
         label.fontName = AppFont.black
         label.fontSize = max(20, cs * 2)
-        label.fontColor = UIColor(red: 0.8, green: 0.13, blue: 0.13, alpha: 1)
+        label.fontColor = SKTheme.danger
         label.position = CGPoint(x: CGFloat(geo.boardWidth) / 2, y: CGFloat(geo.boardHeight) / 2)
         label.verticalAlignmentMode = .center
         label.horizontalAlignmentMode = .center
@@ -482,8 +485,10 @@ final class BoardNode: SKNode {
             addHex(to: path, center: localPoint(col: c.col, row: c.row), radius: CGFloat(geo.hexSize))
         }
         let node = SKShapeNode(path: path)
-        node.fillColor = UIColor(white: 1, alpha: 0.2)
-        node.strokeColor = UIColor(white: 1, alpha: 0.4)
+        // Clear-related effects speak cream (text.primary), not pure white —
+        // warm flashes sit better on the plum surfaces.
+        node.fillColor = SKTheme.textPrimary(0.2)
+        node.strokeColor = SKTheme.textPrimary(0.4)
         node.lineWidth = CGFloat(geo.gridLineWidth)
         node.isAntialiased = true
         previewLayer.addChild(node)
@@ -537,7 +542,7 @@ final class BoardNode: SKNode {
             addHex(to: path, center: localPoint(col: c.col, row: c.row), radius: CGFloat(geo.sCell))
         }
         let node = SKShapeNode(path: path)
-        node.fillColor = UIColor(white: 1, alpha: 0.4)
+        node.fillColor = SKTheme.textPrimary(0.4)
         node.strokeColor = .clear
         node.isAntialiased = true
         node.run(.repeatForever(.sequence([.fadeAlpha(to: 0.3, duration: 0.15),
@@ -636,8 +641,9 @@ final class BoardNode: SKNode {
             let path = CGMutablePath()
             addHex(to: path, center: CGPoint(x: meterX, y: flipY(cyDown)), radius: r)
             let node = SKShapeNode(path: path)
-            node.fillColor = UIColor(white: 1, alpha: 0.10)
-            node.strokeColor = UIColor(white: 1, alpha: 0.6)
+            // Garbage meter speaks cream (A2), not pure white.
+            node.fillColor = SKTheme.textPrimary(0.10)
+            node.strokeColor = SKTheme.textPrimary(0.6)
             node.lineWidth = CGFloat(geo.gridLineWidth)
             meterLayer.addChild(node)
         }
@@ -690,12 +696,14 @@ final class BoardNode: SKNode {
         chromeSprites.append((sprite, w, h))
     }
 
+    // Panel/stat labels: quiet uppercase metadata — cream at label alpha with
+    // the wide 0.2em tracking of .card-level__heading (A2).
     private func addPanelLabel(_ text: String, centerX: CGFloat, topDown: CGFloat) {
         let label = SKLabelNode()
         label.horizontalAlignmentMode = .center
         label.verticalAlignmentMode = .top
         label.setStyledText(text, font: AppFont.name, size: labelSize,
-                            color: UIColor(white: 1, alpha: 0.6), tracking: 0.15)
+                            color: SKTheme.textPrimary(0.6), tracking: 0.2)
         label.position = CGPoint(x: centerX, y: flipY(topDown))
         hudLayer.addChild(label)
     }
@@ -705,7 +713,7 @@ final class BoardNode: SKNode {
         label.horizontalAlignmentMode = .left
         label.verticalAlignmentMode = .top
         label.setStyledText(text, font: AppFont.name, size: labelSize,
-                            color: UIColor(white: 1, alpha: 0.6), tracking: 0.15)
+                            color: SKTheme.textPrimary(0.6), tracking: 0.2)
         label.position = CGPoint(x: x, y: flipY(topDown))
         hudLayer.addChild(label)
     }
@@ -713,7 +721,7 @@ final class BoardNode: SKNode {
     private func styleValue(_ label: SKLabelNode, x: CGFloat, topDown: CGFloat) {
         label.fontName = AppFont.name
         label.fontSize = valueSize
-        label.fontColor = .white
+        label.fontColor = SKTheme.textPrimary()
         label.horizontalAlignmentMode = .left
         label.verticalAlignmentMode = .top
         label.position = CGPoint(x: x, y: flipY(topDown))
@@ -728,31 +736,27 @@ final class BoardNode: SKNode {
             let path = UIBezierPath(roundedRect: rect, cornerRadius: radius).cgPath
             ctx.addPath(path); ctx.clip()
             if case .neonFlat = tier {
-                // Neon tier: pure black fill to match the black well; rim only.
+                // Neon tier: pure black fill to match the black well. The black
+                // fill can't carry identity, so keep the thin player-tinted rim
+                // stroke (mirrors the neon board's bright wall).
                 ctx.setFillColor(UIColor.black.cgColor)
                 ctx.fill(rect)
-            } else {
-                if let grad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                                         colors: [UIColor(RGB(0x34, 0x2E, 0x4D)).cgColor,
-                                                  UIColor(RGB(0x2A, 0x25, 0x40)).cgColor] as CFArray,
-                                         locations: [0, 1]) {
-                    ctx.drawLinearGradient(grad, start: .zero, end: CGPoint(x: 0, y: h), options: [])
-                }
-                ctx.setFillColor(UIColor(accent, alpha: 0.06).cgColor)
-                ctx.fill(rect)
-                // Inset top bevel: thin bright line just inside the top rim.
-                ctx.setStrokeColor(UIColor(white: 1, alpha: 0.14).cgColor)
-                ctx.setLineWidth(max(1, cs * 0.03))
-                let inset = max(1, cs * 0.015)
-                ctx.move(to: CGPoint(x: radius * 0.5, y: inset))
-                ctx.addLine(to: CGPoint(x: w - radius * 0.5, y: inset))
+                ctx.resetClip()
+                ctx.addPath(path)
+                ctx.setStrokeColor(UIColor(accent, alpha: 0.15).cgColor)
+                ctx.setLineWidth(max(1, cs * 0.04 * 0.6))
                 ctx.strokePath()
+            } else {
+                // Tonal fill — 20% player color mixed into the card surface
+                // carries identity on its own (same as .player-card in
+                // theme.css). Flat: no gradient, no bevel, no border.
+                let cardR = 0x2A as CGFloat, cardG = 0x25 as CGFloat, cardB = 0x40 as CGFloat
+                let fill = UIColor(red: (CGFloat(accent.r) * 0.2 + cardR * 0.8) / 255,
+                                   green: (CGFloat(accent.g) * 0.2 + cardG * 0.8) / 255,
+                                   blue: (CGFloat(accent.b) * 0.2 + cardB * 0.8) / 255, alpha: 1)
+                ctx.setFillColor(fill.cgColor)
+                ctx.fill(rect)
             }
-            ctx.resetClip()
-            ctx.addPath(path)
-            ctx.setStrokeColor(UIColor(accent, alpha: 0.15).cgColor)
-            ctx.setLineWidth(max(1, cs * 0.04 * 0.6))
-            ctx.strokePath()
         }
         return SKTexture(image: image)
     }
@@ -775,17 +779,17 @@ final class BoardNode: SKNode {
             ctx.translateBy(x: pad, y: pad)
 
             // Well fill clipped to the real board outline (computeHexOutlineVerts).
+            // Neon → pure black for max contrast; otherwise a flat recessed
+            // deeper-plum well (bg.board) + player tint — the same socket
+            // treatment as the lobby's empty player slots (gradient dropped).
             ctx.saveGState()
             ctx.addPath(outlinePath(outset: 0)); ctx.clip()
             if case .neonFlat = tier {
                 ctx.setFillColor(UIColor.black.cgColor)
                 ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
-            } else if let grad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                                            colors: [UIColor(Theme.bgSecondary).cgColor,
-                                                     UIColor(Theme.bgBoard).cgColor] as CFArray,
-                                            locations: [0, 1]) {
-                ctx.drawLinearGradient(grad, start: CGPoint(x: w / 2, y: 0),
-                                       end: CGPoint(x: w / 2, y: h), options: [])
+            } else {
+                ctx.setFillColor(UIColor(Theme.bgBoard).cgColor)
+                ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
                 ctx.setFillColor(UIColor(accent, alpha: CGFloat(Theme.Opacity.boardTint)).cgColor)
                 ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
             }
@@ -815,10 +819,16 @@ final class BoardNode: SKNode {
             ctx.endTransparencyLayer()
             ctx.restoreGState()
 
-            // Outer wall: stroke the outset board outline.
+            // Outer wall: stroke the outset board outline — a calmer player
+            // wall, then a crisp warm-paper hairline on top so the well gets
+            // the same socket rim as the lobby's empty player slots.
             ctx.addPath(outlinePath(outset: geo.wallOutset))
-            ctx.setStrokeColor(UIColor(accent, alpha: CGFloat(Theme.Opacity.strong)).cgColor)
+            ctx.setStrokeColor(UIColor(accent, alpha: CGFloat(Theme.Opacity.wall)).cgColor)
             ctx.setLineWidth(CGFloat(geo.borderWidth))
+            ctx.strokePath()
+            ctx.addPath(outlinePath(outset: geo.wallOutset))
+            ctx.setStrokeColor(UIColor(Theme.hairline, alpha: CGFloat(Theme.Opacity.hairline)).cgColor)
+            ctx.setLineWidth(1)
             ctx.strokePath()
         }
         return SKTexture(image: image)

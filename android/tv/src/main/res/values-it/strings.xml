@@ -11,7 +11,7 @@
     <string name="double_clear">DOUBLE</string>
     <string name="triple_clear">TRIPLE!</string>
 
-    <string name="scan_to_join">Scansiona per unirti</string>
+    <string name="scan_hint">Scansiona il codice con il telefono</string>
     <string name="waiting_for_players">In attesa di giocatori</string>
     <string name="level_heading">Livello</string>
     <string name="music_by">Musica di FoxSynergy (CC-BY 3.0)</string>

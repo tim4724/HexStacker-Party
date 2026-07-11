@@ -3,11 +3,9 @@ package com.hexstacker.tv.render
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
-import android.graphics.Shader
 import com.hexstacker.core.model.EngineConstants
 import com.hexstacker.core.model.PlayerState
 import com.hexstacker.core.render.ColorMath
@@ -86,8 +84,15 @@ class BoardRenderer(
     private val lum = ColorMath.luminance01(accent)
     private val gridAlpha = Theme.Opacity.grid + (1 - lum) * 0.08
     private val tintFillInt = accent.argb(Theme.Opacity.boardTint)
-    private val wallStrokeInt = accent.argb(Theme.Opacity.strong)
-    private val panelTintInt = accent.argb(Theme.Opacity.tint)
+    private val wallStrokeInt = accent.argb(Theme.Opacity.wall)
+    private val hairlineStrokeInt = Theme.hairline.argb(Theme.Opacity.hairline)
+    // Tonal panel fill — the canvas (srgb) approximation of the A2 recipe
+    // color-mix(in oklab, player-color 20%, bg-card), same as UIRenderer._panelFill.
+    private val panelFillInt = Rgb(
+        (accent.r * 0.2 + TvColors.bgCard.r * 0.8 + 0.5).toInt(),
+        (accent.g * 0.2 + TvColors.bgCard.g * 0.8 + 0.5).toInt(),
+        (accent.b * 0.2 + TvColors.bgCard.b * 0.8 + 0.5).toInt(),
+    ).toArgb()
     private val panelStrokeInt = accent.argb(Theme.Opacity.soft)
 
     // ── HUD metrics (web parity) ──────────────────────────────────────────────
@@ -121,27 +126,31 @@ class BoardRenderer(
     private val namePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = fonts.bold; textSize = nameSizeF; textAlign = Paint.Align.LEFT
     }
+    // Labels: quiet uppercase metadata — cream at label alpha with the wide
+    // 0.2em tracking of .card-level__heading (A2).
     private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = fonts.bold; textSize = labelSizeF; textAlign = Paint.Align.LEFT
-        color = TvColors.white.argb(Theme.Opacity.label); letterSpacing = 0.15f
+        color = Theme.textPrimary.argb(Theme.Opacity.label); letterSpacing = 0.2f
     }
     private val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = fonts.bold; textSize = valueSizeF; textAlign = Paint.Align.LEFT
-        color = TvColors.white.toArgb()
+        color = Theme.textPrimary.toArgb()
     }
     private val koWashPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
-        color = Rgb(30, 0, 0).argb(0.6) // web KO wash rgba(30,0,0,0.6); constant, set once
+        // Brand-plum dim (never a black/red wash) — canvas twin of --overlay-bg (A2).
+        color = Theme.bgPrimary.argb(Theme.Opacity.overlay)
     }
     private val koTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = fonts.black; textSize = koTextSizeF; textAlign = Paint.Align.CENTER
-        color = colorInt(TvColors.koLabel)
+        color = colorInt(TvColors.koText) // danger token (web THEME.color.ko.text)
     }
 
     // Disconnect-overlay paints + QR dst rect (deterministic per instance; reused,
     // never allocate in draw). Config is constant, so it is set once here.
     private val disconnectOverlayPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = TvColors.black.argb(Theme.Opacity.overlay)
+        // Brand-plum board dim — canvas twin of --overlay-bg (never a black wash).
+        color = Theme.bgPrimary.argb(Theme.Opacity.overlay)
     }
     private val disconnectTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = fonts.semibold; textSize = disconnectLabelSizeF; textAlign = Paint.Align.CENTER
@@ -292,20 +301,18 @@ class BoardRenderer(
         c.drawRect(0f, 0f, (ceilBW + bgPad * 2).toFloat(), (ceilBH + bgPad * 2).toFloat(), p)
         c.translate(bgPad.toFloat(), bgPad.toFloat())
 
-        // Well fill, clipped to the board outline.
+        // Well fill, clipped to the board outline. Neon → pure black for max
+        // contrast; otherwise a flat recessed deeper-plum well (bg.board) +
+        // player tint — the same socket treatment as the lobby's empty player
+        // slots (A2 dropped the gradient).
         c.save()
         c.clipPath(outlinePath(geometry.outlineVertices(0.0), 0f, 0f))
         if (tier == Theme.StyleTier.NEON_FLAT) {
             p.color = colorInt(TvColors.black)
             c.drawRect(0f, 0f, ceilBW.toFloat(), ceilBH.toFloat(), p)
         } else {
-            p.shader = LinearGradient(
-                0f, 0f, 0f, ceilBH.toFloat(),
-                colorInt(Theme.bgSecondary), colorInt(Theme.bgBoard),
-                Shader.TileMode.CLAMP,
-            )
+            p.color = colorInt(Theme.bgBoard)
             c.drawRect(0f, 0f, ceilBW.toFloat(), ceilBH.toFloat(), p)
-            p.shader = null
             p.color = tintFillInt
             c.drawRect(0f, 0f, ceilBW.toFloat(), ceilBH.toFloat(), p)
         }
@@ -333,11 +340,17 @@ class BoardRenderer(
         gridAlphaPaint.alpha = 255
         temp.recycle()
 
-        // Outer wall stroke (outset outline).
+        // Outer wall stroke (outset outline) — a calmer player wall, then a
+        // crisp warm-paper hairline on top so the well gets the same socket
+        // rim as the lobby's empty player slots (A2).
+        val wallPath = outlinePath(geometry.outlineVertices(geometry.wallOutset), 0f, 0f)
         p.style = Paint.Style.STROKE
         p.color = wallStrokeInt
         p.strokeWidth = borderWidth
-        c.drawPath(outlinePath(geometry.outlineVertices(geometry.wallOutset), 0f, 0f), p)
+        c.drawPath(wallPath, p)
+        p.color = hairlineStrokeInt
+        p.strokeWidth = 1f
+        c.drawPath(wallPath, p)
 
         return bmp
     }
@@ -427,9 +440,11 @@ class BoardRenderer(
             }
         }
         if (!drawn) return
-        previewFillPaint.color = TvColors.white.argb(0.2)
+        // Clear-related effects speak cream (text primary), not pure white —
+        // warm flashes sit better on the plum surfaces (A2).
+        previewFillPaint.color = Theme.textPrimary.argb(0.2)
         canvas.drawPath(previewPath, previewFillPaint)
-        previewStrokePaint.color = TvColors.white.argb(0.4)
+        previewStrokePaint.color = Theme.textPrimary.argb(0.4)
         previewStrokePaint.strokeWidth = gridLineWidth
         canvas.drawPath(previewPath, previewStrokePaint)
     }
@@ -507,7 +522,7 @@ class BoardRenderer(
             }
         }
         if (!drawn) return false
-        clearingPaint.color = TvColors.white.toArgb()
+        clearingPaint.color = Theme.textPrimary.toArgb()
         clearingPaint.alpha = a255(alpha)
         canvas.drawPath(clearingPath, clearingPaint)
         return true
@@ -585,17 +600,18 @@ class BoardRenderer(
             val cy = boardY + hexH * row + hexH / 2f
             garbageMeterPath.addHex(meterXF, cy, sCell)
         }
-        meterStrokePaint.color = TvColors.white.argb(Theme.Opacity.label)
+        // Garbage meter speaks cream (A2), not pure white.
+        meterStrokePaint.color = Theme.textPrimary.argb(Theme.Opacity.label)
         canvas.drawPath(garbageMeterPath, meterStrokePaint)
-        meterFillPaint.color = TvColors.white.argb(Theme.Opacity.muted)
+        meterFillPaint.color = Theme.textPrimary.argb(Theme.Opacity.muted)
         canvas.drawPath(garbageMeterPath, meterFillPaint)
     }
 
     /**
      * Animated garbage-meter effects over the pending-garbage column: incoming attack
-     * indicators (attacker-colored) and defence cancel-flashes (white). Port of
+     * indicators (attacker-colored) and defence cancel-flashes (cream). Port of
      * `UIRenderer._drawGarbageEffects` — a fading fill over rows [rowStart, rowStart+lines)
-     * plus a white top-edge stripe. Called by the surface view after the static meter.
+     * plus a cream top-edge stripe. Called by the surface view after the static meter.
      * [effects] is render-thread-owned; expired entries are pruned by the caller.
      */
     internal fun drawGarbageEffects(canvas: Canvas, effects: List<GarbageFx>?, nowMs: Double, highlightAlpha: Double) {
@@ -621,8 +637,8 @@ class BoardRenderer(
             meterFillPaint.color = fx.colorInt
             meterFillPaint.alpha = a255(alpha)
             canvas.drawPath(garbageFxPath, meterFillPaint)
-            // White top-edge stripe on each row of the effect.
-            meterStrokePaint.color = TvColors.white.toArgb()
+            // Cream top-edge stripe on each row of the effect.
+            meterStrokePaint.color = Theme.textPrimary.toArgb()
             meterStrokePaint.alpha = a255(highlightAlpha * (alpha / fx.maxAlpha))
             meterStrokePaint.style = Paint.Style.FILL
             for (row in fx.rowStart until last) {
@@ -681,10 +697,11 @@ class BoardRenderer(
         fill.color = colorInt(Theme.bgPrimary)
         c.drawRect(0f, 0f, bmpW.toFloat(), bmpH.toFloat(), fill)
 
-        // Header label at top.
+        // Header label at top — quiet uppercase metadata: cream at label alpha
+        // with the wide 0.2em tracking of .card-level__heading (A2).
         val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             typeface = fonts.bold; textSize = labelSizeF; textAlign = Paint.Align.CENTER
-            color = TvColors.white.argb(Theme.Opacity.label); letterSpacing = 0.15f
+            color = Theme.textPrimary.argb(Theme.Opacity.label); letterSpacing = 0.2f
         }
         c.drawTextB(label, chromePad + boxW / 2f, chromePad.toFloat(), text, TextBaseline.TOP)
 
@@ -692,36 +709,22 @@ class BoardRenderer(
         return bmp
     }
 
+    // Tonal panel recipe (A2) — mirrors the .player-card primitive: one flat
+    // player-mixed fill, borderless. The neon tier keeps its black fill + thin
+    // player-tinted rim (the black fill can't carry identity).
     private fun paintPanelChrome(c: Canvas, fill: Paint, stroke: Paint, x: Float, y: Float, w: Float, h: Float, tier: Theme.StyleTier) {
         val r = (cellSizeD * 0.2).toFloat()
         val rr = roundRectPath(x, y, w, h, r)
         if (tier == Theme.StyleTier.NEON_FLAT) {
-            fill.shader = null
             fill.color = colorInt(TvColors.black)
             c.drawPath(rr, fill)
+            stroke.color = panelStrokeInt
+            stroke.strokeWidth = max(1.0, cellSizeD * Theme.Stroke.border * 0.6).toFloat()
+            c.drawPath(rr, stroke)
         } else {
-            fill.shader = LinearGradient(
-                x, y, x, y + h,
-                colorInt(TvColors.bgCardSoft), colorInt(TvColors.bgCard),
-                Shader.TileMode.CLAMP,
-            )
+            fill.color = panelFillInt
             c.drawPath(rr, fill)
-            fill.shader = null
-            fill.color = panelTintInt
-            c.drawPath(rr, fill)
-            // Inset top bevel.
-            c.save()
-            c.clipPath(rr)
-            stroke.color = TvColors.white.argb(0.14)
-            stroke.strokeWidth = max(1.0, cellSizeD * 0.03).toFloat()
-            val bevelInset = max(1.0, cellSizeD * 0.015).toFloat()
-            c.drawLine(x + r * 0.5f, y + bevelInset, x + w - r * 0.5f, y + bevelInset, stroke)
-            c.restore()
         }
-        // Rim stroke (both tiers).
-        stroke.color = panelStrokeInt
-        stroke.strokeWidth = max(1.0, cellSizeD * Theme.Stroke.border * 0.6).toFloat()
-        c.drawPath(rr, stroke)
     }
 
     private fun blitChrome(canvas: Canvas, cache: Bitmap, panelX: Float, panelY: Float) {

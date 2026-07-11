@@ -12,7 +12,7 @@
     <string name="double_clear">2ライン</string>
     <string name="triple_clear">3ライン!</string>
 
-    <string name="scan_to_join">スキャンして参加</string>
+    <string name="scan_hint">スマホでコードをスキャン</string>
     <string name="waiting_for_players">プレイヤー待ってる</string>
     <string name="level_heading">レベル</string>
     <string name="music_by">音楽：FoxSynergy（CC-BY 3.0）</string>

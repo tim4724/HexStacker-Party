@@ -47,7 +47,21 @@ object Theme {
     val bgPrimary = Rgb.fromHex("#1E1A2B")!!
     val bgSecondary = Rgb.fromHex("#181421")!!
     val bgBoard = Rgb.fromHex("#15121F")!!
-    val nearClear = Rgb(255, 255, 255)
+
+    /**
+     * Warm-paper hairline for socket rims and ring strokes — mirrors the
+     * rgba(255,248,236,X) --border family in theme.css.
+     */
+    val hairline = Rgb.fromHex("#FFF8EC")!!
+
+    /**
+     * Cream outline pulse (== text primary #F7F1E8) — extends the "cream =
+     * clear-related" vocabulary shared with the clear preview and clear glow.
+     */
+    val nearClear = Rgb.fromHex("#F7F1E8")!!
+
+    /** Warm cream text primary (#F7F1E8) — canvas twin of --text-primary. */
+    val textPrimary = nearClear
 
     object Opacity {
         const val faint = 0.04
@@ -57,10 +71,11 @@ object Theme {
         const val muted = 0.10
         const val grid = 0.18
         const val soft = 0.15
-        const val highlight = 0.22
+        const val hairline = 0.12 // socket-rim hairline strokes (× color hairline)
+        const val highlight = 0.16
         const val shadow = 0.25
         const val label = 0.6
-        const val strong = 0.7
+        const val wall = 0.5 // board wall stroke (player color)
         const val overlay = 0.75
         const val panel = 0.9
     }
