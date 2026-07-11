@@ -137,30 +137,33 @@ body.airconsole #lobby-version-label { display: block; }
   max-height: 100%;
   background: #000;
   border-radius: 8px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--shadow-sm);
   outline: none;
 }
 
+/* Round utility button (same recipe as .icon-btn — kept standalone since
+   this element carries its own absolute positioning). */
 .trailer-modal__close {
   position: absolute;
   top: clamp(0.75rem, 2vh, 1.5rem);
   right: clamp(0.75rem, 2vw, 1.5rem);
-  width: 40px;
-  height: 40px;
+  width: 52px;
+  height: 52px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: none;
+  border: 1px solid rgba(255, 248, 236, 0.12);
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(21, 18, 31, 0.4);
   color: var(--text-primary);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   transition: background var(--transition-normal);
 }
 
 .trailer-modal__close:hover,
 .trailer-modal__close:focus-visible {
-  background: rgba(255, 255, 255, 0.22);
+  background: var(--bg-card-soft);
   outline: none;
 }
 
@@ -302,10 +305,12 @@ html:not(.in-session) #relay-status-bar { display: none; }
 .relay-chip__dot.ping-ok  { background: var(--ping-ok);  color: var(--ping-ok); }
 .relay-chip__dot.ping-bad { background: var(--ping-bad); color: var(--ping-bad); }
 
+/* Same fill + hairline family as the round utility buttons, pill-shaped
+   for the text label. */
 .relay-report-btn {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
+  background: rgba(21, 18, 31, 0.4);
+  border: 1px solid rgba(255, 248, 236, 0.12);
+  border-radius: var(--radius-pill);
   color: var(--text-secondary);
   font-family: system-ui, -apple-system, sans-serif;
   font-size: clamp(11px, 1.3vw, 13px);
@@ -317,7 +322,7 @@ html:not(.in-session) #relay-status-bar { display: none; }
 .relay-report-btn:hover,
 .relay-report-btn:focus-visible {
   color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 248, 236, 0.3);
 }
 .relay-report-btn.hidden { display: none; }
 
@@ -377,7 +382,7 @@ html:not(.in-session) #relay-status-bar { display: none; }
      four bands (title, body, START, edges) evenly spaced even when the
      QR + cards content would otherwise claim its full intrinsic height
      and squeeze the gaps. min-height: 0 lets nested overflow clip behind
-     the z-indexed START rather than expanding the body box. */
+     the z-indexed #lobby-cta rather than expanding the body box. */
   flex: 0 1 auto;
   min-height: 0;
   animation: fadeUp 0.6s 0.15s ease-out both;
@@ -498,15 +503,18 @@ html:not(.in-session) #relay-status-bar { display: none; }
   top: -28px;
   left: 50%;
   transform: translateX(-50%) translateY(4px);
-  padding: 4px 10px;
-  background: var(--accent-secondary);
-  color: var(--bg-primary);
+  padding: 4px 12px;
+  /* Tonal accent chip (same recipe as the bail toast); solid fallback
+     first for engines without color-mix. */
+  background: var(--bg-card);
+  background: color-mix(in oklab, var(--accent-secondary) 20%, var(--bg-card));
+  color: var(--accent-secondary);
   font-family: var(--font-hud);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease, transform 0.2s ease;
@@ -653,9 +661,9 @@ body.airconsole #qr-container,
   text-align: center;
 }
 
+/* Layering above overflowing #lobby-body content comes from #lobby-cta's
+   z-index; the button only carries its own entrance. */
 #start-btn {
-  position: relative;
-  z-index: 5;
   animation: fadeUp 0.5s 0.45s ease-out backwards;
 }
 
@@ -751,8 +759,8 @@ body.airconsole #qr-container,
 }
 
 #game-toolbar .icon-btn {
-  width: clamp(36px, 4vh, 52px);
-  height: clamp(36px, 4vh, 52px);
+  width: clamp(44px, 5vh, 64px);
+  height: clamp(44px, 5vh, 64px);
 }
 
 #game-toolbar .hidden {

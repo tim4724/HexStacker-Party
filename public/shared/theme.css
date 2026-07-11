@@ -115,6 +115,10 @@
   font-weight: 700;
   text-transform: uppercase;
   cursor: pointer;
+  /* The html/body reset alone doesn't reliably kill the mobile tap flash
+     on buttons (Android draws it per tapped element) — set it on every
+     button primitive explicitly. */
+  -webkit-tap-highlight-color: transparent;
   transition: transform var(--transition-fast), filter var(--transition-fast);
 }
 
@@ -206,81 +210,19 @@
 /* Focus-visible ring — accessibility, matches palette secondary */
 .btn:focus-visible,
 .icon-btn:focus-visible,
-.input:focus-visible {
+.level-btn:focus-visible {
   outline: 2px solid var(--accent-secondary);
   outline-offset: 2px;
 }
 
-/* ==========================================================
-   Shared Component Classes
-   ========================================================== */
-
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 16px;
-}
-
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: var(--bg-card-soft);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  font-family: var(--font-brand);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-
-.pill--accent {
-  background: rgba(var(--accent-primary-rgb), 0.18);
-  border-color: rgba(var(--accent-primary-rgb), 0.35);
-  color: var(--accent-primary);
-}
-
-.input {
-  background: var(--bg-card);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  padding: 14px 18px;
-  font-size: 16px;
-  color: var(--text-primary);
-  font-family: var(--font-brand);
-  font-weight: 500;
-  outline: none;
-  width: 100%;
-  transition: border-color var(--transition-fast);
-}
-
-.input:focus {
-  border-color: var(--accent-secondary);
-}
-
-.input::placeholder {
-  color: var(--text-faint);
-}
-
-.modal {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  padding: 28px 32px;
-  max-width: 320px;
-}
-
 /* Round utility button — the one circular component for corner icons
-   (sound/fullscreen/pause), controller back/settings, and picker close.
-   Contexts may override the 44px size (e.g. the display game toolbar
-   scales with viewport height) but keep the circle + hairline ring. */
+   (sound/fullscreen/pause), controller back/settings, picker close, and
+   the level steppers. Contexts may override the 52px size (e.g. the
+   display game toolbar scales with viewport height) but keep the circle
+   + hairline ring. */
 .icon-btn {
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   border: 1px solid rgba(255, 248, 236, 0.12);
   border-radius: 50%;
   background: rgba(21, 18, 31, 0.4);
@@ -290,6 +232,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
   transition: background var(--transition-fast), transform var(--transition-fast);
 }
 

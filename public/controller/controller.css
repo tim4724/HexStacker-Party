@@ -368,11 +368,11 @@ html, body {
 }
 
 #level-selector .level-btn {
-  /* Round utility button (same family as .icon-btn). Height capped at 75%
-     of the .card-level half so it always fits inside the card; 44px is the
-     standard touch-target size. aspect-ratio:1 mirrors width to height so
-     the circle never forces the card past its 2:1 aspect. */
-  height: min(44px, 75%);
+  /* Round utility button (same family as .icon-btn, same 52px size).
+     Height capped at 75% of the .card-level half so it always fits inside
+     the card; aspect-ratio:1 mirrors width to height so the circle never
+     forces the card past its 2:1 aspect. */
+  height: min(52px, 75%);
   aspect-ratio: 1;
   border: 1px solid rgba(255, 248, 236, 0.12);
   border-radius: 50%;
@@ -383,6 +383,9 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Kill the mobile tap flash — these are the most-tapped buttons in the
+     lobby (theme.css does the same for .btn/.icon-btn). */
+  -webkit-tap-highlight-color: transparent;
   transition: background var(--transition-fast);
 }
 
@@ -896,10 +899,12 @@ html, body {
   line-height: 1;
 }
 
-/* "This is you" highlight */
+/* "This is you" highlight — tonal row in your own color, same recipe as
+   the lobby's tonal player cards (replaces the old outline highlight).
+   Two-declaration fallback for engines without color-mix. */
 .result-row.is-me {
-  outline: 1.5px solid rgba(255, 255, 255, 0.4);
-  outline: 1.5px solid color-mix(in srgb, var(--me-color, #888) 70%, transparent);
+  background: var(--bg-card-soft);
+  background: color-mix(in oklab, var(--me-color, var(--bg-card-soft)) 20%, var(--bg-card));
 }
 
 .result-info {
@@ -1024,9 +1029,9 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  /* Borderless 20px card, matching the tonal player-card language. */
   background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: 20px;
   padding: 22px 14px;
   overflow-y: auto;
   scrollbar-width: none;
@@ -1358,7 +1363,7 @@ body.airconsole #ac-status-overlay { display: flex; }
 body.airconsole #ac-status-overlay.hidden { display: none; }
 
 /* --- Results scrolling — scroll on the list, not the body,
-   so the .is-me outline isn't clipped. Hide the scrollbar chrome since
+   so the rows' box-shadow isn't clipped. Hide the scrollbar chrome since
    desktop and mobile render it differently; swiping still works. --- */
 #results-list {
   overflow-y: auto;
