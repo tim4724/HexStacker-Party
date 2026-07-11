@@ -188,7 +188,10 @@
           <span class="settings-row__value" id="sensitivity-value">1.00</span>
         </span>
         <input type="range" id="sensitivity-slider" min="0.55" max="1.75" step="0.05" value="1" aria-labelledby="sensitivity-label-text">
-        <canvas id="sensitivity-preview" class="settings-preview" width="280" height="120" aria-hidden="true"></canvas>
+        <div class="settings-preview-wrap">
+          <canvas id="sensitivity-preview" class="settings-preview" width="280" height="120" aria-hidden="true"></canvas>
+          <span class="settings-preview__label" data-i18n="touchpad" aria-hidden="true">Touchpad</span>
+        </div>
       </div>
       <button id="settings-close" class="btn btn-primary" data-i18n="settings_done">DONE</button>
       <footer class="settings-about">

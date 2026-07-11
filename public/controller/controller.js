@@ -289,7 +289,16 @@ function syncSensitivityControls() {
 
   sensitivitySlider.value = String(currentRatio);
   sensitivityValueEl.textContent = currentRatio.toFixed(2);
+  syncSensitivityFill();
   drawSensitivityPreview();
+}
+
+// The track's player-tinted progress layer is painted in CSS from
+// --value-pct (same pattern as the --center-pct tick above).
+function syncSensitivityFill() {
+  var ratio = parseFloat(sensitivitySlider.value);
+  var pct = (ratio - _sensMinRatio) / (_sensMaxRatio - _sensMinRatio);
+  sensitivitySlider.style.setProperty('--value-pct', (pct * 100).toFixed(2) + '%');
 }
 
 function syncMuteDisplayToggle() {
@@ -341,6 +350,7 @@ sensitivitySlider.addEventListener('input', function () {
   var ratio = snapToStep(parseFloat(sensitivitySlider.value));
   ControllerSettings.setSensitivity(ratioToPx(ratio));
   sensitivityValueEl.textContent = ratio.toFixed(2);
+  syncSensitivityFill();
   drawSensitivityPreview();
   vibrate(8);
 });
