@@ -28,9 +28,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -99,7 +102,7 @@ fun PlayerCard(
     // gap, and the pill box, centered as a group — capping the name's box (the
     // Wordmark pattern: Baloo's natural box is ~1.6em and would push the pill
     // down) seats the pair a touch above the card middle, like the browser.
-    val nameLineH = with(androidx.compose.ui.platform.LocalDensity.current) { nameSize.toDp() } * 1.15f
+    val nameLineH = with(LocalDensity.current) { nameSize.toDp() } * 1.15f
     Column(
         modifier
             .aspectRatio(2f)
@@ -115,7 +118,7 @@ fun PlayerCard(
                 style = AppType.cardName.copy(
                     fontSize = nameSize,
                     color = color,
-                    platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
+                    platformStyle = PlatformTextStyle(includeFontPadding = false),
                 ),
                 modifier = Modifier.wrapContentHeight(unbounded = true),
                 maxLines = 1,
@@ -156,7 +159,7 @@ private fun SocketOpening(modifier: Modifier = Modifier) {
         val path = android.graphics.Path().apply {
             addRoundedHex(size.width / 2f, size.height / 2f, r * 0.9f, r * 0.12f)
         }.asComposePath()
-        drawPath(path, androidx.compose.ui.graphics.Color(0x08FFF8EC)) // fill rgba(255,248,236,0.03)
+        drawPath(path, Color(0x08FFF8EC)) // fill rgba(255,248,236,0.03)
         drawPath(path, Tokens.textPrimary.copy(alpha = 0.45f), style = Stroke(width = 2.dp.toPx()))
     }
 }

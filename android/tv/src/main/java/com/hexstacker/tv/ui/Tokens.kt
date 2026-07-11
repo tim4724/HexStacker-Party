@@ -20,7 +20,6 @@ object Tokens {
     // Theme token unifies them.
     val bgCard = Color(0xFF2A2540) // --bg-card     rgb(42,37,64)
     val bgCardSoft = Color(0xFF342E4D) // --bg-card-soft
-    val bgGlass = Color(0x0FFFF8EC) // --bg-glass  rgba(255,248,236,0.06)
 
     // Accents (party palette slot 1 / slot 8)
     val accentPrimary = Color(0xFFFF6B6B) // --accent-primary

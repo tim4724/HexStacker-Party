@@ -106,7 +106,7 @@ final class RootScene: SKScene, DisplayOutput {
         gameEffect.shouldRasterize = false       // rasterize only for the static results screen (showScreen)
         gameEffect.addChild(gameLayer)
         addChild(gameEffect)
-        resultsLayer.zPosition = 1               // above the (blurred) game layer
+        resultsLayer.zPosition = 1               // above the frozen game layer
         addChild(resultsLayer)
 
         // Match timer (top of the game screen). Per-glyph so digits sit on fixed
@@ -1096,9 +1096,9 @@ final class RootScene: SKScene, DisplayOutput {
         // --- Body band: frameless QR (left) + player grid (right) as a centered
         // row (web #lobby-main), with the join/hint line tucked close beneath the
         // row (web #join-line — the line belongs to the join section). Sizes are
-        // CAPPED like the web clamps (a touch larger for TV) so cards stay one
-        // size for any player count — just more columns. The QR is sized
-        // independently (big + scannable), not shrunk to the grid height.
+        // CAPPED like the web clamps so cards stay one size for any player count
+        // — just more columns. The QR is sized independently (big + scannable),
+        // not shrunk to the grid height.
         let titleBottom = H - margin - titleImg.size.height
         let bodyTop = titleBottom - margin * 0.5
         let bodyBottom = pillY + pillH / 2 + margin * 0.5
@@ -1166,7 +1166,7 @@ final class RootScene: SKScene, DisplayOutput {
             let cx = gridLeftX + CGFloat(c) * (cardW + cardGap) + cardW / 2
             let cy = gridTopY - CGFloat(r) * (cardH + cardGap) - cardH / 2
             let player = slot < sorted.count ? sorted[slot] : nil
-            let card = buildPlayerCard(player: player, slotIndex: slot, w: cardW, h: cardH)
+            let card = buildPlayerCard(player: player, w: cardW, h: cardH)
             card.position = CGPoint(x: cx, y: cy)
             lobbyContent.addChild(card)
             if let p = player {
@@ -1309,7 +1309,7 @@ final class RootScene: SKScene, DisplayOutput {
         return code.isEmpty ? (host, "") : (host + "/", code)
     }
 
-    private func buildPlayerCard(player: PlayerRecord?, slotIndex: Int, w: CGFloat, h: CGFloat) -> SKNode {
+    private func buildPlayerCard(player: PlayerRecord?, w: CGFloat, h: CGFloat) -> SKNode {
         let node = SKNode()
         let rect = CGRect(x: -w / 2, y: -h / 2, width: w, height: h)
         let color = player.map { SKTheme.player(slot: $0.colorSlot) }

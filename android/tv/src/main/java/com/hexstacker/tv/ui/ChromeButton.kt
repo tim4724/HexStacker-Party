@@ -42,7 +42,7 @@ import androidx.compose.ui.unit.sp
  *  - secondary → borderless `--bg-card-soft` (web `.btn-secondary`)
  *  - disabled → quiet `--bg-card`, no border (web `.btn-primary:disabled`)
  *  - text: disabled `--text-secondary`, primary `--btn-primary-text`, secondary `--text-primary`
- *  - 16dp corner (var(--radius-btn)); borderless at rest — focus adds the white
+ *  - 16px corner (var(--radius-btn)); borderless at rest — focus adds the white
  *    4dp ring + scale 1.06. Disabled has no scale but STAYS focusable (ring only),
  *    so the empty lobby seats initial focus on the disabled Start (the main action)
  *    instead of letting the focus engine grab the ⓘ (tvOS parity)
