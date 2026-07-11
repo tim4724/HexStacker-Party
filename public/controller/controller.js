@@ -173,8 +173,6 @@ function submitName() {
   nameJoinBtn.disabled = true;
   nameJoinBtn.textContent = t('connecting');
   nameInput.disabled = true;
-  nameStatusText.textContent = '';
-  nameStatusDetail.textContent = '';
   connect();
 }
 
@@ -846,14 +844,10 @@ if (hadStoredId || rejoinToken || legacyRejoinId || skipNameScreen) {
   nameJoinBtn.disabled = true;
   nameJoinBtn.textContent = t('connecting');
   nameInput.disabled = true;
-  nameStatusText.textContent = '';
-  nameStatusDetail.textContent = '';
   showScreen('name');
   connect();
 } else {
   nameInput.value = savedName;
-  nameStatusText.textContent = '';
-  nameStatusDetail.textContent = '';
   showScreen('name');
   nameInput.focus();
 }

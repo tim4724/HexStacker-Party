@@ -101,15 +101,6 @@ html, body {
   margin-top: clamp(24px, 5vh, 44px);
 }
 
-.controller-shell__copy {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  text-align: center;
-}
-
 .controller-shell__actions {
   width: 100%;
   max-width: 320px;
@@ -641,40 +632,6 @@ html, body {
   animation: fadeUp 0.5s 0.35s ease-out both;
 }
 
-#status-text,
-#name-status-text {
-  font-family: var(--font-brand);
-  font-size: clamp(1.2rem, 5.8vw, 1.85rem);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: rgba(var(--accent-secondary-rgb), 0.9);
-  text-align: center;
-}
-
-#status-text,
-#name-status-text {
-  animation: fadeUp 0.5s 0.15s ease-out both;
-}
-
-#status-detail,
-#name-status-detail {
-  font-size: clamp(1rem, 4.5vw, 1.2rem);
-  color: var(--text-secondary);
-  letter-spacing: 0.04em;
-  text-align: center;
-}
-
-#status-detail,
-#name-status-detail {
-  animation: fadeUp 0.5s 0.25s ease-out both;
-  max-width: 30ch;
-  line-height: 1.45;
-}
-
-#status-text:empty,
-#status-detail:empty,
-#name-status-text:empty,
-#name-status-detail:empty,
 #gameover-status:empty {
   display: none;
 }
@@ -1900,8 +1857,7 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
 @media (orientation: landscape) and (min-aspect-ratio: 5/4) and (max-height: 220px) {
   .controller-shell__brand,
   .controller-shell__actions,
-  .legal-links,
-  .controller-shell__copy {
+  .legal-links {
     visibility: hidden;
     height: 0;
     margin: 0;
@@ -1924,8 +1880,7 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
 /* iOS Safari fallback — JS sets .keyboard-compact via visualViewport */
 .keyboard-compact .controller-shell__brand,
 .keyboard-compact .controller-shell__actions,
-.keyboard-compact .legal-links,
-.keyboard-compact .controller-shell__copy {
+.keyboard-compact .legal-links {
   visibility: hidden;
   height: 0;
   margin: 0;

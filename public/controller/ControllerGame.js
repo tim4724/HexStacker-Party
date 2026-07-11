@@ -97,8 +97,6 @@ function showLobbyUI() {
   updateLevelDisplay();
 
   updateStartButton();
-  statusText.textContent = '';
-  statusDetail.textContent = '';
 
   showScreen('lobby');
   // Paint after showScreen so that updateHostVisibility (below) sees
