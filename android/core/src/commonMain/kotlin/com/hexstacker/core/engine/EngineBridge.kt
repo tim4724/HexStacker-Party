@@ -95,11 +95,6 @@ class EngineBridge private constructor(
         eval("softDropEnd", "Bridge.softDropEnd($playerId)")
     }
 
-    /** Granular tick (demo/frozen capture). The live loop uses [frame] instead. */
-    suspend fun update(deltaMs: Double): Unit = lock.withLock {
-        eval("update", "Bridge.update(${jsNum(deltaMs)})")
-    }
-
     suspend fun pause(): Unit = lock.withLock { eval("pause", "Bridge.pause()") }
     suspend fun resume(): Unit = lock.withLock { eval("resume", "Bridge.resume()") }
 

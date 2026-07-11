@@ -55,6 +55,11 @@ import kotlin.time.TimeSource
  * commonMain-only: depends on [RelayTransport] (interface), [EngineBridge],
  * the models, kotlinx.serialization.json and kotlinx.coroutines. No OkHttp / no
  * android.* — the concrete relay client lives in the Relay sibling subsystem.
+ *
+ * Parity caveat: unlike RoomFlow / the engine / the render math, this FSM has NO
+ * cross-engine oracle (the web `DisplayGame.js` slice is DOM-coupled and was never
+ * extracted into the portable core), so web parity rests on the behavioral suite in
+ * `DisplayCoordinatorTest` staying faithful to the web paths its cases mirror.
  */
 class DisplayCoordinator(
     private val transport: RelayTransport,
@@ -65,6 +70,9 @@ class DisplayCoordinator(
     private val seedProvider: () -> Long = { Random.nextLong(0, 0x1_0000_0000L) },
     /** Optional WebRTC low-latency input path (relay is the fallback). Null = relay-only. */
     private val fastlane: Fastlane? = null,
+    /** Observability for boundary errors that are swallowed to keep the loop alive
+     *  (engine/parse failures). Wire to platform logging in :tv; no-op by default. */
+    private val onError: (label: String, error: Throwable) -> Unit = { _, _ -> },
     dispatcher: CoroutineDispatcher = Dispatchers.Default.limitedParallelism(1),
 ) {
     // Liveness on: controllers ping at 1 Hz, so a 3s silence (constants.js
@@ -98,7 +106,6 @@ class DisplayCoordinator(
     private var frameClockMs = 0.0
     private var playerOrder = mutableListOf<Int>()
     private var pendingSeed = 0L
-    private var demoSeedOverride: Long? = null
     private var muted = false
     // Host-change dedup for the mid-game handoff re-broadcast (web maybeBroadcastHostChange).
     private var lastBroadcastedHost: Int? = null
@@ -236,6 +243,7 @@ class DisplayCoordinator(
                 throw e
             } catch (e: Throwable) {
                 // Keep the consumer alive: a parse/engine error must not stop the loop.
+                onError(action::class.simpleName ?: "action", e)
             }
         }
     }
@@ -559,7 +567,7 @@ class DisplayCoordinator(
         // waiting for the next frame() tick. snapshot() is a pure read (getSnapshot deep-copy,
         // no time advance), so this only front-runs the VISUAL; this frame's events/commands
         // (lock flash, garbage, sends) still flow on the next frame(). Guarded to PLAYING above.
-        val snap = try { e.snapshot() } catch (t: Throwable) { return }
+        val snap = try { e.snapshot() } catch (t: Throwable) { onError("inputSnapshot", t); return }
         output.renderSnapshot(snap)
     }
 
@@ -622,7 +630,7 @@ class DisplayCoordinator(
         playerOrder = playerOrder.filter { flow.contains(it) }.toMutableList()
         playerOrder.sortBy { flow.player(it)?.joinedAt ?: Int.MAX_VALUE }
         flow.setActiveOrder(playerOrder)
-        pendingSeed = demoSeedOverride ?: seedProvider()
+        pendingSeed = seedProvider()
         paused = false
         autoPaused = false
         linkPaused = false
@@ -648,6 +656,7 @@ class DisplayCoordinator(
             engine = engineFactory(specs, pendingSeed)
             true
         } catch (e: Throwable) {
+            onError("makeEngine", e)
             false
         }
     }
@@ -685,6 +694,7 @@ class DisplayCoordinator(
                 val frame = try {
                     e.frame(frameClockMs)
                 } catch (t: Throwable) {
+                    onError("frame", t)
                     return
                 }
                 for (ev in frame.events) output.handleGameEvent(ev) // board animations

@@ -3,6 +3,7 @@ package com.hexstacker.tv
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import androidx.activity.ComponentActivity
@@ -61,6 +62,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import com.hexstacker.tv.ui.CountdownValue as UiCountdownValue
 
 /**
@@ -139,6 +141,9 @@ class MainActivity : ComponentActivity() {
                 b
             },
             fastlane = fastlane,
+            // Surface boundary errors the coordinator swallows to keep its loop alive
+            // (engine/parse failures would otherwise vanish without a trace).
+            onError = { label, e -> Log.w("DisplayCoordinator", label, e) },
             dispatcher = kotlinx.coroutines.Dispatchers.Main,
         )
 
@@ -332,8 +337,11 @@ class MainActivity : ComponentActivity() {
         // briefly here: teardown must not race an in-flight frame() on the way out.
         // A warm-up still in flight was already cancelled with lifecycleScope (create()'s
         // catch closes the runtime itself); await() then throws and there is nothing to
-        // close, which runCatching swallows.
-        runBlocking { engineDeferred?.let { d -> runCatching { d.await().close() } } }
+        // close, which runCatching swallows. Bounded so a wedged engine thread leaks the
+        // runtime (the process is exiting anyway) instead of ANRing the main thread.
+        runBlocking {
+            engineDeferred?.let { d -> runCatching { withTimeout(1000) { d.await().close() } } }
+        }
     }
 }
 

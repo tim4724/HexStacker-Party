@@ -28,7 +28,6 @@ internal object EngineBootstrap {
           if (core) core.handleSoftDropStart(pid, (speed === undefined ? null : speed));
         },
         softDropEnd: function (pid) { if (core) core.handleSoftDropEnd(pid); },
-        update: function (dt) { if (core) core.update(dt); },
         pause: function () { if (core) core.pause(); },
         resume: function () { if (core) core.resume(); },
         resetFrameClock: function () { if (core) core.resetFrameClock(); },

@@ -300,6 +300,12 @@ class RelayClient(
 
     private fun handleFrame(text: String) {
         val root = runCatching { RelayJson.parseToJsonElement(text).jsonObject }.getOrNull() ?: return
+        // The typed decodes below trust the relay's schema; a malformed field must drop
+        // the frame, not throw out of the ops task (which would replace its worker thread).
+        runCatching { dispatchFrame(root) }
+    }
+
+    private fun dispatchFrame(root: JsonObject) {
         when (root["type"]?.jsonPrimitive?.contentOrNull) {
             "message" -> {
                 val f = RelayJson.decodeFromJsonElement<MessageFrame>(root)

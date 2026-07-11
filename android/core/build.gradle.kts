@@ -5,9 +5,6 @@
 // conformance tests on the desktop JVM (no emulator) while the android target
 // hands the app the correct .so files. A plain kotlin-jvm module would leak
 // desktop natives into the Android app.
-//
-// The android target is added later when the :tv app consumes this module; for
-// the engine-bridge spike, jvm() alone proves the QuickJS path end to end.
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.kotlin.multiplatform.library)
