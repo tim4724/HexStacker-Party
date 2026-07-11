@@ -134,7 +134,7 @@ describe('i18n', function () {
     var requiredKeys = [
       'hold', 'next', 'level', 'lines', 'ko', 'go',
       'scan_to_rejoin', 'triple', 'double',
-      'scan_to_join',
+      'scan_to_join', 'scan_hint',
       'waiting_for_players', 'start_n_players', 'start',
       'start_new_game', 'play_again',
       'new_game', 'continue_btn',

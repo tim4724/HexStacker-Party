@@ -68,7 +68,9 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
 /* --- Brand title --- */
 .device-choice__brand h1 {
   margin: 0;
-  font-size: clamp(1.4rem, 7vw, 2.2rem);
+  /* Same size as the controller shell screens (.controller-shell__title)
+     so the brand reads consistently across every phone-sized page. */
+  font-size: clamp(1.6rem, 9vmin, 2.8rem);
   filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
 }
 
@@ -87,10 +89,11 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
   gap: clamp(10px, 2vh, 16px);
   width: min(100%, 440px);
 }
-/* Title↔screenshot gap slightly wider than screenshot↔chips so the
-   title still gets a little breathing room without feeling detached. */
+/* Title↔screenshot gap wider than screenshot↔chips so the title gets
+   breathing room on tall viewports without feeling detached; the 14px
+   floor keeps short viewports as tight as before. */
 .device-choice__intro {
-  gap: clamp(14px, 3vh, 22px);
+  gap: clamp(14px, 4.5vh, 40px);
 }
 
 /* --- Footer: anchored to the overlay's padding-box bottom. The
@@ -334,14 +337,18 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
   width: max-content;
   max-width: calc(100% - 24px);
   line-height: 1.3;
-  padding: 10px 16px;
-  border-radius: var(--radius-md);
-  background: var(--bg-card-soft);
-  border: 1px solid var(--border);
-  color: var(--text-secondary);
+  padding: 10px 20px;
+  border-radius: var(--radius-pill);
+  /* Tonal error chip — same recipe as the tonal player cards: the accent
+     is mixed into the surface and carried by the text. Borderless, flat.
+     Solid-card fallback first for engines without color-mix(). */
+  background: var(--bg-card);
+  background: color-mix(in oklab, var(--accent-secondary) 20%, var(--bg-card));
+  border: none;
+  color: var(--accent-secondary);
   font-family: var(--font-brand);
-  font-size: 0.85rem;
-  font-weight: 500;
+  font-size: 0.9rem;
+  font-weight: 700;
   letter-spacing: 0.06em;
   box-shadow: var(--shadow-sm);
   text-align: center;
@@ -357,15 +364,18 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
    screenshot shows the product at a glance, while the chips repeat the
    selling points the banner's CTA already implies. */
 
-/* Tight height (~≤640px): trim spacing and hide the chips. The
-   screenshot + banner together still communicate what the app is.
-   With chips gone, the screenshot gets more vertical room (up from
-   28vh → 45vh) so it reads as the hero. */
+/* Tight height (~≤640px): trim spacing, hide the chips and the triad
+   mark above the wordmark (the stacked lockup's mark is the first thing
+   to go — the wordmark alone still brands the page). The screenshot +
+   banner together still communicate what the app is. With chips gone,
+   the screenshot gets more vertical room (up from 28vh → 45vh) so it
+   reads as the hero. */
 @media (max-height: 640px) {
   .device-choice {
     gap: clamp(10px, 2vh, 18px);
     padding-top: calc(clamp(12px, 2vh, 24px) + env(safe-area-inset-top));
   }
+  .device-choice__brand .brand-lockup__mark { display: none; }
   .device-choice__chips { display: none; }
   .device-choice__screenshot { max-height: 45vh; }
   .device-choice__banner { padding: 7px 14px; }

@@ -96,7 +96,9 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 18px;
-  margin-top: 24px;
+  /* Breathing room under the brand title on tall phones; collapses back
+     to the old 24px when vertical space is tight. */
+  margin-top: clamp(24px, 5vh, 44px);
 }
 
 .controller-shell__copy {
@@ -208,12 +210,6 @@ html, body {
   justify-content: center;
 }
 
-.icon-btn {
-  width: 56px;
-  height: 56px;
-}
-
-
 .hidden {
   display: none !important;
 }
@@ -227,16 +223,18 @@ html, body {
   animation: fadeUp 0.5s 0.15s ease-out both;
 }
 
+/* Dark inset field — recessed into the background rather than raised on
+   a card, matching the socket/pill recess language. */
 #name-input {
   width: 100%;
   padding: 14px 20px;
-  border-radius: var(--radius-md);
-  border: 1.5px solid var(--border);
-  background: var(--bg-card);
+  border-radius: var(--radius-btn);
+  border: 1px solid var(--border-strong);
+  background: rgba(21, 18, 31, 0.6);
   color: var(--text-primary);
   font-family: var(--font-brand);
   font-size: clamp(1.1rem, 5vw, 1.4rem);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-align: center;
   outline: none;
@@ -251,7 +249,7 @@ html, body {
 }
 
 #name-input:focus {
-  border-color: var(--player-color, var(--accent-secondary));
+  border-color: var(--accent-secondary);
 }
 
 /* Unified sizing for every primary action button on the controller —
@@ -277,13 +275,6 @@ html, body {
    reuse it. --player-color is set on <body> by the controller
    (see ControllerGame.js). */
 
-#name-join-btn:disabled,
-#start-btn:disabled {
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  cursor: default;
-}
-
 #name-join-btn,
 #start-btn {
   animation: fadeUp 0.5s 0.4s ease-out backwards;
@@ -302,8 +293,8 @@ html, body {
 /* Identity trigger button — adds button-specific styling on top of the
    shared .player-card__top layout (in theme.css). The trigger fills the
    entire top half of the card so the whole region is tappable. Inner
-   border-radius matches the card's outer (--radius-md = 12px) minus the
-   2px card border so the :active highlight tucks under the border. */
+   border-radius matches the borderless card's outer 20px so the :active
+   highlight follows the card corners. */
 .identity-trigger {
   appearance: none;
   -webkit-appearance: none;
@@ -312,7 +303,7 @@ html, body {
   /* Receives restored focus when the color picker closes; touch-only UI,
      so suppress the UA focus ring (same as .rose-cell). */
   outline: none;
-  border-radius: 10px 10px 0 0;
+  border-radius: 20px 20px 0 0;
   color: inherit;
   font: inherit;
   cursor: pointer;
@@ -323,34 +314,52 @@ html, body {
   background: rgba(255, 255, 255, 0.08);
 }
 
-/* Tight gap override for the +/- control cluster — overrides the wider
-   gap in shared .card-level (which is sized for display's heading + value
-   pair). The heading-to-minus distance is bumped via the heading's own
-   margin-right below. */
+/* Bigger name on the phone card — matches the display card's proportions
+   (the theme.css clamp is tuned for the smaller display-grid cards). */
+.identity-trigger .identity-name {
+  font-size: clamp(1.9rem, 9.5vmin, 2.5rem);
+}
+
+/* Symmetric stepper row — minus left, plus right, "Level" stacked above
+   the value in the center block. Wider gap than the shared .card-level
+   default so the circles don't crowd the value. */
 #level-selector {
-  gap: 0.35rem;
+  gap: 16px;
+}
+
+/* Center block: heading above value. min-width keeps the +/- circles from
+   shifting when the value changes digit count. The heading is absolutely
+   positioned above the block so the value itself sits on the same
+   horizontal axis as the +/- circles (the row centers the block, and the
+   block's in-flow height is just the value). */
+#level-selector .level-center {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 4.5em;
 }
 
 #level-selector .level-heading {
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  text-align: center;
   font-family: var(--font-brand);
-  /* Larger floor than display's .card-level__heading clamp — phones
-     pin to the floor (vmin ≈ vw is small in portrait), so the floor is
-     what's actually rendered on a controller. */
-  font-size: clamp(1.05rem, 4.5vmin, 1.35rem);
+  font-size: 0.7rem;
   font-weight: 700;
   color: var(--text-secondary);
-  letter-spacing: 0.06em;
+  /* text-indent balances the trailing letter-space so the heading centers
+     over the value (same trick as .brand-lockup__sub). */
+  letter-spacing: 0.24em;
+  text-indent: 0.24em;
   text-transform: uppercase;
-  /* Wider gap before the minus button so "Level" reads as a label,
-     not as part of the +/− control cluster. */
-  margin-right: 0.7rem;
 }
 
 #level-display {
-  font-family: var(--font-brand);
-  /* Larger floor than display's .card-level__value clamp — see note on
-     .level-heading above. */
-  font-size: clamp(1.05rem, 4.5vmin, 1.35rem);
+  font-family: var(--font-hud);
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--text-primary);
   min-width: 1.4em;
@@ -359,17 +368,15 @@ html, body {
 }
 
 #level-selector .level-btn {
-  /* Always fits inside the .card-level half: height capped at 75% of
-     the parent (= card_width/4 due to .player-card's 2:1 aspect), with
-     a 2.8rem ceiling (≈44.8px = standard min touch target) so it stops
-     growing on tablets. aspect-ratio:1 mirrors width to height, so the
-     button is always square and never forces the card past aspect —
-     regardless of card width. */
-  height: min(2.8rem, 75%);
+  /* Round utility button (same family as .icon-btn). Height capped at 75%
+     of the .card-level half so it always fits inside the card; 44px is the
+     standard touch-target size. aspect-ratio:1 mirrors width to height so
+     the circle never forces the card past its 2:1 aspect. */
+  height: min(44px, 75%);
   aspect-ratio: 1;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 248, 236, 0.12);
+  border-radius: 50%;
+  background: rgba(21, 18, 31, 0.4);
   color: var(--text-primary);
   padding: 0;
   cursor: pointer;
@@ -388,7 +395,7 @@ html, body {
 }
 
 #level-selector .level-btn:active:not(:disabled) {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--bg-card-soft);
 }
 
 #level-selector .level-btn:disabled {
@@ -453,9 +460,9 @@ html, body {
   /* Starts non-interactive (matches the overlay + rose cells); the
      pickerEnableInteractive animation flips it back to "auto" after
      the fade. Without this, the close button's default auto would
-     make it tappable during the fade window. Width/height inherit
-     from .icon-btn (56px) so the close X visually matches the back
-     and settings buttons in the lobby top bar. */
+     make it tappable during the fade window. Size/shape inherit from
+     .icon-btn so the close X visually matches the back and settings
+     buttons in the lobby top bar. */
   pointer-events: none;
 }
 
@@ -549,7 +556,7 @@ html, body {
 /* --- Color picker animations -------------------------------------------
    When #color-picker-overlay loses .hidden, the rose fades + pops in with
    a slight overshoot, and the 7 cells stagger from the centre outward.
-   The .game-overlay base class already provides the backdrop blur +
+   The .game-overlay base class already provides the dark backdrop +
    safe-area padding + a fadeIn entrance for the overlay itself; we layer
    the rose-specific motion on top.
    ----------------------------------------------------------------------- */
@@ -1382,6 +1389,21 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   white-space: nowrap;
 }
 
+/* Results title drops its triad mark when vertical space is contested —
+   either the viewport is short, or the ranking list is long (5+ players)
+   and every reclaimed row of height shows another placement. Same
+   "wordmark alone still brands the page" reasoning as the device-choice
+   overlay's ≤640px rule. */
+.controller-shell__frame--results:has(.result-row:nth-child(5)) .brand-lockup__mark {
+  display: none;
+}
+
+@media (max-height: 700px) {
+  .controller-shell__frame--results .brand-lockup__mark {
+    display: none;
+  }
+}
+
 /* --- Landscape layout ---
    min-aspect-ratio guards against false-landscape when a portrait device
    opens the soft keyboard: interactive-widget=resizes-content shrinks the
@@ -1710,7 +1732,7 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   }
 
   /* Left column: gesture hints, vertically centred.
-     min-width matches the button column (icon-btn = 56px + padding). */
+     min-width matches the button column (--side-col floor + padding). */
   #gesture-hints {
     grid-column: 1;
     grid-row: 1;

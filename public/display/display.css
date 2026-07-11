@@ -296,7 +296,6 @@ html:not(.in-session) #relay-status-bar { display: none; }
   height: 8px;
   border-radius: 50%;
   background: var(--ping-good);
-  box-shadow: 0 0 6px currentColor;
   color: var(--ping-good);
   transition: background var(--transition-normal), color var(--transition-normal);
 }
@@ -353,6 +352,19 @@ html:not(.in-session) #relay-status-bar { display: none; }
   text-align: center;
 }
 
+/* Triad corner badge — the mark's spot now that the h1 is the pure
+   wordmark. Mirrors #lobby-version-label's edge spacing on the left;
+   ~46px on a 720p viewport, scaling with vmin like the rest of the lobby. */
+.brand-badge {
+  position: absolute;
+  top: clamp(1rem, 2.5vh, 1.5rem);
+  left: clamp(1rem, 2vw, 2rem);
+  width: clamp(40px, 6.4vmin, 80px);
+  height: auto;
+  z-index: 5;
+  animation: fadeIn 0.6s 0.3s ease-out both;
+}
+
 #lobby-body {
   display: flex;
   flex-direction: column;
@@ -371,80 +383,113 @@ html:not(.in-session) #relay-status-bar { display: none; }
   animation: fadeUp 0.6s 0.15s ease-out both;
 }
 
+/* Frameless join block — no card, no label: the white code floats with a
+   soft shadow. The join URL lives in #lobby-cta above the START button. */
 #qr-container {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: clamp(6px, 1vmin, 12px);
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  padding: clamp(8px, 1.5vmin, 18px);
-  width: clamp(180px, 36vmin, 360px);
+  align-items: center;
+  gap: clamp(8px, 1.6vmin, 14px);
+  width: clamp(190px, 40vmin, 360px);
   max-width: 90vw;
-  overflow: hidden;
 }
 
 #qr-code {
   width: 100%;
   aspect-ratio: 1 / 1;
   height: auto;
-  border-radius: var(--radius-lg);
+  border-radius: clamp(14px, 2.4vmin, 22px);
   background: #fff;
-  padding: clamp(4px, 0.8vmin, 10px);
+  /* Quiet zone lives in the CSS padding (white covers the padding box);
+     slightly wider than before since there's no card behind it anymore. */
+  padding: clamp(6px, 1.2vmin, 14px);
   display: block;
+  box-shadow: var(--shadow-sm);
 }
 
-#qr-info {
+/* CTA block: the join URL on one line, centered above the START button. */
+#lobby-cta {
+  position: relative;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(4px, 0.8vmin, 8px);
-  text-align: center;
+  gap: clamp(8px, 1.8vmin, 16px);
+  max-width: 90vw;
 }
 
-#qr-label {
-  margin: 0;
-  font-size: clamp(11px, 1.8vmin, 15px);
-  color: var(--text-faint);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  font-family: var(--font-brand);
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* Join line — crossfades between the URL and the localized "scan to
+   join" hint every few seconds (.show-hint toggled by DisplayConnection).
+   The hint overlays the URL absolutely so the line's box never moves. */
+#join-line {
+  position: relative;
+  display: flex;
+  justify-content: center;
   max-width: 100%;
 }
 
-/* Join URL — host on top line, code below. Click to copy the full URL;
-   shows a brief toast via #join-url[data-copied]. */
+#join-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Same HUD face and scale as the URL it swaps with, so the crossfade
+     reads as one line changing content, not two different elements. */
+  font-family: var(--font-hud);
+  font-weight: 600;
+  font-size: clamp(1.05rem, 2.2vmin, 1.5rem);
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.45s ease;
+}
+
+#join-url .join-url__host,
+#join-url .join-url__code {
+  transition: opacity 0.45s ease;
+}
+
+#join-line.show-hint .join-url__host,
+#join-line.show-hint .join-url__code {
+  opacity: 0;
+}
+
+#join-line.show-hint #join-hint {
+  opacity: 1;
+}
+
+/* Join URL — host + code on one line. Click to copy the full URL;
+   shows a brief toast via #join-url[data-copied]. Transparent at rest
+   (frameless block); a faint recessed fill appears on hover as the
+   click-to-copy affordance. */
 #join-url {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  align-self: stretch;
+  flex-direction: row;
+  align-items: baseline;
   gap: 0;
   margin: 0;
   font-family: var(--font-hud);
   line-height: 1.2;
   max-width: 100%;
-  padding: clamp(4px, 1vmin, 8px) clamp(8px, 1.5vmin, 14px);
-  background: rgba(0, 0, 0, 0.22);
+  padding: clamp(4px, 1vmin, 8px) clamp(10px, 2vmin, 18px);
   border-radius: var(--radius-md);
   cursor: pointer;
   position: relative;
   transition: background var(--transition-fast);
   user-select: none;
+  animation: fadeUp 0.5s 0.4s ease-out backwards;
 }
 
 #join-url:hover {
-  background: rgba(0, 0, 0, 0.32);
+  background: rgba(21, 18, 31, 0.35);
 }
 
 #join-url:active {
-  background: rgba(0, 0, 0, 0.38);
+  background: rgba(21, 18, 31, 0.5);
 }
 
 #join-url::after {
@@ -474,7 +519,7 @@ html:not(.in-session) #relay-status-bar { display: none; }
 }
 
 .join-url__host {
-  font-size: clamp(0.85rem, 1.8vmin, 1.2rem);
+  font-size: clamp(1.05rem, 2.2vmin, 1.5rem);
   font-weight: 600;
   color: var(--text-secondary);
   letter-spacing: 0.04em;
@@ -486,7 +531,7 @@ html:not(.in-session) #relay-status-bar { display: none; }
 }
 
 .join-url__code {
-  font-size: clamp(1.1rem, 2.2vmin, 1.5rem);
+  font-size: clamp(1.05rem, 2.2vmin, 1.5rem);
   font-weight: 900;
   color: var(--accent-secondary);
   letter-spacing: 0.18em;
@@ -509,11 +554,20 @@ html:not(.in-session) #relay-status-bar { display: none; }
 }
 
 .player-card {
-  /* Layout (flex column, 2:1 aspect, 50/50 halves) lives in theme.css.
-     Display-only: scale-down hint for nested elements + min-width: 0 so
-     the card can shrink inside the grid's min-content track. */
+  /* Layout (flex column, 2:1 aspect) lives in theme.css. Display-only:
+     scale-down hint for nested elements + min-width: 0 so the card can
+     shrink inside the grid's min-content track. The 50/50 halves are a
+     controller concern (touch targets); here name + pill collapse to
+     content height and group around the card center with a small gap. */
   font-size: clamp(0.85rem, 1.8vmin, 1.4rem);
   min-width: 0;
+  justify-content: center;
+  gap: clamp(3px, 0.9vmin, 9px);
+}
+
+#player-list .player-card__top,
+#player-list .card-level {
+  flex: 0 0 auto;
 }
 
 /* --- Landscape: split QR | cards horizontally; with 5+ players use 4
@@ -525,33 +579,25 @@ html:not(.in-session) #relay-status-bar { display: none; }
   }
 }
 
-/* --- AirConsole / no-QR overrides: just hide QR; player list sizing is class-driven --- */
+/* --- AirConsole / no-QR overrides: hide QR + join URL; player list sizing
+   is class-driven. (The URL used to live inside #qr-container, so no-qr
+   hid it implicitly — keep that behavior now that it sits in #lobby-cta.) --- */
 body.airconsole #qr-container,
-#lobby-screen.no-qr #qr-container {
+#lobby-screen.no-qr #qr-container,
+#lobby-screen.no-qr #join-line {
   display: none;
 }
 
-.player-card.empty {
-  background: transparent;
-  border: 2px dashed var(--text-secondary);
-  color: var(--text-secondary);
+/* Socket styling for .player-card.empty lives in theme.css. Display only
+   sizes the faint hex opening for 10-foot viewing. */
+.player-card__opening svg {
+  width: clamp(28px, 5.5vmin, 56px);
+  height: auto;
 }
 
-.player-card.empty .card-level {
-  opacity: 0.45;
-}
-
-.player-card.empty .card-level::before {
-  background: var(--text-secondary);
-}
-
-/* Display-specific name color — uses --text-secondary as the fallback
-   (display empty slots want a muted name) instead of the controller's
-   --text-primary. Layout for .identity-name lives in theme.css; the size
-   override scales the name up for 10-foot viewing (the theme.css clamp
-   is tuned for the phone). */
+/* Display-specific name size — scales the name up for 10-foot viewing
+   (the theme.css clamp is tuned for the phone). */
 .player-card .identity-name {
-  color: var(--player-color, var(--text-secondary));
   font-size: clamp(1.5rem, 4.5vmin, 2.4rem);
 }
 
@@ -575,23 +621,23 @@ body.airconsole #qr-container,
   min-width: 0;
 }
 
-/* Layout/divider for .card-level lives in theme.css. Display only adds
-   the heading + value typography below — nested classes are unique to the
-   display lobby's static label (controller renders +/- buttons + a value
-   span and uses different selectors). */
+/* Layout for .card-level and the pill chip live in theme.css. Display only
+   adds the heading + value typography — nested classes are unique to the
+   display lobby's static pill (controller renders +/- buttons + a value
+   span and uses different selectors). Deliberately quiet: the level is
+   metadata under the colored name. */
 .card-level__heading {
-  /* Larger than the controller .level-heading clamp: 10-foot viewing. */
-  font-size: clamp(1rem, 2.6vmin, 1.5rem);
+  font-size: clamp(0.65rem, 1.6vmin, 0.95rem);
   font-weight: 700;
   color: var(--text-secondary);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
 }
 
 .card-level__value {
-  /* Larger than the controller #level-display clamp: 10-foot viewing. */
-  font-size: clamp(1rem, 2.6vmin, 1.5rem);
-  font-weight: 800;
+  font-family: var(--font-hud);
+  font-size: clamp(0.65rem, 1.6vmin, 0.95rem);
+  font-weight: 700;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
@@ -611,16 +657,6 @@ body.airconsole #qr-container,
   position: relative;
   z-index: 5;
   animation: fadeUp 0.5s 0.45s ease-out backwards;
-}
-
-#start-btn:disabled {
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  cursor: not-allowed;
-  /* Override .btn-primary:disabled's opacity 0.5 — the grey bg + muted text
-     already convey "disabled", and the opacity snap from 1 → 0.5 at the
-     end of the fadeUp animation reads as a glitch. */
-  opacity: 1;
 }
 
 /* ============================================
@@ -791,8 +827,6 @@ body.airconsole #qr-container,
   z-index: 20;
   background: radial-gradient(ellipse at 50% 30%, var(--winner-glow, rgba(255, 215, 0, 0.06)) 0%, transparent 60%),
               var(--overlay-bg);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
   animation: fadeIn 0.5s ease both;
 }
 
@@ -888,7 +922,7 @@ body.airconsole #qr-container,
 
 /* --- AirConsole overrides --- */
 body.airconsole #qr-container,
-body.airconsole #join-url,
+body.airconsole #join-line,
 body.airconsole #welcome-footer { display: none !important; }
 body.airconsole #lobby-footer { display: flex !important; }
 body.airconsole #welcome-screen { display: none !important; }

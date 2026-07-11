@@ -13,9 +13,22 @@ function buildCardLevelLabel() {
   var lvl = document.createElement('div');
   lvl.className = 'card-level';
   // Static scaffold — translated string injected via textContent below.
-  lvl.innerHTML = '<span class="card-level__heading"></span><span class="card-level__value"></span>';
+  lvl.innerHTML = '<span class="card-level__pill"><span class="card-level__heading"></span><span class="card-level__value"></span></span>';
   lvl.querySelector('.card-level__heading').textContent = t('level_heading');
   return lvl;
+}
+
+// Faint hex opening shown inside empty-slot sockets. Static rounded
+// flat-top hex path (precomputed); CSS shows it only on .empty cards and
+// sizes it for 10-foot viewing.
+function buildSocketOpening() {
+  var opening = document.createElement('span');
+  opening.className = 'player-card__opening';
+  opening.innerHTML = '<svg viewBox="-20 -17.32 40 34.64" width="40" height="34.64" aria-hidden="true">'
+    + '<path d="M16.4,-2.77 Q18,0 16.4,2.77 L10.6,12.82 Q9,15.59 5.8,15.59 L-5.8,15.59 Q-9,15.59 -10.6,12.82 '
+    + 'L-16.4,2.77 Q-18,0 -16.4,-2.77 L-10.6,-12.82 Q-9,-15.59 -5.8,-15.59 L5.8,-15.59 Q9,-15.59 10.6,-12.82 Z" '
+    + 'fill="rgba(255,248,236,0.03)" stroke="rgba(247,241,232,0.45)" stroke-width="2"/></svg>';
+  return opening;
 }
 
 // --- Layout Calculation ---
@@ -124,7 +137,10 @@ function updatePlayerList() {
   var placeholderSlots = window.innerWidth >= 2400 ? 8 : 4;
   var totalSlots = Math.max(placeholderSlots, GameConstants.MAX_PLAYERS);
 
-  // Ensure we have enough slot elements
+  // Ensure we have enough slot elements. Every card carries all three
+  // pieces (name half, level half, socket opening); CSS shows the halves
+  // on filled cards and the opening on .empty sockets, so filling or
+  // emptying a slot is a class toggle, not a DOM rebuild.
   while (playerListEl.children.length < totalSlots) {
     var slot = document.createElement('div');
     slot.className = 'player-slot';
@@ -134,11 +150,10 @@ function updatePlayerList() {
     topRow.className = 'player-card__top';
     var name = document.createElement('span');
     name.className = 'identity-name';
-    var idx = playerListEl.children.length;
-    name.textContent = 'P' + (idx + 1);
     topRow.appendChild(name);
     card.appendChild(topRow);
     card.appendChild(buildCardLevelLabel());
+    card.appendChild(buildSocketOpening());
     slot.appendChild(card);
     playerListEl.appendChild(slot);
   }
@@ -193,13 +208,13 @@ function updatePlayerList() {
       levelValueEl.textContent = lvl;
     } else {
       card.style.removeProperty('--player-color');
-      nameEl.textContent = 'P' + (j + 1);
+      // Sockets carry no text — the hex opening is the only content.
+      // Clear rather than leave stale name/level from a departed player.
+      nameEl.textContent = '';
       card.classList.add('empty');
       card.classList.remove('join-pop');
       delete card.dataset.playerId;
       delete slot.dataset.playerId;
-      // Empty slots: leave the value blank so the placeholder reads
-      // just "LEVEL" rather than a stale "1" from before the player joined.
       levelValueEl.textContent = '';
     }
   }
