@@ -236,11 +236,17 @@
   transition: background var(--transition-fast), transform var(--transition-fast);
 }
 
-.icon-btn:hover:not(:disabled) {
-  background: var(--bg-card-soft);
+/* Hover only where hovering exists — on touch, tap would apply the hover
+   fill as a sticky purple wash on top of the press state. */
+@media (hover: hover) {
+  .icon-btn:hover:not(:disabled) {
+    background: var(--bg-card-soft);
+  }
 }
 
+/* Pressed = deeper recess (darker translucent fill), not a lighter wash. */
 .icon-btn:active {
+  background: rgba(21, 18, 31, 0.7);
   transform: translateY(1px);
 }
 

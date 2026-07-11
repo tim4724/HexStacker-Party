@@ -3,7 +3,11 @@ const { defineConfig } = require('@playwright/test');
 
 module.exports = defineConfig({
   fullyParallel: true,
-  retries: 0,
+  // One retry on CI only: push-triggered runs share the runner with the
+  // heavy assemble/screenshot jobs, and the first test on each worker can
+  // time out while everything is still warming up (the same tests pass on
+  // a quiet re-run every time). Local runs stay strict at 0.
+  retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 4 : undefined,
   reporter: 'list',
   use: {

@@ -397,8 +397,12 @@ html, body {
   max-height: 55%;
 }
 
+/* Pressed = deeper recess. A lightening fill (--bg-card-soft) reads as a
+   cool purple flash against the warm tonal card surfaces, so press
+   feedback darkens the translucent fill instead. */
 #level-selector .level-btn:active:not(:disabled) {
-  background: var(--bg-card-soft);
+  background: rgba(21, 18, 31, 0.7);
+  transform: translateY(1px);
 }
 
 #level-selector .level-btn:disabled {
