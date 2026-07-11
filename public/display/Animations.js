@@ -90,7 +90,8 @@ class Animations {
       startTime: performance.now(),
       duration: duration,
       render: function(ctx, progress) {
-        ctx.fillStyle = '#ffffff';
+        // Clear flash in warm cream, matching the preview/near-clear vocabulary.
+        ctx.fillStyle = THEME.color.text.primary;
         if (progress < 0.25) {
           ctx.globalAlpha = 0.9 * (1 - (progress / 0.25) * 0.5);
           for (var ci = 0; ci < cellPositions.length; ci++) {
@@ -118,12 +119,12 @@ class Animations {
       if (isTriple) {
         this.addTextPopup(pos.x, pos.y, t('triple'), THEME.color.triple, true, br.cellSize);
       } else if (linesCleared === 2) {
-        this.addTextPopup(pos.x, pos.y, t('double'), THEME.color.text.white, false, br.cellSize);
+        this.addTextPopup(pos.x, pos.y, t('double'), THEME.color.text.primary, false, br.cellSize);
       }
     }
 
     // Confetti particles — palette-colored rainbow burst on triple (the new
-    // top-tier reward), white on doubles/singles.
+    // top-tier reward), warm cream on doubles/singles.
     for (var si = 0; si < cells.length; si++) {
       var sc = cells[si][0], sr = cells[si][1];
       if (sr < 0) continue;
@@ -132,7 +133,7 @@ class Animations {
       for (var j = 0; j < particleCount; j++) {
         var pColor = isTriple
           ? PIECE_COLORS[CELEBRATION_PIECE_IDS[(Math.random() * CELEBRATION_PIECE_IDS.length) | 0]]
-          : '#ffffff';
+          : THEME.color.text.primary;
         this._addSparkle(
           sparkPos.x + (Math.random() - 0.5) * hexSize * 2,
           sparkPos.y,
@@ -222,9 +223,9 @@ class Animations {
         ctx.textBaseline = 'middle';
         ctx.fillText(this.text, 0, 0);
 
-        // White inner highlight on the bigger-achievement popups.
+        // Cream inner highlight on the bigger-achievement popups.
         if (this.hasGlow) {
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+          ctx.fillStyle = 'rgba(247, 241, 232, 0.3)';
           ctx.fillText(this.text, 0, this.highlightY);
         }
 
@@ -250,10 +251,10 @@ class Animations {
       render(ctx, progress) {
         var fill, alpha;
         if (progress < 0.15) {
-          fill = '#ffffff';
+          fill = THEME.color.text.primary;
           alpha = (1 - progress / 0.15) * 0.7;
         } else if (progress < 0.4) {
-          fill = '#ff0000';
+          fill = THEME.color.ko.text;
           alpha = ((0.4 - progress) / 0.25) * 0.4;
         } else {
           return;

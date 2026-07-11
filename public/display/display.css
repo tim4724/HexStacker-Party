@@ -699,16 +699,13 @@ body.airconsole #qr-container,
   font-size: clamp(6rem, 15vh, 14rem);
   font-weight: 900;
   letter-spacing: 0.05em;
-  /* Palette-gradient text with soft drop-shadow — no neon-blue glow stack. */
-  background:
-    radial-gradient(ellipse at 50% 50%, rgba(var(--accent-primary-rgb), 0.08) 0%, transparent 60%),
-    rgba(var(--bg-primary-rgb), 0.85);
+  /* Flat plum scrim — same backdrop as every other game overlay. */
+  background: var(--overlay-bg);
   color: var(--accent-primary);
   z-index: 10;
 }
 
-/* Only the number pulses; the overlay stays static so the ::before noise
-   tile below doesn't shimmer with the scale transform. */
+/* Only the number pulses; the overlay stays static. */
 #countdown-number {
   display: inline-block;
   animation: countdownBeat 1s ease-out infinite;
@@ -721,8 +718,8 @@ body.airconsole #qr-container,
 /* SVG-noise overlay to dither the radial gradient below. CSS gradients at
    very low alpha band visibly on 8-bit displays; adding a tiled grayscale
    noise pattern on top breaks the bands perceptually. Pointer-transparent
-   and cached by the browser. */
-#countdown-overlay::before,
+   and cached by the browser. (Countdown lost its gradient with the flat
+   scrim above, so only the results screen still needs the dither.) */
 #results-screen::before {
   content: '';
   position: absolute;

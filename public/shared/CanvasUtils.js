@@ -209,11 +209,13 @@ function _stampHexNormal(c, cx, cy, cr, size, color) {
   ng.addColorStop(1, darkenColor(color, 10));
   c.fillStyle = ng;
   c.fill();
-  c.fillStyle = 'rgba(255,255,255,' + THEME.opacity.highlight + ')';
+  // Highlight/shine in warm cream (247,241,232 = text.primary) rather than
+  // pure white — cool flashes read as chrome against the warm plum surfaces.
+  c.fillStyle = 'rgba(247,241,232,' + THEME.opacity.highlight + ')';
   c.fillRect(cx - cr * 0.5, cy - cr * 0.88, cr, size * 0.08);
   c.fillStyle = 'rgba(0,0,0,' + THEME.opacity.shadow + ')';
   c.fillRect(cx - cr * 0.5, cy + cr * 0.76, cr, size * 0.08);
-  c.fillStyle = 'rgba(255,255,255,' + THEME.opacity.subtle + ')';
+  c.fillStyle = 'rgba(247,241,232,' + THEME.opacity.subtle + ')';
   var sh = size * 0.35;
   c.fillRect(cx - cr * 0.35, cy - cr * 0.5, sh, sh * 0.36);
   c.restore();

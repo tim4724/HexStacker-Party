@@ -484,7 +484,7 @@ function drawTimer(elapsedMs) {
   var btnTop = timerSize * 0.6;
   var y = btnTop;
 
-  ctx.fillStyle = 'rgba(255, 255, 255, ' + THEME.opacity.label + ')';
+  ctx.fillStyle = 'rgba(247, 241, 232, ' + THEME.opacity.label + ')';
   ctx.font = '700 ' + labelSize + 'px ' + font;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';

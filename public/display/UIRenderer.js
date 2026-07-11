@@ -7,13 +7,17 @@
 var HEX_MINI_PIECES = PieceModule.PIECES;
 var HEX_TYPE_TO_ID = GameConstants.PIECE_TYPE_TO_ID;
 var _getIndicatorColor = function(e) { return e.color; };
-var _getDefenceColor = function() { return THEME.color.text.white; };
+var _getDefenceColor = function() { return THEME.color.text.primary; };
 
 // Disconnected-overlay fallback tints (used when a player color is not
 // provided). Derived once from the theme secondary-accent token so the
 // canvas renderer stays in sync with CSS.
 var _DISCONNECT_TEXT_FALLBACK = rgbaFromHex(THEME.color.accent.secondary, 0.7);
 var _DISCONNECT_QR_BORDER = rgbaFromHex(THEME.color.accent.secondary, 0.15);
+
+// Board-area dim for KO/disconnected states — brand plum at overlay alpha,
+// the canvas twin of --overlay-bg in theme.css (never a black wash).
+var _BOARD_OVERLAY_FILL = rgbaFromHex(THEME.color.bg.primary, THEME.opacity.overlay);
 
 // Compute bounding boxes for flat-top hex mini pieces using odd-q offset conversion.
 var HEX_MINI_BOUNDS = {};
@@ -80,9 +84,18 @@ class UIRenderer {
     this.panelGap = cellSize * THEME.size.panelGap;
     this._styleTier = STYLE_TIERS.NORMAL;
 
-    // Cached rgba strings for panel drawing
+    // Cached color strings for panel drawing. The tonal fill is the canvas
+    // (srgb) approximation of the tonal-card recipe from theme.css —
+    // color-mix(in oklab, player-color 20%, bg-card) — so hold/next read as
+    // the same borderless tonal cards as the lobby. The rim stroke survives
+    // only for the neon tier, where the black fill can't carry identity.
     var rgb = this._accentRgb;
-    this._panelTintFill = rgb ? 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + THEME.opacity.tint + ')' : null;
+    var cardRgb = hexToRgb(THEME.color.bg.card);
+    this._panelFill = rgb
+      ? 'rgb(' + Math.round(rgb.r * 0.2 + cardRgb.r * 0.8) + ',' +
+                 Math.round(rgb.g * 0.2 + cardRgb.g * 0.8) + ',' +
+                 Math.round(rgb.b * 0.2 + cardRgb.b * 0.8) + ')'
+      : THEME.color.bg.card;
     this._panelStroke = rgb ? 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + THEME.opacity.soft + ')' : 'rgba(255, 255, 255, ' + THEME.opacity.tint + ')';
 
     // Offscreen caches for hold/next chrome (header label + panel rect).
@@ -161,7 +174,7 @@ class UIRenderer {
     var ctx = this.ctx;
     var name = playerState.playerName || PLAYER_NAMES[this.playerIndex] || ('Player ' + (this.playerIndex + 1));
     var nameY = this.boardY - this.cellSize * 0.13;
-    ctx.fillStyle = playerState.playerColor || THEME.color.text.white;
+    ctx.fillStyle = playerState.playerColor || THEME.color.text.primary;
     ctx.font = this._fontName;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'bottom';
@@ -236,15 +249,15 @@ class UIRenderer {
 
     // Labels share letterSpacing + font + fillStyle — emit both before the
     // values so we only toggle letterSpacing/font once per frame.
-    ctx.fillStyle = 'rgba(255, 255, 255, ' + THEME.opacity.label + ')';
+    ctx.fillStyle = 'rgba(247, 241, 232, ' + THEME.opacity.label + ')';
     ctx.font = this._fontLabel;
-    ctx.letterSpacing = '0.15em';
+    ctx.letterSpacing = '0.2em';
     ctx.fillText(t('level'), panelX, belowNextY);
     ctx.fillText(t('lines'), panelX, linesY);
     ctx.letterSpacing = '0px';
 
     // Values — plain font, no letterSpacing.
-    ctx.fillStyle = THEME.color.text.white;
+    ctx.fillStyle = THEME.color.text.primary;
     ctx.font = this._fontValue;
     ctx.fillText('' + level, panelX, belowNextY + valueYOffset);
     ctx.fillText('' + lines, panelX, linesY + valueYOffset);
@@ -254,8 +267,10 @@ class UIRenderer {
     var ctx = this.ctx;
     ctx.save();
     this._clipBoardArea();
-    this._fillBoardArea('rgba(30, 0, 0, 0.6)');
-    ctx.fillStyle = '#cc2222';
+    // Brand-plum dim (never black/red-black washes) with the danger red on
+    // top — same overlay family as --overlay-bg in theme.css.
+    this._fillBoardArea(_BOARD_OVERLAY_FILL);
+    ctx.fillStyle = THEME.color.ko.text;
     ctx.font = this._fontKO;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -267,7 +282,7 @@ class UIRenderer {
     var ctx = this.ctx;
     var bx = this.boardX, by = this.boardY, bw = this.boardWidth, bh = this.boardHeight;
 
-    this._fillBoardArea('rgba(0, 0, 0, ' + THEME.opacity.overlay + ')');
+    this._fillBoardArea(_BOARD_OVERLAY_FILL);
 
     ctx.fillStyle = playerColor || _DISCONNECT_TEXT_FALLBACK;
     ctx.font = this._fontDisconnect;
@@ -314,12 +329,12 @@ class UIRenderer {
     ctx.letterSpacing = '0px';
   }
 
-  // Flat panel recipe — mirrors the HTML card primitive:
-  //   top-to-bottom gradient + inset top bevel + thin player-tinted stroke.
-  // Build an offscreen canvas containing the header label plus the rounded
-  // panel chrome (gradient, tint wash, top bevel, rim stroke). Blitted each
-  // frame via drawImage; rebuilt only on font/layout change. `pad` leaves room
-  // for the rim stroke, which bleeds half a lineWidth outside the rounded rect.
+  // Tonal panel recipe — mirrors the .player-card primitive: one flat
+  // player-mixed fill, borderless (neon tier keeps a rim stroke, see
+  // _paintPanelChrome). Build an offscreen canvas containing the header label
+  // plus the rounded panel chrome. Blitted each frame via drawImage; rebuilt
+  // only on font/layout change. `pad` leaves room for the neon rim stroke,
+  // which bleeds half a lineWidth outside the rounded rect.
   _buildPanelChromeCache(boxW, boxH, labelText) {
     var dpr = window.devicePixelRatio || 1;
     var labelSize = this._labelSize;
@@ -353,12 +368,13 @@ class UIRenderer {
     c.fillRect(0, 0, pw, ph);
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    // Header label at top of cache
-    c.fillStyle = 'rgba(255, 255, 255, ' + THEME.opacity.label + ')';
+    // Header label at top of cache — quiet uppercase metadata: cream at
+    // label alpha with the wide 0.2em tracking of .card-level__heading.
+    c.fillStyle = 'rgba(247, 241, 232, ' + THEME.opacity.label + ')';
     c.font = this._fontLabel;
     c.textAlign = 'center';
     c.textBaseline = 'top';
-    c.letterSpacing = '0.15em';
+    c.letterSpacing = '0.2em';
     c.fillText(labelText, pad + boxW / 2, pad, boxW);
     c.letterSpacing = '0px';
 
@@ -375,9 +391,10 @@ class UIRenderer {
       panelX - cache.pad, panelY - cache.pad, cache.cssW, cache.cssH);
   }
 
-  // Paint the panel chrome (gradient + tint + bevel + rim stroke) to any 2d
-  // context at (x, y, w, h). Pure function of cellSize + cached styles, so the
-  // same routine renders to an OffscreenCanvas for caching.
+  // Paint the panel chrome to any 2d context at (x, y, w, h). Pure function
+  // of cellSize + cached styles, so the same routine renders to an
+  // OffscreenCanvas for caching. Flat tonal card (A2 recipe): a single
+  // player-mixed fill, no gradient, no bevel, no border.
   _paintPanelChrome(c, x, y, w, h) {
     var r = THEME.radius.panel(this.cellSize);
     var cellSize = this.cellSize;
@@ -385,45 +402,22 @@ class UIRenderer {
     c.beginPath();
     _addRoundRectSubPath(c, x, y, w, h, r);
     if (this._styleTier === STYLE_TIERS.NEON_FLAT) {
-      // Neon tier: pure black fill to match the black board well, no bevel.
-      // A 14% white bevel on #000 reads as a stray grey edge that breaks the
-      // matte look. Identity is carried by the player-tinted rim stroke below.
+      // Neon tier: pure black fill to match the black board well. The black
+      // fill can't carry identity, so keep the thin player-tinted rim stroke
+      // (mirrors the neon board's bright wall).
       c.fillStyle = '#000';
       c.fill();
-    } else {
-      // Gradient fill + optional player-color wash — reuse the path (fill()
-      // doesn't consume it) so the tint overlays the gradient precisely.
-      var gradient = c.createLinearGradient(x, y, x, y + h);
-      gradient.addColorStop(0, THEME.color.bg.cardSoft);
-      gradient.addColorStop(1, THEME.color.bg.card);
-      c.fillStyle = gradient;
-      c.fill();
-      if (this._panelTintFill) {
-        c.fillStyle = this._panelTintFill;
-        c.fill();
-      }
-
-      // Inset top bevel — thin bright horizontal line just inside the top rim.
-      c.save();
+      c.strokeStyle = this._panelStroke;
+      c.lineWidth = Math.max(1, cellSize * THEME.stroke.border * 0.6);
       c.beginPath();
       _addRoundRectSubPath(c, x, y, w, h, r);
-      c.clip();
-      c.strokeStyle = 'rgba(255, 255, 255, 0.14)';
-      c.lineWidth = Math.max(1, cellSize * 0.03);
-      c.beginPath();
-      var bevelInset = Math.max(1, cellSize * 0.015);
-      c.moveTo(x + r * 0.5, y + bevelInset);
-      c.lineTo(x + w - r * 0.5, y + bevelInset);
       c.stroke();
-      c.restore();
+    } else {
+      // Tonal fill — 20% player color mixed into the card surface carries
+      // identity on its own (same as .player-card in theme.css).
+      c.fillStyle = this._panelFill;
+      c.fill();
     }
-
-    // Thin player-tinted rim stroke for identity.
-    c.strokeStyle = this._panelStroke;
-    c.lineWidth = Math.max(1, cellSize * THEME.stroke.border * 0.6);
-    c.beginPath();
-    _addRoundRectSubPath(c, x, y, w, h, r);
-    c.stroke();
   }
 
   drawGarbageMeter(pendingGarbage) {
@@ -447,10 +441,10 @@ class UIRenderer {
       }
       ctx.closePath();
     }
-    ctx.strokeStyle = 'rgba(255, 255, 255, ' + THEME.opacity.label + ')';
+    ctx.strokeStyle = 'rgba(247, 241, 232, ' + THEME.opacity.label + ')';
     ctx.lineWidth = this._gridLineWidth;
     ctx.stroke();
-    ctx.fillStyle = 'rgba(255, 255, 255, ' + THEME.opacity.muted + ')';
+    ctx.fillStyle = 'rgba(247, 241, 232, ' + THEME.opacity.muted + ')';
     ctx.fill();
   }
 
@@ -498,7 +492,7 @@ class UIRenderer {
         ctx.fill();
 
         // Batched highlight stripe along each hex's top flat edge
-        ctx.fillStyle = 'rgba(255, 255, 255, ' + highlightAlpha + ')';
+        ctx.fillStyle = 'rgba(247, 241, 232, ' + highlightAlpha + ')';
         for (var hRow = effect.rowStart; hRow < effect.rowStart + effect.lines; hRow++) {
           if (hRow < 0 || hRow >= GameConstants.VISIBLE_ROWS) continue;
           var hCy = baseY + hexH * hRow + hexH / 2;

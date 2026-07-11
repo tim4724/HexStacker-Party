@@ -101,7 +101,10 @@ const THEME = Object.freeze({
       secondaryDark:'#E67A33',
     }),
     danger:  '#ff4444',
-    nearClear: '#ffffff',     // White outline pulse — extends the "white = clear-related" vocabulary already used by the clear preview (white fill) and clear glow. Outline-only + animated keeps it distinct from the static preview.
+    // Warm-paper hairline for socket rims and ring strokes — mirrors the
+    // rgba(255,248,236,X) --border family in theme.css.
+    hairline: '#FFF8EC',
+    nearClear: '#F7F1E8',     // Cream outline pulse — extends the "cream = clear-related" vocabulary shared with the clear preview (cream fill) and clear glow. Outline-only + animated keeps it distinct from the static preview.
     ko: Object.freeze({
       text: '#ff4444',
       glow: 'rgba(255, 50, 50, 0.6)',
@@ -123,10 +126,11 @@ const THEME = Object.freeze({
     muted:     0.10,  // dot patterns
     grid:      0.18,  // grid lines
     soft:      0.15,  // borders, soft accents
-    highlight: 0.22,  // block top highlight
+    hairline:  0.12,  // socket-rim hairline strokes (× color.hairline)
+    highlight: 0.16,  // block top highlight
     shadow:    0.25,  // block bottom shadow
     label:     0.6,   // panel labels, toolbar text
-    strong:    0.7,   // prominent text
+    wall:      0.5,   // board wall stroke (player color)
     overlay:   0.75,  // dark overlays
     panel:     0.9,   // card/panel backgrounds
   }),

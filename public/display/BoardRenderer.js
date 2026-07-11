@@ -73,12 +73,17 @@ class BoardRenderer {
     var gridAlpha = THEME.opacity.grid + (rgb ? (1 - (rgb.r * 0.299 + rgb.g * 0.587 + rgb.b * 0.114) / 255) * 0.08 : 0);
     this._gridAlpha = gridAlpha;
     this._gridStrokeOpaque = rgb ? 'rgb(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ')' : 'rgb(255,255,255)';
-    this._wallStroke = rgb ? 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + THEME.opacity.strong + ')' : 'rgba(255,255,255,' + THEME.opacity.soft + ')';
+    this._wallStroke = rgb ? 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + THEME.opacity.wall + ')' : 'rgba(255,255,255,' + THEME.opacity.soft + ')';
+    this._hairlineStroke = rgbaFromHex(THEME.color.hairline, THEME.opacity.hairline);
+    // Clear-related effects speak cream (text.primary), not pure white —
+    // warm flashes sit better on the plum surfaces.
+    this._previewFill = rgbaFromHex(THEME.color.text.primary, 0.2);
+    this._previewStroke = rgbaFromHex(THEME.color.text.primary, 0.4);
 
     // Board background + grid cache (built lazily on first render).
     // _cachedBgTier tracks the tier the cache was built for, so a
     // level-up that flips into/out of NEON_FLAT triggers a rebuild
-    // (neon swaps the well to black; other tiers use the tinted gradient).
+    // (neon swaps the well to black; other tiers use the tinted flat well).
     this._boardBgCache = null;
     this._cachedBgTier = null;
   }
@@ -114,7 +119,8 @@ class BoardRenderer {
 
     // 1. Clip to hex outline and fill board background. Recipe is tier-aware:
     //    neon → pure black for max contrast against bright-rim pieces;
-    //    pillow/normal → vertical gradient (secondary → board) + player tint.
+    //    pillow/normal → flat recessed well (bg.board) + player tint, the
+    //    same socket treatment as the lobby's empty player slots.
     var bgv = this._bgOutlineVerts;
     var ox = this.x, oy = this.y;
     gc.save();
@@ -131,12 +137,9 @@ class BoardRenderer {
       gc.fillStyle = '#000';
       gc.fillRect(0, 0, w, h);
     } else {
-      // Deeper plum base so the player tint adds identity without brightening
-      // the well (which would wash out piece contrast).
-      var bgGrad = gc.createLinearGradient(0, 0, 0, h);
-      bgGrad.addColorStop(0, THEME.color.bg.secondary);
-      bgGrad.addColorStop(1, THEME.color.bg.board);
-      gc.fillStyle = bgGrad;
+      // Flat deeper-plum well so the player tint adds identity without
+      // brightening the well (which would wash out piece contrast).
+      gc.fillStyle = THEME.color.bg.board;
       gc.fillRect(0, 0, w, h);
 
       if (this._tintFill) {
@@ -181,8 +184,9 @@ class BoardRenderer {
 
     // 3. Outer wall stroke — baked in so render() doesn't re-stroke per frame.
     // Vertices are in main-canvas coords; translate to cache-local by the same
-    // (ox, oy) offset used for the bg clip.
-    gc.strokeStyle = this._wallStroke;
+    // (ox, oy) offset used for the bg clip. A crisp warm-paper hairline on top
+    // of the calmer player wall gives the well the same socket rim as the
+    // lobby's empty player slots.
     gc.lineWidth = this.cellSize * THEME.stroke.border;
     var v = this._outlineVerts;
     gc.beginPath();
@@ -191,6 +195,10 @@ class BoardRenderer {
       gc.lineTo(v[k][0] - ox, v[k][1] - oy);
     }
     gc.closePath();
+    gc.strokeStyle = this._wallStroke;
+    gc.stroke();
+    gc.strokeStyle = this._hairlineStroke;
+    gc.lineWidth = 1;
     gc.stroke();
 
     return oc;
@@ -372,9 +380,9 @@ class BoardRenderer {
             }
           }
           if (previewDrawn) {
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.fillStyle = this._previewFill;
             ctx.fill();
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.strokeStyle = this._previewStroke;
             ctx.lineWidth = this._gridLineWidth;
             ctx.stroke();
           }
@@ -494,7 +502,7 @@ class BoardRenderer {
         var cc = playerState.clearingCells[ci];
         if (cc[1] >= 0 && cc[1] < HEX_VIS_ROWS) {
           var cp = this._hexCenter(cc[0], cc[1]);
-          this._drawHex(cp.x, cp.y, sCell, '#ffffff', null, alpha);
+          this._drawHex(cp.x, cp.y, sCell, THEME.color.text.primary, null, alpha);
         }
       }
     }

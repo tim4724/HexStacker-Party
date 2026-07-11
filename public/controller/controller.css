@@ -651,7 +651,10 @@ html, body {
   padding: 0;
 }
 
-/* Game top bar — name card + utility buttons */
+/* Game top bar — name card + utility buttons. Game-screen chrome sits on
+   bg-primary (like every other screen) so the touchpad's deeper-plum well
+   below reads as a recessed socket, mirroring the display's board-in-canvas
+   relationship. */
 #game-top-bar {
   display: flex;
   align-items: center;
@@ -662,7 +665,7 @@ html, body {
   padding-right: max(var(--safe-right), 12px);
   padding-left: max(var(--safe-left), 12px);
   flex-shrink: 0;
-  background: var(--bg-board);
+  background: var(--bg-primary);
 }
 
 .game-name-label {
@@ -683,7 +686,7 @@ html, body {
   flex-shrink: 0;
   width: 100%;
   padding: 10px 8px 12px;
-  background: var(--bg-board);
+  background: var(--bg-primary);
   display: flex;
   justify-content: space-evenly;
 }
@@ -697,8 +700,15 @@ html, body {
   color: color-mix(in srgb, var(--player-color, #888) 55%, white);
 }
 
+/* Pictogram in a small non-interactive circle — the icon-btn recipe
+   (recessed fill + hairline ring) so the hint bar speaks the two-shape
+   system instead of floating naked glyphs. */
 .hint-bar-item__icon {
-  height: 36px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 248, 236, 0.12);
+  background: rgba(21, 18, 31, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -712,7 +722,7 @@ html, body {
   font-family: var(--font-hud);
   font-size: clamp(0.6rem, 3.2vw, 0.75rem);
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.2em;
   color: var(--medal-silver); /* fallback for old browsers (no color-mix) */
   color: color-mix(in srgb, var(--player-color, #888) 65%, white);
   text-transform: uppercase;
@@ -721,14 +731,14 @@ html, body {
 .hint-bar-item__result {
   font-size: clamp(0.65rem, 3.5vw, 0.8rem);
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-faint);
   margin-top: -3px;
 }
 
 #touch-area {
   flex: 1;
   width: 100%;
-  background: var(--bg-board);
+  background: var(--bg-primary);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -747,23 +757,21 @@ html, body {
   position: relative;
   overflow: hidden;
   border-radius: var(--radius-lg);
-  /* Outline roughly matches the display's board wall stroke — player-accent
-     color at ~70% opacity. Two-declaration fallback: the first line lands in
-     older browsers that drop the color-mix version below. */
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  border: 2px solid color-mix(in srgb, var(--player-color, white) 70%, transparent);
-  /* Board parity: vertical bg-secondary → bg-board gradient + 12% player tint,
-     matching BoardRenderer's clipped fill. Dots stay on top as a tactile layer.
+  /* Recessed socket — frameless like the lobby QR: the heavy player-color
+     frame is gone, delineation comes from the deeper-plum well recessing
+     into the bg-primary chrome plus a warm hairline rim (same ring as
+     .icon-btn / the empty player-card socket). */
+  border: 1px solid rgba(255, 248, 236, 0.12);
+  /* Board parity: flat bg-board well + 12% player tint, matching
+     BoardRenderer's clipped fill. Dots stay on top as a tactile layer.
      Two-declaration fallback for browsers without color-mix. */
   background-color: var(--bg-board);
   background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.10) 1.2px, transparent 1.8px),
-    linear-gradient(var(--bg-secondary), var(--bg-board));
+    radial-gradient(circle, rgba(255, 255, 255, 0.10) 1.2px, transparent 1.8px);
   background-image:
     radial-gradient(circle, color-mix(in srgb, var(--player-color, white) 32%, transparent) 1.2px, transparent 1.8px),
-    linear-gradient(color-mix(in srgb, var(--player-color, transparent) 12%, transparent), color-mix(in srgb, var(--player-color, transparent) 12%, transparent)),
-    linear-gradient(var(--bg-secondary), var(--bg-board));
-  background-size: 22px 22px, auto, auto;
+    linear-gradient(color-mix(in srgb, var(--player-color, transparent) 12%, transparent), color-mix(in srgb, var(--player-color, transparent) 12%, transparent));
+  background-size: 22px 22px, auto;
   /* Center the tile origin so leftover width/height after the 22px grid
      splits evenly on both sides instead of piling up on the right/bottom. */
   background-position: center;
@@ -774,6 +782,8 @@ html, body {
   cursor: grabbing;
 }
 
+/* Corner label — same quiet-metadata treatment as .settings-preview__label
+   so the live pad and its settings miniature read as the same object. */
 #pad-label {
   position: absolute;
   top: 10px;
@@ -781,8 +791,8 @@ html, body {
   font-family: var(--font-hud);
   font-size: clamp(0.55rem, 2.5vw, 0.65rem);
   font-weight: 700;
-  letter-spacing: 0.14em;
-  color: var(--text-secondary);
+  letter-spacing: 0.2em;
+  color: rgba(247, 241, 232, 0.35);
   text-transform: uppercase;
   pointer-events: none;
 }
@@ -804,13 +814,14 @@ html, body {
   padding-left: max(var(--safe-left), 12px);
   padding-bottom: max(var(--safe-bottom), 12px);
   flex-shrink: 0;
-  background: var(--bg-board);
+  background: var(--bg-primary);
 }
 
-/* Gesture feedback — soft dark shadow under the finger. Just a radial
-   gradient; no blur filter, no blend mode (both are expensive per frame
-   on mobile GPUs). Only transform + opacity change, which stay on the
-   GPU compositor. */
+/* Gesture feedback — a recessed dimple under the finger: the press darkens
+   the socket further (deep plum, never a pure-black or lightening wash —
+   same physics as .icon-btn:active). Just a radial gradient; no blur
+   filter, no blend mode (both are expensive per frame on mobile GPUs).
+   Only transform + opacity change, which stay on the GPU compositor. */
 .feedback-glow {
   position: absolute;
   width: 80px;
@@ -818,8 +829,8 @@ html, body {
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    rgba(0, 0, 0, 0.45) 0%,
-    rgba(0, 0, 0, 0.24) 45%,
+    rgba(10, 9, 16, 0.55) 0%,
+    rgba(10, 9, 16, 0.3) 45%,
     transparent 75%
   );
   pointer-events: none;
@@ -1242,11 +1253,12 @@ html, body {
 }
 
 /* Preview canvas — mirrors the real touchpad (controller.css:#touch-pad)
-   so the user sees a miniature of the surface they'll actually drag on.
-   Uses --player-color via color-mix for the border, dot tint, and surface
-   wash, falling back to the plain treatment on browsers without color-mix
+   so the user sees a miniature of the surface they'll actually drag on:
+   the same recessed socket (hairline rim, flat bg-board well) with
+   --player-color via color-mix for the dot tint and surface wash, falling
+   back to the plain treatment on browsers without color-mix
    (two-declaration fallback, same pattern as #touch-pad). Dot pattern and
-   gradient come from CSS so the canvas only paints test indicators on top
+   tint come from CSS so the canvas only paints test indicators on top
    (clearRect reveals the background). */
 .settings-preview {
   width: 100%;
@@ -1255,17 +1267,14 @@ html, body {
   touch-action: none;
   cursor: crosshair;
   border-radius: var(--radius-lg);
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  border: 2px solid color-mix(in srgb, var(--player-color, white) 70%, transparent);
+  border: 1px solid rgba(255, 248, 236, 0.12);
   background-color: var(--bg-board);
   background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.10) 1.2px, transparent 1.8px),
-    linear-gradient(var(--bg-secondary), var(--bg-board));
+    radial-gradient(circle, rgba(255, 255, 255, 0.10) 1.2px, transparent 1.8px);
   background-image:
     radial-gradient(circle, color-mix(in srgb, var(--player-color, white) 32%, transparent) 1.2px, transparent 1.8px),
-    linear-gradient(color-mix(in srgb, var(--player-color, transparent) 12%, transparent), color-mix(in srgb, var(--player-color, transparent) 12%, transparent)),
-    linear-gradient(var(--bg-secondary), var(--bg-board));
-  background-size: 22px 22px, auto, auto;
+    linear-gradient(color-mix(in srgb, var(--player-color, transparent) 12%, transparent), color-mix(in srgb, var(--player-color, transparent) 12%, transparent));
+  background-size: 22px 22px, auto;
   background-position: center;
 }
 
@@ -1322,14 +1331,12 @@ html, body {
 }
 
 #game-screen.countdown #touch-pad {
-  /* Drop the player-tint layer during countdown; keep dots + gradient. */
+  /* Drop the player-tint layer during countdown; keep the dots. */
   background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.10) 1.2px, transparent 1.8px),
-    linear-gradient(var(--bg-secondary), var(--bg-board));
+    radial-gradient(circle, rgba(255, 255, 255, 0.10) 1.2px, transparent 1.8px);
   background-image:
-    radial-gradient(circle, color-mix(in srgb, var(--player-color, white) 32%, transparent) 1.2px, transparent 1.8px),
-    linear-gradient(var(--bg-secondary), var(--bg-board));
-  background-size: 22px 22px, auto;
+    radial-gradient(circle, color-mix(in srgb, var(--player-color, white) 32%, transparent) 1.2px, transparent 1.8px);
+  background-size: 22px 22px;
 }
 
 /* Paused state — disable touch input.
@@ -1646,7 +1653,7 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
       var(--safe-right)
       var(--safe-bottom)
       var(--safe-left);
-    background: var(--bg-board);
+    background: var(--bg-primary);
   }
 
   /* Right column: buttons at top, horizontally centred.
@@ -1776,11 +1783,12 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   }
 
   .hint-bar-item__icon {
-    height: 28px;
+    width: 30px;
+    height: 30px;
   }
 
   .hint-bar-item__icon svg {
-    transform: scale(1.2);
+    transform: scale(1.1);
   }
 
   /* Centre column: touchpad, full height */
