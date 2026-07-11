@@ -130,15 +130,17 @@ the room QR and watch the controller's fastlane bolt light up while input still 
 
 ### Localization + full-parity round
 
-- **Localization (12-ish locales).** The display now reads the device language and
-  renders every string localized (en, de, fr, pt, es, zh, ja, ko, ru, it, tr).
-  The string table is GENERATED from `public/shared/i18n.js` into `dist/locale.json`
-  (`scripts/build.js` `buildLocale`, copied next to the engine by `sync-engine.sh`)
-  and resolved at runtime by `HexStackerKit/Localization` — EN fallback, CLDR-ish
-  plural selection (incl. Russian one/few/many and CJK other-only), and `{param}`
-  interpolation, mirroring the web `t()`. Verified in the Simulator in German +
-  Japanese (lobby, in-game HUD `ZEILEN`, results `28 Zeilen · Level 6`). The web
-  copy stays the single source of truth, so the TV can never drift from it.
+- **Localization (12-ish locales).** The display reads the device language and
+  renders every string localized (en, de, fr, pt, es, zh, ja, ko, ru, it, tr)
+  via platform localization: `Localizable.xcstrings` in the app target, the
+  committed mirror of `public/shared/i18n.js`, kept in lockstep by
+  `tests/i18n-appletv-parity.test.js` (same guard as the Android
+  `res/values-*/strings.xml`). Foundation owns locale matching, EN fallback, and
+  CLDR plural selection (incl. Russian one/few/many and CJK other-only); the
+  thin `tr()`/`trUpper()` shims live in `HexStackerTV/Strings.swift`. Because
+  the localizations are declared in the bundle, the App Store lists all
+  languages and tvOS offers a per-app language setting. The web copy stays the
+  single source of truth, so the TV cannot drift from it.
 - **Resilience parity with the web display:**
   - All-participants-disconnected → **silent auto-pause** (no overlay/broadcast),
     a 5 s **late-joiner grace** that returns to the lobby, and **auto-resume** when

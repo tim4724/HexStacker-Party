@@ -43,8 +43,10 @@ fi
 
 # Artifacts the app bundle needs at runtime:
 #   dist/partycore.js : the engine, loaded into JavaScriptCore
-#   dist/locale.json  : display i18n table (generated from i18n.js)
 #   lunar-joyride.mp3 : game music (read via AssetLocator)
+# i18n is NOT copied here: display strings ship as Localizable.xcstrings (the
+# committed mirror of public/shared/i18n.js, guarded by
+# tests/i18n-appletv-parity.test.js).
 # The partycore.js.map sourcemap is intentionally NOT copied: JavaScriptCore
 # never resolves the //# sourceMappingURL comment in a shipped app, so it would
 # be ~150 KB of dead weight in the bundle.
@@ -52,7 +54,6 @@ fi
 # and the Swift side speaks the wire protocol via its own Protocol.swift mirror.
 COPY_FILES=(
   "dist/partycore.js"
-  "dist/locale.json"
   "public/shared/music/lunar-joyride.mp3"
 )
 

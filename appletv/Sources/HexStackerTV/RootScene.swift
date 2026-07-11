@@ -94,11 +94,6 @@ final class RootScene: SKScene, DisplayOutput {
         scaleMode = .resizeFill
         safe = view.safeAreaInsets
 
-        // Localize the display from the device language using the table generated
-        // from public/shared/i18n.js (bundled next to the engine). Must run before
-        // any screen renders, including the HEXSHOT / HEXLOBBY / HEXDEMO paths.
-        Localization.shared.configure(engineDirectory: AssetLocator.engineDirectory)
-
         lobbyLayer.addChild(lobbyBg); lobbyBg.zPosition = 0
         lobbyLayer.addChild(lobbyGlow); lobbyGlow.zPosition = 0.5   // soft accent vignette, above pieces / below content
         lobbyLayer.addChild(lobbyContent); lobbyContent.zPosition = 1
@@ -858,7 +853,7 @@ final class RootScene: SKScene, DisplayOutput {
         // shows at once — "connection lost" is only the pre-first-tick fallback.
         connStatus.isHidden = !reconnecting
         let status = connAttempt > 0
-            ? tr("attempt_n_of_m", ["attempt": connAttempt, "max": connMax])
+            ? tr("attempt_n_of_m", connAttempt, connMax)
             : tr("connection_lost")
         connStatus.setStyledText(status, font: AppFont.brandBold, size: min(size.height * 0.022, 28),
                                  color: SKTheme.textSecondary, tracking: 0.08)
@@ -894,7 +889,7 @@ final class RootScene: SKScene, DisplayOutput {
     func updateReconnectStatus(attempt: Int, max: Int) {
         connAttempt = attempt; connMax = max
         guard !connLayer.isHidden, !connStatus.isHidden else { return }
-        connStatus.setStyledText(tr("attempt_n_of_m", ["attempt": attempt, "max": max]),
+        connStatus.setStyledText(tr("attempt_n_of_m", attempt, max),
                                  font: AppFont.brandBold, size: min(size.height * 0.022, 28),
                                  color: SKTheme.textSecondary, tracking: 0.08)
     }
@@ -1047,7 +1042,7 @@ final class RootScene: SKScene, DisplayOutput {
         let hostColor = host.flatMap { h in players.first { $0.peerIndex == h }?.colorSlot }
             .map { SKTheme.player(slot: $0) }
         let startText = hasPlayers
-            ? trUpper("start_n_players", ["count": players.count])
+            ? trUpper("start_n_players", players.count)
             : trUpper("waiting_for_players")
         let startProbe = SKLabelNode()
         startProbe.setStyledText(startText, font: AppFont.brandBold, size: pillH * 0.36, color: .white, tracking: 0.08)
@@ -1473,7 +1468,7 @@ final class RootScene: SKScene, DisplayOutput {
             statsText = tr("new_player")
         } else {
             let n = res["lines"] as? Int ?? 0
-            statsText = "\(tr("n_lines", ["count": n]))   \(tr("level_n", ["level": res["level"] as? Int ?? 1]))"
+            statsText = "\(tr("n_lines", n))   \(tr("level_n", res["level"] as? Int ?? 1))"
         }
         // Web's .result-stats has no font-family override, so it inherits the plain
         // system-ui font (not Orbitron); match that with the tvOS system font.

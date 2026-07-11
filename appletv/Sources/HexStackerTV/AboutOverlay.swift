@@ -27,7 +27,7 @@ final class AboutOverlay {
     private static var imprintURL: String { legalURL("imprint") }
 
     private static func legalURL(_ page: String) -> String {
-        let prefix = Localization.shared.locale == "de" ? "" : "en/"
+        let prefix = resolvedLocale == "de" ? "" : "en/"
         return "https://couch-games.com/\(prefix)\(page)"
     }
 
