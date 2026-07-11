@@ -691,24 +691,18 @@ html, body {
   justify-content: space-evenly;
 }
 
+/* Hints carry the full player color — they teach the controls, so they
+   rank above quiet metadata. Pictograms float free (no circle chrome). */
 .hint-bar-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 5px;
-  color: var(--medal-silver); /* fallback for old browsers (no color-mix) */
-  color: color-mix(in srgb, var(--player-color, #888) 55%, white);
+  color: var(--player-color, var(--medal-silver));
 }
 
-/* Pictogram in a small non-interactive circle — the icon-btn recipe
-   (recessed fill + hairline ring) so the hint bar speaks the two-shape
-   system instead of floating naked glyphs. */
 .hint-bar-item__icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 248, 236, 0.12);
-  background: rgba(21, 18, 31, 0.4);
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -723,15 +717,14 @@ html, body {
   font-size: clamp(0.6rem, 3.2vw, 0.75rem);
   font-weight: 700;
   letter-spacing: 0.2em;
-  color: var(--medal-silver); /* fallback for old browsers (no color-mix) */
-  color: color-mix(in srgb, var(--player-color, #888) 65%, white);
+  color: var(--player-color, var(--medal-silver));
   text-transform: uppercase;
 }
 
 .hint-bar-item__result {
   font-size: clamp(0.65rem, 3.5vw, 0.8rem);
   font-weight: 500;
-  color: var(--text-faint);
+  color: var(--text-secondary);
   margin-top: -3px;
 }
 
@@ -1783,12 +1776,11 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   }
 
   .hint-bar-item__icon {
-    width: 30px;
-    height: 30px;
+    height: 28px;
   }
 
   .hint-bar-item__icon svg {
-    transform: scale(1.1);
+    transform: scale(1.2);
   }
 
   /* Centre column: touchpad, full height */
