@@ -208,13 +208,7 @@ public final class EngineBridge {
     /// this frame's `events` (complete record), a value-copy `snapshot`, and the
     /// normalized host-effect `commands`. The blessed native integration surface.
     public func frame(nowMs: Double) throws -> FrameResult {
-        guard let json = bridge.invokeMethod("frameJSON", withArguments: [nowMs])?.toString(),
-              let data = json.data(using: .utf8) else {
-            throw EngineError.decode("frameJSON: no string returned")
-        }
-        if let e = takeException() { onEngineError?("frameJSON: \(e)"); throw EngineError.evalFailed("frameJSON: \(e)") }
-        do { return try decoder.decode(FrameResult.self, from: data) }
-        catch { throw EngineError.decode("frameJSON: \(error)") }
+        try decode(FrameResult.self, method: "frameJSON", args: [nowMs])
     }
 
     // MARK: - Internals
@@ -231,11 +225,15 @@ public final class EngineBridge {
     }
 
     private func decode<T: Decodable>(_ type: T.Type, method: String, args: [Any] = []) throws -> T {
-        guard let json = bridge.invokeMethod(method, withArguments: args)?.toString(),
-              let data = json.data(using: .utf8) else {
+        let result = bridge.invokeMethod(method, withArguments: args)
+        // Drain the box BEFORE inspecting the result: a JS throw yields no usable
+        // string, and bailing on the guard below without draining would leave the
+        // exception to be mis-attributed to the NEXT call (the exact class of bug
+        // invoke()'s drain exists to prevent).
+        if let e = takeException() { onEngineError?("\(method): \(e)"); throw EngineError.evalFailed("\(method): \(e)") }
+        guard let json = result?.toString(), let data = json.data(using: .utf8) else {
             throw EngineError.decode("\(method): no string returned")
         }
-        if let e = takeException() { onEngineError?("\(method): \(e)"); throw EngineError.evalFailed("\(method): \(e)") }
         do { return try decoder.decode(T.self, from: data) }
         catch { throw EngineError.decode("\(method): \(error)") }
     }

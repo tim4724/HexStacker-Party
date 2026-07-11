@@ -83,7 +83,7 @@ final class FakeOutput: DisplayOutput {
     var countdowns: [CountdownValue] = []
     var renderCount = 0
     var lastSnapshot: GameSnapshot?
-    var results: [[String: Any]]?
+    var results: [MatchResult]?
     var musicStarted = false
     var paused = false
     var displayMuted: Bool?   // last setDisplayMuted value (nil = never called)
@@ -104,7 +104,7 @@ final class FakeOutput: DisplayOutput {
     func updateLobby(players: [PlayerRecord], hostPeerIndex: Int?) {}
     func showCountdown(_ v: CountdownValue) { countdowns.append(v) }
     func renderSnapshot(_ s: GameSnapshot) { renderCount += 1; lastSnapshot = s }
-    func showResults(_ r: [[String: Any]]) { results = r; calls.append("showResults") }
+    func showResults(_ r: [MatchResult]) { results = r; calls.append("showResults") }
     func playCountdownBeep(go: Bool) {}
     func startMusic() { musicStarted = true }
     func stopMusic() {}

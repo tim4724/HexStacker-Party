@@ -240,6 +240,31 @@ anyway, and adding it would defeat the gridVersion cache the pulse relies on). T
 whole-screen overscan inset (boards sit inside the tvOS title-safe area vs the
 web's near-full-bleed) is intentional.
 
+### Kit hardening round (code review)
+
+- **Owning-thread assertions.** The coordinator's single-threaded contract (one
+  thread owns the fields and the JSContext) was enforced only by a doc comment;
+  every entry point (tick, transport handlers, setRelayConnected) now asserts
+  the constructing thread in debug, so a RelayClient wired to a non-main
+  callbackQueue fails fast instead of racing the JS VM.
+- **Exception-box drain on every bridge path.** EngineBridge's decode path now
+  drains the JS exception box before inspecting the return value; previously a
+  JS throw could bail on the nil-string guard with the message still boxed,
+  mis-attributed to the next frame(). frame() also now reuses decode().
+- **Typed results plumbing.** The enriched match ranking is a `MatchResult`
+  struct end-to-end (coordinator, lastResults replay, DisplayOutput,
+  RootScene); the `[String: Any]` wire form is produced only at the transport
+  boundary via `payload`.
+- **Gallery/demo split.** The screenshot-fixture rendering and the self-play
+  demo moved to `DisplayCoordinator+Gallery.swift`; the coordinator file itself
+  is live-game logic only.
+- **EngineConstants drift guard.** `ParityTests` pins every value of the
+  hand-mirrored `EngineConstants` to the canonical `server/constants.js`
+  exports (the one engine mirror the golden tests didn't cover).
+- **tick() frame failures surfaced.** A frame decode failure now logs to
+  stderr instead of being silently dropped (a persistent one froze the game
+  with no signal).
+
 ### Implemented (design + features round)
 
 Gameplay (BoardNode):

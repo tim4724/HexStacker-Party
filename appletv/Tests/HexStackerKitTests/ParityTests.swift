@@ -15,6 +15,27 @@ import Foundation
                                 sharedDir: repo.appendingPathComponent("public/shared"))
     }
 
+    // EngineConstants is a hand-maintained mirror of server/constants.js, the one
+    // piece of engine data the golden-conformance tests don't cover. Pin every
+    // mirrored value to the canonical export so it can't silently drift.
+    @Test func engineConstantsMatchCanonicalSource() throws {
+        let js = try makeJS()
+        #expect(js.numericConstant("COLS") == Double(EngineConstants.cols))
+        #expect(js.numericConstant("VISIBLE_ROWS") == Double(EngineConstants.visibleRows))
+        #expect(js.numericConstant("BUFFER_ROWS") == Double(EngineConstants.bufferRows))
+        #expect(js.numericConstant("TOTAL_ROWS") == Double(EngineConstants.totalRows))
+        #expect(js.numericConstant("GARBAGE_CELL") == Double(EngineConstants.garbageCell))
+        #expect(js.numericConstant("MAX_PLAYERS") == Double(EngineConstants.maxPlayers))
+        #expect(js.numericConstant("LOCK_DELAY_MS") == EngineConstants.lockDelayMs)
+        #expect(js.numericConstant("LINE_CLEAR_DELAY_MS") == EngineConstants.lineClearDelayMs)
+        #expect(js.numericConstant("GARBAGE_DELAY_MS") == EngineConstants.garbageDelayMs)
+        #expect(js.numericConstant("SOFT_DROP_MULTIPLIER") == Double(EngineConstants.softDropMultiplier))
+        #expect(js.numericConstant("MAX_SPEED_LEVEL") == Double(EngineConstants.maxSpeedLevel))
+        #expect(js.numericConstant("COUNTDOWN_SECONDS") == Double(EngineConstants.countdownSeconds))
+        #expect(js.pieceTypes() == EngineConstants.pieceTypes)
+        #expect(js.pieceTypeToId() == EngineConstants.pieceTypeToId)
+    }
+
     @Test func geometryMatches() throws {
         let js = try makeJS()
         for cs in [10.0, 14.0, 20.0, 33.0] {

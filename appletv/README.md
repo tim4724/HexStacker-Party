@@ -10,7 +10,7 @@ Native tvOS port of the HexStacker party game. tvOS ships no web browser and no
 | Wire protocol (`../public/shared/protocol.js`) | **Mirrored** to Swift constants (`Net/Protocol.swift`) for type-safety; the JS is not shipped to the device. |
 | Phone controllers | **Unchanged** — players still join from a phone browser via QR. |
 | Party-Server relay | **Unchanged** — Swift connects with `URLSessionWebSocketTask`. |
-| Display rendering / audio / lobby | **Rebuilt natively** (SpriteKit + AVFoundation + SwiftUI). |
+| Display rendering / audio / lobby | **Rebuilt natively** (SpriteKit + AVFoundation; a minimal SwiftUI shell hosts the SKView). |
 
 The Swift bridge drives the engine through `PartyCore.frame(nowMs)` (see
 `../server/PartyCore.d.ts`): each call ticks the engine on a capped delta and

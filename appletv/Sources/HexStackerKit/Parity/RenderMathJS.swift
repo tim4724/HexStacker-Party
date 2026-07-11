@@ -113,6 +113,23 @@ public final class RenderMathJS {
         ctx.evaluateScript("__getStyleTier(\(level))")!.toString()!
     }
 
+    // MARK: Engine constants (constants.js): drift guard for EngineConstants
+
+    /// A numeric export of `window.GameConstants` (e.g. "MAX_PLAYERS").
+    public func numericConstant(_ name: String) -> Double {
+        ctx.evaluateScript("window.GameConstants.\(name)")!.toDouble()
+    }
+
+    public func pieceTypes() -> [String] {
+        let json = ctx.evaluateScript("JSON.stringify(window.GameConstants.PIECE_TYPES)")!.toString()!
+        return (try? JSONDecoder().decode([String].self, from: Data(json.utf8))) ?? []
+    }
+
+    public func pieceTypeToId() -> [String: Int] {
+        let json = ctx.evaluateScript("JSON.stringify(window.GameConstants.PIECE_TYPE_TO_ID)")!.toString()!
+        return (try? JSONDecoder().decode([String: Int].self, from: Data(json.utf8))) ?? [:]
+    }
+
     // MARK: Zigzag clear detection (constants.js)
 
     public func clearable(grid: [[Int]], cols: Int, ghost: [Cell]?) -> [Cell] {

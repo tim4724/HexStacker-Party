@@ -3,9 +3,49 @@ import Foundation
 public enum DisplayScreen: Equatable { case lobby, game, results }
 public enum CountdownValue: Equatable { case number(Int), go }
 
+/// One display-ready results row: the engine's raw `PlayerResult` joined with the
+/// roster's name/color, or a late joiner who sat the match out (rank/lines/level
+/// nil, `newPlayer` true). Typed end-to-end inside the kit; `payload` is the wire
+/// form (game_end broadcast, WELCOME replay), omitting nil fields like the web.
+public struct MatchResult: Equatable {
+    public var playerId: Int        // var: remapped onto the new index by a ?claim= rejoin
+    public let playerName: String?
+    public let colorIndex: Int?
+    public let rank: Int?
+    public let lines: Int?
+    public let level: Int?
+    public let alive: Bool?
+    public let newPlayer: Bool
+
+    public init(playerId: Int, playerName: String? = nil, colorIndex: Int? = nil,
+                rank: Int? = nil, lines: Int? = nil, level: Int? = nil,
+                alive: Bool? = nil, newPlayer: Bool = false) {
+        self.playerId = playerId
+        self.playerName = playerName
+        self.colorIndex = colorIndex
+        self.rank = rank
+        self.lines = lines
+        self.level = level
+        self.alive = alive
+        self.newPlayer = newPlayer
+    }
+
+    public var payload: [String: Any] {
+        var e: [String: Any] = ["playerId": playerId]
+        if let playerName { e["playerName"] = playerName }
+        if let colorIndex { e["colorIndex"] = colorIndex }
+        if let rank { e["rank"] = rank }
+        if let lines { e["lines"] = lines }
+        if let level { e["level"] = level }
+        if let alive { e["alive"] = alive }
+        if newPlayer { e["newPlayer"] = true }
+        return e
+    }
+}
+
 /// Side-effects the coordinator drives (rendering, audio, screen changes). The
-/// tvOS app provides a concrete implementation (SpriteKit + AVFoundation +
-/// SwiftUI); tests provide a fake to assert behavior headlessly.
+/// tvOS app provides a concrete implementation (SpriteKit + AVFoundation);
+/// tests provide a fake to assert behavior headlessly.
 public protocol DisplayOutput: AnyObject {
     func showScreen(_ screen: DisplayScreen)
     /// The room is open: show the lobby with `joinURL` as the displayed host/code
@@ -16,7 +56,7 @@ public protocol DisplayOutput: AnyObject {
     func showCountdown(_ value: CountdownValue)
     func renderSnapshot(_ snapshot: GameSnapshot)
     func handleGameEvent(_ event: GameEvent)
-    func showResults(_ results: [[String: Any]])
+    func showResults(_ results: [MatchResult])
     /// Show (joinURL != nil) or clear (nil) a per-board disconnect/rejoin overlay.
     func setDisconnected(playerId: Int, joinURL: String?)
     /// Freeze the lobby's ambient falling-piece background to these fixture pieces
@@ -61,11 +101,12 @@ public final class DisplayCoordinator {
     // weak: RootScene owns the coordinator and is its output (a delegate-style
     // back-reference). A strong ref here would form a RootScene <-> coordinator
     // cycle pinning the engine, relay and music for the app's lifetime.
-    private weak var output: DisplayOutput?
-    private let engineDirectory: URL
+    // (internal, not private: shared with the Gallery extension file.)
+    weak var output: DisplayOutput?
+    let engineDirectory: URL
     private let seedProvider: () -> UInt32
 
-    private var engine: EngineBridge?
+    var engine: EngineBridge?
     // The reusable JS runtime behind `engine`. Evaluating the bundle in a fresh
     // JSContext is the expensive part of a match start (in-process JSC has no JIT),
     // while Bridge.create re-inits a game on an existing runtime for free — so the
@@ -92,7 +133,7 @@ public final class DisplayCoordinator {
     // Monotonic clock fed to PartyCore.frame(); only deltas matter, so it never
     // needs resetting across games (a fresh engine re-primes on its first frame).
     private var frameClockMs = 0.0
-    private var playerOrder: [Int] = []
+    var playerOrder: [Int] = []
     // Per-participant KO state, so a WELCOME sent to a reconnecting (or
     // display-blip re-welcomed) controller reports alive:false for a player who
     // was already KO'd — without this the eliminated phone flips back to the live
@@ -102,16 +143,31 @@ public final class DisplayCoordinator {
     // The enriched results of the just-finished match, replayed in the WELCOME to
     // a controller that joins/reconnects on the RESULTS screen so its phone shows
     // the ranking instead of a blank results view (mirrors the web's lastResults).
-    private var lastResults: [[String: Any]]?
+    private var lastResults: [MatchResult]?
     private var pendingSeed: UInt32 = 0
-    private var demoSeedOverride: UInt32?   // deterministic seed for HEXDEMO
+    var demoSeedOverride: UInt32?   // deterministic seed for HEXDEMO
     private var muted = false
     private let nowProvider: () -> Double    // wall-clock ms for liveness (injectable for tests)
 
+    // The single-threaded contract (class doc) is otherwise enforced by nothing:
+    // a RelayClient built with a non-main callbackQueue would race the fields
+    // here AND the JSContext against the render loop's tick(). Capture the
+    // constructing thread and fail fast in debug at every entry point.
+    private let owningThread = Thread.current
+    private func assertOwningThread(_ function: String = #function) {
+        assert(Thread.current === owningThread,
+               "DisplayCoordinator.\(function) called off its owning thread; the transport callbackQueue and the render loop must share one thread")
+    }
+
     // Local demo (no relay/controllers): drives a game with synthetic input so
-    // the renderer can be exercised and screenshotted headlessly.
-    private var demoActive = false
-    private var demoTick = 0
+    // the renderer can be exercised and screenshotted headlessly. The demo/gallery
+    // methods live in DisplayCoordinator+Gallery.swift; extensions can't add
+    // stored properties, so their state lives here.
+    var demoActive = false
+    var demoTick = 0
+    /// A JavaScriptCore bridge used only to read the static GalleryFixtures data
+    /// (built lazily, reused across a shot). nil if the core bundle fails to load.
+    var galleryBridge: EngineBridge?
 
     // Countdown driven by accumulated frame time (deterministic, testable).
     private var countdownElapsed = 0.0
@@ -170,6 +226,7 @@ public final class DisplayCoordinator {
     }
 
     private func onCreated(room: String, instance: String?) {
+        assertOwningThread()
         self.room = room
         self.instance = instance
         let url = joinURL(room: room, instance: instance)
@@ -178,6 +235,7 @@ public final class DisplayCoordinator {
     }
 
     private func onJoined(room: String, peers: [Int]) {
+        assertOwningThread()
         // Display relay-reconnect: reconcile present controllers and re-welcome
         // everyone. Re-stamp + un-flag the still-present peers (mirrors the web's
         // onDisplayRejoined) so they don't instantly expire on the next liveness
@@ -221,6 +279,7 @@ public final class DisplayCoordinator {
     /// welcome screen, so it lands straight back on the lobby). Other errors are
     /// non-fatal and ignored (the app UI surfaces them if needed).
     private func onRelayError(_ message: String) {
+        assertOwningThread()
         guard message == "Room not found" || message == "Room is full" else { return }
         engine = nil
         output?.stopMusic()
@@ -236,6 +295,7 @@ public final class DisplayCoordinator {
     }
 
     private func onPeerJoined(_ index: Int) {
+        assertOwningThread()
         // An in-session reconnect lands on the SAME slot, so the relay re-emits
         // peer_joined for a peer we already know. Defer to the controller's HELLO
         // (onMessage clears its disconnect + restores the QR) rather than calling
@@ -252,6 +312,7 @@ public final class DisplayCoordinator {
     }
 
     private func onPeerLeft(_ index: Int) {
+        assertOwningThread()
         // Drop any peer-to-peer channel to the departed controller; a reconnecting
         // controller re-offers and a fresh fastlane peer is built (web parity).
         fastlane?.closePeer(index)
@@ -297,6 +358,7 @@ public final class DisplayCoordinator {
     // MARK: - Inbound messages
 
     private func onMessage(from: Int, data: [String: Any]) {
+        assertOwningThread()
         // Intercept WebRTC signaling envelopes for the fastlane before app
         // dispatch — handleSignal returns true iff it was an `__rtc` message.
         // (Fastlane-delivered input loops back here too, but as a plain controller
@@ -395,7 +457,7 @@ public final class DisplayCoordinator {
         // by playerId (web parity: claimReconnectPeer does the same).
         lastResults = lastResults?.map { entry in
             var e = entry
-            if e["playerId"] as? Int == oldId { e["playerId"] = from }
+            if e.playerId == oldId { e.playerId = from }
             return e
         }
         output?.setDisconnected(playerId: oldId, joinURL: nil)   // clear the dropped board's rejoin QR
@@ -451,7 +513,7 @@ public final class DisplayCoordinator {
 
     // MARK: - Countdown + game
 
-    private func beginCountdown() {
+    func beginCountdown() {
         guard flow.transition(to: .countdown) else { return }
         pruneDisconnected()
         // Late joiners enter the participant order, sorted by join time so the
@@ -534,6 +596,7 @@ public final class DisplayCoordinator {
     /// Drive one frame. The renderer calls this every display tick with the real
     /// elapsed milliseconds.
     public func tick(deltaMs rawDelta: Double) {
+        assertOwningThread()
         let deltaMs = min(max(rawDelta, 0), Self.maxFrameDeltaMs)
         // The local demo has no controllers sending heartbeats, so keep its
         // synthetic players "seen" — otherwise the liveness sweep flags them
@@ -556,7 +619,15 @@ public final class DisplayCoordinator {
             // normalizes host effects in a single call. `frameClockMs` is the
             // monotonic clock PartyCore turns into a capped per-frame delta.
             frameClockMs += deltaMs
-            guard let frame = try? engine.frame(nowMs: frameClockMs) else { return }
+            let frame: FrameResult
+            do { frame = try engine.frame(nowMs: frameClockMs) }
+            catch {
+                // Dropping one frame is fine; a PERSISTENT failure freezes the game,
+                // so it must at least be visible in the log (decode errors don't
+                // pass through onEngineError).
+                FileHandle.standardError.write(Data("[engine] frame failed: \(error)\n".utf8))
+                return
+            }
             // Events are the complete record — drive the native-only board
             // animations from them (line clears, lock flashes, KO, shakes).
             for event in frame.events { output?.handleGameEvent(event) }
@@ -649,7 +720,7 @@ public final class DisplayCoordinator {
         // clears the focus menu, so it must run before showResults sets the
         // results buttons (otherwise the results menu is wiped → no Left/Right).
         output?.setPaused(false)
-        transport.broadcast(OutboundMessage.gameEnd(elapsed: elapsed, results: enriched))
+        transport.broadcast(OutboundMessage.gameEnd(elapsed: elapsed, results: enriched.map { $0.payload }))
         output?.showResults(enriched)
         output?.showScreen(.results)   // reveal the results layer (hide the frozen game)
         engine = nil
@@ -741,6 +812,7 @@ public final class DisplayCoordinator {
     /// Observe the display's relay link: freeze on drop, resume on reconnect, so a
     /// recoverable outage doesn't KO players who can't send input meanwhile.
     public func setRelayConnected(_ connected: Bool) {
+        assertOwningThread()
         relayConnected = connected
         if connected {
             // Re-stamp present controllers so a >timeout outage doesn't instantly
@@ -849,187 +921,6 @@ public final class DisplayCoordinator {
         return muted
     }
 
-    // MARK: - Local demo
-
-    /// Start a self-driving game with `playerCount` synthetic players and no
-    /// relay/controllers. For rendering verification (screenshots) and visual
-    /// parity checks. `seed` is fixed so the state matches the web harness.
-    public func startLocalDemo(playerCount: Int = 2, seed: UInt32 = 0xBADCAFE) {
-        demoActive = true
-        demoTick = 0
-        for i in 1...max(1, playerCount) {
-            let slot = flow.lowestFreeSlot()
-            flow.addPlayer(peerIndex: i, playerName: "Demo \(i)", colorSlot: max(0, slot))
-        }
-        demoSeedOverride = seed   // deterministic seed, applied inside beginCountdown
-        beginCountdown()
-    }
-
-    /// Populate the lobby from the canonical roster + JOIN fixtures (no relay) so
-    /// the lobby UI — filled player cards, colors, levels, host tint, join card —
-    /// can be exercised/screenshotted. Shared by the HEXLOBBY dev mode and the
-    /// gallery `lobby` shot.
-    public func startLobbyDemo(playerCount: Int = 3) {
-        showGalleryLobby(players: max(1, min(playerCount, EngineConstants.maxPlayers)))
-    }
-
-    // MARK: - Screenshot capture (gallery)
-
-    /// Render one display state, frozen, from the canonical cross-platform
-    /// GalleryFixtures data (the SAME roster / board snapshots / results the web
-    /// and Android TV galleries render, so a difference between gallery columns is
-    /// always a renderer difference). No relay, no live tick: the caller stops
-    /// ticking the coordinator so the state holds still for a capture. HEXPLAYERS
-    /// drives the roster-based states; the named board variants (game-2p/3p/4p/8p)
-    /// fix their own player count.
-    public func renderShot(_ state: String, playerCount: Int = 4) {
-        switch state {
-        case "lobby":
-            showGalleryLobby(players: max(1, min(playerCount, EngineConstants.maxPlayers)))
-        case "lobby-empty":
-            showGalleryLobby(players: 0)
-        case "countdown":
-            showGalleryCountdown(players: max(1, min(playerCount, EngineConstants.maxPlayers)))
-        case "game", "game-lv1":
-            showGalleryGame(variant: "lv1")
-        case "game-lv8":
-            showGalleryGame(variant: "lv8")
-        case "game-lv12":
-            showGalleryGame(variant: "lv12")
-        case "game-2p":
-            showGalleryGame(variant: "2p")
-        case "game-3p":
-            showGalleryGame(variant: "3p")
-        case "game-4p":
-            showGalleryGame(variant: "4p")
-        case "game-8p":
-            showGalleryGame(variant: "8p")
-        case "pause":
-            showGalleryGame(variant: "lv1")
-            output?.setPaused(true)
-        case "disconnected", "disconnected-controller":
-            showGalleryGame(variant: "lv1")
-            // Per-board rejoin QR for slot 1 (== id 1), encoding JOIN.qrText plus
-            // the production ?claim=<peerIndex> param (mirrors showDisconnectQR).
-            if let join = try? galleryFixtures()?.galleryJoin() {
-                output?.setDisconnected(playerId: 1, joinURL: galleryRejoinURL(join.qrText, claim: 1))
-            }
-        case "results":
-            showGalleryResults(count: max(1, min(playerCount, EngineConstants.maxPlayers)))
-        case "results-solo":
-            showGalleryResults(count: 1)
-        default:
-            showGalleryLobby(players: max(1, min(playerCount, EngineConstants.maxPlayers)))
-        }
-    }
-
-    // MARK: - Gallery fixture rendering
-
-    /// A JavaScriptCore bridge used only to read the static GalleryFixtures data
-    /// (built lazily, reused across a shot). nil if the core bundle fails to load.
-    private var galleryBridge: EngineBridge?
-    private func galleryFixtures() -> EngineBridge? {
-        if galleryBridge == nil { galleryBridge = try? EngineBridge(engineDirectory: engineDirectory) }
-        return galleryBridge
-    }
-
-    /// Seed the RoomFlow roster from `roster(count)` (id == slot == colorIndex) so
-    /// board / card lookups resolve the canonical names, colors and levels. Returns
-    /// the fixture entries (the levels feed the pre-game countdown boards).
-    @discardableResult
-    private func seedGalleryRoster(count: Int) -> [GalleryRosterEntry] {
-        guard let roster = try? galleryFixtures()?.galleryRoster(count: count) else { return [] }
-        for e in roster {
-            flow.addPlayer(peerIndex: e.id, playerName: e.name, colorSlot: e.slot, startLevel: e.level)
-        }
-        return roster
-    }
-
-    /// Show the lobby with the JOIN fixture: displayed host/code from JOIN.host +
-    /// JOIN.code, QR from the (separate) JOIN.qrText, `players` roster cards.
-    private func showGalleryLobby(players: Int) {
-        guard let join = try? galleryFixtures()?.galleryJoin() else { return }
-        if players > 0 { seedGalleryRoster(count: players) }
-        // Reconstruct a URL splitJoinURL parses back to (JOIN.host, JOIN.code) for
-        // the displayed text; the QR encodes the distinct JOIN.qrText.
-        output?.roomReady(room: join.code, joinURL: "https://\(join.host)\(join.code)", qrText: join.qrText)
-        // Freeze the ambient background to the shared fixture (after roomReady's
-        // buildLobby seeds the live pool) so the lobby columns match across platforms.
-        if let ambient = try? galleryFixtures()?.galleryAmbient() {
-            output?.setLobbyAmbient(ambient)
-        }
-        output?.showScreen(.lobby)
-    }
-
-    /// The pre-game 3-2-1 presentation: empty wells behind the countdown overlay,
-    /// carrying the roster's names/colors/levels. Empty boards aren't fixture data
-    /// (the fixture game snapshots hold dropped stacks), so build them here.
-    private func showGalleryCountdown(players: Int) {
-        let roster = seedGalleryRoster(count: players)
-        let boards = roster.map { emptyBoard(id: $0.id, level: $0.level) }
-        output?.showScreen(.game)
-        output?.renderSnapshot(GameSnapshot(players: boards, elapsed: 0))
-        // Freeze at "3" — the first number of the sequence, matching the web
-        // harness's initial frame and the Android countdown shot.
-        output?.showCountdown(.number(3))
-    }
-
-    /// Render a named board-variant snapshot, seating the roster names/colors first.
-    private func showGalleryGame(variant: String) {
-        guard let snap = try? galleryFixtures()?.gallerySnapshot(variant: variant) else { return }
-        seedGalleryRoster(count: snap.players.count)
-        output?.showScreen(.game)
-        output?.renderSnapshot(snap)
-    }
-
-    /// The results overlay over the frozen (blurred) boards, exactly as a live
-    /// end-of-match: `count` lv1-equivalent boards behind, ranked by results(count).
-    private func showGalleryResults(count: Int) {
-        guard let fx = galleryFixtures() else { return }
-        if let snap = try? fx.gallerySnapshot(players: count, level: 1) {
-            seedGalleryRoster(count: snap.players.count)
-            output?.showScreen(.game)
-            output?.renderSnapshot(snap)
-        }
-        guard let bundle = try? fx.galleryResults(count: count) else { return }
-        let out: [[String: Any]] = bundle.results.map { r in
-            ["playerId": r.playerId, "playerName": r.playerName, "colorIndex": r.colorIndex,
-             "rank": r.rank, "lines": r.lines, "level": r.level]
-        }
-        output?.showResults(out)
-        output?.showScreen(.results)
-    }
-
-    private func emptyBoard(id: Int, level: Int) -> PlayerSnapshot {
-        let grid = Array(repeating: Array(repeating: 0, count: EngineConstants.cols),
-                         count: EngineConstants.visibleRows)
-        return PlayerSnapshot(id: id, grid: grid, currentPiece: nil, ghost: nil, holdPiece: nil,
-                              nextPieces: [], level: level, lines: 0, alive: true,
-                              pendingGarbage: 0, clearingCells: nil, gridVersion: 1)
-    }
-
-    /// The cross-device rejoin URL a dropped board's QR encodes: `base` (JOIN.qrText)
-    /// with the production `?claim=<peerIndex>` spliced in before any fragment
-    /// (mirrors the web showDisconnectQR).
-    private func galleryRejoinURL(_ base: String, claim: Int) -> String {
-        let head: Substring, hash: Substring
-        if let h = base.firstIndex(of: "#") { head = base[..<h]; hash = base[h...] }
-        else { head = Substring(base); hash = "" }
-        let sep = head.contains("?") ? "&" : "?"
-        return "\(head)\(sep)claim=\(claim)\(hash)"
-    }
-
-    private func driveDemoInput() {
-        demoTick += 1
-        let actions = ["left", "right", "rotate_cw", "right", "rotate_cw", "left"]
-        for (i, id) in playerOrder.enumerated() {
-            let phase = demoTick + i * 5
-            if phase % 7 == 0 { engine?.processInput(playerId: id, action: actions[(phase / 7) % actions.count]) }
-            if phase % 24 == 0 { engine?.processInput(playerId: id, action: "hard_drop") }
-        }
-        if engine?.isEnded == true { /* will transition to results next tick */ }
-    }
-
     // MARK: - Outbound builders
 
     private func broadcastLobby() {
@@ -1086,29 +977,24 @@ public final class DisplayCoordinator {
         // flipping back to the live playing UI (web parity: lastAliveState).
         if !isLateJoiner { welcome["alive"] = aliveState[id] ?? true; welcome["paused"] = paused }
         // Replay the finished ranking to a controller landing on RESULTS.
-        if flow.state == .results, let lastResults { welcome["results"] = lastResults }
+        if flow.state == .results, let lastResults { welcome["results"] = lastResults.map { $0.payload } }
         transport.sendTo(id, welcome)
     }
 
-    private func enrichResults(_ results: [PlayerResult]) -> [[String: Any]] {
-        var out: [[String: Any]] = []
+    private func enrichResults(_ results: [PlayerResult]) -> [MatchResult] {
+        var out: [MatchResult] = []
         var rankedIds = Set<Int>()
         for r in results {
             rankedIds.insert(r.playerId)
-            var e: [String: Any] = [
-                "playerId": r.playerId, "alive": r.alive, "lines": r.lines,
-                "level": r.level, "rank": r.rank,
-            ]
-            if let rec = flow.player(r.playerId) {
-                e["playerName"] = rec.playerName
-                e["colorIndex"] = rec.colorSlot
-            }
-            out.append(e)
+            let rec = flow.player(r.playerId)
+            out.append(MatchResult(playerId: r.playerId,
+                                   playerName: rec?.playerName, colorIndex: rec?.colorSlot,
+                                   rank: r.rank, lines: r.lines, level: r.level, alive: r.alive))
         }
         // Late joiners who sat out.
         for rec in flow.list() where !rankedIds.contains(rec.peerIndex) {
-            out.append(["playerId": rec.peerIndex, "playerName": rec.playerName,
-                        "colorIndex": rec.colorSlot, "newPlayer": true])
+            out.append(MatchResult(playerId: rec.peerIndex, playerName: rec.playerName,
+                                   colorIndex: rec.colorSlot, newPlayer: true))
         }
         return out
     }

@@ -638,9 +638,9 @@ import Foundation
         #expect(fo.screen == .results)
         let res = fo.results
         #expect(res?.count == 4)
-        #expect(res?.first?["playerName"] as? String == "Emma")
-        #expect(res?.first?["rank"] as? Int == 1)
-        #expect(res?.first?["lines"] as? Int == 30, "canonical ranking from results(4)")
+        #expect(res?.first?.playerName == "Emma")
+        #expect(res?.first?.rank == 1)
+        #expect(res?.first?.lines == 30, "canonical ranking from results(4)")
     }
 
     @Test func soloResultsShotHasSingleRow() {

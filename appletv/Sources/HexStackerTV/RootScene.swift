@@ -658,7 +658,7 @@ final class RootScene: SKScene, DisplayOutput {
 
     private func closeLicenses() { licenses.close() }
 
-    func showResults(_ results: [[String: Any]]) {
+    func showResults(_ results: [MatchResult]) {
         buildResults(results)
     }
 
@@ -1435,12 +1435,12 @@ final class RootScene: SKScene, DisplayOutput {
 
     // MARK: - Results
 
-    private func buildResults(_ results: [[String: Any]]) {
+    private func buildResults(_ results: [MatchResult]) {
         resultsLayer.removeAllChildren()
         resultsLayer.position = CGPoint(x: playRect.minX, y: playRect.minY)
         let W = playRect.width, H = playRect.height
 
-        let sorted = results.sorted { (a, b) in (a["rank"] as? Int ?? 999) < (b["rank"] as? Int ?? 999) }
+        let sorted = results.sorted { ($0.rank ?? 999) < ($1.rank ?? 999) }
 
         // Web --overlay-bg: a brand-plum tint (bgPrimary @0.88) over the blurred
         // frozen boards (the gameEffect blur supplies the frosted backdrop).
@@ -1453,7 +1453,7 @@ final class RootScene: SKScene, DisplayOutput {
         resultsLayer.addChild(backdrop)
 
         // Winner glow: one soft radial over the tint (web --winner-glow).
-        if let slot = sorted.first?["colorIndex"] as? Int {
+        if let slot = sorted.first?.colorIndex {
             // Match web's radius (0.6 × distance to the farthest corner from the 50%/30%
             // center) and alpha (0.08) so the glow is as contained + faint as the browser's,
             // not a broad wash over the whole screen.
@@ -1497,8 +1497,8 @@ final class RootScene: SKScene, DisplayOutput {
 
         var y = groupTop - rowH / 2
         for (i, res) in sorted.enumerated() {
-            let isNew = (res["newPlayer"] as? Bool) ?? false
-            let color = (res["colorIndex"] as? Int).map { SKTheme.player(slot: $0) }
+            let isNew = res.newPlayer
+            let color = res.colorIndex.map { SKTheme.player(slot: $0) }
             let row = buildResultRow(res, solo: solo, isNew: isNew, color: color, w: rowW, h: rowH,
                                      nameSize: nameSize, statsSize: statsSize)
             row.position = CGPoint(x: W / 2, y: y - 10)
@@ -1530,7 +1530,7 @@ final class RootScene: SKScene, DisplayOutput {
         }
     }
 
-    private func buildResultRow(_ res: [String: Any], solo: Bool, isNew: Bool,
+    private func buildResultRow(_ res: MatchResult, solo: Bool, isNew: Bool,
                                 color: UIColor?, w: CGFloat, h: CGFloat,
                                 nameSize: CGFloat, statsSize: CGFloat) -> SKNode {
         let node = SKNode()
@@ -1558,7 +1558,7 @@ final class RootScene: SKScene, DisplayOutput {
         let padR = min(max(19.2, size.width * 0.024), 38.4)
         var textLeft = -w / 2 + padL
         if !solo {
-            let rank = SKLabelNode(text: isNew ? "–" : "\(res["rank"] as? Int ?? 0)")
+            let rank = SKLabelNode(text: isNew ? "–" : "\(res.rank ?? 0)")
             rank.fontName = AppFont.black           // same size as the name; heavier weight reads the rank
             rank.fontSize = nameSize
             rank.fontColor = isNew ? SKTheme.textSecondary : (color ?? SKTheme.textSecondary)
@@ -1570,7 +1570,7 @@ final class RootScene: SKScene, DisplayOutput {
             textLeft = -w / 2 + padL + nameSize * 0.8 + 20
         }
 
-        let name = SKLabelNode(text: (res["playerName"] as? String) ?? tr("player"))
+        let name = SKLabelNode(text: res.playerName ?? tr("player"))
         name.fontName = AppFont.brandBold
         name.fontSize = nameSize
         name.fontColor = color ?? SKTheme.textSecondary   // web fallback for unnamed players
@@ -1584,8 +1584,7 @@ final class RootScene: SKScene, DisplayOutput {
         if isNew {
             statsText = tr("new_player")
         } else {
-            let n = res["lines"] as? Int ?? 0
-            statsText = "\(tr("n_lines", n))   \(tr("level_n", res["level"] as? Int ?? 1))"
+            statsText = "\(tr("n_lines", res.lines ?? 0))   \(tr("level_n", res.level ?? 1))"
         }
         // Web's .result-stats has no font-family override, so it inherits the plain
         // system-ui font (not Orbitron); match that with the tvOS system font.
