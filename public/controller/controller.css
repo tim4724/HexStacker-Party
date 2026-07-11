@@ -642,8 +642,7 @@ html, body {
 }
 
 #status-text,
-#name-status-text,
-#room-gone-heading {
+#name-status-text {
   font-family: var(--font-brand);
   font-size: clamp(1.2rem, 5.8vw, 1.85rem);
   font-weight: 700;
@@ -658,8 +657,7 @@ html, body {
 }
 
 #status-detail,
-#name-status-detail,
-#room-gone-detail {
+#name-status-detail {
   font-size: clamp(1rem, 4.5vw, 1.2rem);
   color: var(--text-secondary);
   letter-spacing: 0.04em;
@@ -677,8 +675,6 @@ html, body {
 #status-detail:empty,
 #name-status-text:empty,
 #name-status-detail:empty,
-#room-gone-heading:empty,
-#room-gone-detail:empty,
 #gameover-status:empty {
   display: none;
 }
@@ -1127,13 +1123,14 @@ html, body {
   pointer-events: none;
 }
 
-/* Toggle switch */
+/* Toggle switch — off-state uses the recessed fill so it matches the
+   segmented control and slider track beside it. */
 .settings-switch {
   width: 52px;
   height: 30px;
   border: none;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(21, 18, 31, 0.55);
   position: relative;
   padding: 0;
   cursor: pointer;
@@ -1904,7 +1901,6 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   .controller-shell__brand,
   .controller-shell__actions,
   .legal-links,
-  #room-gone-message,
   .controller-shell__copy {
     visibility: hidden;
     height: 0;
@@ -1929,7 +1925,6 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
 .keyboard-compact .controller-shell__brand,
 .keyboard-compact .controller-shell__actions,
 .keyboard-compact .legal-links,
-.keyboard-compact #room-gone-message,
 .keyboard-compact .controller-shell__copy {
   visibility: hidden;
   height: 0;
