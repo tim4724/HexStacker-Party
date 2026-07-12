@@ -43,9 +43,12 @@ final class ScreenshotTests: XCTestCase {
             // Wait for the marker's value to CHANGE to the next state's name (it
             // holds the previous name through the scene swap, so a changed value
             // means the new frozen frame is on screen and settled).
+            // 60s: locally every state settles in ~4s, but the shared CI runner
+            // rasterizes the heavy 4K board states (full stacks, per-board QRs)
+            // slowly enough that 15s flaked on a handful of them.
             let changed = NSPredicate(format: "value != %@", lastName)
             let exp = XCTNSPredicateExpectation(predicate: changed, object: marker)
-            XCTAssertEqual(XCTWaiter().wait(for: [exp], timeout: 15), .completed,
+            XCTAssertEqual(XCTWaiter().wait(for: [exp], timeout: 60), .completed,
                            "state \(i): app never signalled the next frozen frame")
 
             let name = (marker.value as? String) ?? ""
