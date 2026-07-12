@@ -82,6 +82,11 @@ fun LobbyScreen(
     // lobby shows an empty white QR panel, matching the web + tvOS displays.
     val qrBitmap = qrOverride ?: generatedQr?.takeIf { data.joinUrl.isNotBlank() }
     val hasPlayers = data.players.isNotEmpty()
+    // The initial relay connect also flags pending (MainActivity treats any
+    // non-OPEN link as pending), which used to dim the still-blank card
+    // mid-entrance and pop it bright when the room confirmed. Only dim when
+    // there is actually a QR/code on screen that could mislead (tvOS parity).
+    val dimAlpha = if (qrPending && data.joinUrl.isNotBlank()) QR_PENDING_ALPHA else 1f
 
     // Seat D-pad focus on Start (the main action) both on entry, where the disabled
     // Start holds focus so the engine doesn't grab the ⓘ (tvOS parity), and again
@@ -130,7 +135,7 @@ fun LobbyScreen(
                                 // (like the sp caps) or the QR renders a third too big.
                                 modifier = Modifier
                                     .width(vp.vminDp(126.7f, 40f, 240f))
-                                    .alpha(if (qrPending) QR_PENDING_ALPHA else 1f),
+                                    .alpha(dimAlpha),
                             )
                             PlayerGrid(players = data.players, vp = vp)
                         }
@@ -140,7 +145,7 @@ fun LobbyScreen(
                             vp = vp,
                             // The stale-room pending dim covers the code too (the
                             // line is what could mislead), matching the QR.
-                            modifier = Modifier.alpha(if (qrPending) QR_PENDING_ALPHA else 1f),
+                            modifier = Modifier.alpha(dimAlpha),
                         )
                     }
                 }

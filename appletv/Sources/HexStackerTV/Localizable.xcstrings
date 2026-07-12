@@ -1062,12 +1062,6 @@
         "ru" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%1$d линия"
-                }
-              },
               "few" : {
                 "stringUnit" : {
                   "state" : "translated",
@@ -1078,6 +1072,12 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%1$d линий"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%1$d линия"
                 }
               },
               "other" : {
@@ -2111,12 +2111,6 @@
         "ru" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "СТАРТ (%1$d игрок)"
-                }
-              },
               "few" : {
                 "stringUnit" : {
                   "state" : "translated",
@@ -2127,6 +2121,12 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "СТАРТ (%1$d игроков)"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "СТАРТ (%1$d игрок)"
                 }
               },
               "other" : {

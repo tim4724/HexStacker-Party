@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -74,6 +75,11 @@ fun ResultsScreen(
     // focus for the primary CTA on entry.
     LaunchedEffect(Unit) { runCatching { playAgainFocus.requestFocus() } }
 
+    // Buttons fade in with the list (web .result-actions fade, matching the 0.4s
+    // row stagger duration; no per-row delay).
+    val buttonsEnter = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { buttonsEnter.animateTo(1f, tween(400)) }
+
     BoxWithConstraints(
         modifier
             .fillMaxSize()
@@ -118,6 +124,13 @@ fun ResultsScreen(
             }
 
             Row(
+                Modifier.graphicsLayer {
+                    alpha = buttonsEnter.value
+                    // No offscreen buffer (see LobbyScreen's EntranceBand): PLAY AGAIN
+                    // is focused during this fade and its ring + 1.06 scale overflow
+                    // the Row bounds, which the Auto strategy's alpha buffer clips.
+                    compositingStrategy = CompositingStrategy.ModulateAlpha
+                },
                 horizontalArrangement = Arrangement.spacedBy(vp.vwDp(16f, 2f, 32f)),
             ) {
                 ChromeButton(

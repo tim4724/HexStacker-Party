@@ -66,11 +66,16 @@ object QrRenderer {
 /**
  * Encodes [content] once (off the main thread) and caches it across recomposition,
  * keyed on the content + target size. Returns null until the first encode lands.
+ *
+ * Rendered modules-only (transparent background): these bitmaps sit on an opaque
+ * white Compose card that supplies the light background, and a white-bled bitmap
+ * fading in over the card mid-entrance reads as a second white square (the tvOS
+ * QR double-fade bug; tvOS renders with `.multiply` for the same reason).
  */
 @Composable
 fun rememberQrBitmap(content: String, sizePx: Int = 600): State<ImageBitmap?> =
     produceState<ImageBitmap?>(initialValue = null, content, sizePx) {
         value = withContext(Dispatchers.Default) {
-            runCatching { QrRenderer.render(content, sizePx) }.getOrNull()
+            runCatching { QrRenderer.render(content, sizePx, light = 0x00000000) }.getOrNull()
         }
     }

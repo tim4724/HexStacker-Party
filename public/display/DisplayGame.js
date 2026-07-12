@@ -145,6 +145,16 @@ function clearCountdownTimers() {
   if (countdown.overlayTimer) { clearTimeout(countdown.overlayTimer); countdown.overlayTimer = null; }
 }
 
+// GO holds for 400ms, then the number and scrim fade off together; the text
+// is cleared only once hidden — onGameResumed reads it to decide whether to
+// re-show.
+function armCountdownDismiss() {
+  countdown.overlayTimer = setTimeout(function() {
+    countdown.overlayTimer = null;
+    fadeHide(countdownOverlay, 250, function() { countdownNumber.textContent = ''; });
+  }, 400);
+}
+
 function pauseGame() {
   if (paused) return;
   if (roomState !== ROOM_STATE.PLAYING && roomState !== ROOM_STATE.COUNTDOWN) return;
@@ -218,11 +228,7 @@ function resumeGame() {
     party.broadcast({ type: MSG.GAME_RESUMED });
     onGameResumed();
     if (countdown.remaining === 0) {
-      countdown.overlayTimer = setTimeout(function() {
-        countdown.overlayTimer = null;
-        countdownOverlay.classList.add('hidden');
-        countdownNumber.textContent = '';
-      }, 400);
+      armCountdownDismiss();
       countdown.goTimeout = setTimeout(function() {
         countdown.goTimeout = null;
         countdown.callback();
@@ -312,8 +318,13 @@ function runGameLocally() {
 
 function runGameLocallyWithSeed(seed) {
   stopDisplayGame();
-  countdownOverlay.classList.add('hidden');
-  countdownNumber.textContent = '';
+  // Game start lands mid-GO-dismissal (the fadeHide arms at GO+400ms, this
+  // runs at GO+500ms): let an in-flight fade finish — its onHidden callback
+  // clears the text — instead of snapping the scrim to display:none.
+  if (!countdownOverlay.classList.contains('closing')) {
+    countdownOverlay.classList.add('hidden');
+    countdownNumber.textContent = '';
+  }
 
   var Game = window.GameEngine.Game;
   // Sort by join time so game engine order matches the lobby's board
@@ -417,6 +428,7 @@ function onCountdownDisplay(value) {
     document.body.classList.add('cursor-hidden');
     gameToolbar.classList.add('toolbar-autohide');
   }
+  cancelFadeHide(countdownOverlay);
   countdownOverlay.classList.remove('hidden');
   countdownNumber.textContent = value;
   playCountdownBeep(value === 'GO');
@@ -425,11 +437,7 @@ function onCountdownDisplay(value) {
       music.start();
       if (muted) music.masterGain.gain.setValueAtTime(0, music.ctx.currentTime);
     }
-    countdown.overlayTimer = setTimeout(function() {
-      countdown.overlayTimer = null;
-      countdownOverlay.classList.add('hidden');
-      countdownNumber.textContent = '';
-    }, 400);
+    armCountdownDismiss();
   }
 }
 
@@ -550,6 +558,7 @@ function onGameEnd(msg) {
 function onGamePaused() {
   if (displayGame) displayGame.pause();
   if (pauseContinueBtn) pauseContinueBtn.disabled = false;
+  cancelFadeHide(pauseOverlay);
   pauseOverlay.classList.remove('hidden');
   gameToolbar.classList.add('hidden');
   countdownOverlay.classList.add('paused');
@@ -557,7 +566,7 @@ function onGamePaused() {
 }
 
 function dismissAutoPausedOverlay() {
-  pauseOverlay.classList.add('hidden');
+  fadeHide(pauseOverlay, 200);
   if (currentScreen === SCREEN.GAME) {
     gameToolbar.classList.remove('hidden');
   }
@@ -567,12 +576,13 @@ function dismissAutoPausedOverlay() {
 function onGameResumed() {
   if (displayGame) displayGame.resume();
   if (pauseContinueBtn) pauseContinueBtn.disabled = false;
-  pauseOverlay.classList.add('hidden');
+  fadeHide(pauseOverlay, 200);
   countdownOverlay.classList.remove('paused');
   if (currentScreen === SCREEN.GAME) {
     gameToolbar.classList.remove('hidden');
   }
   if (countdownNumber.textContent) {
+    cancelFadeHide(countdownOverlay);
     countdownOverlay.classList.remove('hidden');
   }
   if (music) music.resume();

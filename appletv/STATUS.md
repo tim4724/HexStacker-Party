@@ -59,10 +59,12 @@ Modules:
 
 - **`HexStampFactory`** — Core Graphics hex stamps for all three tiers (NORMAL gradient+bands, PILLOW rounded+gloss, NEON_FLAT dark+rim), cached as SKTextures.
 - **`BoardNode`** — one board from a snapshot: baked well+grid background, locked stack (cached by `gridVersion`), live piece + ghost, name/stats labels. Handles the canvas-Y-down → SpriteKit-Y-up flip.
-- **`RootScene`** — owns `RelayClient` + `DisplayCoordinator`, implements `DisplayOutput`, drives `tick()` from `update(_:)`, renders lobby (QR + roster) / game / results.
+- **`BoardScene`** — the SpriteKit remainder after the SwiftUI chrome migration: per-player game boards + match timer + the lobby's falling-piece background; stays the per-frame pump (`update(_:)` → coordinator tick).
+- **`DisplayModel`** — the shell: owns `RelayClient` + `DisplayCoordinator` + `MusicPlayer` + `BoardScene`, implements `DisplayOutput` by folding chrome callbacks into a published `UiModel` (mirrors Android's `TvDisplayOutput` + `MainActivity` wiring).
+- **`DisplayRootView` + SwiftUI chrome** (`LobbyView`, `ResultsView`, `AboutView`/`LicensesView`, pause/countdown/connection overlays) — composites the chrome above the `SpriteView`, Android `DisplayChrome` parity.
 - **`MusicPlayer`** — AVAudioEngine looping music at 0.50 volume with constant-pitch tempo scaling (0.95→1.35 by level), plus synthesized square-wave countdown beeps.
 - **`QRCode`** — `CIQRCodeGenerator` at EC level L for the join URL.
-- **`App` / `GameViewController`** — SwiftUI entry hosting an SKView, audio session setup.
+- **`App` / `PressHostController`** — SwiftUI entry behind a UIKit root shim that owns the remote's focus-independent presses (Play/Pause, Menu), audio session setup.
 
 ## Required manual steps in Xcode
 
@@ -227,7 +229,7 @@ build.
   game.
 - **CI:** the `tvos-core` job runs `swift build` + `swift test`, and a
   new `tvos-app` job builds the app target for the Simulator SDK (the app-target
-  sources — RootScene/BoardNode/WebRTCFastlane — are not in the SwiftPM package, so
+  sources — DisplayModel/BoardNode/WebRTCFastlane — are not in the SwiftPM package, so
   `swift build` never compiled them). `project.yml` excludes the missing x86_64
   slice for the Simulator so a generic/CI simulator build links (LiveKitWebRTC
   ships only an arm64 tvOS-sim slice).
@@ -288,7 +290,7 @@ font-weight + letter-spacing parity (a `setStyledText` kern helper), KO red wash
 instead of dimming the whole board, neon-black HOLD/NEXT panels at Lv 11+, and
 lobby polish (SCAN TO JOIN, join-URL pill, START with player count).
 
-Lobby / countdown / results (RootScene):
+Lobby / countdown / results (built in RootScene, since migrated to the SwiftUI chrome):
 - **Lobby** matches the web: baked 8-stop gradient HEX STACKER wordmark + PARTY
   subtitle, animated falling-piece background, QR card with SCAN OR VISIT +
   host/code join URL, player-card grid (player-colored border + name + LEVEL
@@ -366,7 +368,7 @@ Headless / verification modes:
 - `HEXSHOT=<state>` — render one display state frozen with fake data, for the
   screen gallery (`HEXPLAYERS=<n>`). See the repo-root `scripts/gallery/`.
 - `HEXGALLERY=1` — carousel: present every gallery state in ONE launch, advancing
-  on Play/Pause. `GameViewController.galleryStates` is the ordered source of truth
+  on Play/Pause. `DisplayModel.galleryStates` is the ordered source of truth
   and reports each rendered state's name via the `hexshot-marker` accessibility
   element; the `ScreenshotTests` UI test drives it (one launch, not one per state).
 

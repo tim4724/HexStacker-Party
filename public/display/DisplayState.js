@@ -311,6 +311,32 @@ if (muteBtn) {
   muteBtn.setAttribute('aria-checked', muted ? 'false' : 'true');
 }
 
+// --- Overlay dismissal fade ---
+// `.hidden` is display:none, so a pure-CSS exit fade is impossible: add
+// `.closing` (CSS fadeOut) first, then flip to `.hidden` once the fade has
+// played. Timer-based rather than animationend so a stripped animation
+// (reduced-motion setups) can't strand an overlay visible forever. Every
+// show site must call cancelFadeHide first, or a pending timer would
+// re-hide the freshly shown element.
+function fadeHide(el, ms, onHidden) {
+  cancelFadeHide(el);
+  el.classList.add('closing');
+  el._closingTimer = setTimeout(function() {
+    el._closingTimer = null;
+    el.classList.remove('closing');
+    el.classList.add('hidden');
+    if (onHidden) onHidden();
+  }, ms);
+}
+
+function cancelFadeHide(el) {
+  if (el._closingTimer) {
+    clearTimeout(el._closingTimer);
+    el._closingTimer = null;
+  }
+  el.classList.remove('closing');
+}
+
 // --- Screen Management ---
 function showScreen(name) {
   var prev = currentScreen;
@@ -323,8 +349,26 @@ function showScreen(name) {
   document.documentElement.classList.toggle('in-session', name !== SCREEN.WELCOME);
   welcomeScreen.classList.toggle('hidden', name !== SCREEN.WELCOME);
   lobbyScreen.classList.toggle('hidden', name !== SCREEN.LOBBY);
+  // Match start from the lobby fades boards + countdown in as one unit
+  // (.screen-enter replays on unhide). Re-entry from RESULTS keeps the
+  // already-visible boards still and lets the countdown fade in alone.
+  // Edge-triggered, not toggled: GAME → GAME calls (every countdown tick)
+  // must not touch the class, or the countdown's suppressed animation
+  // property would flip back on and replay mid-countdown.
+  if (name === SCREEN.GAME && prev === SCREEN.LOBBY) {
+    gameScreen.classList.add('screen-enter');
+  } else if (name === SCREEN.GAME && prev === SCREEN.RESULTS) {
+    gameScreen.classList.remove('screen-enter');
+  }
   gameScreen.classList.toggle('hidden', name !== SCREEN.GAME && name !== SCREEN.RESULTS);
-  resultsScreen.classList.toggle('hidden', name !== SCREEN.RESULTS);
+  if (name === SCREEN.GAME && prev === SCREEN.RESULTS) {
+    // PLAY AGAIN: cross-fade — results fade out over the boards while the
+    // countdown scrim fades in (its own fadeIn replays on unhide).
+    fadeHide(resultsScreen, 300);
+  } else {
+    cancelFadeHide(resultsScreen);
+    resultsScreen.classList.toggle('hidden', name !== SCREEN.RESULTS);
+  }
   // Replay the results button fade on fresh entry. Re-entering
   // RESULTS from itself preserves the --ready class added by
   // visibilitychange.
@@ -340,6 +384,10 @@ function showScreen(name) {
   );
   pauseBtn.classList.toggle('hidden', name !== SCREEN.GAME);
   if (name !== SCREEN.GAME) {
+    // Instant, not fadeHide: these are covered by the incoming screen, and
+    // cancelling clears any in-flight dismissal timer/class.
+    cancelFadeHide(pauseOverlay);
+    cancelFadeHide(reconnectOverlay);
     pauseOverlay.classList.add('hidden');
     reconnectOverlay.classList.add('hidden');
     gameToolbar.classList.remove('toolbar-autohide');

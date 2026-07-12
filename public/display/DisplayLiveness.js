@@ -29,13 +29,19 @@ function startLivenessCheck() {
     if (displayDead) {
       if (roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN) {
         if (!paused) pauseGame();
-        pauseOverlay.classList.add('hidden');
+        // Cross-fade with the reconnect overlay appearing above (see onClose).
+        fadeHide(pauseOverlay, 200);
       }
       // Don't overwrite DISCONNECTED state after attempts exhausted
       if (party.reconnectAttempt >= party.maxReconnectAttempts) return;
       // Show overlay once on first dead detection; don't overwrite
-      // attempt text that onClose sets on subsequent ticks
-      if (reconnectOverlay.classList.contains('hidden')) {
+      // attempt text that onClose sets on subsequent ticks. A mid-dismissal
+      // overlay (.closing, not yet .hidden) counts as hidden here — without
+      // that, the pending fadeHide timer would hide the overlay this tick
+      // just decided to show.
+      if (reconnectOverlay.classList.contains('hidden') ||
+          reconnectOverlay.classList.contains('closing')) {
+        cancelFadeHide(reconnectOverlay);
         reconnectOverlay.classList.remove('hidden');
         reconnectHeading.textContent = t('reconnecting');
         reconnectStatus.textContent = '';

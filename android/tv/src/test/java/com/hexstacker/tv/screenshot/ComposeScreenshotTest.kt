@@ -141,7 +141,8 @@ class ComposeScreenshotTest {
                 ),
                 onStart = {},
                 // Inject a deterministic QR so the shot never races the async generator.
-                qrOverride = QrRenderer.render(join.qrText, 480), // crisp at 1080p
+                // Modules-only like the production rememberQrBitmap render.
+                qrOverride = QrRenderer.render(join.qrText, 480, light = 0x00000000), // crisp at 1080p
                 // Freeze the ambient background to the shared fixture so the four lobby
                 // shots (and the web/tvOS galleries) show identical falling pieces.
                 backgroundPieces = ambient,

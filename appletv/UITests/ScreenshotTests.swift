@@ -8,7 +8,7 @@ import XCTest
 /// each captured screen still doubles as a "this state renders without crashing"
 /// check.
 ///
-/// The app owns the ordered state list (`GameViewController.galleryStates`, which
+/// The app owns the ordered state list (`DisplayModel.galleryStates`, which
 /// mirrors the `tvos` entries in scripts/gallery/scenarios.json) and reports each
 /// name, so attachment names can't drift out of order. The TV Gallery workflow
 /// matches attachments by that name.

@@ -81,9 +81,12 @@ function connectAndCreateRoom() {
 
     if (roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN) {
       if (!paused) pauseGame();
-      pauseOverlay.classList.add('hidden');
+      // Cross-fade: the pause scrim fades out under the reconnect overlay
+      // fading in, instead of flashing the boards between the two.
+      fadeHide(pauseOverlay, 200);
     }
 
+    cancelFadeHide(reconnectOverlay);
     reconnectOverlay.classList.remove('hidden');
     if (attempt === 1) reconnectHeading.textContent = t('reconnecting');
     reconnectStatus.textContent = t('attempt_n_of_m', { attempt: Math.min(attempt, maxAttempts), max: maxAttempts });
@@ -168,7 +171,7 @@ function onRoomCreated(partyRoomCode, instance) {
   // the backoff counter so a later lost room starts counting from attempt 1.
   clearTimeout(createTimeout);
   clearTimeout(disconnectedTimer);
-  reconnectOverlay.classList.add('hidden');
+  fadeHide(reconnectOverlay, 200);
   if (party) party.resetReconnectCount();
   lastInstance = instance || null;
   // Pin the WS URL so PartyConnection's auto-reconnect lands on the same
@@ -340,7 +343,7 @@ function onDisplayRejoined(partyRoomCode, peers) {
   // Clear reconnect overlay — connection restored
   clearTimeout(disconnectedTimer);
   party.resetReconnectCount();
-  reconnectOverlay.classList.add('hidden');
+  fadeHide(reconnectOverlay, 200);
   if (paused && (roomState === ROOM_STATE.PLAYING || roomState === ROOM_STATE.COUNTDOWN)) {
     // Clear any surviving countdown timers to prevent duplicates on resume
     clearCountdownTimers();

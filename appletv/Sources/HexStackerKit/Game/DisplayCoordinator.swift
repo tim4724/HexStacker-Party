@@ -98,9 +98,9 @@ public final class DisplayCoordinator {
     // nil in headless/tests and when the WebRTC framework isn't linked, leaving
     // the relay as the sole input path (the v1 behavior).
     private let fastlane: InputFastlane?
-    // weak: RootScene owns the coordinator and is its output (a delegate-style
-    // back-reference). A strong ref here would form a RootScene <-> coordinator
-    // cycle pinning the engine, relay and music for the app's lifetime.
+    // weak: the shell (tvOS DisplayModel) owns the coordinator and is its output
+    // (a delegate-style back-reference). A strong ref here would form a
+    // shell <-> coordinator cycle pinning the engine, relay and music forever.
     // (internal, not private: shared with the Gallery extension file.)
     weak var output: DisplayOutput?
     let engineDirectory: URL

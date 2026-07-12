@@ -683,6 +683,20 @@ body.airconsole #qr-container,
   background: var(--bg-primary);
 }
 
+/* Match start (lobby → game): boards and the countdown scrim inside fade in
+   from the shared plum background as ONE unit. The class is set only on the
+   LOBBY → GAME edge (showScreen); re-entry from RESULTS keeps the screen
+   as-is and animates the countdown overlay alone instead. */
+#game-screen.screen-enter {
+  animation: fadeIn 0.3s ease-out both;
+}
+
+/* :not(.closing): .screen-enter stays on for the whole match, and this
+   higher-specificity rule must not also cancel the GO dismissal fade. */
+#game-screen.screen-enter #countdown-overlay:not(.closing) {
+  animation: none;
+}
+
 #game-canvas {
   display: block;
   width: 100%;
@@ -703,6 +717,16 @@ body.airconsole #qr-container,
   background: var(--overlay-bg);
   color: var(--accent-primary);
   z-index: 10;
+  /* Replays on every unhide (display:none → flex restarts animations):
+     PLAY AGAIN over the results screen and countdown re-shows fade in.
+     Suppressed under .screen-enter, where the whole game screen fades. */
+  animation: fadeIn 0.3s ease-out both;
+}
+
+/* GO → gameplay (fadeHide): scrim fades off the finished countdown. */
+#countdown-overlay.closing {
+  animation: fadeOut 0.25s ease both;
+  pointer-events: none;
 }
 
 /* Only the number pulses; the overlay stays static. */
@@ -853,6 +877,14 @@ body.airconsole #qr-container,
   background: radial-gradient(ellipse at 50% 30%, var(--winner-glow, rgba(255, 215, 0, 0.06)) 0%, transparent 60%),
               var(--overlay-bg);
   animation: fadeIn 0.5s ease both;
+}
+
+/* PLAY AGAIN (fadeHide): results fade out while the countdown fades in
+   over the boards beneath. Results → lobby stays an instant swap (the
+   lobby entrance stagger carries that transition). */
+#results-screen.closing {
+  animation: fadeOut 0.3s ease both;
+  pointer-events: none;
 }
 
 #results-screen h1 {

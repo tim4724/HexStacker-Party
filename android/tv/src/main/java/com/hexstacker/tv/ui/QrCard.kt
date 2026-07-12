@@ -1,5 +1,6 @@
 package com.hexstacker.tv.ui
 
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -52,11 +53,22 @@ fun QrBlock(
             .padding(vp.vminDp(4f, 1.2f, 9.3f)),
         contentAlignment = Alignment.Center,
     ) {
+        // The bitmap lands async (room `created` arrives mid-entrance): fade the
+        // modules in over the already-white card instead of popping (tvOS 0.3s
+        // module fade; the web paints its QR synchronously before the lobby is
+        // revealed, so it has no equivalent).
+        // Starts at full alpha when the bitmap is composed from the first
+        // frame (gallery qrOverride) — animateFloatAsState only animates on change.
+        val moduleAlpha by animateFloatAsState(
+            if (qrBitmap != null) 1f else 0f,
+            tween(300, easing = LinearOutSlowInEasing),
+            label = "qrModules",
+        )
         if (qrBitmap != null) {
             Image(
                 bitmap = qrBitmap,
                 contentDescription = null, // decorative; the join line is the text equivalent
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().alpha(moduleAlpha),
                 contentScale = ContentScale.Fit,
             )
         }

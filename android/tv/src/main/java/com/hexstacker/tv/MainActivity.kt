@@ -9,6 +9,15 @@ import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -652,69 +661,161 @@ internal fun DisplayChrome(
     Box(modifier.fillMaxSize()) {
         board()
 
-        when (model.screen) {
-            // About / Licenses each replace the lobby chrome (rather than layering over
-            // it) so D-pad focus can't escape back to the buttons underneath.
-            DisplayScreen.LOBBY ->
-                when {
-                    showLicenses ->
-                        LicensesScreen(entries = rememberLicenseEntries(), onClose = onCloseLicenses)
-                    showAbout ->
-                        AboutScreen(onOpenLicenses = onOpenLicenses)
-                    else ->
-                        // Render the lobby scaffold even before the room exists (model.lobby
-                        // still null): a waiting lobby with a blank QR, so the create-failure
-                        // overlay sits on top of the lobby (web / tvOS parity) instead of a
-                        // bare screen. roomReady swaps in the real room + QR.
-                        LobbyScreen(
-                            data = model.lobby ?: WAITING_LOBBY,
-                            onStart = onStart,
-                            qrPending = model.qrPending,
-                            onOpenAbout = onOpenAbout,
-                        )
+        // Cross-fade between screens over the board (web #game-screen fadeIn 0.3s /
+        // #results-screen fadeIn 0.5s). The lobby swaps instantly and plays its own
+        // entrance stagger. LOBBY / GAME / RESULTS all share the plum backdrop, so
+        // fading one out over the board reads clean.
+        AnimatedContent(
+            targetState = model.screen,
+            // Always fullscreen: the GAME branch composes nothing once the countdown
+            // clears, and without a pinned size the default SizeTransform would
+            // clip-expand the next screen from 0x0 instead of fading it.
+            modifier = Modifier.fillMaxSize(),
+            transitionSpec = {
+                when (targetState) {
+                    // Lobby fades out revealing the board; the countdown rides the GAME
+                    // branch fade so match start reads as one unit (web #game-screen 0.3s).
+                    DisplayScreen.GAME -> fadeIn(tween(300)) togetherWith fadeOut(tween(300))
+                    // Scrim + rows fade in (web #results-screen fadeIn 0.5s).
+                    DisplayScreen.RESULTS -> fadeIn(tween(500)) togetherWith fadeOut(tween(300))
+                    // Instant swap: the lobby owns its own entrance stagger.
+                    DisplayScreen.LOBBY -> EnterTransition.None togetherWith ExitTransition.None
                 }
-            DisplayScreen.RESULTS -> ResultsScreen(
-                results = model.results,
-                hostColorIndex = model.lobby?.hostColorIndex,
-                onPlayAgain = onPlayAgain,
-                onNewGame = onNewGame,
-            )
-            DisplayScreen.GAME -> Unit
+            },
+            label = "screen",
+        ) { screen ->
+            when (screen) {
+                // About / Licenses each replace the lobby chrome (rather than layering over
+                // it) so D-pad focus can't escape back to the buttons underneath. The swap
+                // fades (tvOS enterFade/exitFade parity): 300ms cross-fade opening a page,
+                // 200ms closing it; the lobby re-enters instantly and replays its own
+                // entrance stagger, like every other return to the lobby.
+                DisplayScreen.LOBBY -> AnimatedContent(
+                    targetState = if (showLicenses) 2 else if (showAbout) 1 else 0,
+                    modifier = Modifier.fillMaxSize(),
+                    transitionSpec = {
+                        if (targetState > initialState) fadeIn(tween(300)) togetherWith fadeOut(tween(300))
+                        else (if (targetState == 0) EnterTransition.None else fadeIn(tween(200)))
+                            .togetherWith(fadeOut(tween(200)))
+                    },
+                    label = "lobbyPage",
+                ) { page ->
+                    when (page) {
+                        2 -> LicensesScreen(entries = rememberLicenseEntries(), onClose = onCloseLicenses)
+                        1 -> AboutScreen(onOpenLicenses = onOpenLicenses)
+                        else ->
+                            // Render the lobby scaffold even before the room exists (model.lobby
+                            // still null): a waiting lobby with a blank QR, so the create-failure
+                            // overlay sits on top of the lobby (web / tvOS parity) instead of a
+                            // bare screen. roomReady swaps in the real room + QR.
+                            LobbyScreen(
+                                data = model.lobby ?: WAITING_LOBBY,
+                                onStart = onStart,
+                                qrPending = model.qrPending,
+                                onOpenAbout = onOpenAbout,
+                            )
+                    }
+                }
+                DisplayScreen.RESULTS -> ResultsScreen(
+                    results = model.results,
+                    hostColorIndex = model.lobby?.hostColorIndex,
+                    onPlayAgain = onPlayAgain,
+                    onNewGame = onNewGame,
+                )
+                DisplayScreen.GAME -> {
+                    // Hold the last non-null value so the overlay keeps rendering it
+                    // through its exit fade instead of vanishing when countdown clears.
+                    // (Web fades 0.25s after a 0.4s GO timer; here the dismissal rides
+                    // the first PLAYING snapshot — GO + the coordinator's ~500ms hold —
+                    // so the scrim never lifts before gameplay actually renders.)
+                    var lastCountdown by remember { mutableStateOf(model.countdown) }
+                    model.countdown?.let { lastCountdown = it }
+                    // Seeded visible so a branch enter (match start, play again) doesn't
+                    // double-fade the countdown with the GAME branch fade; a countdown
+                    // re-shown while GAME is already composed fades in on its own (web
+                    // #countdown-overlay fadeIn 0.3s).
+                    val countdownState = remember { MutableTransitionState(true) }
+                    countdownState.targetState = model.countdown != null
+                    AnimatedVisibility(
+                        visibleState = countdownState,
+                        enter = fadeIn(tween(300)),
+                        exit = fadeOut(tween(250)),
+                    ) {
+                        lastCountdown?.let { CountdownOverlay(value = it) }
+                    }
+                }
+            }
         }
 
-        // Additive overlays on top of any screen.
-        model.countdown?.takeIf { model.screen == DisplayScreen.GAME }?.let { CountdownOverlay(value = it) }
-        if (model.paused && model.screen == DisplayScreen.GAME) {
+        // The relay-link overlay outranks the pause overlay below it: both are
+        // full-screen scrims, so stacking them doubles the dim (the web fadeHides
+        // the pause overlay when the reconnect overlay comes up for the same
+        // reason). paused survives underneath, so the pause overlay fades back in
+        // when the link recovers.
+        val connectionVisible = model.connection == RelayTransport.ConnectionState.RECONNECTING ||
+            model.connection == RelayTransport.ConnectionState.CLOSED
+
+        // Additive overlays on top of any screen (web .game-overlay fadeIn 0.3s / new
+        // 0.2s exit). Content keeps rendering through the exit fade: the pause fields
+        // stay valid, so read them directly. Callbacks are gated on visibility (the
+        // web's .closing pointer-events guard): a fading-out overlay keeps D-pad
+        // focus for the 200ms exit, and an un-gated CONTINUE would re-pause the
+        // game it just resumed on a double press.
+        val pauseVisible = model.paused && model.screen == DisplayScreen.GAME && !connectionVisible
+        AnimatedVisibility(
+            visible = pauseVisible,
+            enter = fadeIn(tween(300)),
+            exit = fadeOut(tween(200)),
+        ) {
             PauseOverlay(
                 hostColorIndex = model.lobby?.hostColorIndex,
                 musicOn = !model.muted,
-                onToggleMusic = onToggleMusic,
-                onContinue = onContinue,
-                onNewGame = onNewGame,
+                onToggleMusic = { if (pauseVisible) onToggleMusic() },
+                onContinue = { if (pauseVisible) onContinue() },
+                onNewGame = { if (pauseVisible) onNewGame() },
             )
         }
 
         // Topmost: the display's own relay-link overlay (covers everything when our
-        // connection to the relay drops).
-        when (model.connection) {
-            RelayTransport.ConnectionState.RECONNECTING ->
-                ConnectionOverlay(
-                    disconnected = false,
-                    onReconnect = onReconnect,
-                    attempt = model.reconnectAttempt,
-                    maxAttempts = RelayConfig.MAX_RECONNECT_ATTEMPTS,
-                )
-            RelayTransport.ConnectionState.CLOSED ->
-                // A "replaced" eviction is terminal: show DISCONNECTED with no RECONNECT
-                // button (re-arming reconnect would only be evicted again), mirroring the
-                // web dropping the reconnect affordance in that state.
-                if (model.replaced) ConnectionOverlay(disconnected = true, showReconnect = false)
-                else ConnectionOverlay(
-                    disconnected = true,
-                    onReconnect = onReconnect,
-                    hostColorIndex = model.lobby?.hostColorIndex,
-                )
-            else -> Unit
+        // connection to the relay drops). Hold the last overlay-worthy state so the
+        // exiting overlay keeps its content through the fade-out (web .game-overlay
+        // fadeOut 0.2s) instead of recomposing to nothing when the link reopens.
+        var lastConnection by remember { mutableStateOf(model.connection) }
+        var lastReplaced by remember { mutableStateOf(model.replaced) }
+        var lastReconnectAttempt by remember { mutableStateOf(model.reconnectAttempt) }
+        if (connectionVisible) {
+            lastConnection = model.connection
+            lastReplaced = model.replaced
+            lastReconnectAttempt = model.reconnectAttempt
+        }
+        AnimatedVisibility(
+            visible = connectionVisible,
+            enter = fadeIn(tween(300)),
+            exit = fadeOut(tween(200)),
+        ) {
+            when (lastConnection) {
+                RelayTransport.ConnectionState.RECONNECTING ->
+                    ConnectionOverlay(
+                        disconnected = false,
+                        // Gated like the pause callbacks: RECONNECT stays focusable
+                        // through the 200ms exit fade, and firing it against the
+                        // just-recovered link would re-kick the reconnect machinery.
+                        onReconnect = { if (connectionVisible) onReconnect() },
+                        attempt = lastReconnectAttempt,
+                        maxAttempts = RelayConfig.MAX_RECONNECT_ATTEMPTS,
+                    )
+                RelayTransport.ConnectionState.CLOSED ->
+                    // A "replaced" eviction is terminal: show DISCONNECTED with no RECONNECT
+                    // button (re-arming reconnect would only be evicted again), mirroring the
+                    // web dropping the reconnect affordance in that state.
+                    if (lastReplaced) ConnectionOverlay(disconnected = true, showReconnect = false)
+                    else ConnectionOverlay(
+                        disconnected = true,
+                        onReconnect = { if (connectionVisible) onReconnect() },
+                        hostColorIndex = model.lobby?.hostColorIndex,
+                    )
+                else -> Unit
+            }
         }
     }
 }
