@@ -12,10 +12,14 @@ final class MenuButton: SKNode, Focusable {
     let enabled: Bool
 
     private let primary: Bool
+    private var tint: UIColor
+    private let fill: SKSpriteNode
     private let ring = SKShapeNode()
     private let label = SKLabelNode()
     private let labelText: String
     private let labelSize: CGFloat
+
+    private static let radius: CGFloat = 16   // var(--radius-btn)
 
     /// `tint` colors the filled primary gradient; it is unused for the neutral
     /// secondary (card fill + rim), which reads the same for every caller.
@@ -24,11 +28,10 @@ final class MenuButton: SKNode, Focusable {
         self.action = action
         self.enabled = enabled
         self.primary = primary
+        self.tint = tint
         self.labelText = text
         self.labelSize = height * 0.36
-        super.init()
 
-        let radius: CGFloat = 16   // var(--radius-btn)
         let top: UIColor, bottom: UIColor
         if enabled && primary {
             top = tint; bottom = Self.scaled(tint, 0.82)
@@ -39,14 +42,16 @@ final class MenuButton: SKNode, Focusable {
             // Disabled: quiet card surface, no tint (web .btn-primary:disabled).
             top = SKTheme.bgCard; bottom = SKTheme.bgCard
         }
-        let fill = SKSpriteNode(texture: Self.bakeFill(width: width, height: height, radius: radius,
-                                                       top: top, bottom: bottom))
+        self.fill = SKSpriteNode(texture: Self.bakeFill(width: width, height: height, radius: Self.radius,
+                                                        top: top, bottom: bottom))
+        super.init()
+
         fill.size = CGSize(width: width, height: height)
         fill.zPosition = 0
         addChild(fill)
 
         ring.path = UIBezierPath(roundedRect: CGRect(x: -width / 2, y: -height / 2, width: width, height: height),
-                                 cornerRadius: radius).cgPath
+                                 cornerRadius: Self.radius).cgPath
         ring.fillColor = .clear
         ring.isAntialiased = true
         ring.zPosition = 1
@@ -64,6 +69,17 @@ final class MenuButton: SKNode, Focusable {
     required init?(coder: NSCoder) { fatalError() }
 
     func activate() { action() }
+
+    /// Recolor the filled primary gradient in place (web: the CTA reads the
+    /// LIVE --player-color, so a host handoff recolors it without a rebuild).
+    /// No-op for secondary/disabled fills (they carry no tint) and for an
+    /// unchanged color (roster churn fires far more often than handoffs).
+    func setTint(_ tint: UIColor) {
+        guard enabled, primary, tint != self.tint else { return }
+        self.tint = tint
+        fill.texture = Self.bakeFill(width: fill.size.width, height: fill.size.height,
+                                     radius: Self.radius, top: tint, bottom: Self.scaled(tint, 0.82))
+    }
 
     func setFocused(_ focused: Bool) {
         let textColor: UIColor = !enabled ? SKTheme.textSecondary

@@ -709,7 +709,11 @@ internal fun DisplayChrome(
                 // button (re-arming reconnect would only be evicted again), mirroring the
                 // web dropping the reconnect affordance in that state.
                 if (model.replaced) ConnectionOverlay(disconnected = true, showReconnect = false)
-                else ConnectionOverlay(disconnected = true, onReconnect = onReconnect)
+                else ConnectionOverlay(
+                    disconnected = true,
+                    onReconnect = onReconnect,
+                    hostColorIndex = model.lobby?.hostColorIndex,
+                )
             else -> Unit
         }
     }

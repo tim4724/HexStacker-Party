@@ -38,6 +38,10 @@ fun ConnectionOverlay(
     // attempt <= 0 falls back to the static "Connection lost" (the first tick).
     attempt: Int = 0,
     maxAttempts: Int = 0,
+    // Host tint for the RECONNECT CTA (web: #reconnect-btn reads --player-color).
+    // With the relay down no roster change can arrive, so the last-known host
+    // color is exactly what the web shows too.
+    hostColorIndex: Int? = null,
     modifier: Modifier = Modifier,
 ) {
     val focus = remember { FocusRequester() }
@@ -91,7 +95,7 @@ fun ConnectionOverlay(
                 ChromeButton(
                     text = stringResource(R.string.reconnect),
                     primary = true,
-                    tint = Tokens.accentPrimary,
+                    tint = hostTint(hostColorIndex),
                     fontSize = vp.vhSp(17.6f, 2.4f, 27.2f),
                     contentPadding = PaddingValues(
                         horizontal = vp.vwDp(24f, 3f, 48f),

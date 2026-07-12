@@ -12,7 +12,7 @@ final class MusicSwitch: SKNode, Focusable {
     let action: () -> Void
 
     private var isOn: Bool
-    private let onColor: UIColor
+    private var onColor: UIColor
     private let ring = SKShapeNode()      // focus frame at the content bounds
     private let label = SKLabelNode()
     private let track = SKSpriteNode()
@@ -86,6 +86,9 @@ final class MusicSwitch: SKNode, Focusable {
     func activate() { action() }
 
     func setOn(_ on: Bool) { isOn = on; updateVisual() }
+
+    /// Follow a host handoff (web: the ON state reads the LIVE --player-color).
+    func setTint(_ tint: UIColor) { onColor = tint; updateVisual() }
 
     func setFocused(_ focused: Bool) {
         ring.fillColor = focused ? UIColor(white: 1, alpha: 0.06) : .clear

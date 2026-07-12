@@ -39,6 +39,10 @@ final class RootScene: SKScene, DisplayOutput {
     private let pauseDim = SKShapeNode()
     private let pauseTitle = SKLabelNode()
     private weak var musicToggle: MusicSwitch?   // music on/off in the pause menu
+    // Visible host-tinted CTAs, kept for the live retint on a host handoff
+    // (web: applyHostTint updates --player-color and the buttons follow).
+    private weak var pauseContinueBtn: MenuButton?
+    private weak var resultsPlayAgainBtn: MenuButton?
 
     // Full-screen DISPLAY-connection overlay (the display's own relay link is
     // reconnecting / lost). Distinct from a single controller dropping, which is
@@ -394,7 +398,17 @@ final class RootScene: SKScene, DisplayOutput {
         // (hidden) title texture + QR + every player card behind the game is wasted
         // work. returnToLobby transitions to .lobby before broadcasting, so the
         // rebuild that repopulates the lobby on match end is not skipped.
-        guard coordinator?.state == .lobby else { return }
+        guard coordinator?.state == .lobby else {
+            // A host handoff behind the game still recolors the on-screen CTAs
+            // (web: applyHostTint updates the live --player-color, so the pause
+            // and results buttons follow without a rebuild). hostColor reads the
+            // same flow this roster broadcast came from.
+            let color = hostColor
+            pauseContinueBtn?.setTint(color ?? SKTheme.accentPrimary)
+            resultsPlayAgainBtn?.setTint(color ?? SKTheme.accentPrimary)
+            musicToggle?.setTint(color ?? SKTheme.accentSecondary)
+            return
+        }
         buildLobby(room: room, joinURL: lobbyJoinURL ?? "", players: players, host: hostPeerIndex)
     }
 
@@ -462,6 +476,12 @@ final class RootScene: SKScene, DisplayOutput {
         lobbyBg.freeze(pieces)   // gallery lobby shots: freeze the falling-piece background
     }
 
+    /// The current host's identity color (web --player-color); nil when no host.
+    private var hostColor: UIColor? {
+        coordinator.flatMap { c in c.flow.host.flatMap { c.flow.player($0)?.colorSlot } }
+            .map { SKTheme.player(slot: $0) }
+    }
+
     func setPaused(_ paused: Bool) {
         // Rebuild the pause rows (positions depend on the play rect). Remove the
         // music switch too, not just the buttons: a stale MusicSwitch left behind
@@ -476,26 +496,25 @@ final class RootScene: SKScene, DisplayOutput {
             let btnH = max(48, playRect.height * 0.075)
             let btnW = max(playRect.width * 0.18, btnH * 4.5)
             let gap = playRect.width * 0.03
-            let hostColorOpt = coordinator.flatMap { c in c.flow.host.flatMap { c.flow.player($0)?.colorSlot } }
-                .map { SKTheme.player(slot: $0) }
-            let hostColor = hostColorOpt ?? SKTheme.accentPrimary
+            let hostTint = hostColor ?? SKTheme.accentPrimary
 
             // "Game Music" settings row above the action buttons (reachable with
             // d-pad Up); content-hugging with a snug focus frame (Android parity).
             // ON tint = host color (web --player-color).
             let muted = coordinator?.isMuted ?? false
             let musicRow = MusicSwitch(height: btnH, isOn: !muted,
-                                       tint: hostColorOpt ?? SKTheme.accentSecondary) { [weak self] in self?.toggleMusic() }
+                                       tint: hostColor ?? SKTheme.accentSecondary) { [weak self] in self?.toggleMusic() }
             musicRow.position = CGPoint(x: cx, y: cy)
             musicToggle = musicRow
 
             let cont = MenuButton(text: trUpper("continue_btn"), width: btnW, height: btnH, primary: true,
-                                  tint: hostColor) { [weak self] in self?.coordinator?.remoteTogglePause() }
+                                  tint: hostTint) { [weak self] in self?.coordinator?.remoteTogglePause() }
+            pauseContinueBtn = cont
             // Neutral secondary (card fill + 1px rim, cream label) — matches the web
             // `.btn-secondary` and the results "New Game", so no secondary reads as
             // an accent/host color. Continue is the sole filled host CTA.
             let ng = MenuButton(text: trUpper("new_game"), width: btnW, height: btnH, primary: false,
-                                tint: hostColor) { [weak self] in self?.coordinator?.remoteReturnToLobby() }
+                                tint: hostTint) { [weak self] in self?.coordinator?.remoteReturnToLobby() }
             cont.position = CGPoint(x: cx - btnW / 2 - gap / 2, y: cy - rowSpacing)
             ng.position = CGPoint(x: cx + btnW / 2 + gap / 2, y: cy - rowSpacing)
             // Above pauseDim (see buildPauseOverlay: equal-z order is undefined
@@ -867,8 +886,11 @@ final class RootScene: SKScene, DisplayOutput {
             let probe = SKLabelNode()
             probe.setStyledText(reconnect, font: AppFont.brandBold, size: btnH * 0.36, color: .white, tracking: 0.08)
             let bw = probe.frame.width + min(playRect.width * 0.04, 96) * 2
+            // Host-tinted like every web primary CTA (#reconnect-btn reads
+            // --player-color): with the relay down no roster change can arrive,
+            // so the last-known host color is exactly what the web shows too.
             let btn = MenuButton(text: reconnect, width: bw, height: btnH, primary: true,
-                                 tint: SKTheme.accentPrimary) { [weak self] in
+                                 tint: hostColor ?? SKTheme.accentPrimary) { [weak self] in
                 self?.relay?.reconnectNow(); self?.hideConnectionOverlay()
             }
             // Sit just below the heading (web stacks them tightly); symmetric with the
@@ -1233,11 +1255,11 @@ final class RootScene: SKScene, DisplayOutput {
         let radius = max(14, min(vmin * 0.024, 22))
         let pad = max(6, min(vmin * 0.012, 14))
 
-        let qrBg = SKShapeNode(path: roundedRect(CGRect(x: -w / 2, y: -w / 2, width: w, height: w),
-                                                 radius: radius))
-        qrBg.fillColor = .white
-        qrBg.strokeColor = .clear
-        node.addChild(qrBg)
+        // Baked texture, not SKShapeNode: shape FILLS get no anti-aliasing
+        // (isAntialiased only smooths strokes), so the rounded corners
+        // stair-step at 1080p. Baking also picks up the web #qr-code
+        // box-shadow (--shadow-sm).
+        node.addChild(Self.bakeShadowCard(width: w, height: w, radius: radius, fill: .white))
         // The QR encodes lobbyQRText (== joinURL in production; a distinct target
         // in the gallery JOIN fixture). Empty payload = no room yet (the pre-room /
         // create-failure lobby): leave the white square blank, matching the web
@@ -1335,6 +1357,9 @@ final class RootScene: SKScene, DisplayOutput {
             opening.lineWidth = 2
             opening.isAntialiased = true
             opening.alpha = 0.5
+            // Above the socket fill: equal-z sibling order is undefined under
+            // ignoresSiblingOrder and can swap per frame (visible flicker).
+            opening.zPosition = 1
             node.addChild(opening)
 
             // Breathe: card opacity 1 → 0.55 → 1 over 3.2s, ease-in-out (web
@@ -1510,13 +1535,16 @@ final class RootScene: SKScene, DisplayOutput {
             y -= rowH + rowGap
         }
 
-        // Action buttons (focusable; also triggerable from a phone). The web
-        // never winner-tints the CTA — only the background glow carries color.
+        // Action buttons (focusable; also triggerable from a phone). The primary
+        // CTA is host-tinted like the web (#play-again-btn reads --player-color,
+        // see applyHostTint); the winner only colors the background glow.
         let btnY = groupTop - rowsBlockH - groupGap - btnH / 2
+        let hostTint = hostColor ?? SKTheme.accentPrimary
         let playAgain = MenuButton(text: trUpper("play_again"), width: btnW, height: btnH, primary: true,
-                                   tint: SKTheme.accentPrimary) { [weak self] in self?.coordinator?.remoteStartMatch() }
+                                   tint: hostTint) { [weak self] in self?.coordinator?.remoteStartMatch() }
+        resultsPlayAgainBtn = playAgain
         let newGame = MenuButton(text: trUpper("new_game"), width: btnW, height: btnH, primary: false,
-                                 tint: SKTheme.accentPrimary) { [weak self] in self?.coordinator?.remoteReturnToLobby() }
+                                 tint: hostTint) { [weak self] in self?.coordinator?.remoteReturnToLobby() }
         playAgain.position = CGPoint(x: W / 2 - btnW / 2 - gap / 2, y: btnY)
         newGame.position = CGPoint(x: W / 2 + btnW / 2 + gap / 2, y: btnY)
         resultsLayer.addChild(playAgain)
