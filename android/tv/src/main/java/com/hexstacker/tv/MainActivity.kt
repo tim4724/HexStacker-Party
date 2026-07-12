@@ -279,6 +279,11 @@ class MainActivity : ComponentActivity() {
      *  retired the room), and restore music only if a match is actively running. */
     override fun onStart() {
         super.onStart()
+        // Every foreground entry (launch included): hold the audio output out of
+        // standby so the countdown "3" — the first real sound of a session — doesn't
+        // play over the output path's cold start (audible as a distorted first tick).
+        // onStop undoes this via music.pauseForBackground().
+        music.keepOutputWarm()
         if (suspendedForBackground) {
             suspendedForBackground = false
             relay.reconnect()

@@ -78,11 +78,19 @@ class MusicPlayer(context: Context) {
     private val beepsDelegate = lazy(LazyThreadSafetyMode.NONE) { BeepSynth() } // precomputes TICK + GO PCM once
     private val beeps: BeepSynth by beepsDelegate
 
+    // Keeps the audio output out of standby while foregrounded, so the first beep of a
+    // session (the countdown "3") doesn't play over the output path's cold start.
+    private val keepAlive = OutputKeepAlive()
+
     /** Pre-build the player + beep PCM ahead of first use (lobby idle, post-entrance). */
     fun warmUp() {
         playerDelegate.value
         beepsDelegate.value
     }
+
+    /** Hold the audio output awake (Activity `onStart`). Idempotent; undone by
+     *  [pauseForBackground], which the matching `onStop` already calls. */
+    fun keepOutputWarm() = keepAlive.start()
 
     private var muted = false
 
@@ -212,6 +220,7 @@ class MusicPlayer(context: Context) {
      */
     fun pauseForBackground() {
         cancelFade()
+        keepAlive.stop() // let the audio pipeline sleep while backgrounded
         if (playerDelegate.isInitialized()) player.playWhenReady = false
     }
 
@@ -225,6 +234,7 @@ class MusicPlayer(context: Context) {
     /** Free native audio resources (Activity `onDestroy`). Safe to call once. */
     fun release() {
         cancelFade()
+        keepAlive.stop()
         if (playerDelegate.isInitialized()) player.release()
         if (beepsDelegate.isInitialized()) beeps.release()
     }
