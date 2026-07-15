@@ -193,7 +193,9 @@ private struct LobbyMetrics {
         if rowWidth > budget { let s = budget / rowWidth; cardW *= s; qrW *= s }
         self.cardW = cardW
         self.qrW = qrW
-        cardH = cardW * 0.5
+        // Web display .player-card aspect-ratio 2.5:1 (flatter than the
+        // controller's 2:1: just a name + quiet pill, less air between them).
+        cardH = cardW * 0.4
     }
 }
 
@@ -252,12 +254,12 @@ struct PlayerCardView: View {
     /// carried by the name text (web .player-card A2, --shadow-sm).
     private func filled(_ seat: LobbySeat) -> some View {
         let color = UITheme.player(slot: seat.colorSlot)
-        // web .identity-name clamp(1.5rem,4.5vmin,2.4rem); 10-foot cap 38.4
-        // (4.5vmin = 0.25 of the 2:1 card's 18vmin height). Long names shrink
-        // to fit rather than truncate, down to the web fitter's 0.6 floor.
-        let nameSize = min(h * 0.25, 38.4)
+        // web .identity-name clamp(1.5rem,4.5vmin,2.4rem); 10-foot cap 38.4.
+        // Long names shrink to fit rather than truncate, down to the web
+        // fitter's 0.6 floor.
+        let nameSize = min(vp.vmin * 0.045, 38.4)
         // web .card-level__* clamp(0.75rem, 2vmin, 1.15rem); cap 18.4.
-        let pillFontSize = min(h * 0.11, 18.4)
+        let pillFontSize = min(vp.vmin * 0.02, 18.4)
         // Equal Spacers = web justify-content: space-evenly: the whitespace
         // above the name, between name and pill, and below the pill matches.
         return VStack(spacing: 0) {

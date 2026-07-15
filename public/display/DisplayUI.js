@@ -178,6 +178,7 @@ function updatePlayerList() {
     ? Math.min(Math.max(players.size, 1), 4)
     : (visibleSlots > 4 && landscape ? 4 : 2);
   playerListEl.style.setProperty('--cols', cols);
+  fitLobbyRow(cols, isAirConsole, landscape);
 
   for (var j = 0; j < totalSlots; j++) {
     var slot = playerListEl.children[j];
@@ -225,6 +226,32 @@ function updatePlayerList() {
   }
 
   fitPlayerNames();
+}
+
+// Proportional row fit, mirroring the tvOS/Android TV lobbies: when the
+// widest row (QR + a 4-wide roster) would overflow #lobby-main, scale
+// --card-w down so the QR (calc(--card-w + 40px)) and the cards shrink
+// TOGETHER, instead of the grid's minmax() crushing only the card columns
+// beside a full-size QR. The clamps mirror display.css: --card-w
+// clamp(150px, 36vmin, 350px), grid gap clamp(8px, 1.5vmin, 18px),
+// #lobby-main gap clamp(1rem, 3vmin, 2.5rem).
+function fitLobbyRow(cols, isAirConsole, landscape) {
+  var lobbyMain = document.getElementById('lobby-main');
+  if (!lobbyMain || !lobbyMain.clientWidth) return;
+  var vmin = Math.min(window.innerWidth, window.innerHeight);
+  var cardW = Math.max(150, Math.min(0.36 * vmin, 350));
+  var gap = Math.max(8, Math.min(0.015 * vmin, 18));
+  // The QR shares the row only in landscape (portrait stacks it above the
+  // grid) and never on AirConsole (no QR at all).
+  var hasQr = !isAirConsole && landscape;
+  var avail = lobbyMain.clientWidth - (cols - 1) * gap;
+  if (hasQr) avail -= Math.max(16, Math.min(0.03 * vmin, 40)) + 40;
+  var fitted = Math.min(cardW, avail / (cols + (hasQr ? 1 : 0)));
+  if (fitted < cardW) {
+    lobbyMain.style.setProperty('--card-w', fitted.toFixed(2) + 'px');
+  } else {
+    lobbyMain.style.removeProperty('--card-w');
+  }
 }
 
 // Shrink-to-fit for card names: CSS has no native "auto" font-size, so

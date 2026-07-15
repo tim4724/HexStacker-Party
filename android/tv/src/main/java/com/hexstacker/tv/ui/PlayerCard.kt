@@ -49,7 +49,8 @@ import kotlin.math.max
 /**
  * One lobby seat — a tonal filled player card or a recessed empty socket
  * (web `.player-card` / `.player-card.empty` A2, tvOS `buildPlayerCard`).
- * 2:1 aspect; [cardW] sets the width, aspect ratio derives the height.
+ * 2.5:1 aspect (web display .player-card override; the controller card
+ * stays 2:1); [cardW] sets the width, aspect ratio derives the height.
  *
  * Filled: borderless 20dp card, the player color mixed into the surface
  * (color-mix 20% into `--bg-card`) and carried by the name; a quiet recessed
@@ -91,7 +92,7 @@ fun PlayerCard(
         Box(
             modifier
                 .width(cardW)
-                .aspectRatio(2f)
+                .aspectRatio(2.5f)
                 .clip(shape)
                 .background(Tokens.socketEmpty, shape)
                 .border(1.dp, Tokens.hairlineFaint, shape),
@@ -133,7 +134,7 @@ fun PlayerCard(
     Column(
         modifier
             .width(cardW)
-            .aspectRatio(2f)
+            .aspectRatio(2.5f)
             .shadowSm(Tokens.radiusCard) // web .player-card box-shadow: var(--shadow-sm)
             .clip(shape)
             .background(Tokens.tonalCard(color), shape),

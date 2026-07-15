@@ -437,8 +437,8 @@ html:not(.in-session) #relay-status-bar { display: none; }
   flex-direction: column;
   align-items: center;
   gap: clamp(8px, 1.6vmin, 14px);
-  /* Always a touch taller than the two-card column beside it (2:1 cards
-     stack to --card-w + the grid gap, which caps at 18px). */
+  /* Always taller than the two-card column beside it (2.5:1 cards stack
+     to 0.8 x --card-w + the grid gap). */
   width: calc(var(--card-w) + 40px);
   max-width: 90vw;
 }
@@ -579,11 +579,12 @@ html:not(.in-session) #relay-status-bar { display: none; }
 
 /* Player cards. Column count comes from updatePlayerList() via --cols
    (2 default, 4 for big landscape rosters, player count on AirConsole).
-   Columns are --card-w wide (see #lobby-main); minmax(0,) lets them
-   shrink below it when QR + cards exceed the row, and the name fitter in
-   updatePlayerList() scales the text down to match. `width: max-content`
-   stops the grid from stretching to fill the flex row and leaving a
-   trough between the QR and the cards. */
+   Columns are --card-w wide (see #lobby-main). When QR + cards would
+   exceed the row, updatePlayerList() scales --card-w down so the QR and
+   cards shrink together (TV-parity proportional fit) and the name fitter
+   scales the text to match; minmax(0,) stays as a subpixel backstop.
+   `width: max-content` stops the grid from stretching to fill the flex
+   row and leaving a trough between the QR and the cards. */
 #player-list {
   display: grid;
   grid-template-columns: repeat(var(--cols, 2), minmax(0, var(--card-w)));
@@ -595,12 +596,14 @@ html:not(.in-session) #relay-status-bar { display: none; }
 }
 
 .player-card {
-  /* Layout (flex column, 2:1 aspect) lives in theme.css. Display-only:
-     scale-down hint for nested elements + min-width: 0 so the card can
-     shrink inside the grid's min-content track. The 50/50 halves are a
-     controller concern (touch targets); here name + pill collapse to
-     content height and space-evenly balances the whitespace above,
-     between, and below them. */
+  /* Layout (flex column) lives in theme.css. Display-only: the theme's
+     2:1 aspect is a controller concern (touch halves + level stepper);
+     with just a name and a quiet pill the lobby card carries less, so a
+     flatter 2.5:1 keeps the whitespace between them from ballooning.
+     min-width: 0 lets the card shrink inside the grid's min-content
+     track; name + pill collapse to content height and space-evenly
+     balances the whitespace above, between, and below them. */
+  aspect-ratio: 2.5 / 1;
   font-size: clamp(0.85rem, 1.8vmin, 1.4rem);
   min-width: 0;
   justify-content: space-evenly;
