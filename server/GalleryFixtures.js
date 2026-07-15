@@ -52,6 +52,11 @@ var JOIN = {
 // Slot order == color index order. Levels are the lobby-badge variety; game
 // board levels come from the variant spec instead.
 var NAMES = ['Emma', 'Jake', 'Sofia', 'Liam', 'Mia', 'Noah', 'Ava', 'Leo'];
+// Couch-Games-style auto names at/near the 16-char cap (the controller
+// input's maxlength), for the lobby-long-names gallery row: every platform
+// renders its shrink-to-fit name path against the same worst case.
+var LONG_NAMES = ['Fabulous Chicken', 'Grumpy Flamingo', 'Majestic Warthog', 'Sneaky Capybara',
+                  'Bouncy Axolotl', 'Mighty Pigeon', 'Wobbly Ostrich', 'Zesty Armadillo'];
 var LOBBY_LEVELS = [3, 1, 5, 2, 4, 6, 2, 1];
 
 // Per-slot lines-counter salt: displayed lines = (level-1)*10 + salt, which
@@ -59,11 +64,12 @@ var LOBBY_LEVELS = [3, 1, 5, 2, 4, 6, 2, 1];
 // while giving each board a distinct, plausible LINES readout.
 var LINES_SALT = [4, 7, 2, 9, 6, 3, 8, 5];
 
-function roster(count) {
-  var n = Math.max(0, Math.min(count, NAMES.length));
+function roster(count, longNames) {
+  var names = longNames ? LONG_NAMES : NAMES;
+  var n = Math.max(0, Math.min(count, names.length));
   var list = [];
   for (var i = 0; i < n; i++) {
-    list.push({ id: i, slot: i, name: NAMES[i], level: LOBBY_LEVELS[i] });
+    list.push({ id: i, slot: i, name: names[i], level: LOBBY_LEVELS[i] });
   }
   return list;
 }
@@ -298,6 +304,7 @@ exports.GalleryFixtures = {
   SEED: SEED,
   JOIN: JOIN,
   NAMES: NAMES,
+  LONG_NAMES: LONG_NAMES,
   roster: roster,
   gameVariant: gameVariant,
   gameSnapshot: gameSnapshot,

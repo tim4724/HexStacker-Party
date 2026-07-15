@@ -356,14 +356,14 @@
    a faint hex opening, breathing slowly. Reads as "a seat waiting for a
    piece", not a broken card. Name/level halves are hidden; the centered
    .player-card__opening (hex outline SVG, built by DisplayUI) shows
-   instead. */
+   instead. Only the hex breathes; pulsing the whole card's opacity made
+   the socket surface read as flicker once the lobby cards grew. */
 .player-card.empty {
   background: rgba(21, 18, 31, 0.55);
   border: 1px solid rgba(255, 248, 236, 0.05);
   box-shadow: none;
   align-items: center;
   justify-content: center;
-  animation: breathe 3.2s ease-in-out infinite;
 }
 
 .player-card.empty .player-card__top,
@@ -378,14 +378,17 @@
 
 .player-card.empty .player-card__opening {
   display: flex;
+  animation: breathe 3.2s ease-in-out infinite;
 }
 
+/* Trough matches the hex's old effective low (0.5 base × the card's
+   former 0.55 pulse). */
 @keyframes breathe {
-  50% { opacity: 0.55; }
+  50% { opacity: 0.27; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .player-card.empty { animation: none; }
+  .player-card.empty .player-card__opening { animation: none; }
 }
 
 /* HEX STACKER lockup — triad mark (shared/brand-mark.svg: teal/red/honey

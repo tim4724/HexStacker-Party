@@ -18,12 +18,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -33,18 +35,21 @@ import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.hexstacker.tv.R
 import com.hexstacker.tv.render.addRoundedHex
+import kotlin.math.max
 
 /**
  * One lobby seat — a tonal filled player card or a recessed empty socket
  * (web `.player-card` / `.player-card.empty` A2, tvOS `buildPlayerCard`).
- * 2:1 aspect; the caller sizes the card via [modifier] (e.g.
- * `Modifier.width(cardW)`); aspect ratio derives the height.
+ * 2:1 aspect; [cardW] sets the width, aspect ratio derives the height.
  *
  * Filled: borderless 20dp card, the player color mixed into the surface
  * (color-mix 20% into `--bg-card`) and carried by the name; a quiet recessed
@@ -56,6 +61,7 @@ import com.hexstacker.tv.render.addRoundedHex
 fun PlayerCard(
     player: LobbyPlayer?,
     vp: Vp,
+    cardW: Dp,
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(Tokens.radiusCard)
@@ -64,17 +70,18 @@ fun PlayerCard(
     // web-px / 1.5 because a capped .sp renders 1.5x larger at the gallery's hdpi
     // density; the vmin % carries through unchanged (720dp * 1.5 = 1080px).
     val nameSize = vp.vminSp(16f, 4.5f, 25.6f) // caps at 38.4px (2.4rem) on a 1080p TV
-    val levelSize = vp.vminSp(6.9f, 1.6f, 10.1f) // .card-level__* clamp(0.65rem,1.6vmin,0.95rem)
+    val levelSize = vp.vminSp(8f, 2f, 12.3f) // .card-level__* clamp(0.75rem,2vmin,1.15rem)
     val padH = vp.vminDp(8f, 1.4f, 14f) // half padding clamp(8px,1.4vmin,14px)
-    val contentGap = vp.vminDp(3f, 0.9f, 9f) // display card name↔pill gap clamp(3px,0.9vmin,9px)
 
     if (player == null) {
-        // Empty slot — recessed socket, breathing slowly (@keyframes breathe:
-        // opacity 1 → 0.55 → 1 over 3.2s ease-in-out).
+        // Empty slot — recessed socket with a faint hex opening, breathing
+        // slowly (@keyframes breathe: opacity 0.5 → 0.27 → 0.5 over 3.2s
+        // ease-in-out). Only the hex breathes; pulsing the whole card read
+        // as background flicker once the lobby cards grew (web parity).
         val breathe = rememberInfiniteTransition(label = "socketBreathe")
-        val socketAlpha by breathe.animateFloat(
-            initialValue = 1f,
-            targetValue = 0.55f,
+        val hexAlpha by breathe.animateFloat(
+            initialValue = 0.5f,
+            targetValue = 0.27f,
             animationSpec = infiniteRepeatable(
                 animation = tween(1600, easing = LinearOutSlowInEasing),
                 repeatMode = RepeatMode.Reverse,
@@ -83,43 +90,62 @@ fun PlayerCard(
         )
         Box(
             modifier
+                .width(cardW)
                 .aspectRatio(2f)
-                .alpha(socketAlpha)
                 .clip(shape)
                 .background(Tokens.socketEmpty, shape)
                 .border(1.dp, Tokens.hairlineFaint, shape),
             contentAlignment = Alignment.Center,
         ) {
             // Faint rounded-hex opening (web .player-card__opening, sized
-            // clamp(28px,5.5vmin,56px) wide for 10-foot viewing, at 0.5 alpha).
-            SocketOpening(Modifier.size(vp.vminDp(28f, 5.5f, 56f)).alpha(0.5f))
+            // clamp(28px,5.5vmin,56px) wide for 10-foot viewing).
+            SocketOpening(Modifier.size(vp.vminDp(28f, 5.5f, 56f)).alpha(hexAlpha))
         }
         return
     }
 
     val color = playerColor(player.colorIndex)
-    // Web stacks the name's 1.15em line box (.identity-name line-height), the
-    // gap, and the pill box, centered as a group — capping the name's box (the
-    // Wordmark pattern: Baloo's natural box is ~1.6em and would push the pill
-    // down) seats the pair a touch above the card middle, like the browser.
-    val nameLineH = with(LocalDensity.current) { nameSize.toDp() } * 1.15f
+    // Shrink-to-fit, the Compose twin of the web name fitter: measure the name
+    // at its stylesheet size and scale it down only when it would overflow the
+    // padded card, to the same 0.6 floor; past that the ellipsis takes over.
+    val density = LocalDensity.current
+    val baseNameStyle = AppType.cardName.copy(
+        fontSize = nameSize,
+        color = color,
+        platformStyle = PlatformTextStyle(includeFontPadding = false),
+    )
+    val measurer = rememberTextMeasurer()
+    val fittedNameSize = remember(player.name, nameSize, cardW, padH, density) {
+        val availPx = with(density) { (cardW - padH * 2).toPx() }
+        val fullPx = measurer.measure(
+            AnnotatedString(player.name),
+            style = baseNameStyle,
+            softWrap = false,
+            maxLines = 1,
+        ).size.width.toFloat()
+        if (fullPx <= availPx) nameSize
+        else nameSize * max(0.6f, availPx / fullPx * 0.98f)
+    }
+    // Web stacks the name's 1.15em line box (.identity-name line-height) and
+    // the pill box — capping the name's box (the Wordmark pattern: Baloo's
+    // natural box is ~1.6em and would push the pill down) matches the browser.
+    val nameLineH = with(density) { nameSize.toDp() } * 1.15f
     Column(
         modifier
+            .width(cardW)
             .aspectRatio(2f)
             .shadowSm(Tokens.radiusCard) // web .player-card box-shadow: var(--shadow-sm)
             .clip(shape)
             .background(Tokens.tonalCard(color), shape),
-        verticalArrangement = Arrangement.spacedBy(contentGap, Alignment.CenterVertically),
+        // Web justify-content: space-evenly: the whitespace above the name,
+        // between name and pill, and below the pill stays equal.
+        verticalArrangement = Arrangement.SpaceEvenly,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(Modifier.height(nameLineH).fillMaxWidth().padding(horizontal = padH), contentAlignment = Alignment.Center) {
             Text(
                 text = player.name,
-                style = AppType.cardName.copy(
-                    fontSize = nameSize,
-                    color = color,
-                    platformStyle = PlatformTextStyle(includeFontPadding = false),
-                ),
+                style = baseNameStyle.copy(fontSize = fittedNameSize),
                 modifier = Modifier.wrapContentHeight(unbounded = true),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

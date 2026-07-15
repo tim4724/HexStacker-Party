@@ -302,6 +302,7 @@ final class DisplayModel: ObservableObject {
         ("lobby", "lobby", 4),
         ("lobby-2p", "lobby", 2),
         ("lobby-8p", "lobby", 8),
+        ("lobby-long-names", "lobby-long", 4),
         ("lobby-empty", "lobby-empty", 0),
         ("countdown", "countdown", 4),
         ("game", "game", 4),

@@ -55,6 +55,8 @@ public extension DisplayCoordinator {
         switch state {
         case "lobby":
             showGalleryLobby(players: max(1, min(playerCount, EngineConstants.maxPlayers)))
+        case "lobby-long":
+            showGalleryLobby(players: max(1, min(playerCount, EngineConstants.maxPlayers)), longNames: true)
         case "lobby-empty":
             showGalleryLobby(players: 0)
         case "countdown":
@@ -102,9 +104,10 @@ public extension DisplayCoordinator {
     /// Seed the RoomFlow roster from `roster(count)` (id == slot == colorIndex) so
     /// board / card lookups resolve the canonical names, colors and levels. Returns
     /// the fixture entries (the levels feed the pre-game countdown boards).
+    /// `longNames` swaps in the 16-char LONG_NAMES fixture (lobby-long shot).
     @discardableResult
-    private func seedGalleryRoster(count: Int) -> [GalleryRosterEntry] {
-        guard let roster = try? galleryFixtures()?.galleryRoster(count: count) else { return [] }
+    private func seedGalleryRoster(count: Int, longNames: Bool = false) -> [GalleryRosterEntry] {
+        guard let roster = try? galleryFixtures()?.galleryRoster(count: count, longNames: longNames) else { return [] }
         for e in roster {
             flow.addPlayer(peerIndex: e.id, playerName: e.name, colorSlot: e.slot, startLevel: e.level)
         }
@@ -113,9 +116,9 @@ public extension DisplayCoordinator {
 
     /// Show the lobby with the JOIN fixture: displayed host/code from JOIN.host +
     /// JOIN.code, QR from the (separate) JOIN.qrText, `players` roster cards.
-    private func showGalleryLobby(players: Int) {
+    private func showGalleryLobby(players: Int, longNames: Bool = false) {
         guard let join = try? galleryFixtures()?.galleryJoin() else { return }
-        if players > 0 { seedGalleryRoster(count: players) }
+        if players > 0 { seedGalleryRoster(count: players, longNames: longNames) }
         // Reconstruct a URL splitJoinURL parses back to (JOIN.host, JOIN.code) for
         // the displayed text; the QR encodes the distinct JOIN.qrText.
         output?.roomReady(room: join.code, joinURL: "https://\(join.host)\(join.code)", qrText: join.qrText)

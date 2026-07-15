@@ -427,7 +427,10 @@ if (window.__TEST__ && (debugCount > 0 || _scenarioParam)) {
     host: _hostParam === null ? null : parseInt(_hostParam, 10),
     // Named GalleryFixtures board variant (lv1/lv8/lv12/2p/3p/4p) for the
     // cross-platform gallery rows; overrides players/level when present.
-    variant: urlParams.get('variant') || null
+    variant: urlParams.get('variant') || null,
+    // names=long swaps the roster to the 16-char LONG_NAMES fixture
+    // (the lobby-long-names gallery row).
+    names: urlParams.get('names') || null
   });
 } else if (urlParams.get('test') === '1' || urlParams.get('adclip') === '1') {
   // Test / adclip mode: skip relay connection — driven externally

@@ -167,9 +167,10 @@ public final class EngineBridge {
     /// and the Android screenshot tests all read THIS data, so a visual difference
     /// between gallery columns is always a renderer difference, never a fixture one.
 
-    /// `roster(count)` — lobby cards (id == slot == colorIndex, plus name + level).
-    public func galleryRoster(count: Int) throws -> [GalleryRosterEntry] {
-        try decode([GalleryRosterEntry].self, method: "galleryRosterJSON", args: [count])
+    /// `roster(count, longNames)` — lobby cards (id == slot == colorIndex, plus
+    /// name + level); `longNames` swaps in the 16-char LONG_NAMES fixture.
+    public func galleryRoster(count: Int, longNames: Bool = false) throws -> [GalleryRosterEntry] {
+        try decode([GalleryRosterEntry].self, method: "galleryRosterJSON", args: [count, longNames])
     }
 
     /// `JOIN` — the join target (displayed host/code + separate QR text).
@@ -275,7 +276,7 @@ public final class EngineBridge {
         isEnded: function () { return !!(core && core.game && core.game.ended); },
         // Screen-gallery fixtures (HexCore.GalleryFixtures) — the single source
         // the web, tvOS and Android TV galleries all render.
-        galleryRosterJSON: function (n) { return JSON.stringify(HexCore.GalleryFixtures.roster(n)); },
+        galleryRosterJSON: function (n, long) { return JSON.stringify(HexCore.GalleryFixtures.roster(n, !!long)); },
         galleryJoinJSON: function () { return JSON.stringify(HexCore.GalleryFixtures.JOIN); },
         gallerySnapshotJSON: function (variant, players, level) {
           var GF = HexCore.GalleryFixtures;

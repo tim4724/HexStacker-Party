@@ -124,9 +124,9 @@ class ComposeScreenshotTest {
 
     // ── Lobby (direct: frozen QR + ambient background for a deterministic shot) ────
 
-    private fun lobbyShot(name: String, count: Int) {
+    private fun lobbyShot(name: String, count: Int, longNames: Boolean = false) {
         val join = GalleryFixtures.join
-        val players = if (count == 0) emptyList() else GalleryFixtures.roster(count).map {
+        val players = if (count == 0) emptyList() else GalleryFixtures.roster(count, longNames).map {
             LobbyPlayer(peerIndex = it.id, name = it.name, colorIndex = it.slot, level = it.level)
         }
         val ambient = GalleryFixtures.ambientPieces()
@@ -153,6 +153,7 @@ class ComposeScreenshotTest {
     @Test fun lobby() = lobbyShot("lobby", 4)
     @Test fun lobby2p() = lobbyShot("lobby_2p", 2)
     @Test fun lobby8p() = lobbyShot("lobby_8p", 8)
+    @Test fun lobbyLongNames() = lobbyShot("lobby_long_names", 4, longNames = true)
     @Test fun lobbyWaiting() = lobbyShot("lobby_waiting", 0)
 
     // ── Licenses (direct: injects a fixture dependency list) ──────────────────────
