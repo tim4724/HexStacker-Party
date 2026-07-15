@@ -134,14 +134,11 @@ function calculateLayout() {
 
 // --- Lobby UI ---
 function updatePlayerList() {
-  var placeholderSlots = window.innerWidth >= 2400 ? 8 : 4;
-  var totalSlots = Math.max(placeholderSlots, GameConstants.MAX_PLAYERS);
-
   // Ensure we have enough slot elements. Every card carries all three
   // pieces (name half, level half, socket opening); CSS shows the halves
   // on filled cards and the opening on .empty sockets, so filling or
   // emptying a slot is a class toggle, not a DOM rebuild.
-  while (playerListEl.children.length < totalSlots) {
+  while (playerListEl.children.length < GameConstants.MAX_PLAYERS) {
     var slot = document.createElement('div');
     slot.className = 'player-slot';
     var card = document.createElement('div');
@@ -165,13 +162,17 @@ function updatePlayerList() {
   var sortedPlayers = Array.from(players.entries()).sort(function(a, b) {
     return (a[1].joinedAt ?? Infinity) - (b[1].joinedAt ?? Infinity);
   });
-  var visibleSlots = Math.max(placeholderSlots, sortedPlayers.length);
+  // The lobby has exactly two shapes, chosen by the roster alone and never
+  // by viewport size: a 4-socket grid, opening to all 8 once a 5th player
+  // joins. Empty sockets past the roster stay visible as "seats free".
+  var visibleSlots = sortedPlayers.length > 4 ? GameConstants.MAX_PLAYERS : 4;
 
   // Grid column count, fed to the CSS via --cols. AirConsole hides empty
   // slots and packs the visible cards into one row (up to 4, no QR means
   // there's room); the web lobby is a 2-column grid, going 4-wide in
-  // landscape once placeholders + players exceed 4 so the grid stays
-  // wide-and-short next to the QR.
+  // landscape once the grid opens to 8 so it stays wide-and-short next to
+  // the QR. Portrait stays 2-wide either way: the QR stacks above, so the
+  // grid has height to spend but no width.
   var isAirConsole = document.body.classList.contains('airconsole');
   var landscape = window.innerWidth > window.innerHeight;
   var cols = isAirConsole
@@ -180,7 +181,7 @@ function updatePlayerList() {
   playerListEl.style.setProperty('--cols', cols);
   fitLobbyRow(cols, isAirConsole, landscape);
 
-  for (var j = 0; j < totalSlots; j++) {
+  for (var j = 0; j < GameConstants.MAX_PLAYERS; j++) {
     var slot = playerListEl.children[j];
     var card = slot.querySelector('.player-card');
     var nameEl = card.querySelector('.identity-name');
