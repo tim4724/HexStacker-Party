@@ -23,6 +23,13 @@
       "android": { "file": "lobby_8p" }
     },
     {
+      "key": "lobby-long-names",
+      "title": "Lobby (16-char names)",
+      "web": { "scenario": "lobby", "players": 4, "params": { "host": 0, "names": "long" } },
+      "tvos": { "shot": "lobby-long", "players": 4 },
+      "android": { "file": "lobby_long_names" }
+    },
+    {
       "key": "lobby-empty",
       "title": "Lobby (waiting)",
       "web": { "scenario": "lobby", "players": 0 },

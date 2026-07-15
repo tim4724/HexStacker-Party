@@ -23,6 +23,7 @@ var DISPLAY_CARDS = [
   { key: 'transitions',      title: 'Transitions (full journey)', hostVariant: true, replayable: true, params: TOUR_PARAMS },
   { key: 'welcome',          title: 'Welcome' },
   { key: 'lobby',            title: 'Lobby (Standard)',   hostVariant: true },
+  { key: 'lobby',            title: 'Lobby (16-char names)', hostVariant: true, params: { names: 'long' } },
   { key: 'lobby',            title: 'Lobby (Scan hint)',  hostVariant: true, params: { hint: 1 } },
   { key: 'airconsole-lobby', title: 'Lobby (AirConsole)', hostVariant: true },
   { key: 'countdown',        title: 'Countdown', replayable: true },

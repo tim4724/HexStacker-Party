@@ -297,20 +297,30 @@ html, body {
   animation: fadeUp 0.5s 0.3s ease-out both;
 }
 
+/* Content-hugging halves + space-evenly (same treatment as the display
+   lobby card): name and stepper collapse to content height and the card's
+   whitespace distributes evenly above, between, and below them, instead
+   of pooling into a wide gap between the theme's 50/50 halves. */
+#player-identity-card {
+  justify-content: space-evenly;
+}
+
 /* Identity trigger button — adds button-specific styling on top of the
-   shared .player-card__top layout (in theme.css). The trigger fills the
-   entire top half of the card so the whole region is tappable. Inner
-   border-radius matches the borderless card's outer 20px so the :active
-   highlight follows the card corners. */
+   shared .player-card__top layout (in theme.css). Vertical padding keeps
+   the tap region comfortable (~54px) now that the trigger hugs the name
+   instead of filling the top half; the radius rounds the floating
+   :active highlight. */
 .identity-trigger {
   appearance: none;
   -webkit-appearance: none;
+  flex: 0 0 auto;
+  padding: 6px clamp(8px, 1.4vmin, 14px);
   background: transparent;
   border: 0;
   /* Receives restored focus when the color picker closes; touch-only UI,
      so suppress the UA focus ring (same as .rose-cell). */
   outline: none;
-  border-radius: 20px 20px 0 0;
+  border-radius: 14px;
   color: inherit;
   font: inherit;
   cursor: pointer;
@@ -331,6 +341,7 @@ html, body {
    the value in the center block. Wider gap than the shared .card-level
    default so the circles don't crowd the value. */
 #level-selector {
+  flex: 0 0 auto;
   gap: 16px;
 }
 
@@ -376,10 +387,10 @@ html, body {
 
 #level-selector .level-btn {
   /* Round utility button (same family as .icon-btn, same 52px size).
-     Height capped at 75% of the .card-level half so it always fits inside
-     the card; aspect-ratio:1 mirrors width to height so the circle never
-     forces the card past its 2:1 aspect. */
-  height: min(52px, 75%);
+     Fixed height: the stepper row hugs its content now, so a percentage
+     would be circular, and 52px + the evenly-spaced gaps fits the 2:1
+     card down to very narrow phones. */
+  height: 52px;
   aspect-ratio: 1;
   border: 1px solid rgba(255, 248, 236, 0.12);
   border-radius: 50%;

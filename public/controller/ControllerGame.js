@@ -74,6 +74,26 @@ function applyLocalPlayerName() {
   playerNameEl.textContent = shown;
   playerIdentityName.textContent = shown;
   touchArea.setAttribute('data-player-name', shown);
+  fitIdentityName();
+}
+
+// Shrink-to-fit for the identity-card name, the controller twin of the
+// display's fitPlayerNames(): CSS has no native auto font size, so measure
+// at the stylesheet size and scale down only on overflow; below the floor
+// the .identity-name ellipsis takes over. No-op while the card is hidden
+// (clientWidth 0); showLobbyUI() re-runs it once the lobby is visible.
+function fitIdentityName() {
+  var el = playerIdentityName;
+  el.style.fontSize = '';
+  if (!el.textContent || !el.clientWidth) return;
+  if (el.scrollWidth <= el.clientWidth) return;
+  var base = parseFloat(getComputedStyle(el).fontSize);
+  var scale = Math.max(0.6, (el.clientWidth / el.scrollWidth) * 0.98);
+  el.style.fontSize = (base * scale).toFixed(2) + 'px';
+}
+
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(function() { fitIdentityName(); });
 }
 
 // Shell-driven live rename, shared by the AirConsole profile-change path and
@@ -99,6 +119,8 @@ function showLobbyUI() {
   updateStartButton();
 
   showScreen('lobby');
+  // After showScreen: the card is measurable only once the lobby is visible.
+  fitIdentityName();
   // Paint after showScreen so that updateHostVisibility (below) sees
   // currentScreen === 'lobby' and wires up host-gated UI. The picker
   // itself uses a fixed-size canvas buffer so it doesn't depend on
@@ -804,7 +826,10 @@ function removeKoOverlay() {
 var GLOW_SIZE = 80;
 var GLOW_OPACITY = 1;
 var _feedbackRect = null;
-window.addEventListener('resize', function() { _feedbackRect = null; });
+window.addEventListener('resize', function() {
+  _feedbackRect = null;
+  fitIdentityName();
+});
 
 function showGlow(x, y) {
   if (!glowEl) {

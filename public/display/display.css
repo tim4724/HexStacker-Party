@@ -414,8 +414,12 @@ html:not(.in-session) #relay-status-bar { display: none; }
   animation: fadeUp 0.6s 0.15s ease-out both;
 }
 
-/* QR + player cards — column on portrait, row on landscape. */
+/* QR + player cards — column on portrait, row on landscape.
+   --card-w fits a 16-char name (the platform-wide cap, see the controller
+   input's maxlength) at full name font size on a 1080p display; the QR
+   below and the player grid both size from it. */
 #lobby-main {
+  --card-w: clamp(150px, 36vmin, 350px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -433,7 +437,9 @@ html:not(.in-session) #relay-status-bar { display: none; }
   flex-direction: column;
   align-items: center;
   gap: clamp(8px, 1.6vmin, 14px);
-  width: clamp(190px, 40vmin, 360px);
+  /* Always taller than the two-card column beside it (2.5:1 cards stack
+     to 0.8 x --card-w + the grid gap). */
+  width: calc(var(--card-w) + 40px);
   max-width: 90vw;
 }
 
@@ -441,7 +447,10 @@ html:not(.in-session) #relay-status-bar { display: none; }
   width: 100%;
   aspect-ratio: 1 / 1;
   height: auto;
-  border-radius: clamp(14px, 2.4vmin, 22px);
+  /* Radius scales with the block (22px at the 390px cap, same 0.057
+     ratio as the player cards) so the QR and cards keep one corner
+     character at every size. */
+  border-radius: calc((var(--card-w) + 40px) * 0.057);
   background: #fff;
   /* Quiet zone lives in the CSS padding (white covers the padding box);
      slightly wider than before since there's no card behind it anymore. */
@@ -470,7 +479,7 @@ html:not(.in-session) #relay-status-bar { display: none; }
      reads as one line changing content, not two different elements. */
   font-family: var(--font-hud);
   font-weight: 600;
-  font-size: clamp(1.05rem, 2.2vmin, 1.5rem);
+  font-size: clamp(1.05rem, 2.6vmin, 1.75rem);
   letter-spacing: 0.06em;
   color: var(--text-secondary);
   white-space: nowrap;
@@ -553,7 +562,7 @@ html:not(.in-session) #relay-status-bar { display: none; }
 }
 
 .join-url__host {
-  font-size: clamp(1.05rem, 2.2vmin, 1.5rem);
+  font-size: clamp(1.05rem, 2.6vmin, 1.75rem);
   font-weight: 600;
   color: var(--text-secondary);
   letter-spacing: 0.04em;
@@ -565,21 +574,23 @@ html:not(.in-session) #relay-status-bar { display: none; }
 }
 
 .join-url__code {
-  font-size: clamp(1.05rem, 2.2vmin, 1.5rem);
+  font-size: clamp(1.05rem, 2.6vmin, 1.75rem);
   font-weight: 900;
   color: var(--accent-secondary);
   letter-spacing: 0.18em;
 }
 
-/* Player cards: 2-column grid by default; landscape with 5+ players gets
-   4 columns (rule below). `width: max-content` is essential — without it,
-   the grid stretches to fill the flex row and leaves a wide trough
-   between the QR and the cards. `minmax(0, ...)` lets columns shrink
-   below their clamp value when QR + cards together exceed the available
-   row (e.g. 4 cards next to a tall QR on a 1024×768 landscape display). */
+/* Player cards. Column count comes from updatePlayerList() via --cols
+   (2 default, 4 for big landscape rosters, player count on AirConsole).
+   Columns are --card-w wide (see #lobby-main). When QR + cards would
+   exceed the row, updatePlayerList() scales --card-w down so the QR and
+   cards shrink together (TV-parity proportional fit) and the name fitter
+   scales the text to match; minmax(0,) stays as a subpixel backstop.
+   `width: max-content` stops the grid from stretching to fill the flex
+   row and leaving a trough between the QR and the cards. */
 #player-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, clamp(150px, 24vmin, 280px)));
+  grid-template-columns: repeat(var(--cols, 2), minmax(0, var(--card-w)));
   gap: clamp(8px, 1.5vmin, 18px);
   width: max-content;
   max-width: 100%;
@@ -588,15 +599,22 @@ html:not(.in-session) #relay-status-bar { display: none; }
 }
 
 .player-card {
-  /* Layout (flex column, 2:1 aspect) lives in theme.css. Display-only:
-     scale-down hint for nested elements + min-width: 0 so the card can
-     shrink inside the grid's min-content track. The 50/50 halves are a
-     controller concern (touch targets); here name + pill collapse to
-     content height and group around the card center with a small gap. */
+  /* Layout (flex column) lives in theme.css. Display-only: the theme's
+     2:1 aspect is a controller concern (touch halves + level stepper);
+     with just a name and a quiet pill the lobby card carries less, so a
+     flatter 2.5:1 keeps the whitespace between them from ballooning.
+     min-width: 0 lets the card shrink inside the grid's min-content
+     track; name + pill collapse to content height and space-evenly
+     balances the whitespace above, between, and below them. The corner
+     radius scales with the card (20px at the 350px cap, same ratio as
+     the QR) so shrunken grids keep the same corner character instead of
+     looking rounder; theme.css keeps the fixed 20px for the controller's
+     fixed-size card. */
+  aspect-ratio: 2.5 / 1;
+  border-radius: calc(var(--card-w) * 0.057);
   font-size: clamp(0.85rem, 1.8vmin, 1.4rem);
   min-width: 0;
-  justify-content: center;
-  gap: clamp(3px, 0.9vmin, 9px);
+  justify-content: space-evenly;
 }
 
 #player-list .player-card__top,
@@ -604,13 +622,9 @@ html:not(.in-session) #relay-status-bar { display: none; }
   flex: 0 0 auto;
 }
 
-/* --- Landscape: split QR | cards horizontally; with 5+ players use 4
-   columns so the grid stays wide-and-short next to the QR. --- */
+/* --- Landscape: split QR | cards horizontally. --- */
 @media (orientation: landscape) {
   #lobby-main { flex-direction: row; }
-  #player-list.pl--lg {
-    grid-template-columns: repeat(4, minmax(0, clamp(150px, 24vmin, 280px)));
-  }
 }
 
 /* --- AirConsole / no-QR overrides: hide QR + join URL; player list sizing
@@ -665,7 +679,7 @@ body.airconsole #qr-container,
    span and uses different selectors). Deliberately quiet: the level is
    metadata under the colored name. */
 .card-level__heading {
-  font-size: clamp(0.65rem, 1.6vmin, 0.95rem);
+  font-size: clamp(0.75rem, 2vmin, 1.15rem);
   font-weight: 700;
   color: var(--text-secondary);
   letter-spacing: 0.2em;
@@ -674,7 +688,7 @@ body.airconsole #qr-container,
 
 .card-level__value {
   font-family: var(--font-hud);
-  font-size: clamp(0.65rem, 1.6vmin, 0.95rem);
+  font-size: clamp(0.75rem, 2vmin, 1.15rem);
   font-weight: 700;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
@@ -1024,20 +1038,3 @@ body.airconsole #lobby-footer { display: flex !important; }
 body.airconsole #welcome-screen { display: none !important; }
 body.airconsole #fullscreen-btn { display: none !important; }
 body.airconsole .player-slot:has(.player-card.empty) { display: none !important; }
-/* AirConsole packs visible cards into a single row up to 4 wide (no QR means
-   there's room for it). Cards fill slots in join order, so the first empty
-   slot tells us the player count — match on it to size the grid. Listed
-   widest-to-narrowest so source order makes the narrower (more specific
-   count) rule win on equal specificity. */
-body.airconsole #player-list {
-  grid-template-columns: repeat(4, minmax(0, clamp(150px, 24vmin, 280px)));
-}
-body.airconsole #player-list:has(.player-slot:nth-child(4) .player-card.empty) {
-  grid-template-columns: repeat(3, minmax(0, clamp(150px, 24vmin, 280px)));
-}
-body.airconsole #player-list:has(.player-slot:nth-child(3) .player-card.empty) {
-  grid-template-columns: repeat(2, minmax(0, clamp(150px, 24vmin, 280px)));
-}
-body.airconsole #player-list:has(.player-slot:nth-child(2) .player-card.empty) {
-  grid-template-columns: minmax(0, clamp(150px, 24vmin, 280px));
-}

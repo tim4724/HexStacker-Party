@@ -342,12 +342,13 @@ function _stageNearClear(player, rows) {
   };
 }
 
-function _buildDebugPlayers(count, level, hostSlot) {
+function _buildDebugPlayers(count, level, hostSlot, longNames) {
   // Canonical roster from the shared fixture module (names + lobby levels),
   // so the web gallery shows the same players as the tvOS / Android TV
   // columns. An explicit ?level= > 1 still pins every badge to that level.
-  var _roster = GameEngine.GalleryFixtures.roster(8);
-  var names = GameEngine.GalleryFixtures.NAMES;
+  // longNames swaps in the 16-char LONG_NAMES fixture (?names=long).
+  var _roster = GameEngine.GalleryFixtures.roster(8, longNames);
+  var names = longNames ? GameEngine.GalleryFixtures.LONG_NAMES : GameEngine.GalleryFixtures.NAMES;
   var max = Math.min(count, 8);
   // Build the slot list. Usually slots fill sequentially 0..count-1; but when
   // the scenario host (viewAs) lives outside that range, we swap the last
@@ -376,15 +377,16 @@ function _buildDebugPlayers(count, level, hostSlot) {
 // same snapshots the tvOS and Android TV galleries render), remapped onto the
 // harness's debug roster ids. Every game-state scenario renders these boards;
 // the web-only effect scenarios stage their animations on top of them.
-function _buildFixtureState(playerCount, variantName, level) {
+function _buildFixtureState(playerCount, variantName, level, longNames) {
   var GF = GameEngine.GalleryFixtures;
   var spec = variantName ? GF.gameVariant(variantName) : null;
   if (!spec) spec = { players: playerCount, level: level || 1 };
   var snap = GF.gameSnapshot(spec);
+  var names = longNames ? GF.LONG_NAMES : GF.NAMES;
   for (var i = 0; i < snap.players.length; i++) {
     var slot = snap.players[i].id;
     snap.players[i].id = 'debug' + slot;
-    snap.players[i].playerName = GF.NAMES[slot];
+    snap.players[i].playerName = names[slot];
   }
   return snap;
 }
@@ -449,6 +451,8 @@ function initScenario(opts) {
   var rawCount = (opts.players != null) ? opts.players : 1;
   var playerCount = Math.max(0, Math.min(rawCount, 8));
   var level = opts.level || 1;
+  // ?names=long renders the roster with the 16-char LONG_NAMES fixture.
+  var longNames = opts.names === 'long';
 
   // A named GalleryFixtures board variant (?variant=lv8/2p/...) fixes the
   // player count regardless of the players param, so the roster always
@@ -493,7 +497,7 @@ function initScenario(opts) {
   // join line on its scan-hint phase (the live cycle never runs under the
   // harness, so this is the only way to review the hint deterministically).
   if (scenario === 'lobby') {
-    window.__TEST__.addPlayers(_buildDebugPlayers(playerCount, level, hostSlot));
+    window.__TEST__.addPlayers(_buildDebugPlayers(playerCount, level, hostSlot, longNames));
     _fakeLobbyQR();
     if (new URLSearchParams(location.search).get('hint') === '1') {
       var joinLine = document.getElementById('join-line');
@@ -509,7 +513,7 @@ function initScenario(opts) {
   // compact AirConsole layout.
   if (scenario === 'airconsole-lobby') {
     document.body.classList.add('airconsole');
-    window.__TEST__.addPlayers(_buildDebugPlayers(playerCount, level, hostSlot));
+    window.__TEST__.addPlayers(_buildDebugPlayers(playerCount, level, hostSlot, longNames));
     showScreen(SCREEN.LOBBY);
     _freezeWelcomeBg();
     return;
@@ -637,7 +641,7 @@ function initScenario(opts) {
       }, PRESS_MS);
     }
 
-    var tourRoster = _buildDebugPlayers(Math.max(1, playerCount), level, hostSlot);
+    var tourRoster = _buildDebugPlayers(Math.max(1, playerCount), level, hostSlot, longNames);
     // Real controllers ping constantly; without a stand-in the whole roster
     // expires after LIVENESS_TIMEOUT_MS and startNewGame's disconnect prune
     // would bounce the PLAY AGAIN step back to an empty lobby.
@@ -726,7 +730,7 @@ function initScenario(opts) {
   }
 
   // All other scenarios need players + some game state.
-  var debugPlayers = _buildDebugPlayers(playerCount, level, hostSlot);
+  var debugPlayers = _buildDebugPlayers(playerCount, level, hostSlot, longNames);
   window.__TEST__.addPlayers(debugPlayers);
 
   if (scenario === 'countdown') {
@@ -788,7 +792,7 @@ function initScenario(opts) {
   // Every game-state scenario renders the shared GalleryFixtures snapshot
   // (identical on web / tvOS / Android TV) so all boards read as realistic
   // mid-game stacks; the effect scenarios stage their animations on top.
-  var state = _buildFixtureState(playerCount, opts.variant, level);
+  var state = _buildFixtureState(playerCount, opts.variant, level, longNames);
   window.__TEST__.injectGameState(state);
   startRenderLoop();
 

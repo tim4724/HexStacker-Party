@@ -23,6 +23,20 @@ test('roster is stable and slot == colorIndex == id', () => {
   }
 });
 
+test('long-name roster stresses the 16-char cap without exceeding it', () => {
+  const r = GalleryFixtures.roster(8, true);
+  assert.deepEqual(r.map((p) => p.name), GalleryFixtures.LONG_NAMES);
+  // 16 is the platform-wide cap (controller input maxlength / Couch Games
+  // sanitizer); the fixture must hit it to exercise shrink-to-fit, never pass it.
+  for (const name of GalleryFixtures.LONG_NAMES) {
+    assert.ok(name.length <= 16, `${name} exceeds the 16-char cap`);
+  }
+  assert.ok(GalleryFixtures.LONG_NAMES.some((n) => n.length === 16),
+    'at least one fixture name must sit exactly at the 16-char cap');
+  // Same levels as the short roster; only the names differ.
+  assert.deepEqual(r.map((p) => p.level), GalleryFixtures.roster(8).map((p) => p.level));
+});
+
 test('every variant snapshot is deterministic and JSON-serializable', () => {
   for (const name of VARIANT_NAMES) {
     const spec = GalleryFixtures.gameVariant(name);

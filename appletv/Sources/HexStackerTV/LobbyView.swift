@@ -171,13 +171,17 @@ private struct LobbyMetrics {
         gapMid = min(vmin * 0.032, 40)
 
         // Join line metrics (web: one HUD face/size for URL and hint,
-        // clamp(1.05rem, 2.2vmin, 1.5rem); body gap clamp(10px, 2.2vmin, 22px)).
-        joinSize = min(vmin * 0.022, 24)
+        // clamp(1.05rem, 2.6vmin, 1.75rem); body gap clamp(10px, 2.2vmin, 22px)).
+        joinSize = min(vmin * 0.026, 28)
         joinLineH = joinSize * 1.3
         joinGap = min(vmin * 0.022, 22)
 
-        var cardW = min(vmin * 0.24, 280)             // web card clamp(150, 24vmin, 280)
-        var qrW = min(vmin * 0.40, 360)               // web QR  clamp(190, 40vmin, 360)
+        // Web --card-w clamp(150px, 36vmin, 350px): sized so a 16-char name (the
+        // platform-wide cap) fits at the full name size on a 1080p display.
+        var cardW = min(vmin * 0.36, 350)
+        // Web #qr-container calc(var(--card-w) + 40px): always a touch taller
+        // than the two-card column beside it (2:1 cards stack to cardW + gap).
+        var qrW = cardW + 40
         // Keep the QR square + join line within the band between the title band
         // and the START band.
         let pillH = vp.actionButtonH
@@ -189,7 +193,9 @@ private struct LobbyMetrics {
         if rowWidth > budget { let s = budget / rowWidth; cardW *= s; qrW *= s }
         self.cardW = cardW
         self.qrW = qrW
-        cardH = cardW * 0.5
+        // Web display .player-card aspect-ratio 2.5:1 (flatter than the
+        // controller's 2:1: just a name + quiet pill, less air between them).
+        cardH = cardW * 0.4
     }
 }
 
@@ -249,14 +255,22 @@ struct PlayerCardView: View {
     private func filled(_ seat: LobbySeat) -> some View {
         let color = UITheme.player(slot: seat.colorSlot)
         // web .identity-name clamp(1.5rem,4.5vmin,2.4rem); 10-foot cap 38.4.
-        let nameSize = min(h * 0.37, 38.4)
-        let pillFontSize = min(h * 0.12, 15.2)
-        return VStack(spacing: min(vp.vmin * 0.009, 9)) {
+        // Long names shrink to fit rather than truncate, down to the web
+        // fitter's 0.6 floor.
+        let nameSize = min(vp.vmin * 0.045, 38.4)
+        // web .card-level__* clamp(0.75rem, 2vmin, 1.15rem); cap 18.4.
+        let pillFontSize = min(vp.vmin * 0.02, 18.4)
+        // Equal Spacers = web justify-content: space-evenly: the whitespace
+        // above the name, between name and pill, and below the pill matches.
+        return VStack(spacing: 0) {
+            Spacer(minLength: 0)
             Text(seat.name)
                 .styled(font: AppFont.brandExtraBold, size: nameSize, color: color, tracking: 0.04)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .frame(maxWidth: w * 0.86)
+                .minimumScaleFactor(0.6)
+                .frame(maxWidth: w * 0.92)
+            Spacer(minLength: 0)
             // Quiet "LEVEL n" pill (web .card-level__pill): recessed dark chip,
             // heading at 0.2em tracking, value in the HUD voice.
             HStack(spacing: pillFontSize * 0.5) {
@@ -270,30 +284,36 @@ struct PlayerCardView: View {
             .padding(.horizontal, pillFontSize)
             .frame(height: pillFontSize * 2.3)
             .background(Capsule().fill(UITheme.socket(0.35)))
+            Spacer(minLength: 0)
         }
         .frame(width: w, height: h)
         .background(
-            RoundedRectangle(cornerRadius: 20)   // web .player-card 20px
+            // web display card radius calc(--card-w * 0.057): scales with the
+            // card (20 at the 350 cap) so shrunken grids keep the same corner
+            // character.
+            RoundedRectangle(cornerRadius: w * 0.057)
                 .fill(UITheme.tonalCard(color))
                 .shadow(color: .black.opacity(0.32), radius: 4, x: 0, y: 2)
         )
     }
 
     /// Empty slot: recessed socket (web .player-card.empty) with a faint hex
-    /// opening, breathing slowly (opacity 1 → 0.55 → 1 over 3.2s).
+    /// opening, breathing slowly (opacity 0.5 → 0.27 → 0.5 over 3.2s). Only
+    /// the hex breathes; pulsing the whole card read as background flicker
+    /// once the lobby cards grew.
     private var empty: some View {
         let openW = max(28, min(vp.vmin * 0.055, 56))
-        return RoundedRectangle(cornerRadius: 20)
+        let radius = w * 0.057   // scales with the card, see filled()
+        return RoundedRectangle(cornerRadius: radius)
             .fill(UITheme.socket(0.55))
-            .overlay(RoundedRectangle(cornerRadius: 20).stroke(UITheme.hairline(0.05), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: radius).stroke(UITheme.hairline(0.05), lineWidth: 1))
             .overlay(
                 RoundedHex(cornerR: openW * 0.06)
                     .fill(UITheme.hairline(0.03))
                     .overlay(RoundedHex(cornerR: openW * 0.06).stroke(UITheme.textPrimary(0.45), lineWidth: 2))
                     .frame(width: openW, height: openW)
-                    .opacity(0.5)
+                    .opacity(breatheDim ? 0.27 : 0.5)
             )
-            .opacity(breatheDim ? 0.55 : 1)
             .onAppear {
                 withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
                     breatheDim = true
@@ -339,8 +359,10 @@ struct QrBlockView: View {
     let vp: Vp
 
     var body: some View {
-        // Corner radius clamp(14px, 2.4vmin, 22px); padding clamp(6px, 1.2vmin, 14px).
-        let radius = max(14, min(vp.vmin * 0.024, 22))
+        // Radius scales with the block (web calc((--card-w + 40px) * 0.057),
+        // 22 at the 390 cap, same ratio as the player cards); padding stays
+        // clamp(6px, 1.2vmin, 14px).
+        let radius = width * 0.057
         let pad = max(6, min(vp.vmin * 0.012, 14))
         RoundedRectangle(cornerRadius: radius)
             .fill(Color.white)

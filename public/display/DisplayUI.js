@@ -167,12 +167,18 @@ function updatePlayerList() {
   });
   var visibleSlots = Math.max(placeholderSlots, sortedPlayers.length);
 
-  // In AirConsole empty slots are hidden, so the layout bucket is driven by
-  // actual player count; elsewhere use the visible-slot count (incl. placeholders).
-  // 5+ players get a wider 4-column grid in landscape via the .pl--lg rule.
+  // Grid column count, fed to the CSS via --cols. AirConsole hides empty
+  // slots and packs the visible cards into one row (up to 4, no QR means
+  // there's room); the web lobby is a 2-column grid, going 4-wide in
+  // landscape once placeholders + players exceed 4 so the grid stays
+  // wide-and-short next to the QR.
   var isAirConsole = document.body.classList.contains('airconsole');
-  var bucketCount = isAirConsole ? players.size : visibleSlots;
-  playerListEl.classList.toggle('pl--lg', bucketCount > 4);
+  var landscape = window.innerWidth > window.innerHeight;
+  var cols = isAirConsole
+    ? Math.min(Math.max(players.size, 1), 4)
+    : (visibleSlots > 4 && landscape ? 4 : 2);
+  playerListEl.style.setProperty('--cols', cols);
+  fitLobbyRow(cols, isAirConsole, landscape);
 
   for (var j = 0; j < totalSlots; j++) {
     var slot = playerListEl.children[j];
@@ -218,6 +224,65 @@ function updatePlayerList() {
       levelValueEl.textContent = '';
     }
   }
+
+  fitPlayerNames();
+}
+
+// Proportional row fit, mirroring the tvOS/Android TV lobbies: when the
+// widest row (QR + a 4-wide roster) would overflow #lobby-main, scale
+// --card-w down so the QR (calc(--card-w + 40px)) and the cards shrink
+// TOGETHER, instead of the grid's minmax() crushing only the card columns
+// beside a full-size QR. The clamps mirror display.css: --card-w
+// clamp(150px, 36vmin, 350px), grid gap clamp(8px, 1.5vmin, 18px),
+// #lobby-main gap clamp(1rem, 3vmin, 2.5rem).
+function fitLobbyRow(cols, isAirConsole, landscape) {
+  var lobbyMain = document.getElementById('lobby-main');
+  if (!lobbyMain || !lobbyMain.clientWidth) return;
+  var vmin = Math.min(window.innerWidth, window.innerHeight);
+  var cardW = Math.max(150, Math.min(0.36 * vmin, 350));
+  var gap = Math.max(8, Math.min(0.015 * vmin, 18));
+  // The QR shares the row only in landscape (portrait stacks it above the
+  // grid) and never on AirConsole (no QR at all).
+  var hasQr = !isAirConsole && landscape;
+  var avail = lobbyMain.clientWidth - (cols - 1) * gap;
+  if (hasQr) avail -= Math.max(16, Math.min(0.03 * vmin, 40)) + 40;
+  var fitted = Math.min(cardW, avail / (cols + (hasQr ? 1 : 0)));
+  if (fitted < cardW) {
+    lobbyMain.style.setProperty('--card-w', fitted.toFixed(2) + 'px');
+  } else {
+    lobbyMain.style.removeProperty('--card-w');
+  }
+}
+
+// Shrink-to-fit for card names: CSS has no native "auto" font-size, so
+// measure each name at its stylesheet size and scale it down only when it
+// overflows its card (narrow viewports where the grid's minmax() squeezes
+// the columns below --card-w). Names at or under the card width keep the
+// default size untouched. Below the floor the existing ellipsis takes
+// over; a sub-60% name would be unreadable from the couch anyway.
+// Re-run on every roster change and window resize (both funnel through
+// updatePlayerList), plus once when the webfont finishes loading since
+// fallback-font metrics under-measure Baloo 2.
+var NAME_FIT_MIN_SCALE = 0.6;
+function fitPlayerNames() {
+  var names = playerListEl.querySelectorAll('.identity-name');
+  for (var i = 0; i < names.length; i++) {
+    var el = names[i];
+    el.style.fontSize = '';
+    // clientWidth 0 = lobby (or slot) hidden, nothing to measure; the
+    // lobby-show path calls updatePlayerList() again once visible.
+    if (!el.textContent || !el.clientWidth) continue;
+    if (el.scrollWidth <= el.clientWidth) continue;
+    var base = parseFloat(getComputedStyle(el).fontSize);
+    // 0.98 fudge: scroll/client widths are integer-rounded, and without it
+    // a hairline overflow survives the rescale and re-triggers the ellipsis.
+    var scale = Math.max(NAME_FIT_MIN_SCALE, (el.clientWidth / el.scrollWidth) * 0.98);
+    el.style.fontSize = (base * scale).toFixed(2) + 'px';
+  }
+}
+
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(function() { fitPlayerNames(); });
 }
 
 function updateStartButton() {

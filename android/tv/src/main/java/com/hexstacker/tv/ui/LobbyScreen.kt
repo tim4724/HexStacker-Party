@@ -119,6 +119,30 @@ fun LobbyScreen(
                 // Body band (web #lobby-body): the QR | grid row (#lobby-main)
                 // with the join/hint line tucked close beneath it — fadeUp 0.15s.
                 EntranceBand(startOffsetY = 16.dp, durationMs = 600, delayMs = 150) {
+                    // Web --card-w clamp(150px, 36vmin, 350px), web-px/1.5 in dp (like
+                    // the sp caps): sized so a 16-char name (the platform-wide cap)
+                    // fits at the full name size on a 1080p display.
+                    var cardW = vp.vminDp(100f, 36f, 233.3f)
+                    // Web #qr-container calc(var(--card-w) + 40px): always a touch
+                    // taller than the two-card column beside it (2:1 cards stack to
+                    // cardW + gap, and 40px/1.5 = 26.7dp).
+                    var qrW = cardW + 26.7f.dp
+                    // Slot bucket (web updatePlayerList's --cols): pad to 4 placeholder
+                    // slots (8 at 4K widths), one row of 4 columns once 5+ are visible.
+                    val placeholderSlots = if (vp.wDp >= 2400f) 8 else 4 // web: innerWidth >= 2400 ? 8 : 4
+                    val visibleSlots = max(placeholderSlots, data.players.size).coerceAtMost(8)
+                    val cols = if (visibleSlots > 4) 4 else 2
+                    // Horizontal fit (web grid minmax(0,...) / tvOS LobbyMetrics):
+                    // shrink QR + cards proportionally when the widest row (a 4-wide
+                    // roster next to the QR) would overflow the overscan-safe width.
+                    val gap = vp.vminDp(8f, 1.5f, 18f)
+                    val rowW = qrW + vp.vminDp(16f, 3f, 40f) + (cardW + gap) * cols - gap
+                    val budget = (vp.wDp * (1f - 2f * overscan)).dp
+                    if (rowW > budget) {
+                        val s = budget / rowW
+                        cardW *= s
+                        qrW *= s
+                    }
                     Column(
                         verticalArrangement = Arrangement.spacedBy(vp.vminDp(10f, 2.2f, 22f)),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -130,14 +154,17 @@ fun LobbyScreen(
                             QrBlock(
                                 qrBitmap = qrBitmap,
                                 vp = vp,
-                                // Web #qr-container clamp(190px, 40vmin, 360px): the 360px
-                                // cap IS active at 1080p, so it must be web-px/1.5 in dp
-                                // (like the sp caps) or the QR renders a third too big.
-                                modifier = Modifier
-                                    .width(vp.vminDp(126.7f, 40f, 240f))
-                                    .alpha(dimAlpha),
+                                qrW = qrW,
+                                modifier = Modifier.alpha(dimAlpha),
                             )
-                            PlayerGrid(players = data.players, vp = vp)
+                            PlayerGrid(
+                                players = data.players,
+                                vp = vp,
+                                visibleSlots = visibleSlots,
+                                cols = cols,
+                                cardW = cardW,
+                                gap = gap,
+                            )
                         }
                         JoinLine(
                             joinHost = data.joinHost,
@@ -259,22 +286,18 @@ private fun InfoButton(
 }
 
 /**
- * Player-card grid: packs N players into the first N seats, padded to 4
- * placeholder slots, 2 columns by default and 4 columns at 5+ visible slots
- * (web `.pl--lg`). The join-pop replays only for genuinely new players, tracked
- * by an explicit seen-set (web `lobbyKnownPlayers`): `key(peerIndex)` alone is
- * not enough, because keyed siblings only match within the same Row, so a card
- * pushed across a row boundary by a grid reflow (5th player joins, someone
- * leaves) would lose its composition state and re-pop.
+ * Player-card grid: packs N players into the first N seats. The slot/column
+ * bucket and sizing come from the caller (LobbyScreen computes them once,
+ * shared with the QR row-fit; web `updatePlayerList` + `--cols`). The join-pop
+ * replays only for genuinely new players, tracked by an explicit seen-set (web
+ * `lobbyKnownPlayers`): `key(peerIndex)` alone is not enough, because keyed
+ * siblings only match within the same Row, so a card pushed across a row
+ * boundary by a grid reflow (5th player joins, someone leaves) would lose its
+ * composition state and re-pop.
  */
 @Composable
-private fun PlayerGrid(players: List<LobbyPlayer>, vp: Vp) {
-    val placeholderSlots = if (vp.wDp >= 2400f) 8 else 4 // web: innerWidth >= 2400 ? 8 : 4 (4K)
-    val visibleSlots = max(placeholderSlots, players.size).coerceAtMost(8)
-    val cols = if (visibleSlots > 4) 4 else 2
+private fun PlayerGrid(players: List<LobbyPlayer>, vp: Vp, visibleSlots: Int, cols: Int, cardW: Dp, gap: Dp) {
     val rows = ceil(visibleSlots / cols.toFloat()).toInt()
-    val cardW = vp.vminDp(150f, 24f, 280f)
-    val gap = vp.vminDp(8f, 1.5f, 18f)
 
     // Seen peerIndexes. Pruned to the live roster first, so a departed player's
     // index pops again if it is ever reassigned. Mutating a remembered set during
@@ -296,9 +319,9 @@ private fun PlayerGrid(players: List<LobbyPlayer>, vp: Vp) {
                                     // add() is true only the first time this player is
                                     // composed; a reflowed (re-created) card skips the pop.
                                     val isNew = remember(player.peerIndex) { knownPlayers.add(player.peerIndex) }
-                                    JoinPop(play = isNew) { PlayerCard(player, vp, Modifier.width(cardW)) }
+                                    JoinPop(play = isNew) { PlayerCard(player, vp, cardW) }
                                 } else {
-                                    PlayerCard(null, vp, Modifier.width(cardW))
+                                    PlayerCard(null, vp, cardW)
                                 }
                             }
                         }

@@ -86,7 +86,8 @@ object GalleryFixtures {
         )
     }
 
-    fun roster(count: Int): List<RosterEntry> = arr("$GF.roster($count)").map {
+    /** [longNames] swaps in the 16-char LONG_NAMES fixture (lobby_long_names shot). */
+    fun roster(count: Int, longNames: Boolean = false): List<RosterEntry> = arr("$GF.roster($count, $longNames)").map {
         val o = it.jsonObject
         RosterEntry(
             id = o.getValue("id").jsonPrimitive.int,
