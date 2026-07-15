@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,28 +28,33 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import com.hexstacker.tv.R
 import kotlinx.coroutines.delay
 
 /**
  * Frameless lobby QR (web A2 `#qr-container`): no card, no label — the white
  * QR square floats on its own; the quiet zone lives in its padding. Mirrors
- * tvOS `buildQRBlock`. The caller sizes the square via [modifier] (the lobby
- * clamps it to `clamp(190dp, 40vmin, 360dp)`); pass the pre-rendered
+ * tvOS `buildQRBlock`. [qrW] sizes the square (the lobby derives it from the
+ * card width, web `calc(var(--card-w) + 40px)`); pass the pre-rendered
  * [qrBitmap] (cached).
  */
 @Composable
 fun QrBlock(
     qrBitmap: ImageBitmap?,
     vp: Vp,
+    qrW: Dp,
     modifier: Modifier = Modifier,
 ) {
     Box(
         modifier
+            .width(qrW)
             .aspectRatio(1f)
-            // #qr-code: radius clamp(14px,2.4vmin,22px), padding clamp(6px,1.2vmin,14px).
-            // Both caps are active at 1080p, so they are web-px/1.5 in dp.
-            .clip(RoundedCornerShape(vp.vminDp(9.3f, 2.4f, 14.7f)))
+            // Radius scales with the block (web calc((--card-w + 40px) * 0.057),
+            // same ratio as the player cards) so the QR and cards keep one corner
+            // character at every size; padding stays clamp(6px,1.2vmin,14px)
+            // (web-px/1.5 in dp).
+            .clip(RoundedCornerShape(qrW * 0.057f))
             .background(Tokens.white)
             .padding(vp.vminDp(4f, 1.2f, 9.3f)),
         contentAlignment = Alignment.Center,

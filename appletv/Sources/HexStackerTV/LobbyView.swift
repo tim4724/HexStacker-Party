@@ -288,7 +288,10 @@ struct PlayerCardView: View {
         }
         .frame(width: w, height: h)
         .background(
-            RoundedRectangle(cornerRadius: 20)   // web .player-card 20px
+            // web display card radius calc(--card-w * 0.057): scales with the
+            // card (20 at the 350 cap) so shrunken grids keep the same corner
+            // character.
+            RoundedRectangle(cornerRadius: w * 0.057)
                 .fill(UITheme.tonalCard(color))
                 .shadow(color: .black.opacity(0.32), radius: 4, x: 0, y: 2)
         )
@@ -300,9 +303,10 @@ struct PlayerCardView: View {
     /// once the lobby cards grew.
     private var empty: some View {
         let openW = max(28, min(vp.vmin * 0.055, 56))
-        return RoundedRectangle(cornerRadius: 20)
+        let radius = w * 0.057   // scales with the card, see filled()
+        return RoundedRectangle(cornerRadius: radius)
             .fill(UITheme.socket(0.55))
-            .overlay(RoundedRectangle(cornerRadius: 20).stroke(UITheme.hairline(0.05), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: radius).stroke(UITheme.hairline(0.05), lineWidth: 1))
             .overlay(
                 RoundedHex(cornerR: openW * 0.06)
                     .fill(UITheme.hairline(0.03))
@@ -355,8 +359,10 @@ struct QrBlockView: View {
     let vp: Vp
 
     var body: some View {
-        // Corner radius clamp(14px, 2.4vmin, 22px); padding clamp(6px, 1.2vmin, 14px).
-        let radius = max(14, min(vp.vmin * 0.024, 22))
+        // Radius scales with the block (web calc((--card-w + 40px) * 0.057),
+        // 22 at the 390 cap, same ratio as the player cards); padding stays
+        // clamp(6px, 1.2vmin, 14px).
+        let radius = width * 0.057
         let pad = max(6, min(vp.vmin * 0.012, 14))
         RoundedRectangle(cornerRadius: radius)
             .fill(Color.white)

@@ -65,7 +65,11 @@ fun PlayerCard(
     cardW: Dp,
     modifier: Modifier = Modifier,
 ) {
-    val shape = RoundedCornerShape(Tokens.radiusCard)
+    // web display card radius calc(--card-w * 0.057): scales with the card
+    // (13.3dp at the 233.3dp cap) so shrunken grids keep the same corner
+    // character instead of looking rounder.
+    val radius = cardW * 0.057f
+    val shape = RoundedCornerShape(radius)
     // Web display override: .player-card .identity-name clamp(1.5rem,4.5vmin,2.4rem)
     // (display.css 10-foot sizes; the theme.css clamp is the phone's). Bounds are
     // web-px / 1.5 because a capped .sp renders 1.5x larger at the gallery's hdpi
@@ -135,7 +139,7 @@ fun PlayerCard(
         modifier
             .width(cardW)
             .aspectRatio(2.5f)
-            .shadowSm(Tokens.radiusCard) // web .player-card box-shadow: var(--shadow-sm)
+            .shadowSm(radius) // web .player-card box-shadow: var(--shadow-sm)
             .clip(shape)
             .background(Tokens.tonalCard(color), shape),
         // Web justify-content: space-evenly: the whitespace above the name,

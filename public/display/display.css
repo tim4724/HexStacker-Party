@@ -447,7 +447,10 @@ html:not(.in-session) #relay-status-bar { display: none; }
   width: 100%;
   aspect-ratio: 1 / 1;
   height: auto;
-  border-radius: clamp(14px, 2.4vmin, 22px);
+  /* Radius scales with the block (22px at the 390px cap, same 0.057
+     ratio as the player cards) so the QR and cards keep one corner
+     character at every size. */
+  border-radius: calc((var(--card-w) + 40px) * 0.057);
   background: #fff;
   /* Quiet zone lives in the CSS padding (white covers the padding box);
      slightly wider than before since there's no card behind it anymore. */
@@ -602,8 +605,13 @@ html:not(.in-session) #relay-status-bar { display: none; }
      flatter 2.5:1 keeps the whitespace between them from ballooning.
      min-width: 0 lets the card shrink inside the grid's min-content
      track; name + pill collapse to content height and space-evenly
-     balances the whitespace above, between, and below them. */
+     balances the whitespace above, between, and below them. The corner
+     radius scales with the card (20px at the 350px cap, same ratio as
+     the QR) so shrunken grids keep the same corner character instead of
+     looking rounder; theme.css keeps the fixed 20px for the controller's
+     fixed-size card. */
   aspect-ratio: 2.5 / 1;
+  border-radius: calc(var(--card-w) * 0.057);
   font-size: clamp(0.85rem, 1.8vmin, 1.4rem);
   min-width: 0;
   justify-content: space-evenly;

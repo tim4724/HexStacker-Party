@@ -154,9 +154,8 @@ fun LobbyScreen(
                             QrBlock(
                                 qrBitmap = qrBitmap,
                                 vp = vp,
-                                modifier = Modifier
-                                    .width(qrW)
-                                    .alpha(dimAlpha),
+                                qrW = qrW,
+                                modifier = Modifier.alpha(dimAlpha),
                             )
                             PlayerGrid(
                                 players = data.players,
