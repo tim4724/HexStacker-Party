@@ -147,6 +147,18 @@ struct DisplayChromeView: View {
             }
         }
         .background(UITheme.bgPrimary)
+        // Frozen-capture modes (HEXGALLERY / HEXSHOT) want settled end frames,
+        // never mid-flight ones: zero every animation at the root instead of
+        // gating each animation site, so an animation added tomorrow can't
+        // reintroduce mid-entrance gallery captures. Also freezes the
+        // repeat-forever loops (socket breathe) at their end value, making
+        // captures deterministic.
+        .transaction { t in
+            if model.shotMode {
+                t.disablesAnimations = true
+                t.animation = nil
+            }
+        }
         // Play/Pause and Menu are handled in the UIKit responder chain by the
         // PressHostController root (App.swift), NOT by SwiftUI command
         // modifiers: those route through the focus chain and are never

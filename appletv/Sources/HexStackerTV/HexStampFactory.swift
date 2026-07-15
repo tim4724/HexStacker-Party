@@ -43,8 +43,6 @@ final class HexStampFactory {
         return texture
     }
 
-    func clear() { cache.removeAll() }
-
     // MARK: - Paths
 
     private func point(_ cx: CGFloat, _ cy: CGFloat, _ r: CGFloat, _ i: Int) -> CGPoint {

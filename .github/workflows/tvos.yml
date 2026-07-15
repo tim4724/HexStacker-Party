@@ -1,9 +1,11 @@
 name: tvOS
 
-# The native tvOS port, guarded against silent drift from the web source. Same
-# shape as android.yml (one job, one toolchain invocation per concern): the kit
-# suites for engine/render/netcode parity, then the UI-test bundle that builds the
-# app and captures the per-state screenshot gallery on a booted Apple TV simulator.
+# The native tvOS port, guarded against silent drift from the web source. Two
+# parallel jobs (one toolchain invocation per concern): the SwiftPM kit suites
+# for engine/render/netcode parity, and the UI-test bundle that builds the app
+# and captures the per-state screenshot gallery on a booted Apple TV simulator.
+# The screenshot job is the critical path (the TV Gallery workflow polls for this
+# workflow's completion), so nothing else rides in it.
 #
 # Runs on macOS (free on this public repo). Path-filtered, mirroring android.yml,
 # to the inputs that can actually affect the port: the port itself, the engine +
@@ -33,9 +35,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-test-screenshots:
+  # Parallel to the screenshot job: separate build dirs, no shared artifacts.
+  kit-tests:
     runs-on: macos-15
-    timeout-minutes: 40
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:
@@ -44,8 +47,50 @@ jobs:
         with:
           node-version: 24
           cache: 'npm'
-      # esbuild + node for build:core: the kit suites rebuild it via TestSupport,
-      # and the app pre-build phase runs it via scripts/sync-engine.sh.
+      # esbuild + node for build:core: the kit suites rebuild it via TestSupport.
+      - run: npm ci
+      - name: Kit test suites (render parity, conformance, engine + game loop, netcode, room/host, localization, live relay socket)
+        working-directory: appletv
+        run: swift test
+
+  build-test-screenshots:
+    runs-on: macos-15
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      # Boot the simulator NOW, in the background: xcodebuild otherwise
+      # cold-boots it after the ~2 min of npm ci + project generation + app
+      # compile, spending ~60s of wall clock the boot could have overlapped.
+      # `bootstatus -b` boots and waits; nohup + redirect lets the step return
+      # once the UDID is resolved (the `simctl list` itself stays synchronous:
+      # its ~8s is CoreSimulator warm-up that xcodebuild would otherwise pay
+      # later). The resolved UDID also becomes the xcodebuild -destination, so
+      # both steps are guaranteed to mean the same device — with two runtimes
+      # installed, a name+OS=latest destination could resolve to a different
+      # simulator than the one pre-booted here, and the runner would boot two.
+      # Best-effort: if no device matches, xcodebuild falls back to booting
+      # its own by name.
+      - name: Pre-boot the Apple TV simulator (background)
+        run: |
+          UDID=$(xcrun simctl list devices available --json \
+            | jq -r '[.devices | to_entries[] | select(.key | contains("tvOS")) | .value[] | select(.name == "Apple TV")] | last | .udid // empty')
+          if [ -n "$UDID" ]; then
+            echo "pre-booting Apple TV simulator $UDID"
+            echo "TV_UDID=$UDID" >> "$GITHUB_ENV"
+            nohup xcrun simctl bootstatus "$UDID" -b >/dev/null 2>&1 &
+          else
+            echo "no 'Apple TV' simulator found; xcodebuild will boot its own"
+          fi
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'npm'
+      # esbuild + node: the app pre-build phase rebuilds the core bundle via
+      # scripts/sync-engine.sh.
       - run: npm ci
 
       - name: Install XcodeGen + xcparse
@@ -83,45 +128,32 @@ jobs:
           key: spm-${{ runner.os }}-${{ hashFiles('appletv/project.yml') }}
           restore-keys: spm-${{ runner.os }}-
 
-      # `--continue`-style, mirroring android.yml's single gradle invocation: run
-      # BOTH test invocations non-fatally (continue-on-error) so the screenshots
-      # always upload and neither result hides the other; the job then fails below
-      # if either did.
-      #
-      #   swift test:      kit suites: render parity vs the canonical web JS,
-      #                    frame-golden conformance, engine determinism + game
-      #                    loop, netcode, room/host FSM, localization, and the
-      #                    live RelayClient socket. None of this runs on Linux.
-      #   xcodebuild test: builds + links the app target (the old standalone
-      #                    `xcodebuild build` job is redundant with this) and runs
-      #                    the UI-test bundle: the single-launch screenshot
-      #                    gallery + the remote-driven smoke test. HomeScreenTests
-      #                    is skipped in CI (its Top Shelf shot comes back as a
-      #                    blurred wallpaper on the headless runner; captured on a
-      #                    local Simulator only).
-      - name: Kit test suites (render parity, conformance, engine + game loop, netcode, room/host, localization, live relay socket)
-        id: kit
-        continue-on-error: true
-        working-directory: appletv
-        run: swift test
-
-      - name: Build the app + capture the screenshot gallery (boots an Apple TV simulator)
-        id: screenshots
-        continue-on-error: true
+      # Builds + links the app target (the old standalone `xcodebuild build` job
+      # is redundant with this) and runs the UI-test bundle: the single-launch
+      # screenshot gallery + the remote-driven smoke test. HomeScreenTests is
+      # skipped in CI (its Top Shelf shot comes back as a blurred wallpaper on
+      # the headless runner; captured on a local Simulator only). A test failure
+      # fails the job here; the if:always() steps below still ship the shots.
+      - name: Build the app + capture the screenshot gallery (on the pre-booted Apple TV simulator)
         working-directory: appletv
         run: |
           set -o pipefail
+          DEST="id=${TV_UDID}"
+          [ -n "$TV_UDID" ] || DEST='platform=tvOS Simulator,name=Apple TV,OS=latest'
           xcodebuild test \
             -project HexStacker.xcodeproj \
             -scheme HexStackerTV \
             -sdk appletvsimulator \
-            -destination 'platform=tvOS Simulator,name=Apple TV,OS=latest' \
+            -destination "$DEST" \
             -derivedDataPath .build-xcode \
             -resultBundlePath TestResults.xcresult \
             -skip-testing:HexStackerTVUITests/HomeScreenTests
 
       # Pull the named screenshot attachments out of the result bundle. Runs even
       # if a test failed, so a regressed screen still ships its capture for review.
+      # No sticky PR comment: the TV Gallery workflow consumes the
+      # tvos-screenshots artifact and posts the one browsable web/tvOS/Android
+      # gallery comment.
       - name: Extract screenshots
         if: always()
         working-directory: appletv
@@ -130,22 +162,9 @@ jobs:
           ls -R screenshots || true
 
       - name: Upload screenshots
-        id: upload
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: tvos-screenshots
           path: appletv/screenshots
           if-no-files-found: warn
-
-      # Surface a failure from either non-fatal test step above (the screenshots
-      # and both results are already uploaded by the time we get here). No sticky PR
-      # comment: the TV Gallery workflow consumes the tvos-screenshots artifact and
-      # posts the one browsable web/tvOS/Android gallery comment.
-      - name: Report test results
-        if: always()
-        run: |
-          fail=0
-          [ "${{ steps.kit.outcome }}" = "success" ] || { echo "::error::kit tests (swift test) failed"; fail=1; }
-          [ "${{ steps.screenshots.outcome }}" = "success" ] || { echo "::error::screenshot UI tests (xcodebuild test) failed"; fail=1; }
-          exit $fail
