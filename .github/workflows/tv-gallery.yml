@@ -66,8 +66,20 @@ jobs:
           node-version: 24
           cache: 'npm'
       - run: npm ci
+      # Chromium is ~130MB per run; cache it keyed on the Playwright version
+      # (the browser build is pinned to it). On a hit only the apt deps run.
+      - name: Cache Playwright Chromium
+        id: pw-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Install Playwright Chromium
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
+      - name: Install Playwright system deps (cached browser)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
 
       - name: Capture web reference shots
         run: |
@@ -117,7 +129,9 @@ jobs:
                 break
               fi
               echo "waiting for $1 run $run_id ($status)..."
-              sleep 30
+              # Poll fast only while the run is actually executing; a queued
+              # run can sit for minutes and 30s keeps the gh api budget low.
+              [ "$status" = "in_progress" ] && sleep 10 || sleep 30
             done
             if [ -z "$run_id" ]; then
               read -r run_id sha < <(gh api -X GET "repos/${{ github.repository }}/actions/workflows/$1/runs" \

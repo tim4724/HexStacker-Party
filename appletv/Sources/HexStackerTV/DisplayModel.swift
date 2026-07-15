@@ -24,7 +24,13 @@ final class DisplayModel: ObservableObject {
 
     private(set) var galleryMode = ProcessInfo.processInfo.environment["HEXGALLERY"] != nil
     private var galleryIndex = 0
-    private var shotMode = false       // HEXSHOT: render one frozen state, no live tick
+    // Frozen-capture harness modes (HEXGALLERY carousel, HEXSHOT single state):
+    // render one settled state, no live tick — and no animations at all:
+    // DisplayRootView zeroes every transaction's animation in this mode, so
+    // captures always show end frames and no future animation can reintroduce
+    // mid-flight gallery shots.
+    private(set) var shotMode = ProcessInfo.processInfo.environment["HEXGALLERY"] != nil
+        || ProcessInfo.processInfo.environment["HEXSHOT"] != nil
     private var relayStarted = false   // false in the offline harness modes
 
     // A match is starting but the countdown scrim isn't on screen yet: hold
@@ -88,12 +94,10 @@ final class DisplayModel: ObservableObject {
         }
 
         if galleryMode {
-            shotMode = true
             presentGalleryState()
             return
         }
         if let shot = ProcessInfo.processInfo.environment["HEXSHOT"] {
-            shotMode = true
             let pc = ProcessInfo.processInfo.environment["HEXPLAYERS"].flatMap { Int($0) } ?? 4
             makeCoordinator(relayBacked: false)
             applyShot(shot, playerCount: pc)
@@ -432,11 +436,13 @@ final class DisplayModel: ObservableObject {
         boardScene.resetBoards()
         makeCoordinator(relayBacked: false)
         applyShot(entry.shot, playerCount: entry.players)
-        // Report ready once labels / QR / board textures have rasterized AND the
-        // longest entrance animation has settled (lobby ⓘ button: 0.6s delay +
-        // 0.5s fade); the process is warm, so this still beats per-state cold
-        // launches.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) { [weak self] in
+        // Report ready once labels / QR / board textures have rasterized. No
+        // animation tail to sit out: shotMode zeroes every animation at the
+        // root, so this only covers the SwiftUI commit + texture upload of the
+        // settled frame. Runs on the main queue, so a slow CI runner still
+        // busy rasterizing pushes the marker flip out with it. The process is
+        // warm, so this still beats per-state cold launches.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
             self?.galleryMarker = entry.name
         }
     }

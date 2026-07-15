@@ -42,20 +42,31 @@ final class ScreenshotTests: XCTestCase {
         for i in 0..<total {
             // Wait for the marker's value to CHANGE to the next state's name (it
             // holds the previous name through the scene swap, so a changed value
-            // means the new frozen frame is on screen and settled).
-            // 60s: locally every state settles in ~4s, but the shared CI runner
-            // rasterizes the heavy 4K board states (full stacks, per-board QRs)
-            // slowly enough that 15s flaked on a handful of them.
-            let changed = NSPredicate(format: "value != %@", lastName)
-            let exp = XCTNSPredicateExpectation(predicate: changed, object: marker)
-            XCTAssertEqual(XCTWaiter().wait(for: [exp], timeout: 60), .completed,
-                           "state \(i): app never signalled the next frozen frame")
+            // means the new frozen frame is on screen and settled). Polled by
+            // hand at 5 Hz: XCTNSPredicateExpectation only polls at 1 Hz, which
+            // added most of a second per state. 60s deadline: locally a state
+            // settles in ~0.3s, but the shared CI runner rasterizes the heavy
+            // board states (full stacks, per-board QRs) an order of magnitude
+            // slower on bad days (a 15s deadline used to flake), so keep the
+            // margin wide.
+            let waitStart = Date()
+            let deadline = waitStart.addingTimeInterval(60)
+            var name = (marker.value as? String) ?? ""
+            while name == lastName, Date() < deadline {
+                usleep(200_000)
+                name = (marker.value as? String) ?? ""
+            }
+            XCTAssertNotEqual(name, lastName,
+                              "state \(i): app never signalled the next frozen frame")
 
-            let name = (marker.value as? String) ?? ""
+            let shotStart = Date()
             let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
             attachment.name = name
             attachment.lifetime = .keepAlways   // keep on success, not just failure
             add(attachment)
+            let now = Date()
+            NSLog("hexshot[%d] %@: wait=%.2fs shot=%.2fs", i, name,
+                  shotStart.timeIntervalSince(waitStart), now.timeIntervalSince(shotStart))
             lastName = name
 
             if i < total - 1 { XCUIRemote.shared.press(.playPause) }
