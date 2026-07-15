@@ -201,6 +201,15 @@ var _copyTimer = null;
 // Called from both applyRoomCreated and onDisplayRejoined so the structure
 // is preserved after a reconnect.
 function renderJoinUrl(url) {
+  // Load fade (tvOS/Android parity): a rejoin can land in a fresh room and
+  // swap the code in place — fade the line instead of popping. The first
+  // render stays instant (the lobby entrance carries it).
+  if (joinUrlEl.dataset.joinUrl && joinUrlEl.dataset.joinUrl !== url) {
+    joinUrlEl.classList.remove('qr-swap');
+    void joinUrlEl.offsetWidth;   // restart the animation
+    joinUrlEl.classList.add('qr-swap');
+  }
+  joinUrlEl.dataset.joinUrl = url;
   var hostEl = joinUrlEl.querySelector('.join-url__host');
   var codeEl = joinUrlEl.querySelector('.join-url__code');
   if (hostEl && codeEl) {

@@ -62,6 +62,14 @@ targets:
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UIRequiredDeviceCapabilities: [arm64]
         GCSupportsControllerUserInteraction: true
+        # Brand-plum launch (bgPrimary #1E1A2B, the LaunchBackground colorset):
+        # without UILaunchScreen tvOS synthesizes a systemBackground launch
+        # screen, which flashed light grey before the first app frame. Dark
+        # style keeps every system surface (hosting-view background, alerts)
+        # dark so nothing can flash light during launch or handoffs.
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIUserInterfaceStyle: Dark
         # Only standard TLS (wss/https) is used — exempt from export compliance,
         # so uploads skip the per-build encryption questionnaire.
         ITSAppUsesNonExemptEncryption: false

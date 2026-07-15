@@ -86,7 +86,11 @@ struct LobbyView: View {
                 .modifier(Entrance(dy: 0, delay: 0.6, duration: 0.5))
         }
         .onChange(of: data.players.map { $0.peerIndex }) { ids in
-            seenPeers.formUnion(ids)
+            // Track exactly the CURRENT roster (not a grow-only union): a
+            // peer who leaves is forgotten, so a disconnect + rejoin pops
+            // again — web parity, where a rejoin re-creates the card element
+            // and .join-pop replays.
+            seenPeers = Set(ids)
         }
     }
 
@@ -119,8 +123,10 @@ struct LobbyView: View {
         // (the code in the line is what could mislead). Only once a QR is
         // showing: the initial relay connect also flags pending, and dimming
         // the still-blank card mid-entrance double-pumped the fade.
+        // No scoped .animation(value:) here: one firing mid-entrance snapped
+        // the band's in-flight slide (~10px single-frame jump, measured). The
+        // model animates qrPending flips via withAnimation instead.
         .opacity(qrPending && !data.qrText.isEmpty ? Self.qrPendingAlpha : 1)
-        .animation(.easeOut(duration: 0.2), value: qrPending)
     }
 
     // MARK: - Start
@@ -226,22 +232,39 @@ struct PlayerCardView: View {
     let w: CGFloat
     let h: CGFloat
     let vp: Vp
-    let pop: Bool
 
     @State private var breatheDim = false
-    @State private var popped = false
+    // Latched at identity creation, NOT read live from the parent: the same
+    // roster update that seats a new player also records the peer as seen
+    // (LobbyView.onChange), which recomposes this card with pop == false
+    // before its first frame commits — visuals keyed on the live flag (the
+    // old `pop && !popped`) resolved settled and the join pop never ran.
+    // Seeded here, the card's first frame is small + clear regardless of
+    // that recompose, and onAppear plays the pop.
+    @State private var popped: Bool
+
+    init(seat: LobbySeat?, w: CGFloat, h: CGFloat, vp: Vp, pop: Bool) {
+        self.seat = seat
+        self.w = w
+        self.h = h
+        self.vp = vp
+        _popped = State(initialValue: !pop)
+    }
 
     var body: some View {
         Group {
             if let seat {
                 filled(seat)
-                    // Join pop (web slotPopIn): scale spring + quick fade, only
-                    // for a player arriving while the lobby is up.
-                    .scaleEffect(pop && !popped ? 0.6 : 1.0)
-                    .opacity(pop && !popped ? 0 : 1)
+                    // Join pop (web slotPopIn, keep in sync with display.css):
+                    // scale 0.6→1 + fade in one back-out overshoot (peaks ~1.07
+                    // just past halfway, long tail as the settle) — 0.5s
+                    // cubic-bezier(0.34, 1.8, 0.64, 1), only for a player
+                    // arriving while the lobby is up.
+                    .scaleEffect(popped ? 1.0 : 0.6)
+                    .opacity(popped ? 1 : 0)
                     .onAppear {
-                        guard pop else { popped = true; return }
-                        withAnimation(.spring(response: 0.45, dampingFraction: 0.55)) { popped = true }
+                        guard !popped else { return }
+                        withAnimation(.timingCurve(0.34, 1.8, 0.64, 1, duration: 0.5)) { popped = true }
                     }
             } else {
                 empty
@@ -364,26 +387,24 @@ struct QrBlockView: View {
         // clamp(6px, 1.2vmin, 14px).
         let radius = width * 0.057
         let pad = max(6, min(vp.vmin * 0.012, 14))
-        RoundedRectangle(cornerRadius: radius)
-            .fill(Color.white)
-            .shadow(color: .black.opacity(0.32), radius: 4, x: 0, y: 2)   // --shadow-sm
-            .frame(width: width, height: width)
-            .overlay {
-                if !qrText.isEmpty, let qr = QRCode.image(for: qrText) {
-                    Image(uiImage: qr)
-                        .resizable()
-                        .interpolation(.none)   // hard module edges, no smear
-                        // Multiply: the generated image is black-on-WHITE, and
-                        // fading it as-is reads as a second white box over the
-                        // white card. Multiplied, only the black modules show.
-                        .blendMode(.multiply)
-                        .padding(pad)
-                        .transition(.opacity)
-                }
-            }
-            // The relay usually confirms the room mid-entrance: the modules
-            // fade into the already-fading card instead of popping.
-            .animation(.easeOut(duration: 0.3), value: qrText)
+        // Baked bitmaps for card + pattern (QRCode.cardImage explains why:
+        // a Shape + overlay(Image) stack split into layers under the entrance
+        // band's animated offset and left the pattern pinned at destination).
+        // The room-confirm fade stacks TWO cards with STABLE identities and
+        // animates plain opacity on the top one — no .transition, no id swap,
+        // no blend: all three re-detach the bitmap from the band's slide.
+        ZStack {
+            Image(uiImage: QRCode.cardImage(for: "", side: width,
+                                            cornerRadius: radius, padding: pad))
+            Image(uiImage: QRCode.cardImage(for: qrText, side: width,
+                                            cornerRadius: radius, padding: pad))
+                // The pattern fades in when the relay confirms the room: the
+                // qrText change arrives inside the model's roomReady
+                // withAnimation transaction, which animates this opacity. No
+                // scoped .animation(value:) (see the band comment below).
+                .opacity(qrText.isEmpty ? 0 : 1)
+        }
+        .shadow(color: .black.opacity(0.32), radius: 4, x: 0, y: 2)   // --shadow-sm
     }
 }
 
@@ -409,8 +430,9 @@ struct JoinLineView: View {
                     .transition(.opacity)
             }
         }
-        // Fades in with the QR pattern when the room lands mid-entrance.
-        .animation(.easeOut(duration: 0.3), value: joinURL)
+        // Fades in with the QR pattern: the insertion rides the model's
+        // roomReady withAnimation transaction (no scoped .animation here,
+        // same reason as the band's pending dim).
     }
 
     private func line(host: String, code: String) -> some View {

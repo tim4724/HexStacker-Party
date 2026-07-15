@@ -414,6 +414,21 @@ function renderQR(canvas, qrMatrix, targetCssSize) {
   var size = qrMatrix.size;
   var modules = qrMatrix.modules;
 
+  // Load fade (tvOS/Android parity): repainting a DIFFERENT code while the
+  // canvas is already on screen (a display rejoin that landed in a fresh
+  // room) fades the new pattern in instead of popping. The FIRST paint is
+  // deliberately instant — the lobby is revealed with its QR already
+  // painted (applyRoomCreated) and the entrance stagger carries it. The
+  // signature samples the matrix diagonal: enough to detect a code change.
+  var sig = String(size);
+  for (var d = 0; d < size; d++) sig += (modules[d * size + d] & 1) ? '1' : '0';
+  if (canvas.dataset.qrSig && canvas.dataset.qrSig !== sig) {
+    canvas.classList.remove('qr-swap');
+    void canvas.offsetWidth;   // restart the animation
+    canvas.classList.add('qr-swap');
+  }
+  canvas.dataset.qrSig = sig;
+
   var dpr = window.devicePixelRatio || 1;
   var rect = canvas.getBoundingClientRect();
   var cssSize = targetCssSize || Math.min(rect.width, rect.height) || 180;

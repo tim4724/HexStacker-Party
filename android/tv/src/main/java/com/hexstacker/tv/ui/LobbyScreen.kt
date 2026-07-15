@@ -1,8 +1,8 @@
 package com.hexstacker.tv.ui
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -332,33 +332,28 @@ private fun PlayerGrid(players: List<LobbyPlayer>, vp: Vp, visibleSlots: Int, co
     }
 }
 
-/** slotPopIn: scale 0.6→1.08(60%)→0.96(80%)→1, opacity 0→1, over 0.45s.
+/** slotPopIn: scale 0.6→1 + fade, one back-out overshoot (peaks ~1.07 just
+ *  past halfway) with the bezier's long tail as the settle — 0.5s
+ *  cubic-bezier(0.34, 1.8, 0.64, 1), mirroring web display.css (keep in sync).
+ *  The same curve drives the alpha, exactly like the CSS animation; past its
+ *  overshoot the eased fraction exceeds 1, so the layer clamps it.
  *  [play] = false renders the card settled (a known player re-composed by a
  *  grid reflow must not re-pop). */
+private val SlotPopEasing = CubicBezierEasing(0.34f, 1.8f, 0.64f, 1f)
+
 @Composable
 private fun JoinPop(play: Boolean, content: @Composable () -> Unit) {
     val scale = remember { Animatable(if (play) 0.6f else 1f) }
     val alpha = remember { Animatable(if (play) 0f else 1f) }
     if (play) LaunchedEffect(Unit) {
-        launch {
-            scale.animateTo(
-                1f,
-                keyframes {
-                    durationMillis = 450
-                    0.6f at 0
-                    1.08f at 270 // 60%
-                    0.96f at 360 // 80%
-                    1f at 450
-                },
-            )
-        }
-        launch { alpha.animateTo(1f, tween(270)) }
+        launch { scale.animateTo(1f, tween(500, easing = SlotPopEasing)) }
+        launch { alpha.animateTo(1f, tween(500, easing = SlotPopEasing)) }
     }
     Box(
         Modifier.graphicsLayer {
             scaleX = scale.value
             scaleY = scale.value
-            this.alpha = alpha.value
+            this.alpha = alpha.value.coerceAtMost(1f)
             // alpha<1 with the default Auto strategy composites into an offscreen buffer
             // that CLIPS to the layer bounds — the 1.08 overshoot would lose its edges
             // mid-pop. ModulateAlpha applies alpha without a buffer (no clipping),

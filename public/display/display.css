@@ -429,6 +429,16 @@ html:not(.in-session) #relay-status-bar { display: none; }
   min-height: 0;
 }
 
+/* Load fade (tvOS/Android parity): a QR or join-line repaint with DIFFERENT
+   content while the lobby is up (a display rejoin that landed in a fresh
+   room) fades in instead of popping. The first paint stays instant by
+   design — the lobby is revealed with its QR painted and the entrance
+   stagger carries it. Applied by renderQR / renderJoinUrl. */
+.qr-swap,
+#join-url.qr-swap {   /* outweigh #join-url's own fadeUp entrance */
+  animation: fadeIn 0.3s ease;
+}
+
 /* Frameless join block — no card, no label: the white code floats with a
    soft shadow. The join URL lives in #lobby-cta above the START button. */
 #qr-container {

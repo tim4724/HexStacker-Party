@@ -12,7 +12,6 @@ import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -662,9 +661,12 @@ internal fun DisplayChrome(
         board()
 
         // Cross-fade between screens over the board (web #game-screen fadeIn 0.3s /
-        // #results-screen fadeIn 0.5s). The lobby swaps instantly and plays its own
-        // entrance stagger. LOBBY / GAME / RESULTS all share the plum backdrop, so
-        // fading one out over the board reads clean.
+        // #results-screen fadeIn 0.5s). Exits mirror the web's fade-through: the
+        // outgoing screen fades over the incoming one — 180ms (SCREEN_EXIT_MS) for
+        // full-screen swaps, 300ms leaving RESULTS (its .closing cross-fade), which
+        // also exits ON TOP of the entering screen like the web overlay does.
+        // LOBBY / GAME / RESULTS all share the plum backdrop, so fading one out
+        // over the board reads clean.
         AnimatedContent(
             targetState = model.screen,
             // Always fullscreen: the GAME branch composes nothing once the countdown
@@ -672,14 +674,25 @@ internal fun DisplayChrome(
             // clip-expand the next screen from 0x0 instead of fading it.
             modifier = Modifier.fillMaxSize(),
             transitionSpec = {
-                when (targetState) {
-                    // Lobby fades out revealing the board; the countdown rides the GAME
-                    // branch fade so match start reads as one unit (web #game-screen 0.3s).
-                    DisplayScreen.GAME -> fadeIn(tween(300)) togetherWith fadeOut(tween(300))
+                val leavingResults = initialState == DisplayScreen.RESULTS
+                val exit = fadeOut(tween(if (leavingResults) 300 else 180))
+                val enter = when (targetState) {
+                    // The countdown rides the GAME branch fade so match start reads
+                    // as one unit (web #game-screen fadeIn 0.3s).
+                    DisplayScreen.GAME -> fadeIn(tween(300))
                     // Scrim + rows fade in (web #results-screen fadeIn 0.5s).
-                    DisplayScreen.RESULTS -> fadeIn(tween(500)) togetherWith fadeOut(tween(300))
-                    // Instant swap: the lobby owns its own entrance stagger.
-                    DisplayScreen.LOBBY -> EnterTransition.None togetherWith ExitTransition.None
+                    DisplayScreen.RESULTS -> fadeIn(tween(500))
+                    // The lobby owns its own entrance stagger, so it enters instantly
+                    // beneath the fading results (web NEW GAME cross-fade). From GAME
+                    // the board layer sits BENEATH the entering lobby, so the web's
+                    // game-screen exit fade inverts into a lobby fade-in here — the
+                    // same 180ms dissolve, under the pause overlay's 200ms exit.
+                    DisplayScreen.LOBBY ->
+                        if (initialState == DisplayScreen.GAME) fadeIn(tween(180))
+                        else EnterTransition.None
+                }
+                (enter togetherWith exit).apply {
+                    targetContentZIndex = if (leavingResults) -1f else 0f
                 }
             },
             label = "screen",

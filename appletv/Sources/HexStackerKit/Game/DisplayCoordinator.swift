@@ -600,8 +600,10 @@ public final class DisplayCoordinator {
         let deltaMs = min(max(rawDelta, 0), Self.maxFrameDeltaMs)
         // The local demo has no controllers sending heartbeats, so keep its
         // synthetic players "seen" — otherwise the liveness sweep flags them
-        // disconnected after 3 s and auto-pauses the self-playing game.
-        if demoActive, flow.state == .countdown || flow.state == .playing {
+        // disconnected after 3 s and auto-pauses the self-playing game, and
+        // on RESULTS the presence sweep would auto-return a finished demo
+        // match to the lobby (which cuts the HEXTOUR results dwell short).
+        if demoActive, flow.state != .lobby {
             flow.primeLiveness(nowProvider())
         }
         switch flow.state {

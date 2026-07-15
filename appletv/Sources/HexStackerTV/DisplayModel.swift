@@ -53,6 +53,13 @@ final class DisplayModel: ObservableObject {
     static let exitFade = Animation.easeIn(duration: 0.2)
     static let resultsFade = Animation.easeOut(duration: 0.5)
     static let countdownExitFade = Animation.easeIn(duration: 0.25)
+    // Full-screen swap exit (web SCREEN_EXIT_MS / .closing fadeOut 0.18s):
+    // the outgoing screen dissolves over the synchronously revealed one.
+    // The curve is CSS `ease` like the web keyframe — front-loaded; easeIn
+    // spends half the 180ms near-invisible and reads as a hard cut.
+    static let screenExitFade = Animation.timingCurve(0.25, 0.1, 0.25, 1, duration: 0.18)
+    // Leaving RESULTS on either edge (web fadeHide(resultsScreen, 300) ease).
+    static let resultsExitFade = Animation.timingCurve(0.25, 0.1, 0.25, 1, duration: 0.3)
 
     // MARK: - Boot
 
@@ -113,6 +120,17 @@ final class DisplayModel: ObservableObject {
             return
         }
 
+        // Scripted transition tour for motion review (no relay): every screen
+        // edge driven through the production triggers on a wall-clock timer.
+        // Recorded by scripts/record-transitions-tvos.sh — the tvOS mirror of
+        // the web gallery's "Transitions (full journey)" card.
+        if ProcessInfo.processInfo.environment["HEXTOUR"] != nil {
+            makeCoordinator(relayBacked: false)
+            startTickPump()
+            runTransitionTour()
+            return
+        }
+
         makeCoordinator(relayBacked: true)
         startTickPump()
         coordinator?.start()
@@ -168,7 +186,9 @@ final class DisplayModel: ObservableObject {
             // suspend() must not flash the full DISCONNECTED cover), so the dim is
             // what marks the QR untrusted. .open does NOT clear it — the socket
             // opens before the relay answers the join; only roomReady re-confirms.
-            if connState != .open { self.state.qrPending = true }
+            if connState != .open {
+                withAnimation(Self.exitFade) { self.state.qrPending = true }
+            }
         }
         // Evicted because another client claimed the "display" slot: reconnecting
         // would start a takeover war, so show a terminal disconnect with no button.
@@ -266,6 +286,20 @@ final class DisplayModel: ObservableObject {
         coordinator?.displayDidEnterBackground()
         guard relayStarted else { return }   // HEXSHOT/HEXLOBBY/HEXDEMO never connect
         relay?.suspend()
+        // Graceful resume exists for rooms with PLAYERS. An empty lobby's
+        // room dies with our socket at the relay (rooms live on members),
+        // so reopening would rejoin a dead room, bounce off "Room not
+        // found", and visibly swap the QR mid-lobby. Forget the room and
+        // reset to the waiting scaffold instead: the next foreground
+        // presents like a fresh open — blank card, then the new room's QR.
+        if coordinator?.flow.list().isEmpty ?? true {
+            relay?.unpinRoom()
+            room = nil
+            joinURL = nil
+            qrText = nil
+            state.lobby = LobbyData()
+            state.qrPending = false   // blank card, not a dimmed stale one
+        }
     }
 
     /// App returned to the foreground: rejoin explicitly. If the room survived,
@@ -273,6 +307,16 @@ final class DisplayModel: ObservableObject {
     /// "Room not found" and onRelayError opens a fresh room.
     func appWillEnterForeground() {
         guard relayStarted else { return }
+        // suspend() parks the link on .closed, and reconnectNow's .connecting
+        // lands asynchronously — without this, the first foreground frames
+        // paint the full DISCONNECTED overlay over the resuming lobby (a
+        // ~100ms flash during the system app-switch). Present the resume as
+        // a quiet rejoin instead: no overlay, the QR pending dim marks the
+        // unconfirmed room, and a genuinely failed rejoin re-raises the
+        // overlay through the normal state flow. `replaced` stays terminal.
+        if state.connection == .closed && !state.replaced {
+            state.connection = .connecting
+        }
         relay?.reconnectNow()
     }
 
@@ -289,8 +333,48 @@ final class DisplayModel: ObservableObject {
     /// room is unchanged, so lift the precautionary dim — unless the link is
     /// genuinely down, where roomReady clears it after the reconnect instead.
     func appDidBecomeActive() {
-        if !backgroundedSinceResign, linkState == .open { state.qrPending = false }
+        if !backgroundedSinceResign, linkState == .open {
+            withAnimation(Self.exitFade) { state.qrPending = false }
+        }
         backgroundedSinceResign = false
+    }
+
+    // MARK: - Transition tour (HEXTOUR)
+
+    /// Walk every screen edge through the real production triggers, with
+    /// fixture players and self-playing matches: lobby entrance, three join
+    /// pops, match start (lobby exit), a real game end into results, PLAY
+    /// AGAIN (results → countdown), a second results, NEW GAME (results →
+    /// lobby), then a third match for the pause overlay and NEW GAME from
+    /// pause (game → lobby). Dwells are wall-clock, sized so the countdown
+    /// (~3.5s) and each fade have settle time on film.
+    private func runTransitionTour() {
+        guard let c = coordinator else { return }
+        let steps: [(at: Double, run: () -> Void)] = [
+            // Room ready BEFORE the lobby's first frame (the web tour's own
+            // sequence), so the QR pattern rides the entrance slide from
+            // frame 0. Don't try to schedule a mid-entrance confirm here:
+            // launch jitter shifts the timer against the entrance window, and
+            // a late-landing pattern pops onto the settled card — which reads
+            // exactly like the detached-QR bug this tour exists to disprove.
+            // The mid-entrance arrival is a production-timing case; verify it
+            // against the live relay app.
+            (0.0,  { c.renderShot("lobby-empty") }),
+            (2.5,  { c.startLobbyDemo(playerCount: 1) }),
+            (3.4,  { c.startLobbyDemo(playerCount: 2) }),
+            (4.3,  { c.startLobbyDemo(playerCount: 3) }),
+            (7.0,  { c.tourEnableSelfPlay(); c.remoteStartMatch() }),
+            (15.0, { c.tourForceMatchEnd() }),
+            (19.0, { c.tourEnableSelfPlay(); c.remoteStartMatch() }),
+            (27.0, { c.tourForceMatchEnd() }),
+            (31.0, { c.remoteReturnToLobby() }),
+            (34.0, { c.tourEnableSelfPlay(); c.remoteStartMatch() }),
+            (40.0, { c.remoteTogglePause() }),
+            (43.0, { c.remoteReturnToLobby() }),
+        ]
+        for step in steps {
+            DispatchQueue.main.asyncAfter(deadline: .now() + step.at, execute: step.run)
+        }
     }
 
     // MARK: - Gallery (HEXSHOT / HEXGALLERY)
@@ -413,22 +497,38 @@ extension DisplayModel: DisplayOutput {
 
     func showScreen(_ screen: DisplayScreen) {
         guard screen != state.screen || pendingGameReveal else { return }
-        boardScene.showScreen(screen)
+        // The GAME board-scene flip rides the reveal (first countdown), not
+        // this call: on match start the engine boots for a beat after
+        // showScreen(.game), and flipping here pops the lobby's falling
+        // pieces off behind the still-visible chrome. Deferred, the ambient
+        // keeps drifting under the lobby until the countdown scrim covers
+        // the swap (the web defers its bg-canvas hide the same way).
+        // Snapshots arriving before the flip build the hidden game layer.
+        if screen != .game { boardScene.showScreen(screen) }
         // The About / licenses overlays are lobby-only; a match starting (from a
         // controller while one is open) must not leave it stranded over the game.
         if screen != .lobby { state.showAbout = false; state.showLicenses = false }
         switch screen {
         case .lobby:
-            // Instant swap (web parity): the lobby's own entrance stagger is the
-            // transition. Also drop any lingering countdown, and seat the menu
-            // cursor back on START (a stale ⓘ focus from the previous visit
-            // reads as random after a match).
+            // The lobby's own entrance stagger is the transition (insertion stays
+            // .identity), but the OUTGOING side fades like the web: leaving
+            // RESULTS (NEW GAME) dissolves it over the entering lobby for 300ms;
+            // leaving GAME rides the pause overlay's 200ms exit (its near-opaque
+            // scrim hides the board→lobby swap beneath, web dismissOverlay).
+            // Also drop any lingering countdown, and seat the menu cursor back
+            // on START (a stale ⓘ focus from the previous visit reads as random
+            // after a match).
+            let leaving = state.screen
             pendingGameReveal = false
             var s = state
             s.screen = .lobby
             s.countdown = nil
             s.lobbyFocus = .start
-            state = s
+            switch leaving {
+            case .results: withAnimation(Self.resultsExitFade) { state = s }
+            case .game: withAnimation(Self.exitFade) { state = s }
+            case .lobby: state = s
+            }
         case .results:
             pendingGameReveal = false
             withAnimation(Self.resultsFade) { state.screen = .results }
@@ -446,8 +546,15 @@ extension DisplayModel: DisplayOutput {
         self.room = room
         self.joinURL = joinURL
         self.qrText = qrText
-        state.qrPending = false
-        state.lobby = buildLobby()
+        // One transaction for the room-confirm reveal: the QR pattern and
+        // join line fade in (their opacities key on the new lobby data) and
+        // the pending dim lifts. Scoped .animation(value:) modifiers in the
+        // lobby are banned for this: one firing mid-entrance snapped the
+        // band's in-flight slide (~10px single-frame jump, measured).
+        withAnimation(Self.enterFade) {
+            state.qrPending = false
+            state.lobby = buildLobby()
+        }
     }
 
     func updateLobby(players: [PlayerRecord], hostPeerIndex: Int?) {
@@ -473,9 +580,21 @@ extension DisplayModel: DisplayOutput {
     }
 
     func showCountdown(_ value: CountdownValue) {
-        withAnimation(Self.enterFade) {
+        // The countdown inserts at full opacity, so on a game reveal the only
+        // animated element in this transaction is the outgoing screen's removal:
+        // the lobby dissolves in 180ms (web SCREEN_EXIT_MS), results in 300ms
+        // (web fadeHide 300, PLAY AGAIN). A countdown re-shown while GAME is
+        // already up keeps the plain enter fade.
+        let anim = pendingGameReveal && state.screen == .lobby
+            ? Self.screenExitFade : Self.enterFade
+        withAnimation(anim) {
             if pendingGameReveal {
                 pendingGameReveal = false
+                // The scene cross-fades its own layers (boards in over 0.3s,
+                // ambient out beneath the scrim), so no deferral gymnastics:
+                // even an SKView frame that lands before this SwiftUI commit
+                // just shows the first sliver of the same fade.
+                boardScene.showScreen(.game)
                 state.screen = .game
             }
             state.countdown = value
@@ -502,6 +621,7 @@ extension DisplayModel: DisplayOutput {
         // same call as showScreen(.game), long before the scrim is ready.
         if pendingGameReveal && shotMode {
             pendingGameReveal = false
+            boardScene.showScreen(.game)   // the deferred scene flip
             state.screen = .game
         }
         boardScene.renderSnapshot(snapshot)

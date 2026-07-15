@@ -31,6 +31,11 @@ final class PressHostController: UIViewController {
         addChild(host)
         host.view.frame = view.bounds
         host.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        // Brand plum instead of the default systemBackground: the hosting
+        // view is visible for a beat between the launch screen and SwiftUI's
+        // first frame, and systemBackground flashed light grey there.
+        view.backgroundColor = SKTheme.bgPrimary
+        host.view.backgroundColor = SKTheme.bgPrimary
         view.addSubview(host.view)
         host.didMove(toParent: self)
 

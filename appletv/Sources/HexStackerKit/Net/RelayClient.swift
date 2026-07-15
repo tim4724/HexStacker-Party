@@ -118,6 +118,18 @@ public final class RelayClient: NSObject, RelayTransport {
         }
     }
 
+    /// Forget the pinned room WITHOUT touching the socket: the next
+    /// (re)connect handshake sends `create` instead of `join`. Used when the
+    /// display suspends with an EMPTY lobby — the memberless room dies with
+    /// our socket at the relay anyway, so resuming it would only bounce a
+    /// join off "Room not found" before recreating.
+    public func unpinRoom() {
+        q.async {
+            self.lastRoom = nil
+            self.lastInstance = nil
+        }
+    }
+
     /// Forget the current room and open a fresh one. Clears the pinned room so the
     /// next handshake sends `create` (not `join`), then tears the socket down and
     /// reconnects. Recovery path for a relay `error` of "Room not found"/"Room is

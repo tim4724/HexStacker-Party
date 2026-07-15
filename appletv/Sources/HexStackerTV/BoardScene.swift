@@ -50,6 +50,10 @@ final class BoardScene: SKScene {
     override init(size: CGSize) {
         super.init(size: size)
         scaleMode = .resizeFill
+        // In init, not (only) didMove: the SKView's first presented frame
+        // clears to SpriteKit's default grey before didMove runs, which
+        // flashed a grey frame between the launch screen and the lobby.
+        backgroundColor = SKTheme.bgPrimary
     }
 
     @available(*, unavailable)
@@ -63,6 +67,14 @@ final class BoardScene: SKScene {
         addChild(lobbyBg)
 
         addChild(gameLayer)
+        // Boot in LOBBY mode explicitly: isHidden defaults to false, and the
+        // app's first showScreen(.lobby) is swallowed by the same-screen guard
+        // (UiModel also boots on .lobby), so this layer stayed visible from
+        // birth — the pre-game snapshot then flashed bare boards behind the
+        // lobby chrome the instant a match started, until the countdown scrim
+        // caught up. Alpha 0 to match: fadeIn animates from the current alpha.
+        gameLayer.isHidden = true
+        gameLayer.alpha = 0
         timerNode.zPosition = 20
         timerNode.isHidden = true
         gameLayer.addChild(timerNode)
@@ -96,12 +108,26 @@ final class BoardScene: SKScene {
         onTick?(deltaMs)
     }
 
-    /// Screen change: LOBBY shows the ambient background, GAME/RESULTS the boards.
-    /// Entering GAME starts a fresh match, so force a board rebuild even if the
-    /// new roster happens to match the previous one's id set.
+    /// Screen change: LOBBY shows the ambient background, GAME/RESULTS the
+    /// boards. The scene cross-fades its OWN layers (web parity: the game
+    /// screen fades in WITH its boards over 0.3s, and the ambient drift sinks
+    /// under the cross-fade instead of popping off) — as plain SKActions the
+    /// swap is never a one-frame pop, regardless of how the SwiftUI chrome
+    /// transaction above lands against the SKView's render loop.
+    /// Entering GAME starts a fresh match, so force a board rebuild even if
+    /// the new roster happens to match the previous one's id set.
     func showScreen(_ screen: DisplayScreen) {
-        lobbyBg.isHidden = screen != .lobby
-        gameLayer.isHidden = screen == .lobby
+        lobbyBg.removeAllActions()
+        gameLayer.removeAllActions()
+        if screen == .lobby {
+            if lobbyBg.isHidden { lobbyBg.alpha = 0; lobbyBg.isHidden = false }
+            lobbyBg.run(.fadeIn(withDuration: 0.18))
+            gameLayer.run(.sequence([.fadeOut(withDuration: 0.18), .hide()]))
+        } else {
+            if gameLayer.isHidden { gameLayer.alpha = 0; gameLayer.isHidden = false }
+            if gameLayer.alpha < 1 { gameLayer.run(.fadeIn(withDuration: 0.3)) }
+            lobbyBg.run(.sequence([.fadeOut(withDuration: 0.3), .hide()]))
+        }
         if screen == .game { lastBoardIds = []; timerNode.isHidden = true }
     }
 

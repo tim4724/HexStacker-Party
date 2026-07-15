@@ -41,12 +41,26 @@ struct DisplayChromeView: View {
         GeometryReader { geo in
             let vp = Vp(size: geo.size)
             ZStack {
+                // allowsTransparency: the SKView's FIRST drawable presents
+                // before the scene renders and clears opaque (a white/grey
+                // flash right after the launch screen). Transparent, that
+                // frame shows the plum .background beneath; every later frame
+                // is filled by the scene's own opaque background anyway.
                 SpriteView(scene: model.boardScene,
-                           options: [.ignoresSiblingOrder],
+                           options: [.ignoresSiblingOrder, .allowsTransparency],
                            debugOptions: ProcessInfo.processInfo.environment["HEXFPS"] != nil
                                ? [.showsFPS, .showsNodeCount] : [])
                     .ignoresSafeArea()
 
+                // Explicit z per layer (web z-index parity): SwiftUI renders
+                // an INSERTED branch above the branch being removed, so
+                // without these the countdown scrim (inserted at full
+                // opacity) covers the lobby's exit fade and match start
+                // reads as a hard cut — the web solves the same problem by
+                // lifting the outgoing screen to z-index 12 (.closing). With
+                // lobby(1) and results(2) above the countdown(0), the
+                // outgoing screen dissolves over the incoming composite on
+                // every edge; overlays (5/6) stay above any exiting screen.
                 Group {
                     switch ui.screen {
                     case .lobby:
@@ -57,10 +71,12 @@ struct DisplayChromeView: View {
                         if ui.showLicenses {
                             LicensesView()
                                 .transition(.opacity)
+                                .zIndex(1)
                         } else if ui.showAbout {
                             AboutView(vp: vp,
                                       onOpenLicenses: { model.openLicenses() })
                                 .transition(.opacity)
+                                .zIndex(1)
                         } else {
                             LobbyView(data: ui.lobby ?? LobbyData(),
                                       qrPending: ui.qrPending,
@@ -72,6 +88,7 @@ struct DisplayChromeView: View {
                                 // dissolves over the boards while the countdown
                                 // scrim fades in (Android AnimatedContent parity).
                                 .transition(.asymmetric(insertion: .identity, removal: .opacity))
+                                .zIndex(1)
                         }
                     case .results:
                         ResultsView(results: ui.results,
@@ -80,14 +97,23 @@ struct DisplayChromeView: View {
                                     onPlayAgain: { model.playAgain() },
                                     onNewGame: { model.newGame() })
                             .transition(.opacity)
+                            .zIndex(2)
                     case .game:
                         if let value = ui.countdown {
-                            // Inserted at FULL opacity: the outgoing lobby or
-                            // results dissolves over [boards + countdown] as a
-                            // composite, instead of boards showing through a
-                            // half-faded scrim. Only the GO dismissal fades.
+                            // Scrim + digit fade IN over 300ms (web
+                            // #countdown-overlay fadeIn 0.3s) while the
+                            // outgoing screen dissolves above — the animation
+                            // rides the transition itself, not the (shorter)
+                            // reveal transaction. The old full-opacity
+                            // insertion predates the zIndex exit fix: with the
+                            // lobby exit invisible it masked the swap, but now
+                            // it popped the scrim behind the still-visible
+                            // chrome and match start read as a bang-then-fade.
                             CountdownOverlayView(value: value, paused: ui.paused, vp: vp)
-                                .transition(.asymmetric(insertion: .identity, removal: .opacity))
+                                .transition(.asymmetric(
+                                    insertion: .opacity.animation(DisplayModel.enterFade),
+                                    removal: .opacity))
+                                .zIndex(0)
                         }
                     }
                 }
@@ -104,6 +130,7 @@ struct DisplayChromeView: View {
                                      onContinue: { model.togglePause() },
                                      onNewGame: { model.newGame() })
                         .transition(.opacity)
+                        .zIndex(5)
                 }
 
                 if ui.connectionOverlayUp {
@@ -115,6 +142,7 @@ struct DisplayChromeView: View {
                                           vp: vp,
                                           onReconnect: { model.reconnectNow() })
                         .transition(.opacity)
+                        .zIndex(6)
                 }
             }
         }

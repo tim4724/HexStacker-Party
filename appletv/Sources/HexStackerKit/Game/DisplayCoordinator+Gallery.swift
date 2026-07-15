@@ -30,6 +30,31 @@ public extension DisplayCoordinator {
         showGalleryLobby(players: max(1, min(playerCount, EngineConstants.maxPlayers)))
     }
 
+    // MARK: - Transition tour (HEXTOUR)
+
+    /// Arm the self-play driver for a match the tour starts through the
+    /// production remoteStartMatch (startLocalDemo bundles this with its own
+    /// beginCountdown, which would skip the lobby exit under review).
+    func tourEnableSelfPlay() {
+        demoActive = true
+        demoTick = 0
+    }
+
+    /// Force the running match to its REAL end: hard-drop every player but the
+    /// first until the engine reports game over, so the next tick dispatches
+    /// the production gameEnd path (results screen, flow.state = .results).
+    /// Faking the results screen from fixtures instead would leave flow.state
+    /// mid-match and dead-end the tour's PLAY AGAIN. Bounded, and a no-op
+    /// outside .playing (a call landing in the countdown would inject input
+    /// into a not-yet-started game).
+    func tourForceMatchEnd() {
+        guard flow.state == .playing, let engine, playerOrder.count > 1 else { return }
+        let victims = playerOrder.dropFirst()
+        for _ in 0..<400 where !engine.isEnded {
+            for id in victims { engine.processInput(playerId: id, action: "hard_drop") }
+        }
+    }
+
     /// Synthetic input for the self-playing demo, driven from tick().
     internal func driveDemoInput() {
         demoTick += 1

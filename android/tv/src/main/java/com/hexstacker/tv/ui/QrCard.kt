@@ -107,7 +107,18 @@ fun JoinLine(
     }
     val urlAlpha by animateFloatAsState(if (showHint) 0f else 1f, tween(450), label = "joinUrlAlpha")
 
-    Box(modifier, contentAlignment = Alignment.Center) {
+    // Load fade for the WHOLE line, hint included (tvOS roomReady parity:
+    // the URL fades in with the QR modules once the room confirms; before
+    // that not even the hint shows). Starts at full alpha when composed with
+    // the room already known (gallery fixtures) — animateFloatAsState only
+    // animates on change.
+    val loadAlpha by animateFloatAsState(
+        if (joinHost.isNotEmpty() || joinCode.isNotEmpty()) 1f else 0f,
+        tween(300, easing = LinearOutSlowInEasing),
+        label = "joinLineLoad",
+    )
+
+    Box(modifier.alpha(loadAlpha), contentAlignment = Alignment.Center) {
         Row(Modifier.alpha(urlAlpha), verticalAlignment = Alignment.Bottom) {
             Text(
                 text = joinHost.lowercase(), // .join-url__host text-transform lowercase
