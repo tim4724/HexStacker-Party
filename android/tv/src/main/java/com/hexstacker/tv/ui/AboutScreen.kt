@@ -89,15 +89,8 @@ fun AboutScreen(
             // row gap 96px, cluster gap ~58px at 1080p) so the two TV ports align.
             val cardW = vp.vminDp(202.5f, 33.3f, 240f)
 
-            // Back hint pinned to the top title-safe edge.
-            Text(
-                text = stringResource(R.string.licenses_back_hint),
-                style = AppType.musicCredit.copy(
-                    fontSize = vp.vhSp(18f, 3f, 21.3f),
-                    color = Tokens.textFaint,
-                ),
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = overscanV),
-            )
+            // No on-screen back hint: the remote's Back button navigates back
+            // implicitly (matching the tvOS port and Apple's TV HIG).
 
             // Privacy / Imprint QR cards + the licenses button as one vertically
             // centered cluster, so the screen reads as a tight group rather than

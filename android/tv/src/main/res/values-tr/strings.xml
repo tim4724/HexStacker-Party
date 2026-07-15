@@ -35,6 +35,7 @@
 
     <string name="privacy">Gizlilik</string>
     <string name="imprint">Künye</string>
+    <string name="licenses_title">Lisanslar</string>
 
     <plurals name="start_n_players">
         <item quantity="one">BAŞLAT (%1$d oyuncu)</item>

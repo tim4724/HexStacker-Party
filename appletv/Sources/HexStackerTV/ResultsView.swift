@@ -25,14 +25,10 @@ struct ResultsView: View {
     /// stagger duration with no per-row delay.
     @State private var buttonsShown = false
 
-    private var sorted: [MatchResult] {
-        results.sorted { ($0.rank ?? 999) < ($1.rank ?? 999) }   // nil rank (late joiners) last
-    }
-
     /// Winner glow color: the lowest-rank player's identity color at 0.08 (web
     /// --winner-glow), gold #FFD700 at 0.06 as the no-winner fallback (Android
     /// parity for the no-winner-color case).
-    private var glowColor: Color {
+    private static func glow(for sorted: [MatchResult]) -> Color {
         if let slot = sorted.first?.colorIndex {
             return UITheme.player(slot: slot).opacity(0.08)
         }
@@ -40,6 +36,10 @@ struct ResultsView: View {
     }
 
     var body: some View {
+        // Sort once per render (nil rank = late joiners, sorted last), then derive
+        // the glow, solo flag and rows from it rather than re-sorting per access.
+        let sorted = results.sorted { ($0.rank ?? 999) < ($1.rank ?? 999) }
+        let glowColor = Self.glow(for: sorted)
         let solo = sorted.count == 1
         // Row metrics from the web clamps (vh against the full scene height, like
         // the browser viewport): name/rank clamp(1.5rem,3vh,2.8rem), stats

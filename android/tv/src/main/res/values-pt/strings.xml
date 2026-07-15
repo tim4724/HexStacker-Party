@@ -35,6 +35,7 @@
 
     <string name="privacy">Privacidade</string>
     <string name="imprint">Aviso legal</string>
+    <string name="licenses_title">Licenças</string>
 
     <plurals name="start_n_players">
         <item quantity="one">INICIAR (%1$d jogador)</item>

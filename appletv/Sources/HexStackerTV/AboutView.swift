@@ -7,10 +7,10 @@ import SwiftUI
 ///
 /// The game is played on phones, so the long-form legal text stays single-sourced
 /// on the web (not re-rendered natively): the TV only offers a scan target + the
-/// URL. The card labels reuse the web i18n `privacy` / `imprint` strings via
-/// `trUpper`, so that copy is not TV-invented; the sole Licenses button, the back
-/// hint, and the version tag are the pieces of TV chrome the web has no equivalent
-/// for, so they carry no shared i18n string.
+/// URL. Visible copy routes through i18n: the card labels via `privacy` / `imprint`
+/// and the Licenses button via `licenses_title`. There is no on-screen back hint
+/// (tvOS HIG: the remote navigates back implicitly); only the version tag stays
+/// untranslated (a language-neutral marker).
 ///
 /// Mirrors the Android AboutScreen decomposition (a centered cluster of two
 /// LegalQrCards + the Licenses button) at the original page proportions.
@@ -33,14 +33,9 @@ struct AboutView: View {
             // DisplayRootView).
             UITheme.bgPrimary.ignoresSafeArea()
 
-            // Back hint pinned to the top title-safe edge. verbatim: deliberately
-            // untranslated TV chrome (Android marks its twin MissingTranslation),
-            // kept out of the string catalog.
-            Text(verbatim: "Press Menu to return")
-                .styled(font: AppFont.brandRegular, size: max(22, min(H * 0.033, 32)),
-                        color: UITheme.textFaint, tracking: 0.02)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .padding(.top, margin)
+            // No on-screen back hint (tvOS HIG): the remote's Back/Menu button
+            // navigates back implicitly, and its label differs across remote
+            // generations, so naming it in text would be wrong for half the users.
 
             // Privacy / Imprint QR cards + the Licenses button as one vertically
             // centered cluster, so the page reads as a tight group rather than three
@@ -52,7 +47,7 @@ struct AboutView: View {
                 }
                 // Uppercased for parity with web `.btn { text-transform: uppercase }`
                 // (styling, not new copy). The only focusable element on the page.
-                ChromeButton(text: "LICENSES", primary: false,
+                ChromeButton(text: trUpper("licenses_title"), primary: false,
                              tint: UITheme.accentPrimary, height: vp.actionButtonH,
                              action: onOpenLicenses)
             }

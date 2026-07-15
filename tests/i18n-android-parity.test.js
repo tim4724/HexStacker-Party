@@ -34,12 +34,6 @@ const KEY_MAP = {
   triple_clear: 'triple',
 };
 
-// TV-only strings with no web counterpart, so there is no i18n.js key to mirror:
-// the web app ships no Open Source Licenses page (it bundles almost no third-party
-// code), while the TV apps must attribute their bundled deps. English-only until
-// translated; excluded from the lockstep guard (they carry tools:ignore in the XML).
-const TV_ONLY = new Set(['licenses_title', 'licenses_back_hint']);
-
 // Web {placeholder} templates -> the Android positional arg used in strings.xml.
 // Single-arg strings use %1$d/%1$s; attempt_n_of_m is the one two-arg string
 // ({attempt} first, {max} second).
@@ -108,7 +102,6 @@ test('every Android TV locale file mirrors public/shared/i18n.js', () => {
     const { strings, plurals } = parseStringsXml(path.join(RES, dir, 'strings.xml'));
 
     for (const [name, androidValue] of strings) {
-      if (TV_ONLY.has(name)) continue;
       const key = KEY_MAP[name] || name;
       const web = webValue(locale, key);
       if (web === undefined) {

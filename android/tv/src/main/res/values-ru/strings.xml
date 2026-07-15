@@ -36,6 +36,7 @@
 
     <string name="privacy">Конфиденциальность</string>
     <string name="imprint">Выходные данные</string>
+    <string name="licenses_title">Лицензии</string>
 
     <plurals name="start_n_players">
         <item quantity="one">СТАРТ (%1$d игрок)</item>

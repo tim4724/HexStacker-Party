@@ -35,6 +35,7 @@
 
     <string name="privacy">Confidentialité</string>
     <string name="imprint">Mentions légales</string>
+    <string name="licenses_title">Licences</string>
 
     <plurals name="start_n_players">
         <item quantity="one">LANCER (%1$d joueur)</item>

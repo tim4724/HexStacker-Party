@@ -37,10 +37,13 @@ enum SKTheme {
         guard let color else { return bgCard }
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         color.getRed(&r, green: &g, blue: &b, alpha: &a)
-        let card = (r: CGFloat(0x2A) / 255, g: CGFloat(0x25) / 255, b: CGFloat(0x40) / 255)
-        return UIColor(red: r * mix + card.r * (1 - mix),
-                       green: g * mix + card.g * (1 - mix),
-                       blue: b * mix + card.b * (1 - mix), alpha: 1)
+        // Read the --bg-card base from the constant above, so retuning bgCard
+        // can't leave the tonal mix on a stale color.
+        var cr: CGFloat = 0, cg: CGFloat = 0, cb: CGFloat = 0, ca: CGFloat = 0
+        bgCard.getRed(&cr, green: &cg, blue: &cb, alpha: &ca)
+        return UIColor(red: r * mix + cr * (1 - mix),
+                       green: g * mix + cg * (1 - mix),
+                       blue: b * mix + cb * (1 - mix), alpha: 1)
     }
 
     // Cream text ramp (#F7F1E8 == 247,241,232) at theme opacities.

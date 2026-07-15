@@ -36,6 +36,7 @@
 
     <string name="privacy">隐私</string>
     <string name="imprint">法律声明</string>
+    <string name="licenses_title">许可证</string>
 
     <plurals name="start_n_players">
         <item quantity="other">开始 (%1$d 位玩家)</item>

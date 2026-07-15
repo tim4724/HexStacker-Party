@@ -35,6 +35,7 @@
 
     <string name="privacy">Privacy</string>
     <string name="imprint">Note legali</string>
+    <string name="licenses_title">Licenze</string>
 
     <plurals name="start_n_players">
         <item quantity="one">AVVIA (%1$d giocatore)</item>

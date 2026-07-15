@@ -1,4 +1,4 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
+<resources>
     <!--
       Default (English) UI strings for the :tv app. Values mirror
       `public/shared/i18n.js` `en` (the source of truth) EXACTLY — no TV-invented
@@ -62,15 +62,14 @@
     <string name="privacy">Privacy</string>
     <string name="imprint">Imprint</string>
 
-    <!-- Licenses screen (reached from the lobby footer). Unlike the rest
-         of this file these are NOT mirrored from i18n.js: the web app ships no
-         licenses page, so there is no source string to mirror. Kept minimal and
-         factual; English-only for now (locales fall back until translated).
-         "Licenses", not "Open Source Licenses": the list includes the CC BY
-         lobby music, and CC licenses are not open source licenses. -->
-    <!-- Doubles as the lobby entry-link label and the screen title. -->
-    <string name="licenses_title" tools:ignore="MissingTranslation">Licenses</string>
-    <string name="licenses_back_hint" tools:ignore="MissingTranslation">Press Back to return</string>
+    <!-- Licenses screen (reached from the lobby footer). TV-only (the web app
+         ships no licenses page) but localized like the rest of this file: added to
+         i18n.js as the cross-platform source and mirrored per-locale. "Licenses",
+         not "Open Source Licenses": the list includes the CC BY lobby music, and CC
+         licenses are not open source licenses. No on-screen back hint — the
+         remote's Back button navigates back implicitly.
+         Doubles as the lobby entry-link label and the screen title. -->
+    <string name="licenses_title">Licenses</string>
 
     <!-- Plurals (i18n start_n_players / n_lines). -->
     <plurals name="start_n_players">

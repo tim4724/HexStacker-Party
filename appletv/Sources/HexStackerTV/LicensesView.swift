@@ -12,8 +12,9 @@ import SwiftUI
 /// need no attribution. What DOES ship third-party is the WebRTC binary (BSD-3),
 /// the Orbitron and Baloo 2 fonts (OFL 1.1), and the lobby music (CC BY 3.0).
 ///
-/// English-only, like the Android screen: this is TV-only chrome the web has no
-/// equivalent for, so there is no shared i18n.js string to mirror via `tr()`.
+/// The title localizes via `licenses_title`; the per-component license bodies and
+/// names (BSD-3, OFL, the font/library names) stay English, as canonical license
+/// texts are. No on-screen back hint (tvOS HIG: the remote navigates back).
 struct LicensesView: View {
     @State private var expanded: Set<Int> = []
     @FocusState private var focusedRow: Int?
@@ -28,15 +29,12 @@ struct LicensesView: View {
             let contentW = W - (W * 0.05) * 2
 
             VStack(alignment: .leading, spacing: 0) {
-                // verbatim: deliberately untranslated TV chrome (Android marks its
-                // twins MissingTranslation), kept out of the string catalog.
-                Text(verbatim: "Licenses")
+                // No on-screen back hint (tvOS HIG): the remote's Back/Menu button
+                // navigates back implicitly. The title carries the gap the hint used
+                // to hold before the list.
+                Text(tr("licenses_title"))
                     .styled(font: AppFont.brandExtraBold, size: max(30, min(H * 0.05, 52)),
                             color: UITheme.textPrimary(), tracking: 0.08)
-                Text(verbatim: "Press Menu to return")
-                    .styled(font: AppFont.brandRegular, size: max(22, min(H * 0.033, 32)),
-                            color: UITheme.textFaint, tracking: 0.02)
-                    .padding(.top, margin * 0.3)
                     .padding(.bottom, margin * 0.5)
 
                 ScrollView(showsIndicators: false) {

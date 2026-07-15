@@ -118,19 +118,15 @@ fun LicensesScreen(
             // Type / spacing mirror the tvOS LicensesOverlay metrics (title 5% of
             // height capped at 52px, card gap / pad 1.6% / 2.2% of width at 1080p).
             Column(Modifier.fillMaxSize().padding(horizontal = overscanH, vertical = overscanV)) {
+                // No on-screen back hint: the remote's Back button navigates back
+                // implicitly (matching the tvOS port and Apple's TV HIG). The title
+                // carries the gap the hint used to hold before the list.
                 Text(
                     text = stringResource(R.string.licenses_title),
                     style = AppType.wordmarkMain.copy(
                         fontSize = vp.vhSp(22f, 5f, 34.7f),
                         letterSpacing = 0.08.em,
                         color = Tokens.textPrimary,
-                    ),
-                )
-                Text(
-                    text = stringResource(R.string.licenses_back_hint),
-                    style = AppType.musicCredit.copy(
-                        fontSize = vp.vhSp(18f, 3f, 21.3f),
-                        color = Tokens.textFaint,
                     ),
                     modifier = Modifier.padding(bottom = vp.vhDp(12f, 2.5f, 18f)),
                 )
