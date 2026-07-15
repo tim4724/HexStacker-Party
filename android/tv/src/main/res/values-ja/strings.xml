@@ -15,7 +15,6 @@
     <string name="scan_hint">スマホでコードをスキャン</string>
     <string name="waiting_for_players">プレイヤー待ってる</string>
     <string name="level_heading">レベル</string>
-    <string name="music_by">音楽：FoxSynergy（CC-BY 3.0）</string>
 
     <string name="level_n">レベル %1$d</string>
     <string name="new_player">新しいプレイヤー</string>

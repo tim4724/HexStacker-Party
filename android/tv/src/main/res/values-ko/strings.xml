@@ -15,7 +15,6 @@
     <string name="scan_hint">휴대폰으로 코드를 스캔</string>
     <string name="waiting_for_players">플레이어를 기다리는 중</string>
     <string name="level_heading">레벨</string>
-    <string name="music_by">음악: FoxSynergy (CC-BY 3.0)</string>
 
     <string name="level_n">레벨 %1$d</string>
     <string name="new_player">새 플레이어</string>

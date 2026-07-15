@@ -110,6 +110,8 @@ class BoardRenderer(
     private val koTextSizeF = max(20.0, cellSizeD * 2).toFloat()
     private val pieceSpacingF = miniSizeF * 3.5f
     private val nextStartYF = boardY + labelSizeF + cellSize * 0.2f
+    // NEXT panel is always sized for 3 pieces (the engine never previews fewer).
+    private val nextBoxHF = pieceSpacingF * 3f
 
     // ── Paints (reused; never allocate inside render) ─────────────────────────
     private val stampPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = true }
@@ -196,7 +198,6 @@ class BoardRenderer(
 
     private var holdChromeCache: Bitmap? = null
     private var nextChromeCache: Bitmap? = null
-    private var nextChromeBoxH = -1f
     private var cachedChromeTier: Theme.StyleTier? = null
 
     // Zigzag clear-preview cache (recomputed only when ghost/rotation/grid changes).
@@ -232,7 +233,6 @@ class BoardRenderer(
         if (cachedChromeTier != tier) {
             holdChromeCache?.recycle(); holdChromeCache = null
             nextChromeCache?.recycle(); nextChromeCache = null
-            nextChromeBoxH = -1f
             cachedChromeTier = tier
             // Drop resolved-stamp memos (owned/recycled by stampCache, not us).
             pieceStamps.fill(null)
@@ -552,12 +552,8 @@ class BoardRenderer(
     private fun drawNext(canvas: Canvas, p: PlayerState, tier: Theme.StyleTier) {
         val panelX = boardX + boardWidth + panelGapF
         val panelY = boardY
-        val nextCount = min(p.nextPieces.size, 3)
-        val boxHeight = pieceSpacingF * max(nextCount, 3)
-        if (nextChromeCache == null || nextChromeBoxH != boxHeight) {
-            nextChromeCache?.recycle()
-            nextChromeCache = buildPanelChromeCache(boxSizeF, boxHeight, labelNext, tier)
-            nextChromeBoxH = boxHeight
+        if (nextChromeCache == null) {
+            nextChromeCache = buildPanelChromeCache(boxSizeF, nextBoxHF, labelNext, tier)
         }
         blitChrome(canvas, nextChromeCache!!, panelX, panelY)
         for (i in 0 until min(p.nextPieces.size, 3)) {
@@ -576,9 +572,7 @@ class BoardRenderer(
 
     private fun drawLevelLines(canvas: Canvas, p: PlayerState) {
         val panelX = boardX + boardWidth + panelGapF
-        val nextCount = min(p.nextPieces.size, 3)
-        val boxHeight = pieceSpacingF * max(nextCount, 3)
-        val belowNextY = nextStartYF + boxHeight + cellSize * 0.5f
+        val belowNextY = nextStartYF + nextBoxHF + cellSize * 0.5f
         val linesY = belowNextY + rowHeightF
         val valueYOffset = labelSizeF + cellSize * 0.1f
 

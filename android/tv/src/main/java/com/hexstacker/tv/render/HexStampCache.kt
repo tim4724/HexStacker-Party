@@ -37,13 +37,13 @@ class HexStampCache(private val maxEntries: Int = 256) {
 
     private val sqrt3 = sqrt(3.0)
 
-    // LRU cache (accessOrder); evicted entries are recycled.
+    // LRU cache (accessOrder). Evicted entries are NOT recycled here: BoardRenderer
+    // memoizes returned Stamps (pieceStamps/miniStamps), so recycling on evict would
+    // hand a live renderer a dead bitmap; the GC reclaims an evicted stamp once the
+    // last memo drops it. recycle() is only safe in [clear] (render-thread teardown).
     private val cache = object : LinkedHashMap<String, Stamp>(64, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Stamp>): Boolean {
-            val evict = size > maxEntries
-            if (evict) eldest.value.bitmap.recycle()
-            return evict
-        }
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Stamp>): Boolean =
+            size > maxEntries
     }
 
     // Reusable paints (stamps are built rarely, but keep allocation off the path).

@@ -28,5 +28,4 @@ class Vp(val wDp: Float, val hDp: Float) {
     fun vhDp(lo: Float, pct: Float, hi: Float): Dp = clamp(lo, pct / 100f * hDp, hi).dp
     fun vhSp(lo: Float, pct: Float, hi: Float): TextUnit = clamp(lo, pct / 100f * hDp, hi).sp
     fun vwDp(lo: Float, pct: Float, hi: Float): Dp = clamp(lo, pct / 100f * wDp, hi).dp
-    fun vwSp(lo: Float, pct: Float, hi: Float): TextUnit = clamp(lo, pct / 100f * wDp, hi).sp
 }

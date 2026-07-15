@@ -8,7 +8,6 @@ import com.hexstacker.core.net.RelayTransport
 import com.hexstacker.core.net.RoomState
 import com.hexstacker.core.room.PlayerRecord
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -770,6 +769,52 @@ class DisplayCoordinatorTest {
     }
 
     @Test
+    fun helloPreferredColorHonoredCollisionFallsBack() = runBlocking {
+        // Web helloPreferredColor: the controller's persisted favorite rides HELLO and
+        // wins over the default slot when free, removing the post-WELCOME set_color
+        // round trip; a taken color silently falls back (WELCOME carries the truth).
+        val t = FakeTransport(); val out = FakeOutput()
+        val coord = DisplayCoordinator(t, out, engineFactory = { _, _ -> error("no engine") }, seedProvider = { 0L })
+        coord.start()
+        t.created("R", null); coord.awaitIdle()
+
+        t.deliver(1, buildJsonObject { put("type", Msg.HELLO); put("name", "Alex"); put("colorIndex", 5) })
+        coord.awaitIdle()
+        assertEquals(5, coord.flow.player(1)!!.colorSlot)
+        val welcome = t.sent.first { it.first == 1 && type(it.second) == Msg.WELCOME }
+        assertEquals(5, welcome.second["colorIndex"]!!.jsonPrimitive.int, "WELCOME answers with the kept color")
+
+        t.deliver(2, buildJsonObject { put("type", Msg.HELLO); put("name", "Kim"); put("colorIndex", 5) })
+        coord.awaitIdle()
+        assertEquals(0, coord.flow.player(2)!!.colorSlot, "taken color falls back to lowest free")
+
+        // A peer_joined-registered player's HELLO (existing branch) re-tints too.
+        t.peerJoined(3); coord.awaitIdle()
+        t.deliver(3, buildJsonObject { put("type", Msg.HELLO); put("name", "Ola"); put("colorIndex", 7) })
+        coord.awaitIdle()
+        assertEquals(7, coord.flow.player(3)!!.colorSlot)
+        coord.stop()
+    }
+
+    @Test
+    fun setNameEmptyOrLegacyResolvesToAutoName() = runBlocking {
+        // Web onSetName: empty/legacy submissions resolve to a room-unique HX name
+        // via the generator instead of being dropped; custom names apply as entered.
+        val t = FakeTransport(); val out = FakeOutput()
+        val coord = DisplayCoordinator(t, out, engineFactory = { _, _ -> error("no engine") }, seedProvider = { 0L })
+        coord.start()
+        t.created("R", null); coord.awaitIdle()
+        t.peerJoined(1); coord.awaitIdle()
+
+        t.deliver(1, buildJsonObject { put("type", Msg.SET_NAME); put("name", "Alex") }); coord.awaitIdle()
+        assertEquals("Alex", coord.flow.player(1)!!.playerName)
+
+        t.deliver(1, buildJsonObject { put("type", Msg.SET_NAME); put("name", "P3") }); coord.awaitIdle()
+        assertEquals("HX-1", coord.flow.player(1)!!.playerName, "legacy slot name re-resolves to HX")
+        coord.stop()
+    }
+
+    @Test
     fun retainedSnapshotShapeAndThrottle() = runBlocking {
         // Web PR #170 parity: lobby changes publish ONE retained set_state snapshot
         // ({hostPeerIndex, players:{idx:{name,color}}}), throttled leading+trailing
@@ -829,7 +874,6 @@ class DisplayCoordinatorTest {
         override var onPeerLeft: ((index: Int) -> Unit)? = null
         override var onMessage: ((from: Int, data: JsonObject) -> Unit)? = null
         override var onRelayError: ((message: String) -> Unit)? = null
-        override var onState: ((data: JsonElement) -> Unit)? = null
         override var onReplaced: (() -> Unit)? = null
         override var onConnectionState: ((RelayTransport.ConnectionState, Int) -> Unit)? = null
 

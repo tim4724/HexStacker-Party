@@ -30,10 +30,6 @@
     <string name="waiting_for_players">Waiting for players</string>
     <string name="level_heading">Level</string>
 
-    <!-- Music attribution. CC-BY 3.0 requires crediting "Lunar Joyride" by
-         FoxSynergy (res/raw/lunar_joyride.mp3). Mirrors web i18n `music_by`. -->
-    <string name="music_by">Music by FoxSynergy (CC-BY 3.0)</string>
-
     <!-- Results. -->
     <string name="level_n">Level %1$d</string>
     <string name="new_player">New player</string>

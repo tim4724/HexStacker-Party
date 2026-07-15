@@ -261,8 +261,11 @@ private fun InfoButton(
 /**
  * Player-card grid: packs N players into the first N seats, padded to 4
  * placeholder slots, 2 columns by default and 4 columns at 5+ visible slots
- * (web `.pl--lg`). Filled cards are keyed by `peerIndex` so the join-pop replays
- * only for genuinely new players (the structural analog of `lobbyKnownPlayers`).
+ * (web `.pl--lg`). The join-pop replays only for genuinely new players, tracked
+ * by an explicit seen-set (web `lobbyKnownPlayers`): `key(peerIndex)` alone is
+ * not enough, because keyed siblings only match within the same Row, so a card
+ * pushed across a row boundary by a grid reflow (5th player joins, someone
+ * leaves) would lose its composition state and re-pop.
  */
 @Composable
 private fun PlayerGrid(players: List<LobbyPlayer>, vp: Vp) {
@@ -272,6 +275,12 @@ private fun PlayerGrid(players: List<LobbyPlayer>, vp: Vp) {
     val rows = ceil(visibleSlots / cols.toFloat()).toInt()
     val cardW = vp.vminDp(150f, 24f, 280f)
     val gap = vp.vminDp(8f, 1.5f, 18f)
+
+    // Seen peerIndexes. Pruned to the live roster first, so a departed player's
+    // index pops again if it is ever reassigned. Mutating a remembered set during
+    // composition is safe here: both operations are idempotent per roster state.
+    val knownPlayers = remember { mutableSetOf<Int>() }
+    knownPlayers.retainAll(players.mapTo(mutableSetOf()) { it.peerIndex })
 
     Column(verticalArrangement = Arrangement.spacedBy(gap)) {
         for (row in 0 until rows) {
@@ -284,7 +293,10 @@ private fun PlayerGrid(players: List<LobbyPlayer>, vp: Vp) {
                             val player = players.getOrNull(slot)
                             key(player?.peerIndex ?: "empty-$slot") {
                                 if (player != null) {
-                                    JoinPop { PlayerCard(player, vp, Modifier.width(cardW)) }
+                                    // add() is true only the first time this player is
+                                    // composed; a reflowed (re-created) card skips the pop.
+                                    val isNew = remember(player.peerIndex) { knownPlayers.add(player.peerIndex) }
+                                    JoinPop(play = isNew) { PlayerCard(player, vp, Modifier.width(cardW)) }
                                 } else {
                                     PlayerCard(null, vp, Modifier.width(cardW))
                                 }
@@ -298,12 +310,13 @@ private fun PlayerGrid(players: List<LobbyPlayer>, vp: Vp) {
 }
 
 /** slotPopIn: scale 0.6→1.08(60%)→0.96(80%)→1, opacity 0→1, over 0.45s.
- *  Runs once per fresh composition — existing keyed cards never re-pop. */
+ *  [play] = false renders the card settled (a known player re-composed by a
+ *  grid reflow must not re-pop). */
 @Composable
-private fun JoinPop(content: @Composable () -> Unit) {
-    val scale = remember { Animatable(0.6f) }
-    val alpha = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
+private fun JoinPop(play: Boolean, content: @Composable () -> Unit) {
+    val scale = remember { Animatable(if (play) 0.6f else 1f) }
+    val alpha = remember { Animatable(if (play) 0f else 1f) }
+    if (play) LaunchedEffect(Unit) {
         launch {
             scale.animateTo(
                 1f,

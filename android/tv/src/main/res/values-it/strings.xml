@@ -14,7 +14,6 @@
     <string name="scan_hint">Scansiona il codice con il telefono</string>
     <string name="waiting_for_players">In attesa di giocatori</string>
     <string name="level_heading">Livello</string>
-    <string name="music_by">Musica di FoxSynergy (CC-BY 3.0)</string>
 
     <string name="level_n">Livello %1$d</string>
     <string name="new_player">Nuovo giocatore</string>

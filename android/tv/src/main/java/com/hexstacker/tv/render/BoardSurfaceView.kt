@@ -95,8 +95,10 @@ class BoardSurfaceView @JvmOverloads constructor(
     // Board-grid rows of the current layout, for the timer size (web cachedGridRows).
     private var gridRows = 1
     // Timer cache (render thread): the string changes once per second, not per frame.
+    // Glyphs are drawn one-by-one (fixed advances), so cache the per-glyph strings too.
     private var timerCachedSeconds = -1L
     private var timerCachedStr = ""
+    private var timerGlyphs: Array<String> = emptyArray()
     // Glyph-advance scratch: sized for "MM:SS" (5 glyphs) but grown if a match ever runs
     // long enough for minutes to reach 3 digits ("100:00" and beyond, 6+ glyphs).
     private var timerAdvances = FloatArray(5)
@@ -507,6 +509,7 @@ class BoardSurfaceView @JvmOverloads constructor(
         if (totalSeconds != timerCachedSeconds) {
             timerCachedSeconds = totalSeconds
             timerCachedStr = String.format(Locale.US, "%02d:%02d", totalSeconds / 60, totalSeconds % 60)
+            timerGlyphs = Array(timerCachedStr.length) { timerCachedStr[it].toString() }
         }
         val timeStr = timerCachedStr
 
@@ -549,7 +552,7 @@ class BoardSurfaceView @JvmOverloads constructor(
         var cursorX = startX
         for (k in timeStr.indices) {
             val charX = cursorX + advances[k] / 2f
-            canvas.drawTextB(timeStr[k].toString(), charX, y, timerPaint, TextBaseline.TOP)
+            canvas.drawTextB(timerGlyphs[k], charX, y, timerPaint, TextBaseline.TOP)
             cursorX += advances[k]
         }
     }

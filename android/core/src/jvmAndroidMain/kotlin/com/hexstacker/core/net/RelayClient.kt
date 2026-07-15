@@ -46,7 +46,6 @@ class RelayClient(
     override var onPeerLeft: ((Int) -> Unit)? = null
     override var onMessage: ((Int, JsonObject) -> Unit)? = null
     override var onRelayError: ((String) -> Unit)? = null
-    override var onState: ((kotlinx.serialization.json.JsonElement) -> Unit)? = null
     override var onReplaced: (() -> Unit)? = null
     override var onConnectionState: ((RelayTransport.ConnectionState, Int) -> Unit)? = null
 
@@ -337,10 +336,6 @@ class RelayClient(
                 .index.takeIf { it >= 0 }?.let { idx -> emit { onPeerJoined?.invoke(idx) } }
             "peer_left" -> RelayJson.decodeFromJsonElement<PeerEventFrame>(root)
                 .index.takeIf { it >= 0 }?.let { idx -> emit { onPeerLeft?.invoke(idx) } }
-            "state" -> {
-                val f = RelayJson.decodeFromJsonElement<StateFrame>(root)
-                emit { onState?.invoke(f.data) }
-            }
             "error" -> {
                 val f = RelayJson.decodeFromJsonElement<ErrorFrame>(root)
                 emit { onRelayError?.invoke(f.message) }

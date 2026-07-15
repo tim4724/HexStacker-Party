@@ -123,17 +123,3 @@ object Zigzag {
     }
 }
 
-/**
- * Clear-preview cells for the ghost. grid is [row][col], 15 rows; ghostCells are
- * the ghost piece's [col,row] cells. Mirrors BoardRenderer.js exactly.
- */
-fun clearPreview(grid: List<IntArray>, cols: Int, ghostCells: List<HexCell>): List<HexCell> {
-    val ghostSet = ghostCells.toHashSet()
-    val isFilled = { c: Int, r: Int -> grid[r][c] > 0 || HexCell(c, r) in ghostSet }
-    val ghostContributes = { c: Int, r: Int -> grid[r][c] == 0 && HexCell(c, r) in ghostSet }
-    return Zigzag.clearable(cols, grid.size, isFilled, ghostContributes)
-}
-
-/** Near-clear pulse cells (locked stack only, ghost ignored). */
-fun nearClearPulse(grid: List<IntArray>, cols: Int): List<HexCell> =
-    Zigzag.nearClear(cols, grid.size, isFilled = { c, r -> grid[r][c] > 0 })

@@ -3,8 +3,6 @@ package com.hexstacker.core.net
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
@@ -104,11 +102,7 @@ enum class RoomState(val wire: String) {
     LOBBY("lobby"),
     COUNTDOWN("countdown"),
     PLAYING("playing"),
-    RESULTS("results");
-
-    companion object {
-        fun fromWire(s: String?): RoomState? = entries.firstOrNull { it.wire == s }
-    }
+    RESULTS("results"),
 }
 
 /** Tolerant decoder for relay frames. */
@@ -158,9 +152,6 @@ data class PeerEventFrame(val index: Int = -1)
 
 @Serializable
 data class MessageFrame(val from: Int = -1, val data: JsonObject = JsonObject(emptyMap()))
-
-@Serializable
-data class StateFrame(val data: JsonElement = JsonNull)
 
 @Serializable
 data class ErrorFrame(val message: String = "unknown relay error")
@@ -273,7 +264,6 @@ interface RelayTransport {
     var onPeerLeft: ((index: Int) -> Unit)?
     var onMessage: ((from: Int, data: JsonObject) -> Unit)?
     var onRelayError: ((message: String) -> Unit)?
-    var onState: ((data: JsonElement) -> Unit)?
     var onReplaced: (() -> Unit)?
     // reconnectAttempt is the current retry count, snapshotted at emission time (see
     // RelayClient.emitState) so the UI's "Attempt N of M" matches the delivered state

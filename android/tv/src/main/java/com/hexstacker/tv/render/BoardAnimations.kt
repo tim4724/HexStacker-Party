@@ -353,8 +353,9 @@ class BoardAnimations {
     // Line-clear popup labels (i18n double / triple). Defaults mirror the web's
     // English; the surface view injects the device-locale values once after
     // construction via [setPopupLabels].
-    private var doubleLabel = "DOUBLE"
-    private var tripleLabel = "TRIPLE"
+    // @Volatile: written on the main thread (locale switch) and read on the render thread.
+    @Volatile private var doubleLabel = "DOUBLE"
+    @Volatile private var tripleLabel = "TRIPLE"
 
     /** Inject the localized DOUBLE / TRIPLE popup labels (call once after constructing). */
     fun setPopupLabels(doubleText: String, tripleText: String) {

@@ -498,7 +498,10 @@ class DisplayCoordinator(
             return
         }
         if (flow.player(from) == null) {
-            val slot = flow.lowestFreeSlot()
+            // The preferred color wins over the default slot when free; a free color
+            // implies a free slot, so the room-full check only guards the fallback
+            // (web onHello's new-player branch).
+            val slot = helloPreferredColor(from, msg) ?: flow.lowestFreeSlot()
             if (slot < 0) {
                 transport.sendTo(from, OutboundMessage.error("Room is full"))
                 return
@@ -521,6 +524,11 @@ class DisplayCoordinator(
                 rec.playerName =
                     if (msg.autoName == true || cleaned == null) autoName(requested, exceptId = from) else cleaned
             }
+            // Honor the preferred color before the WELCOME below is built, so it answers
+            // with the color the controller will actually keep, instead of waiting for
+            // the controller's post-WELCOME set_color reclaim one round trip later
+            // (web onHello's colorChanged branch).
+            helloPreferredColor(from, msg)?.let { rec.colorSlot = it }
         }
         val late = (flow.state == RoomState.PLAYING || flow.state == RoomState.COUNTDOWN) &&
             !playerOrder.contains(from)
@@ -592,11 +600,15 @@ class DisplayCoordinator(
     }
 
     private fun handleSetName(from: Int, msg: ControllerMessage) {
-        val name = sanitizeName(msg.name) ?: return
         val rec = flow.player(from) ?: return
+        // Empty/legacy submissions resolve to a room-unique HX name instead of being
+        // dropped; custom names apply as entered (web onSetName -> sanitizePlayerName).
+        val name = sanitizeName(msg.name) ?: autoName(msg.name, exceptId = from)
+        if (name == rec.playerName) return
         rec.playerName = name
-        if (from == flow.host) broadcastLobby()
-        else if (flow.state == RoomState.LOBBY || flow.state == RoomState.RESULTS) refreshDisplayLobby()
+        // Relabel the TV roster in every state, including mid-game (web updatePlayerList);
+        // only a host rename fans out (controllers render hostName in their waiting banner).
+        if (from == flow.host) broadcastLobby() else refreshDisplayLobby()
     }
 
     private fun handleSetMute(from: Int, msg: ControllerMessage) {
@@ -1105,6 +1117,19 @@ class DisplayCoordinator(
         }
         for (i in 1..99) if (i !in AUTO_NAME_BLOCKLIST && i !in taken) return "HX-$i"
         return "HX-1"
+    }
+
+    /**
+     * Preferred color carried on HELLO (the controller's persisted favorite): a valid,
+     * un-taken slot index or null. Mirrors onSetColor's validation (silently skip
+     * collisions, the WELCOME/LOBBY_UPDATE carries the truth either way). Port of
+     * DisplayInput.js `helloPreferredColor`.
+     */
+    private fun helloPreferredColor(from: Int, msg: ControllerMessage): Int? {
+        val idx = msg.colorIndex ?: return null
+        if (idx !in 0 until RoomFlow.MAX_PLAYERS) return null
+        if (flow.list().any { it.peerIndex != from && it.colorSlot == idx }) return null
+        return idx
     }
 
     private fun autoNameNumber(name: String?): Int? =

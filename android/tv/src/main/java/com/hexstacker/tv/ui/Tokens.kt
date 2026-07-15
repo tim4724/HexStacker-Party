@@ -13,7 +13,6 @@ import com.hexstacker.core.render.Theme
 object Tokens {
     // Backgrounds (theme.css)
     val bgPrimary = Color(0xFF1E1A2B) // --bg-primary  rgb(30,26,43)
-    val bgBoard = Color(0xFF15121F) // --bg-board
     val bgSecondary = Color(0xFF181421) // --bg-secondary
     // Cross-ref: bgCard/bgCardSoft are also parsed as `Rgb` in render/TvColors.kt.
     // Nothing enforces equality, so keep the two hex sets in sync until a :core
@@ -23,9 +22,7 @@ object Tokens {
 
     // Accents (party palette slot 1 / slot 8)
     val accentPrimary = Color(0xFFFF6B6B) // --accent-primary
-    val accentPrimaryDark = Color(0xFFE55A5A) // --accent-primary-dark
     val accentSecondary = Color(0xFFFF8C42) // --accent-secondary
-    val accentSecondaryDark = Color(0xFFE67A33) // --accent-secondary-dark
 
     // Cream text ramp (#F7F1E8 = 247,241,232)
     val textPrimary = Color(0xFFF7F1E8) // --text-primary
@@ -60,7 +57,6 @@ object Tokens {
     )
 
     // Radii (theme.css)
-    val radiusSm = 6.dp
     val radiusMd = 12.dp
     // --radius-btn 16px, web-px/1.5 like radiusCard (a 16dp corner renders 24px
     // at the TV density and reads visibly rounder than the web buttons).

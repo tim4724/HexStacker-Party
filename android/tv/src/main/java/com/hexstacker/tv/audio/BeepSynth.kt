@@ -5,7 +5,6 @@ import android.media.AudioFormat
 import android.media.AudioTrack
 import android.os.Handler
 import android.os.Looper
-import java.util.Collections
 import kotlin.math.PI
 import kotlin.math.pow
 import kotlin.math.sin
@@ -32,16 +31,15 @@ class BeepSynth {
     private val tick: ShortArray = render(go = false)
     private val go: ShortArray = render(go = true)
 
-    // Deliver marker callbacks on the main thread so self-release is reliable even if
-    // play() is ever invoked from a thread without a prepared Looper.
+    // Deliver marker callbacks on the main thread, the same thread play()/release()
+    // run on, so all [inFlight] access is main-thread-only (no locking needed).
     private val handler = Handler(Looper.getMainLooper())
 
     // In-flight tracks. A MODE_STATIC track normally self-releases on its marker, but if
     // the marker never fires (device marker flakiness, audio-focus denial, a non-playing
     // state) the native track would leak for the process lifetime. Retaining a reference
-    // lets [release] reclaim any survivors. Synchronized because play() and the marker
-    // callback may run on different threads (see [handler]).
-    private val inFlight: MutableSet<AudioTrack> = Collections.synchronizedSet(mutableSetOf())
+    // lets [release] reclaim any survivors.
+    private val inFlight = mutableSetOf<AudioTrack>()
 
     fun play(isGo: Boolean) {
         val pcm = if (isGo) go else tick
@@ -68,8 +66,10 @@ class BeepSynth {
         track.setPlaybackPositionUpdateListener(
             object : AudioTrack.OnPlaybackPositionUpdateListener {
                 override fun onMarkerReached(t: AudioTrack) {
+                    // Already reclaimed by [release]? The marker message can still be
+                    // queued behind onDestroy; stop() on a released track would throw.
+                    if (!inFlight.remove(t)) return
                     t.setPlaybackPositionUpdateListener(null)
-                    inFlight.remove(t)
                     t.stop()
                     t.release()
                 }
@@ -87,13 +87,11 @@ class BeepSynth {
      * self-released on their marker have already removed themselves. Safe to call once.
      */
     fun release() {
-        synchronized(inFlight) {
-            for (t in inFlight) {
-                t.setPlaybackPositionUpdateListener(null)
-                t.release()
-            }
-            inFlight.clear()
+        for (t in inFlight) {
+            t.setPlaybackPositionUpdateListener(null)
+            t.release()
         }
+        inFlight.clear()
     }
 
     /**

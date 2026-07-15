@@ -23,8 +23,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -56,7 +54,6 @@ fun MusicSwitch(
     rowHeight: Dp,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
-    focusRequester: FocusRequester? = null,
     focusedForShot: Boolean = false,
 ) {
     var focused by remember { mutableStateOf(focusedForShot) }
@@ -79,7 +76,6 @@ fun MusicSwitch(
             .clip(shape)
             .background(if (focused) Tokens.white.copy(alpha = 0.06f) else Color.Transparent, shape)
             .then(if (focused) Modifier.border(4.dp, Tokens.white, shape) else Modifier)
-            .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
             // `|| focusedForShot`: the headless host still emits an initial
             // isFocused=false, which would clobber the seeded shot state.
             .onFocusChanged { focused = it.isFocused || focusedForShot }
