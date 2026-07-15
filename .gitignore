@@ -34,6 +34,8 @@ public/artwork/*
 !public/artwork/social-preview.png
 !public/artwork/trailer.mp4
 artwork/ad-clip/output/raw/
+# Transition-tour review renders (scripts/record-transitions.js)
+recordings/
 # Regenerable cross-platform TV gallery output (see scripts/gallery/README.md)
 scripts/gallery/shots/
 scripts/gallery/gallery.html

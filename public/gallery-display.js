@@ -8,7 +8,19 @@
 // hostVariant cards swap their `host` URL param when the view-as selector
 // changes (no iframe rebuild). `params` adds extra harness URL params
 // (e.g. hint=1 freezes the lobby join line on its scan-hint phase).
+// ?tscale / ?ascale on the gallery page URL forward to the transition tour
+// card: tscale paces the dwell between tour steps, ascale slow-motions the
+// transition animations themselves (e.g. gallery.html?ascale=3).
+var TOUR_PARAMS = (function() {
+  var q = new URLSearchParams(location.search);
+  var p = {};
+  if (q.get('tscale')) p.tscale = q.get('tscale');
+  if (q.get('ascale')) p.ascale = q.get('ascale');
+  return (p.tscale || p.ascale) ? p : undefined;
+})();
+
 var DISPLAY_CARDS = [
+  { key: 'transitions',      title: 'Transitions (full journey)', hostVariant: true, replayable: true, params: TOUR_PARAMS },
   { key: 'welcome',          title: 'Welcome' },
   { key: 'lobby',            title: 'Lobby (Standard)',   hostVariant: true },
   { key: 'lobby',            title: 'Lobby (Scan hint)',  hostVariant: true, params: { hint: 1 } },

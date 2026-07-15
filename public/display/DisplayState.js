@@ -338,6 +338,17 @@ function cancelFadeHide(el) {
 }
 
 // --- Screen Management ---
+// Full-screen swaps use a fade-through exit: the outgoing screen is promoted
+// to a fixed layer (.closing in display.css lifts it out of flow) and fades
+// out over the incoming screen, which is revealed synchronously beneath it.
+// The synchronous reveal matters: callers measure the incoming screen right
+// after showScreen returns (renderQR reads the canvas box), so only the
+// departing screen is on a timer. Entrances are untouched; this adds the
+// missing exit half. Overlay edges keep their cross-fades: GAME → RESULTS
+// fades the results screen in over the live boards, and leaving RESULTS
+// fades it out over the revealed target below.
+var SCREEN_EXIT_MS = 180; // mirrors the .closing fadeOut in display.css
+
 function showScreen(name) {
   var prev = currentScreen;
   currentScreen = name;
@@ -347,8 +358,30 @@ function showScreen(name) {
   // in display.css and cover the board. Returning to WELCOME clears it
   // so the overlay can reappear for the next visitor on that device.
   document.documentElement.classList.toggle('in-session', name !== SCREEN.WELCOME);
-  welcomeScreen.classList.toggle('hidden', name !== SCREEN.WELCOME);
-  lobbyScreen.classList.toggle('hidden', name !== SCREEN.LOBBY);
+  // The outgoing screen for the exit fade. GAME → RESULTS is excluded (the
+  // boards stay visible beneath the results overlay), and leaving RESULTS
+  // is the results cross-fade below.
+  var exitEl = null;
+  if (prev !== name) {
+    if (prev === SCREEN.WELCOME) exitEl = welcomeScreen;
+    else if (prev === SCREEN.LOBBY) exitEl = lobbyScreen;
+    else if (prev === SCREEN.GAME && name !== SCREEN.RESULTS) exitEl = gameScreen;
+  }
+  // Per the fadeHide contract, every show site cancels a leftover exit fade
+  // before unhiding (a pending timer would re-hide the screen). The exit
+  // screen skips its instant hide; fadeHide flips it to .hidden at the end.
+  if (exitEl === welcomeScreen) {
+    fadeHide(welcomeScreen, SCREEN_EXIT_MS);
+  } else {
+    cancelFadeHide(welcomeScreen);
+    welcomeScreen.classList.toggle('hidden', name !== SCREEN.WELCOME);
+  }
+  if (exitEl === lobbyScreen) {
+    fadeHide(lobbyScreen, SCREEN_EXIT_MS);
+  } else {
+    cancelFadeHide(lobbyScreen);
+    lobbyScreen.classList.toggle('hidden', name !== SCREEN.LOBBY);
+  }
   // Match start from the lobby fades boards + countdown in as one unit
   // (.screen-enter replays on unhide). Re-entry from RESULTS keeps the
   // already-visible boards still and lets the countdown fade in alone.
@@ -360,10 +393,21 @@ function showScreen(name) {
   } else if (name === SCREEN.GAME && prev === SCREEN.RESULTS) {
     gameScreen.classList.remove('screen-enter');
   }
-  gameScreen.classList.toggle('hidden', name !== SCREEN.GAME && name !== SCREEN.RESULTS);
-  if (name === SCREEN.GAME && prev === SCREEN.RESULTS) {
-    // PLAY AGAIN: cross-fade — results fade out over the boards while the
-    // countdown scrim fades in (its own fadeIn replays on unhide).
+  if (exitEl === gameScreen) {
+    // The higher-specificity #game-screen.screen-enter animation would beat
+    // .closing and hold the screen at full opacity, so it goes first (the
+    // match presentation is over either way).
+    gameScreen.classList.remove('screen-enter');
+    fadeHide(gameScreen, SCREEN_EXIT_MS);
+  } else {
+    cancelFadeHide(gameScreen);
+    gameScreen.classList.toggle('hidden', name !== SCREEN.GAME && name !== SCREEN.RESULTS);
+  }
+  if (prev === SCREEN.RESULTS && (name === SCREEN.GAME || name === SCREEN.LOBBY)) {
+    // Leaving results is always a cross-fade. PLAY AGAIN: results fade out
+    // while the countdown scrim fades in over the boards beneath. NEW GAME:
+    // same fade over the entering lobby; the overlay is near-opaque, so the
+    // boards hiding beneath it at the same instant stay invisible.
     fadeHide(resultsScreen, 300);
   } else {
     cancelFadeHide(resultsScreen);
@@ -384,12 +428,20 @@ function showScreen(name) {
   );
   pauseBtn.classList.toggle('hidden', name !== SCREEN.GAME);
   if (name !== SCREEN.GAME) {
-    // Instant, not fadeHide: these are covered by the incoming screen, and
+    // A game-screen exit fade uncovers these gradually, so a visible overlay
+    // fades out alongside it (200ms, the standard overlay dismissal). On
+    // every other path they're covered by the incoming screen: instant, and
     // cancelling clears any in-flight dismissal timer/class.
-    cancelFadeHide(pauseOverlay);
-    cancelFadeHide(reconnectOverlay);
-    pauseOverlay.classList.add('hidden');
-    reconnectOverlay.classList.add('hidden');
+    var dismissOverlay = function(el) {
+      if (exitEl === gameScreen && !el.classList.contains('hidden')) {
+        fadeHide(el, 200);
+      } else {
+        cancelFadeHide(el);
+        el.classList.add('hidden');
+      }
+    };
+    dismissOverlay(pauseOverlay);
+    dismissOverlay(reconnectOverlay);
     gameToolbar.classList.remove('toolbar-autohide');
   }
   if (name === SCREEN.GAME || name === SCREEN.RESULTS) {
@@ -407,11 +459,17 @@ function showScreen(name) {
     if (name === SCREEN.WELCOME || name === SCREEN.LOBBY) {
       if (bgCanvasEl) bgCanvasEl.classList.remove('hidden');
       welcomeBg.start();
-    } else {
-      welcomeBg.stop();
-      // Drop the compositor layer during gameplay/results — RAF was already
-      // stopped, this removes the full-viewport layer from the GPU too.
-      if (bgCanvasEl) bgCanvasEl.classList.add('hidden');
+    } else if (bgCanvasEl && !bgCanvasEl.classList.contains('hidden')) {
+      // Deferred past the exit + entrance fades so the hex drift stays
+      // beneath the cross-fading screens instead of popping off on frame
+      // one. Re-checked at fire time: a quick return to welcome/lobby must
+      // keep its restarted canvas. Hiding the canvas also drops the
+      // full-viewport layer from the GPU during gameplay/results.
+      setTimeout(function() {
+        if (currentScreen !== SCREEN.GAME && currentScreen !== SCREEN.RESULTS) return;
+        welcomeBg.stop();
+        bgCanvasEl.classList.add('hidden');
+      }, SCREEN_EXIT_MS + 320);
     }
   }
 }

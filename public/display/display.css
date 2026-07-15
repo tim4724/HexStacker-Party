@@ -27,6 +27,25 @@ html, body {
   display: none;
 }
 
+/* Fade-through screen exits: showScreen promotes the outgoing screen to a
+   fixed layer (out of flow, so the incoming screen takes over the layout
+   synchronously) and fadeHide plays this fadeOut before flipping it to
+   .hidden. ID+class selectors on purpose: each screen's own ID rule sets
+   position: relative and would beat a bare .screen.closing. z-index 12 sits
+   above the in-flow screens and below the game overlays (15), which fade
+   out alongside on the game exit. Results keeps its longer
+   #results-screen.closing cross-fade. Duration mirrors SCREEN_EXIT_MS in
+   DisplayState.js. */
+#welcome-screen.closing,
+#lobby-screen.closing,
+#game-screen.closing {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  animation: fadeOut 0.18s ease both;
+  pointer-events: none;
+}
+
 /* ============================================
    Welcome Screen
    ============================================ */
@@ -616,15 +635,19 @@ body.airconsole #qr-container,
   font-size: clamp(1.5rem, 4.5vmin, 2.4rem);
 }
 
+/* Join pop: a single back-out overshoot (peaks ~1.07 just past halfway),
+   with the bezier's long tail as the settle. from/to only, deliberately:
+   the timing function re-applies per keyframe segment, so the previous
+   0.96 -> 1 closing segment (90ms, re-overshot) made the tail snap.
+   The TV ports mirror this animation (LobbyScreen.kt / LobbyView.swift);
+   keep them in sync when changing it. */
 @keyframes slotPopIn {
-  0%   { transform: scale(0.6); opacity: 0; }
-  60%  { transform: scale(1.08); opacity: 1; }
-  80%  { transform: scale(0.96); }
-  100% { transform: scale(1); }
+  from { transform: scale(0.6); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
 }
 
 .player-card.join-pop {
-  animation: slotPopIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: slotPopIn 0.5s cubic-bezier(0.34, 1.8, 0.64, 1) both;
 }
 
 .player-slot {
@@ -809,8 +832,12 @@ body.airconsole #qr-container,
   border-radius: 1.5px;
 }
 
+/* .press-sim: harness-only hover/press alias for the transition tour —
+   see the .btn-primary.press-sim note in theme.css. */
 #pause-btn:hover:not(:disabled) .pause-icon::before,
-#pause-btn:hover:not(:disabled) .pause-icon::after {
+#pause-btn:hover:not(:disabled) .pause-icon::after,
+#pause-btn.press-sim .pause-icon::before,
+#pause-btn.press-sim .pause-icon::after {
   background: #fff;
 }
 
@@ -879,9 +906,9 @@ body.airconsole #qr-container,
   animation: fadeIn 0.5s ease both;
 }
 
-/* PLAY AGAIN (fadeHide): results fade out while the countdown fades in
-   over the boards beneath. Results → lobby stays an instant swap (the
-   lobby entrance stagger carries that transition). */
+/* Leaving results (fadeHide): PLAY AGAIN fades results out while the
+   countdown fades in over the boards beneath; NEW GAME fades them out
+   over the entering lobby. */
 #results-screen.closing {
   animation: fadeOut 0.3s ease both;
   pointer-events: none;

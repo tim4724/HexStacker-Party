@@ -556,6 +556,175 @@ function initScenario(opts) {
     return;
   }
 
+  // Transition tour — plays the real player journey end-to-end so every
+  // screen/overlay transition can be reviewed exactly as it ships:
+  // welcome → lobby (players trickle in) → countdown → gameplay → pause →
+  // resume → results → play again → results → lobby. Each step visibly
+  // presses the real CTA (.press-sim aliases the button's :active style)
+  // and then fires the production trigger (startGame / pauseGame /
+  // resumeGame / playAgain / returnToLobby; injectResults reuses the
+  // production onGameEnd path), so all fades and entrances are the shipped
+  // ones — nothing is reimplemented for the gallery.
+  //   ?tscale=<float>  scales the dwell time BETWEEN steps only.
+  //   ?ascale=<float>  scales the transition animations themselves (>1 =
+  //     slow motion) via runtime playbackRate + a fadeHide wrapper, so the
+  //     production CSS keeps its real durations.
+  //   ?autoplay=1      play immediately even when embedded (gallery cards
+  //     idle on the welcome screen until ▶ starts the tour).
+  // The countdown's 1s tick pace is gameplay timing and is never scaled.
+  if (scenario === 'transitions') {
+    // Full party stub: startNewGame/returnToLobby/broadcastLobbyUpdate call
+    // broadcast/sendTo (the host-only stub above covers just the tint).
+    party = {
+      broadcast: function() {},
+      sendTo: function() {},
+      getMasterPeerIndex: function() { return hostSlot !== null ? 'debug' + hostSlot : null; }
+    };
+    // The real flow pushes/pops history (onCountdownDisplay pushState,
+    // returnToLobbyUI history.back). An iframe shares the joint session
+    // history with the gallery page, so a full tour would leave stray
+    // entries behind and hijack the browser Back button. No-op both —
+    // invisible on screen, and the only place the tour deviates from the
+    // production code path.
+    try {
+      history.pushState = function() {};
+      history.back = function() {};
+    } catch (_) { /* sandboxed iframe */ }
+
+    var _tourScale = function(name) {
+      var v = parseFloat(urlParams.get(name));
+      if (isNaN(v) || v <= 0) return 1;
+      return Math.max(0.1, Math.min(v, 10));
+    };
+    var tscale = _tourScale('tscale');
+    var ascale = _tourScale('ascale');
+    var _dwell = function(ms) { return ms * tscale; };
+    // startGame() → ROOM_STATE.PLAYING: the countdown ticks plus the 500ms
+    // GO hold (startCountdown's goTimeout). Production timing, never scaled.
+    var COUNTDOWN_TO_PLAYING_MS = GameConstants.COUNTDOWN_SECONDS * 1000 + 500;
+
+    if (ascale !== 1) {
+      // Slow (or speed) every CSS animation/transition as it appears —
+      // playbackRate leaves the shipped durations untouched in the CSS.
+      var _tuned = new WeakSet();
+      var _retune = function() {
+        var anims = document.getAnimations();
+        for (var ai = 0; ai < anims.length; ai++) {
+          if (!_tuned.has(anims[ai])) {
+            _tuned.add(anims[ai]);
+            anims[ai].playbackRate = 1 / ascale;
+          }
+        }
+        requestAnimationFrame(_retune);
+      };
+      requestAnimationFrame(_retune);
+      // Keep the JS half of exit fades in sync: fadeHide's timer flips the
+      // element to display:none, which would cut a slowed fadeOut short.
+      var _realFadeHide = fadeHide;
+      fadeHide = function(el, ms, onHidden) { _realFadeHide(el, ms * ascale, onHidden); };
+    }
+
+    // Press a real CTA like a user would: show the pressed state for the
+    // hold, then fire the action on "release". The handler bodies aren't
+    // click()ed because they bundle gesture/network side effects the harness
+    // must skip (initMusic, requestFullscreen, connectAndCreateRoom).
+    var PRESS_MS = 200 * ascale;
+    function press(btn, action) {
+      if (btn) btn.classList.add('press-sim');
+      setTimeout(function() {
+        if (btn) btn.classList.remove('press-sim');
+        action();
+      }, PRESS_MS);
+    }
+
+    var tourRoster = _buildDebugPlayers(Math.max(1, playerCount), level, hostSlot);
+    // Real controllers ping constantly; without a stand-in the whole roster
+    // expires after LIVENESS_TIMEOUT_MS and startNewGame's disconnect prune
+    // would bounce the PLAY AGAIN step back to an empty lobby.
+    setInterval(function() {
+      for (var hi = 0; hi < tourRoster.length; hi++) {
+        flow.onSeen(tourRoster[hi].id, Date.now());
+      }
+    }, 1000);
+    function tourResults() {
+      var r = GameEngine.GalleryFixtures.results(tourRoster.length);
+      for (var ri = 0; ri < r.results.length; ri++) {
+        r.results[ri].playerId = 'debug' + r.results[ri].playerId;
+      }
+      return r;
+    }
+
+    showScreen(SCREEN.WELCOME);
+
+    // No autoplay in the gallery grid: embedded in an iframe the card idles
+    // on the welcome screen until the ▶ button fires __TEST__.replay().
+    // Standalone (open ↗ / direct URL) plays immediately, as does
+    // ?autoplay=1 (which the mid-tour replay reload uses).
+    var tourStarted = false;
+
+    function startTour() {
+      if (tourStarted) return;
+      tourStarted = true;
+
+      // NOT named `t` — var hoists across all of initScenario and would shadow
+      // the global i18n t() used by the other scenario branches.
+      var tourT = _dwell(3000);
+      // Welcome → lobby: what the NEW GAME press does, minus relay, fullscreen
+      // and music init (those need a user gesture / network). Players then
+      // trickle in one by one so the lobby join animation is part of the tour.
+      setTimeout(function() {
+        press(newGameBtn, function() {
+          showScreen(SCREEN.LOBBY);
+          _fakeLobbyQR();
+        });
+      }, tourT);
+      tourT += PRESS_MS;
+      for (var pi = 0; pi < tourRoster.length; pi++) {
+        (function(p, i) {
+          setTimeout(function() {
+            window.__TEST__.addPlayers([p]);
+          }, tourT + _dwell(700) * (i + 1));
+        })(tourRoster[pi], pi);
+      }
+      tourT += _dwell(700) * tourRoster.length + _dwell(2500);
+
+      // Lobby → countdown → gameplay: the real host-pressed-START path. The
+      // engine actually runs (gravity drops pieces) until results are injected.
+      setTimeout(function() { press(startBtn, startGame); }, tourT);
+      tourT += PRESS_MS + COUNTDOWN_TO_PLAYING_MS + _dwell(5000);
+      // The toolbar autohides during gameplay; reveal it the way a user would
+      // (mouse move → showCursor) before pressing its pause button.
+      setTimeout(showCursor, tourT);
+      tourT += _dwell(600);
+      setTimeout(function() { press(pauseBtn, pauseGame); }, tourT);
+      tourT += PRESS_MS + _dwell(3000);
+      setTimeout(function() { press(pauseContinueBtn, resumeGame); }, tourT);
+      tourT += PRESS_MS + _dwell(3000);
+      setTimeout(function() { window.__TEST__.injectResults(tourResults()); }, tourT);
+      tourT += _dwell(3000);
+      // Results → countdown cross-fade (results fade out over the live boards).
+      setTimeout(function() { press(playAgainBtn, playAgain); }, tourT);
+      tourT += PRESS_MS + COUNTDOWN_TO_PLAYING_MS + _dwell(3000);
+      setTimeout(function() { window.__TEST__.injectResults(tourResults()); }, tourT);
+      tourT += _dwell(3000);
+      setTimeout(function() { press(newGameResultsBtn, returnToLobby); }, tourT);
+    }
+
+    // First ▶ starts an idle tour. After that, replay = reload: the tour
+    // mutates real room state (roster, roomState, history stubs), so a fresh
+    // boot is the only reset that can't drift. autoplay=1 makes the reloaded
+    // page skip the idle and play at once; location.replace keeps the joint
+    // session history clean (same reason the history stubs exist above).
+    window.__TEST__.replay = function() {
+      if (!tourStarted) { startTour(); return; }
+      var u = new URL(location.href);
+      u.searchParams.set('autoplay', '1');
+      location.replace(u.href);
+    };
+    if (window.self === window.top || urlParams.get('autoplay')) startTour();
+    return;
+  }
+
   // All other scenarios need players + some game state.
   var debugPlayers = _buildDebugPlayers(playerCount, level, hostSlot);
   window.__TEST__.addPlayers(debugPlayers);

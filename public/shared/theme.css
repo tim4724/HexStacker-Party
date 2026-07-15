@@ -135,7 +135,11 @@
   filter: brightness(1.1);
 }
 
-.btn-primary:active {
+/* .press-sim: harness-only alias of :active — synthetic clicks can't trigger
+   the real pseudo-class, so the gallery transition tour toggles this class to
+   show the pressed state before firing each step. Never set by product code. */
+.btn-primary:active,
+.btn-primary.press-sim {
   transform: translateY(1px);
   box-shadow: none;
 }
@@ -187,7 +191,8 @@
   filter: brightness(1.15);
 }
 
-.btn-secondary:active {
+.btn-secondary:active,
+.btn-secondary.press-sim {
   transform: translateY(1px);
   box-shadow: none;
 }
