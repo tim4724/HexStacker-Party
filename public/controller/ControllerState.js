@@ -251,6 +251,37 @@ function showScreen(name) {
 }
 
 // --- Helpers ---
+
+// Tap activation for controller buttons. Buttons fire from the pointer
+// stream, not the browser-synthesized click: after a message-driven screen
+// swap (e.g. results arriving while the phone sits untouched) phones may
+// withhold the compatibility click for the first tap, silently swallowing it.
+// Arming on pointerdown keeps the click contract (press and release on the
+// same element) without depending on click synthesis. The click listener
+// stays as the non-pointer path (keyboard, assistive tech, programmatic
+// .click() from tests and bootstraps); the compatibility click that trails a
+// handled pointerup is suppressed by timestamp. Delegating callers read
+// e.target, which on the pointer path is the release target.
+function bindTap(el, handler) {
+  var armed = false;
+  var lastPointerFire = -Infinity;
+  el.addEventListener('pointerdown', function (e) {
+    armed = e.isPrimary && e.button === 0;
+  });
+  el.addEventListener('pointerleave', function () { armed = false; });
+  el.addEventListener('pointercancel', function () { armed = false; });
+  el.addEventListener('pointerup', function (e) {
+    if (!armed || !e.isPrimary || el.disabled) { armed = false; return; }
+    armed = false;
+    lastPointerFire = e.timeStamp;
+    handler(e);
+  });
+  el.addEventListener('click', function (e) {
+    if (e.timeStamp - lastPointerFire < 700) return;
+    handler(e);
+  });
+}
+
 function vibrate(pattern) {
   if (!navigator.vibrate) return;
   if (typeof ControllerSettings !== 'undefined' && ControllerSettings.scaleVibration) {

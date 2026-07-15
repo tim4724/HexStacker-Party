@@ -22,4 +22,5 @@ npm run test:e2e:airconsole    # Playwright E2E AirConsole tests
 - CSP headers in `server/index.js` — update when adding external resources
 - Relay URL configured in `public/shared/protocol.js`
 - Controller input uses WebRTC DataChannels (`partyplug/PartyFastlane.js`) with the relay as signaling channel and input fallback; game events flow display → relay → controllers over WebSocket
+- Controller buttons activate via `bindTap()` (`ControllerState.js`), never `addEventListener('click')`: phones withhold the synthesized click for the first tap after a message-driven screen swap (e.g. results arriving), silently swallowing it. Display buttons keep `click` (mouse/remote platforms)
 - PartyPlug (`partyplug/`) is the reusable party-game framework (transport layer) shared across games, served under `/partyplug/`. Relay/STUN config lives in `public/shared/protocol.js` and is injected into the kit at construction; the kit reads no game globals

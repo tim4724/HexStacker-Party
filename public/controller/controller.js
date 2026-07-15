@@ -176,7 +176,7 @@ function submitName() {
   connect();
 }
 
-nameJoinBtn.addEventListener('click', function () { vibrate(15); submitName(); });
+bindTap(nameJoinBtn, function () { vibrate(15); submitName(); });
 nameInput.addEventListener('keydown', function (e) {
   if (e.key === 'Enter') submitName();
 });
@@ -313,7 +313,7 @@ window.updateSettingsHostUI = function () {
   rowMuteDisplay.hidden = !isHost;
 };
 
-toggleMuteController.addEventListener('click', function () {
+bindTap(toggleMuteController, function () {
   vibrate(15);
   ControllerSettings.setMuted(!ControllerSettings.isMuted());
   syncMuteControllerToggle();
@@ -326,7 +326,7 @@ toggleMuteController.addEventListener('click', function () {
   }
 });
 
-toggleMuteDisplay.addEventListener('click', function () {
+bindTap(toggleMuteDisplay, function () {
   vibrate(15);
   if (!isHost) return;
   displayMuteIntent = !displayMuteIntent;
@@ -334,7 +334,7 @@ toggleMuteDisplay.addEventListener('click', function () {
   sendToDisplay(MSG.SET_DISPLAY_MUTE, { muted: displayMuteIntent });
 });
 
-rowHaptics.addEventListener('click', function (e) {
+bindTap(rowHaptics, function (e) {
   var btn = e.target.closest('[data-haptic]');
   if (!btn) return;
   ControllerSettings.setHapticStrength(btn.dataset.haptic);
@@ -408,8 +408,8 @@ function openSettings() {
   }
 }
 
-if (pauseSettingsBtn) pauseSettingsBtn.addEventListener('click', openSettings);
-if (lobbySettingsBtn) lobbySettingsBtn.addEventListener('click', openSettings);
+if (pauseSettingsBtn) bindTap(pauseSettingsBtn, openSettings);
+if (lobbySettingsBtn) bindTap(lobbySettingsBtn, openSettings);
 // Exposed for ControllerTestHarness — function declarations inside this
 // `else` block are block-scoped under strict mode and not otherwise reachable.
 window.openSettings = openSettings;
@@ -421,7 +421,7 @@ function hideSettings() {
 
 window.closeSettingsOverlay = hideSettings;
 
-settingsCloseBtn.addEventListener('click', function () {
+bindTap(settingsCloseBtn, function () {
   vibrate(15);
   // Route Done through history.back() so the browser back button and
   // Done share a single close path (the popstate handler). Fallback for
@@ -647,7 +647,7 @@ if (sensitivityPreview) {
 // Button Event Listeners
 // =====================================================================
 
-pauseBtn.addEventListener('click', function () {
+bindTap(pauseBtn, function () {
   vibrate(15);
   // Mark the upcoming GAME_PAUSED as self-initiated so onGamePaused can skip
   // the pause-overlay's anti-misclick gate. Timeout guards against a dropped
@@ -658,17 +658,17 @@ pauseBtn.addEventListener('click', function () {
   sendToDisplay(MSG.PAUSE_GAME);
 });
 
-pauseContinueBtn.addEventListener('click', function () {
+bindTap(pauseContinueBtn, function () {
   vibrate(15);
   sendToDisplay(MSG.RESUME_GAME);
 });
 
-pauseNewGameBtn.addEventListener('click', function () {
+bindTap(pauseNewGameBtn, function () {
   vibrate(15);
   sendToDisplay(MSG.RETURN_TO_LOBBY);
 });
 
-reconnectRejoinBtn.addEventListener('click', function () {
+bindTap(reconnectRejoinBtn, function () {
   vibrate(15);
   reconnectHeading.textContent = t('reconnecting');
   reconnectStatus.textContent = t('connecting');
@@ -676,18 +676,18 @@ reconnectRejoinBtn.addEventListener('click', function () {
   connect();
 });
 
-lobbyBackBtn.addEventListener('click', function () {
+bindTap(lobbyBackBtn, function () {
   vibrate(15);
   performDisconnect();
 });
 
-startBtn.addEventListener('click', function () {
+bindTap(startBtn, function () {
   if (startBtn.disabled) return;
   vibrate(15);
   sendToDisplay(MSG.START_GAME);
 });
 
-levelMinusBtn.addEventListener('click', function () {
+bindTap(levelMinusBtn, function () {
   if (startLevel <= 1) return;
   vibrate(15);
   startLevel = Math.max(1, startLevel - 1);
@@ -696,7 +696,7 @@ levelMinusBtn.addEventListener('click', function () {
   sendToDisplay(MSG.SET_LEVEL, { level: startLevel });
 });
 
-levelPlusBtn.addEventListener('click', function () {
+bindTap(levelPlusBtn, function () {
   if (startLevel >= 15) return;
   vibrate(15);
   startLevel = Math.min(15, startLevel + 1);
@@ -716,7 +716,7 @@ levelPlusBtn.addEventListener('click', function () {
 //      simply leave the overlay open so the user can pick again.
 if (colorPickerEl) {
   buildColorPicker();
-  colorPickerEl.addEventListener('click', function (e) {
+  bindTap(colorPickerEl, function (e) {
     var btn = e.target.closest('.rose-cell');
     if (!btn || btn.classList.contains('taken')) return;
     var idx = parseInt(btn.dataset.idx, 10);
@@ -741,7 +741,7 @@ if (colorPickerEl) {
 }
 
 if (identityTrigger) {
-  identityTrigger.addEventListener('click', function () {
+  bindTap(identityTrigger, function () {
     if (currentScreen !== 'lobby') return;
     vibrate(10);
     openColorPicker();
@@ -749,13 +749,13 @@ if (identityTrigger) {
 }
 
 if (colorPickerOverlay) {
-  colorPickerOverlay.addEventListener('click', function (e) {
+  bindTap(colorPickerOverlay, function (e) {
     // Tap outside the rose container (i.e. on the backdrop) closes.
     if (e.target === colorPickerOverlay) closeColorPicker();
   });
   var closeBtn = document.getElementById('color-picker-close');
   if (closeBtn) {
-    closeBtn.addEventListener('click', function (e) {
+    bindTap(closeBtn, function (e) {
       e.stopPropagation();
       vibrate(10);
       closeColorPicker();
@@ -770,12 +770,12 @@ document.addEventListener('keydown', function (e) {
   }
 });
 
-playAgainBtn.addEventListener('click', function () {
+bindTap(playAgainBtn, function () {
   vibrate(15);
   sendToDisplay(MSG.PLAY_AGAIN);
 });
 
-newGameBtn.addEventListener('click', function () {
+bindTap(newGameBtn, function () {
   vibrate(15);
   sendToDisplay(MSG.RETURN_TO_LOBBY);
 });

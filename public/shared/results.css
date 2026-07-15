@@ -10,8 +10,8 @@
 }
 
 /* Anti-misclick gate for the results action row. pointer-events is a discrete
-   property, so it flips at the end of the animation delay — clicks are blocked
-   until the buttons have visibly appeared. */
+   property: it flips midway through the eased fade (~35% in, ~130ms after the
+   fade starts), so clicks are blocked until the buttons are clearly appearing. */
 @keyframes resultsButtonsEnter {
   from { opacity: 0; pointer-events: none; }
   to { opacity: 1; pointer-events: auto; }
