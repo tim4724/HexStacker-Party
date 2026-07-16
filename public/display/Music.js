@@ -21,7 +21,11 @@ class Music {
   init() {
     if (this.ctx) return;
     try {
-      this.ctx = new AudioContext();
+      // 'playback' asks for a larger output buffer (~4x interactive here):
+      // music keeps playing through render-deadline misses under CPU load.
+      // The countdown beeps share the context and inherit ~16ms extra
+      // latency — imperceptible against the visual tick.
+      this.ctx = new AudioContext({ latencyHint: 'playback' });
     } catch (e) {
       console.warn('Failed to create AudioContext:', e);
       return;
