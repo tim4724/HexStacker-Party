@@ -15,6 +15,9 @@ final class DisplayModel: ObservableObject {
     // name, read by the UI test through the accessibility bridge. "pending"
     // is a sentinel the test waits past for the first real state.
     @Published private(set) var galleryMarker = "pending"
+    // Idle frame pacing engaged: DisplayRootView drops the SpriteView to
+    // idleFramesPerSecond while this is set (see updateFramePacing).
+    @Published private(set) var idleThrottled = false
 
     // Sized from the screen up front; resizeFill tracks the view thereafter.
     let boardScene = BoardScene(size: UIScreen.main.bounds.size)
@@ -57,12 +60,6 @@ final class DisplayModel: ObservableObject {
     func start() {
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
         try? AVAudioSession.sharedInstance().setActive(true)
-        // Keep the screen awake: this display is driven by the phones, so the TV
-        // itself receives no input and tvOS would otherwise start the screensaver
-        // over the lobby QR / live game. tvOS restores the idle timer when the app
-        // backgrounds, so this is scoped to the foreground session.
-        UIApplication.shared.isIdleTimerDisabled = true
-
         // Capture hook (mirrors HEXSHOT / HEXSNAP): open the licenses page straight
         // away so it can be screenshotted deterministically — the tvOS simulator has
         // no Siri-Remote CLI to navigate to it. Inert without the env var.
@@ -197,6 +194,35 @@ final class DisplayModel: ObservableObject {
     private func startTickPump() {
         boardScene.onTick = { [weak self] deltaMs in
             self?.coordinator?.tick(deltaMs: deltaMs)
+        }
+    }
+
+    // MARK: - Idle frame pacing
+
+    /// The throttled rate while idle (web parity: DisplayRender drops to ~4fps
+    /// on the pause overlay / results screen; SpriteKit otherwise re-composites
+    /// every vsync). 10fps keeps the paused sim's tick cadence comfortable.
+    static let idleFramesPerSecond = 10
+
+    private var idlePacingWork: DispatchWorkItem?
+
+    /// Recompute the pacing flag on every paused/screen edge. The scene's
+    /// update() is also the engine tick pump, so the low rate slows the
+    /// simulation too, acceptable in exactly the states the web throttles
+    /// (paused sims are frozen, results runs none). Engaging waits out the
+    /// 0.3s cross-fade so the scene's SKAction layer fades stay smooth;
+    /// restoring is immediate so the first interaction (resume, play again)
+    /// isn't laggy. Harness modes stay at full rate (relayStarted is false
+    /// there, and HEXTOUR records transition video that must not drop frames).
+    private func updateFramePacing() {
+        idlePacingWork?.cancel()
+        idlePacingWork = nil
+        if relayStarted && (state.paused || state.screen == .results) {
+            let work = DispatchWorkItem { [weak self] in self?.idleThrottled = true }
+            idlePacingWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.fadeDuration, execute: work)
+        } else {
+            idleThrottled = false
         }
     }
 
@@ -481,6 +507,11 @@ extension DisplayModel: DisplayOutput {
 
     func showScreen(_ screen: DisplayScreen) {
         guard screen != state.screen else { return }
+        // Keep the TV awake for the whole match (the display is driven by the
+        // phones, so tvOS would otherwise fire the screensaver mid-game); the
+        // lobby and results let the idle timer run. Mirrors Android's
+        // keepScreenOn == GAME and the web wake lock (countdown -> results).
+        UIApplication.shared.isIdleTimerDisabled = (screen == .game)
         // The scene cross-fades its own layers (boards/ambient) in step with
         // the chrome fade. On match start the coordinator sends the first
         // countdown value in the same call stack, so the scrim and the boards
@@ -493,6 +524,7 @@ extension DisplayModel: DisplayOutput {
             // while one is open) must not leave them stranded over the game.
             if screen != .lobby { state.aboutPath = [] }
         }
+        updateFramePacing()
     }
 
     func roomReady(room: String, joinURL: String, qrText: String) {
@@ -577,6 +609,7 @@ extension DisplayModel: DisplayOutput {
     func setPaused(_ paused: Bool) {
         withAnimation(Self.fade) { state.paused = paused }
         if !paused, state.countdown == .go { armGoDismissal() }
+        updateFramePacing()
     }
 
     func setDisplayMuted(_ muted: Bool) {
