@@ -485,17 +485,23 @@ class BoardRenderer {
       }
     }
 
-    // Clearing cells glow (cell-based, not row-based)
+    // Clearing cells glow (cell-based, not row-based), blitted from the same
+    // flat-fill stamp cache the clear-flash/sparkle effects use.
     if (playerState.clearingCells && playerState.clearingCells.length > 0) {
       var t = (timestamp || performance.now()) / 150;
       var alpha = 0.3 + 0.2 * Math.sin(t * Math.PI);
+      var glowStamp = getFlatHexStamp(THEME.color.text.primary, sCell);
+      var glowScale = sCell / glowStamp.radius;
+      var gw = glowStamp.cssW * glowScale, gh = glowStamp.cssH * glowScale;
+      ctx.globalAlpha = alpha;
       for (var ci = 0; ci < playerState.clearingCells.length; ci++) {
         var cc = playerState.clearingCells[ci];
         if (cc[1] >= 0 && cc[1] < HEX_VIS_ROWS) {
           var cp = this._hexCenter(cc[0], cc[1]);
-          this._drawHex(cp.x, cp.y, sCell, THEME.color.text.primary, null, alpha);
+          ctx.drawImage(glowStamp, cp.x - gw / 2, cp.y - gh / 2, gw, gh);
         }
       }
+      ctx.globalAlpha = 1;
     }
 
     // Walls are baked into _boardBgCache (see _buildBoardBgCache step 3) —

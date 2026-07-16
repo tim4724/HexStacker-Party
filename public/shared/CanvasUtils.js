@@ -267,6 +267,37 @@ function _stampHexNeonFlat(c, cx, cy, cr, size, color) {
   c.globalAlpha = 1;
 }
 
+// Flat-fill hex stamp for effect hexes (sparkles, clear flash, clearing
+// glow): a plain AA hex pre-rendered once per (color, circumradius px) and
+// blitted per particle, instead of tessellating a fresh path per particle
+// per frame. The radius is bucketed to whole css px (particles shrink over
+// their life, unbounded keys would thrash the cache); callers scale their
+// blit by r / stamp.radius to hit the exact size.
+function getFlatHexStamp(color, r) {
+  var px = Math.max(1, Math.ceil(r));
+  var key = 'fx_' + color + '_' + px + '_' + _stampDpr;
+  var stamp = _stampCache.get(key);
+  if (stamp) return stamp;
+  var pad = 2;  // anti-alias bleed
+  var w = 2 * px + pad * 2;
+  var h = Math.ceil(_SQRT3 * px) + pad * 2;
+  var pw = Math.ceil(w * _stampDpr);
+  var ph = Math.ceil(h * _stampDpr);
+  var oc;
+  if (typeof OffscreenCanvas !== 'undefined') oc = new OffscreenCanvas(pw, ph);
+  else { oc = document.createElement('canvas'); oc.width = pw; oc.height = ph; }
+  oc.cssW = w;
+  oc.cssH = h;
+  oc.radius = px;
+  var c = oc.getContext('2d');
+  c.setTransform(_stampDpr, 0, 0, _stampDpr, 0, 0);
+  hexPath(c, w / 2, h / 2, px);
+  c.fillStyle = color;
+  c.fill();
+  _stampCache.set(key, oc);
+  return oc;
+}
+
 // Shared font detection — returns the preferred family string for each voice.
 // HUD (Orbitron) is the numeric/scoreboard face; brand (Baloo 2) is the
 // identity face used for player names. Each falls back until its font loads,

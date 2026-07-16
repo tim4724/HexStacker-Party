@@ -130,7 +130,19 @@ function calculateLayout() {
     var boardX = padding + col * (cellAreaW + padding) + (cellAreaW - boardWidthPx) / 2;
     var boardY = padding + row * (cellAreaH + padding) + (cellAreaH - totalContentH) / 2 + nameArea;
     var playerIndex = players.get(playerOrder[i])?.playerIndex ?? i;
-    boardRenderers.push(new BoardRenderer(ctx, boardX, boardY, cellSize, playerIndex));
+    var br = new BoardRenderer(ctx, boardX, boardY, cellSize, playerIndex);
+    // Per-board dirty-render tile (see DisplayRender.js): this board's
+    // exclusive slice of the canvas, the grid cell plus half the surrounding
+    // padding on each side. Tiles are adjacent without overlap, and their
+    // boundaries run through empty background padding, so blitting one can't
+    // clobber a neighbor's content.
+    br.tileRect = {
+      x: padding / 2 + col * (cellAreaW + padding),
+      y: padding / 2 + row * (cellAreaH + padding),
+      w: cellAreaW + padding,
+      h: cellAreaH + padding
+    };
+    boardRenderers.push(br);
     uiRenderers.push(new UIRenderer(ctx, boardX, boardY, cellSize, boardWidthPx, boardHeightPx, playerIndex));
   }
 }

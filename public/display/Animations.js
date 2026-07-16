@@ -22,33 +22,31 @@ class Animations {
     const range = sizeRange ?? 0.07;
     const rotStart = Math.random() * Math.PI * 2;
     const rotSpeed = (Math.random() - 0.5) * 6;  // radians/sec
+    const size = cs * (base + Math.random() * range);
+    // Hex-shaped confetti particle (fits the game's visual language). The
+    // stamp is resolved once at spawn (flat-fill cache, CanvasUtils);
+    // shrink/rotation ride canvas transforms at draw.
+    const stamp = getFlatHexStamp(color, size);
 
     this.active.push({
       type: 'sparkle',
       startTime: performance.now(),
       duration,
-      x, y, vx, vy, color, rotStart, rotSpeed,
-      size: cs * (base + Math.random() * range),
+      x, y, vx, vy, rotStart, rotSpeed, stamp,
+      baseScale: size / stamp.radius,
       render(ctx, progress) {
         var t = progress * this.duration / 1000;
         var px = this.x + this.vx * t;
         var py = this.y + this.vy * t + 80 * t * t; // gravity
-        var sz = this.size * (1 - progress * 0.5);
+        var scale = this.baseScale * (1 - progress * 0.5);
         var rot = this.rotStart + this.rotSpeed * t;
         ctx.save();
         ctx.globalAlpha = 1 - progress;
         ctx.translate(px, py);
         ctx.rotate(rot);
-        ctx.fillStyle = this.color;
-        // Hex-shaped confetti particle — fits the game's visual language.
-        ctx.beginPath();
-        for (var vi = 0; vi < 6; vi++) {
-          var a = Math.PI / 3 * vi;
-          var ux = Math.cos(a) * sz, uy = Math.sin(a) * sz;
-          if (vi === 0) ctx.moveTo(ux, uy); else ctx.lineTo(ux, uy);
-        }
-        ctx.closePath();
-        ctx.fill();
+        ctx.scale(scale, scale);
+        ctx.drawImage(this.stamp, -this.stamp.cssW / 2, -this.stamp.cssH / 2,
+          this.stamp.cssW, this.stamp.cssH);
         ctx.restore();
       }
     });
@@ -85,28 +83,31 @@ class Animations {
       };
     }
 
+    // Clear flash in warm cream, matching the preview/near-clear vocabulary.
+    // Resolved once at spawn from the shared flat-fill stamp cache; the
+    // shrink phase scales the blit rect.
+    var flashStamp = getFlatHexStamp(THEME.color.text.primary, hexSize);
+
     this.active.push({
       type: 'hexCellClear',
       startTime: performance.now(),
       duration: duration,
       render: function(ctx, progress) {
-        // Clear flash in warm cream, matching the preview/near-clear vocabulary.
-        ctx.fillStyle = THEME.color.text.primary;
+        var alpha, drawR;
         if (progress < 0.25) {
-          ctx.globalAlpha = 0.9 * (1 - (progress / 0.25) * 0.5);
-          for (var ci = 0; ci < cellPositions.length; ci++) {
-            hexPath(ctx, cellPositions[ci].x, cellPositions[ci].y, hexSize);
-            ctx.fill();
-          }
+          alpha = 0.9 * (1 - (progress / 0.25) * 0.5);
+          drawR = hexSize;
         } else {
-          var fadeAlpha = 0.5 * (1 - (progress - 0.25) / 0.75);
-          if (fadeAlpha <= 0) { ctx.globalAlpha = 1; return; }
-          ctx.globalAlpha = fadeAlpha;
-          var shrink = Math.max(0, hexSize * (1 - (progress - 0.25)));
-          for (var ci = 0; ci < cellPositions.length; ci++) {
-            hexPath(ctx, cellPositions[ci].x, cellPositions[ci].y, shrink);
-            ctx.fill();
-          }
+          alpha = 0.5 * (1 - (progress - 0.25) / 0.75);
+          if (alpha <= 0) return;
+          drawR = Math.max(0, hexSize * (1 - (progress - 0.25)));
+        }
+        var scale = drawR / flashStamp.radius;
+        var dw = flashStamp.cssW * scale, dh = flashStamp.cssH * scale;
+        ctx.globalAlpha = alpha;
+        for (var ci = 0; ci < cellPositions.length; ci++) {
+          ctx.drawImage(flashStamp, cellPositions[ci].x - dw / 2,
+            cellPositions[ci].y - dh / 2, dw, dh);
         }
         ctx.globalAlpha = 1;
       }

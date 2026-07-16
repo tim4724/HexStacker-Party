@@ -31,6 +31,30 @@ function invalidateRenderSig() {
 // a skipped repaint after that input changes. Time-driven visuals (near-clear
 // pulse, clearing glow, sparkles, garbage effects) are excluded on purpose:
 // renderLoop treats those as "must animate" and bypasses the signature check.
+// Per-player render inputs as a signature fragment, shared between the
+// whole-frame signature (computeRenderSig) and the per-board tile cache
+// (paintBoardTile) so the two can't drift apart.
+function playerRenderSig(p, pInfo) {
+  // 0 = connected, 1 = disconnected (QR still generating), 2 = QR ready;
+  // the async QR arrival must trigger a repaint.
+  var qr = disconnectedQRs.has(p.id) ? (disconnectedQRs.get(p.id) ? 2 : 1) : 0;
+  var sig = p.id + ':' + (p.alive ? 1 : 0) + ':' + p.lines + ':' + p.level
+    + ':' + p.pendingGarbage + ':' + p.gridVersion + ':' + (p.holdPiece || '')
+    + ':' + qr + ':' + (pInfo ? pInfo.playerName + ':' + pInfo.playerIndex : '');
+  var cp = p.currentPiece;
+  // cells[0] uniquely identifies rotation for every hex piece type (same
+  // invariant the clear-preview cache in BoardRenderer relies on).
+  if (cp) sig += ':' + cp.typeId + ':' + cp.anchorCol + ':' + cp.anchorRow
+    + ':' + cp.cells[0].q + ':' + cp.cells[0].r;
+  return sig;
+}
+
+// Pre-game variant (lobby scaffold boards): identity plus start level.
+function emptyPlayerSig(id, pInfo) {
+  return id + ':'
+    + (pInfo ? pInfo.playerName + ':' + pInfo.playerIndex + ':' + (pInfo.startLevel || 1) : '');
+}
+
 function computeRenderSig() {
   // Font families flip when the webfonts finish loading (UIRenderer rebuilds
   // its cached font strings on the next paint), so they must repaint too.
@@ -39,9 +63,7 @@ function computeRenderSig() {
   if (!gameState) {
     sig += '|empty';
     for (var i = 0; i < playerOrder.length; i++) {
-      var pInfo = players.get(playerOrder[i]);
-      sig += '|' + playerOrder[i] + ':'
-        + (pInfo ? pInfo.playerName + ':' + pInfo.playerIndex + ':' + (pInfo.startLevel || 1) : '');
+      sig += '|' + emptyPlayerSig(playerOrder[i], players.get(playerOrder[i]));
     }
     return sig;
   }
@@ -49,19 +71,7 @@ function computeRenderSig() {
   var ps = gameState.players;
   if (ps) {
     for (var j = 0; j < ps.length; j++) {
-      var p = ps[j];
-      var pInfo = players.get(p.id);
-      // 0 = connected, 1 = disconnected (QR still generating), 2 = QR ready;
-      // the async QR arrival must trigger a repaint.
-      var qr = disconnectedQRs.has(p.id) ? (disconnectedQRs.get(p.id) ? 2 : 1) : 0;
-      sig += '|' + p.id + ':' + (p.alive ? 1 : 0) + ':' + p.lines + ':' + p.level
-        + ':' + p.pendingGarbage + ':' + p.gridVersion + ':' + (p.holdPiece || '')
-        + ':' + qr + ':' + (pInfo ? pInfo.playerName + ':' + pInfo.playerIndex : '');
-      var cp = p.currentPiece;
-      // cells[0] uniquely identifies rotation for every hex piece type (same
-      // invariant the clear-preview cache in BoardRenderer relies on).
-      if (cp) sig += ':' + cp.typeId + ':' + cp.anchorCol + ':' + cp.anchorRow
-        + ':' + cp.cells[0].q + ':' + cp.cells[0].r;
+      sig += '|' + playerRenderSig(ps[j], players.get(ps[j].id));
     }
   }
   return sig;
@@ -187,11 +197,112 @@ function renderLoop(timestamp) {
   }
 }
 
+// Per-board tile cache: each board renders into its own offscreen canvas,
+// sized to br.tileRect (assigned by calculateLayout) at the current DPR. The
+// tile origin snaps to whole device pixels, so a 1:1 blit reproduces the
+// exact pixels a direct draw would have painted. calculateLayout rebuilds the
+// renderers (dropping tiles with them); a DPR change mid-session is caught by
+// the dpr key below.
+function getBoardTile(br) {
+  var dpr = window.devicePixelRatio || 1;
+  var rect = br.tileRect;
+  var px0 = Math.floor(rect.x * dpr);
+  var py0 = Math.floor(rect.y * dpr);
+  var pw = Math.ceil((rect.x + rect.w) * dpr) - px0;
+  var ph = Math.ceil((rect.y + rect.h) * dpr) - py0;
+  var tile = br._tile;
+  if (!tile || tile.dpr !== dpr || tile.px0 !== px0 || tile.py0 !== py0 ||
+      tile.pw !== pw || tile.ph !== ph) {
+    var oc;
+    if (typeof OffscreenCanvas !== 'undefined') oc = new OffscreenCanvas(pw, ph);
+    else { oc = document.createElement('canvas'); oc.width = pw; oc.height = ph; }
+    tile = br._tile = {
+      canvas: oc,
+      // alpha:false — every render pre-fills the tile with opaque bg.primary,
+      // matching the (also alpha:false) main canvas.
+      ctx: oc.getContext('2d', { alpha: false }),
+      dpr: dpr, px0: px0, py0: py0, pw: pw, ph: ph,
+      sig: null  // null = stale, re-render on the next painted frame
+    };
+  }
+  return tile;
+}
+
+// Render-or-blit one board. On a painted frame the board re-renders into its
+// tile only when its signature changed or `animating` says board-local pixels
+// are time-driven (clearing glow, near-clear pulse, garbage meter flashes,
+// shake); otherwise the cached tile is blitted back. Animated renders bake a
+// clock-dependent alpha into the tile, so their signature is not stored: the
+// first painted frame after the effect ends re-renders a clean tile.
+function paintBoardTile(j, playerData, timestamp, shake, sig, animating) {
+  var br = boardRenderers[j];
+  var ui = uiRenderers[j];
+  var tile = getBoardTile(br);
+  if (animating || tile.sig !== sig) {
+    var tctx = tile.ctx;
+    // Opaque pre-fill in device space (a fractional-edge fill under the DPR
+    // transform would leave partial coverage against alpha:false).
+    tctx.setTransform(1, 0, 0, 1, 0, 0);
+    tctx.fillStyle = THEME.color.bg.primary;
+    tctx.fillRect(0, 0, tile.pw, tile.ph);
+    // Same device-pixel coordinates as a direct draw on the main canvas: the
+    // DPR transform shifted by the tile's snapped origin.
+    tctx.setTransform(tile.dpr, 0, 0, tile.dpr, -tile.px0, -tile.py0);
+    if (shake.x !== 0 || shake.y !== 0) tctx.translate(shake.x, shake.y);
+    // The renderers draw through this.ctx; point them at the tile for this pass.
+    br.ctx = tctx;
+    ui.ctx = tctx;
+    br.render(playerData, timestamp);
+    ui.render(playerData, timestamp);
+
+    // Test-only: draw extra ghost pieces if set
+    if (window.__TEST__ && window.__TEST__._extraGhosts && window.__TEST__._extraGhosts[j]) {
+      var extras = window.__TEST__._extraGhosts[j];
+      for (var eg = 0; eg < extras.length; eg++) {
+        var ghost = extras[eg];
+        var gc = GHOST_COLORS[ghost.typeId] || { outline: 'rgba(255,255,255,0.12)', fill: 'rgba(255,255,255,0.06)' };
+        if (ghost.blocks) {
+          for (var bl = 0; bl < ghost.blocks.length; bl++) {
+            var gbx = ghost.blocks[bl][0];
+            var gby = ghost.blocks[bl][1];
+            var drawCol = ghost.x + gbx;
+            var drawRow = ghost.ghostY + gby;
+            br.drawGhostBlock(drawCol, drawRow, gc);
+          }
+        }
+      }
+    }
+
+    // Draw QR overlay for disconnected players (qr state is in the signature;
+    // gameState-gated to match the pre-game branch, which never drew it)
+    if (gameState && disconnectedQRs.has(playerData.id)) {
+      ui.drawDisconnectedOverlay(
+        disconnectedQRs.get(playerData.id),
+        playerData.playerColor
+      );
+    }
+
+    br.ctx = ctx;
+    ui.ctx = ctx;
+    tile.sig = animating ? null : sig;
+  }
+  ctx.drawImage(tile.canvas, 0, 0, tile.pw, tile.ph,
+    tile.px0 / tile.dpr, tile.py0 / tile.dpr, tile.pw / tile.dpr, tile.ph / tile.dpr);
+}
+
 function renderFrame(timestamp) {
   var w = cachedW;
   var h = cachedH;
   ctx.fillStyle = THEME.color.bg.primary;
   ctx.fillRect(0, 0, w, h);
+
+  // e2e/gallery harness helpers inject render inputs the signatures don't
+  // track, so every tile re-renders on every painted frame (mirrors the
+  // whole-frame skip's __TEST__ escape in renderLoop).
+  var forceDirty = !!(window.__TEST__ && !window.__TEST__.adclip);
+  // Font families flip when the webfonts finish loading; part of every tile
+  // signature for the same reason they're in computeRenderSig.
+  var fontSig = getDisplayFont() + '|' + getBrandFont();
 
   if (!gameState) {
     for (var i = 0; i < playerOrder.length; i++) {
@@ -206,8 +317,8 @@ function renderFrame(timestamp) {
         playerName: pInfo?.playerName || PLAYER_NAMES[i],
         playerColor: PLAYER_COLORS[pInfo?.playerIndex ?? i]
       };
-      boardRenderers[i].render(empty);
-      uiRenderers[i].render(empty);
+      var emptySig = fontSig + '|empty|' + emptyPlayerSig(playerOrder[i], pInfo);
+      paintBoardTile(i, empty, timestamp, _NO_SHAKE, emptySig, forceDirty);
     }
     return;
   }
@@ -221,11 +332,6 @@ function renderFrame(timestamp) {
         ? animations.getShakeOffsetForBoard(boardRenderers[j].x, boardRenderers[j].y)
         : _NO_SHAKE;
 
-      if (shake.x !== 0 || shake.y !== 0) {
-        ctx.save();
-        ctx.translate(shake.x, shake.y);
-      }
-
       var pInfo = players.get(playerData.id);
       var activeGarbageIndicatorEffects = getOrClearEffects(garbageIndicatorEffects, playerData.id, timestamp);
       var activeGarbageDefenceEffects = getOrClearEffects(garbageDefenceEffects, playerData.id, timestamp);
@@ -236,39 +342,25 @@ function renderFrame(timestamp) {
       playerData.playerName = pInfo?.playerName || PLAYER_NAMES[j];
       playerData.playerColor = PLAYER_COLORS[pInfo?.playerIndex ?? j];
 
-      boardRenderers[j].render(playerData, timestamp);
-      uiRenderers[j].render(playerData, timestamp);
+      // Per-board signature: the shared per-player fragment plus the fonts.
+      // Decides which boards re-render on a painted frame.
+      var sig = fontSig + '|' + playerRenderSig(playerData, pInfo);
 
-      // Test-only: draw extra ghost pieces if set
-      if (window.__TEST__ && window.__TEST__._extraGhosts && window.__TEST__._extraGhosts[j]) {
-        var br = boardRenderers[j];
-        var extras = window.__TEST__._extraGhosts[j];
-        for (var eg = 0; eg < extras.length; eg++) {
-          var ghost = extras[eg];
-          var gc = GHOST_COLORS[ghost.typeId] || { outline: 'rgba(255,255,255,0.12)', fill: 'rgba(255,255,255,0.06)' };
-          if (ghost.blocks) {
-            for (var bl = 0; bl < ghost.blocks.length; bl++) {
-              var gbx = ghost.blocks[bl][0];
-              var gby = ghost.blocks[bl][1];
-              var drawCol = ghost.x + gbx;
-              var drawRow = ghost.ghostY + gby;
-              br.drawGhostBlock(drawCol, drawRow, gc);
-            }
-          }
-        }
-      }
+      // Board-local time-driven pixels force a re-render even on an unchanged
+      // signature. The near-clear read reuses the renderer's cached cells from
+      // its previous render (same trick as the renderLoop mustAnimate check:
+      // they stay valid while gridVersion is unchanged, and a gridVersion
+      // change dirties the signature anyway). Shake re-renders with the
+      // offset baked in as a translate, keeping path rasterization identical
+      // to the pre-tile code instead of resampling a shifted blit.
+      var animating = forceDirty
+        || (playerData.clearingCells && playerData.clearingCells.length > 0)
+        || boardRenderers[j]._cachedNcCells.length > 0
+        || activeGarbageIndicatorEffects.length > 0
+        || activeGarbageDefenceEffects.length > 0
+        || shake.x !== 0 || shake.y !== 0;
 
-      // Draw QR overlay for disconnected players
-      if (disconnectedQRs.has(playerData.id)) {
-        uiRenderers[j].drawDisconnectedOverlay(
-          disconnectedQRs.get(playerData.id),
-          playerData.playerColor
-        );
-      }
-
-      if (shake.x !== 0 || shake.y !== 0) {
-        ctx.restore();
-      }
+      paintBoardTile(j, playerData, timestamp, shake, sig, animating);
     }
   }
 
