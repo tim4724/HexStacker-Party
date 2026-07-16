@@ -178,10 +178,6 @@ class BoardRenderer(
     // boardX/boardY are final); read-only at both use sites (drawKO clip, disconnect
     // overlay fill), so it is built once and reused instead of per frame.
     private val boardOutlineAbsPath: Path = outlinePath(geometry.outlineVertices(0.0), boardX, boardY)
-    // Near-clear: packed piece-occupancy scratch (col*STRIDE+row); linear scan, no boxing.
-    private val ncPieceKeys = IntArray(8)
-    private var ncPieceCount = 0
-
     // ── Per-frame allocation elision (memo by typeId; invalidated on tier change) ──
     private var cachedGhostType = -1
     private var cachedGhostColor: ColorMath.Ghost? = null
@@ -468,19 +464,10 @@ class BoardRenderer(
         var rowFloor = -1
         if (clearing) for (cc in p.clearingCells!!) if (cc.row > rowFloor) rowFloor = cc.row
 
-        ncPieceCount = 0
-        p.currentPiece?.blocks?.let {
-            for (b in it) if (ncPieceCount < ncPieceKeys.size) ncPieceKeys[ncPieceCount++] = b.col * STRIDE + b.row
-        }
-
         nearClearPath.rewind()
         var drawn = false
         for (cl in cachedNcCells) {
             if (cl.row <= rowFloor) continue
-            val key = cl.col * STRIDE + cl.row
-            var inPiece = false
-            for (i in 0 until ncPieceCount) if (ncPieceKeys[i] == key) { inPiece = true; break }
-            if (inPiece) continue
             nearClearPath.addHex(hexCenterX(cl.col, cl.row), hexCenterY(cl.col, cl.row), sCell)
             drawn = true
         }

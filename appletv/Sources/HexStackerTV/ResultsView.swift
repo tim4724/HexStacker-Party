@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import HexStackerKit
 
 /// Results overlay (web `renderResults` / `#results-screen`, tvOS `buildResults`,
@@ -34,6 +35,29 @@ struct ResultsView: View {
         }
         return Color(red: 1, green: 0.843, blue: 0).opacity(0.06)
     }
+
+    /// 180px tile of grayscale noise (the web bakes the equivalent from an SVG
+    /// feTurbulence data URI). Seeded xorshift so gallery captures stay
+    /// byte-stable across launches.
+    private static let noiseTile: UIImage = {
+        let side = 180
+        var state: UInt64 = 0x9E3779B97F4A7C15
+        var pixels = [UInt8](repeating: 0, count: side * side)
+        for i in pixels.indices {
+            state ^= state << 13
+            state ^= state >> 7
+            state ^= state << 17
+            pixels[i] = UInt8(truncatingIfNeeded: state)
+        }
+        let provider = CGDataProvider(data: Data(pixels) as CFData)!
+        let image = CGImage(width: side, height: side,
+                            bitsPerComponent: 8, bitsPerPixel: 8, bytesPerRow: side,
+                            space: CGColorSpaceCreateDeviceGray(),
+                            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue),
+                            provider: provider, decode: nil,
+                            shouldInterpolate: false, intent: .defaultIntent)!
+        return UIImage(cgImage: image)
+    }()
 
     var body: some View {
         // Sort once per render (nil rank = late joiners, sorted last), then derive
@@ -71,6 +95,15 @@ struct ResultsView: View {
                     center: UnitPoint(x: 0.5, y: 0.3),
                     startRadius: 0,
                     endRadius: 0.6 * hypot(vp.w * 0.5, vp.h * 0.7)))
+                .ignoresSafeArea()
+            // Anti-banding dither (web #results-screen::before): the low-alpha
+            // radial above bands visibly on 8-bit panels; tiled grayscale noise
+            // at 0.05 with overlay blending breaks the bands perceptually.
+            Image(uiImage: Self.noiseTile)
+                .resizable(resizingMode: .tile)
+                .opacity(0.05)
+                .blendMode(.overlay)
+                .allowsHitTesting(false)
                 .ignoresSafeArea()
 
             VStack(spacing: groupGap) {

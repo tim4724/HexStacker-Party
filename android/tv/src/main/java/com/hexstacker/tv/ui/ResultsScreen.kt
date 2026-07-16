@@ -1,5 +1,6 @@
 package com.hexstacker.tv.ui
 
+import android.graphics.Bitmap
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -27,9 +28,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.ImageShader
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -43,6 +49,26 @@ import com.hexstacker.tv.R
 import kotlinx.coroutines.delay
 import kotlin.math.hypot
 import kotlin.math.max
+
+/**
+ * 180px tile of grayscale noise (the web bakes the equivalent from an SVG
+ * feTurbulence data URI). Seeded xorshift (same seed as the tvOS tile) so
+ * screenshot captures stay byte-stable across launches.
+ */
+private val noiseBrush: ShaderBrush by lazy {
+    val side = 180
+    var state = -0x61C8864680B583EBL // 0x9E3779B97F4A7C15
+    val pixels = IntArray(side * side)
+    for (i in pixels.indices) {
+        state = state xor (state shl 13)
+        state = state xor (state ushr 7)
+        state = state xor (state shl 17)
+        val v = (state and 0xFF).toInt()
+        pixels[i] = (0xFF shl 24) or (v shl 16) or (v shl 8) or v
+    }
+    val bitmap = Bitmap.createBitmap(pixels, side, side, Bitmap.Config.ARGB_8888)
+    ShaderBrush(ImageShader(bitmap.asImageBitmap(), TileMode.Repeated, TileMode.Repeated))
+}
 
 /**
  * Results overlay (web `renderResults` / `#results-screen`, tvOS `buildResults`).
@@ -95,6 +121,10 @@ fun ResultsScreen(
                         radius = 0.6f * hypot(max(cx, size.width - cx), max(cy, size.height - cy)),
                     ),
                 )
+                // Anti-banding dither (web #results-screen::before): the low-alpha
+                // radial above bands visibly on 8-bit panels; tiled grayscale noise
+                // at 0.05 with overlay blending breaks the bands perceptually.
+                drawRect(noiseBrush, alpha = 0.05f, blendMode = BlendMode.Overlay)
             },
     ) {
         val vp = Vp(maxWidth.value, maxHeight.value)

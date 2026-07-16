@@ -399,8 +399,9 @@ class BoardRenderer {
     // 1 cell away from clearing — i.e. dropping a single cell into that slot
     // triggers a clear. Higher tiers (2-3 away) are intentionally not drawn:
     // they'd mislead the player into thinking one drop completes the row.
-    // Reads the locked stack only (ghost ignored). Skips cells under the
-    // active piece so the pulse doesn't compete with the moving piece.
+    // Reads the locked stack only (ghost ignored). Draws beneath the active
+    // piece (rendered after this pass); cells the piece transits are NOT
+    // filtered out, matching the TV renderers' cached pulse layer.
     //
     // During a line-clear animation, only pulse cells whose row is below the
     // lowest clearing row stay visible. Those positions are gravity-stable
@@ -434,15 +435,6 @@ class BoardRenderer {
           }
         }
 
-        var ncPieceSet = null;
-        if (playerState.currentPiece && playerState.currentPiece.blocks) {
-          ncPieceSet = {};
-          var ncPB = playerState.currentPiece.blocks;
-          for (var ncpi = 0; ncpi < ncPB.length; ncpi++) {
-            ncPieceSet[ncPB[ncpi][0] * _GHOST_KEY_STRIDE + ncPB[ncpi][1]] = true;
-          }
-        }
-
         var ncTime = timestamp || performance.now();
         var ncAlpha = 0.60 + 0.20 * Math.sin(Math.PI * 2 * ncTime / 600);
 
@@ -454,7 +446,6 @@ class BoardRenderer {
         for (var nci = 0; nci < ncCells.length; nci++) {
           var ncCol = ncCells[nci][0], ncRow = ncCells[nci][1];
           if (ncRow <= rowFloor) continue;
-          if (ncPieceSet && ncPieceSet[ncCol * _GHOST_KEY_STRIDE + ncRow]) continue;
           var ncp = this._hexCenter(ncCol, ncRow);
           ctx.moveTo(ncp.x + sCell * HEX_UNIT_VERTICES[0], ncp.y + sCell * HEX_UNIT_VERTICES[1]);
           for (var ncvi = 2; ncvi < 12; ncvi += 2) {
