@@ -494,6 +494,10 @@ function resizeCanvas() {
   canvas.style.width = cachedW + 'px';
   canvas.style.height = cachedH + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // Assigning canvas.width above cleared the canvas: force a repaint even if
+  // the scene signature is unchanged (e.g. a resize during RESULTS, where
+  // calculateLayout below doesn't run).
+  invalidateRenderSig();
   if (currentScreen === SCREEN.GAME) {
     calculateLayout();
   }
