@@ -28,6 +28,33 @@ internal object EngineBootstrap {
         }
         return snap;
       }
+      // Scene signature of the last snapshot DELIVERED by frameJSON (port of the
+      // web computeRenderSig). Pieces move in discrete grid cells, so most 60 Hz
+      // frames are render-identical to the previous one: when the signature
+      // matches, frameJSON omits the snapshot entirely — the host skips the
+      // decode AND the repaint (its render loop keeps the retained snapshot).
+      // Everything the renderer draws from a snapshot must be reflected here:
+      // ghost/nextPieces are derived (piece + gridVersion covers them), and
+      // clearingCells only change alongside a gridVersion bump. Time-driven
+      // visuals (near-clear pulse, clearing glow, effects) are excluded on
+      // purpose — the host render loop treats those as "must animate" and keeps
+      // drawing without new snapshots. The elapsed term repaints the match
+      // timer once per second. null = unknown (always deliver next frame).
+      var lastSceneSig = null;
+      function sceneSig(snap) {
+        var sig = '' + Math.floor(snap.elapsed / 1000);
+        for (var i = 0; i < snap.players.length; i++) {
+          var p = snap.players[i];
+          sig += '|' + p.id + ':' + (p.alive ? 1 : 0) + ':' + p.lines + ':' + p.level
+            + ':' + p.pendingGarbage + ':' + p.gridVersion + ':' + (p.holdPiece || '');
+          var cp = p.currentPiece;
+          // cells[0] uniquely identifies rotation for every hex piece type (same
+          // invariant the web clear-preview cache relies on).
+          if (cp) sig += ':' + cp.typeId + ':' + cp.anchorCol + ':' + cp.anchorRow
+            + ':' + cp.cells[0].q + ':' + cp.cells[0].r;
+        }
+        return sig;
+      }
       return {
         create: function (specs, seed) {
           var map = new Map();
@@ -37,6 +64,7 @@ internal object EngineBootstrap {
           core = new PartyCore(map, seed >>> 0);
           core.init();
           sentGridVersions = {};
+          lastSceneSig = null;
         },
         processInput: function (pid, action) { if (core) core.processInput(pid, action); },
         softDropStart: function (pid, speed) {
@@ -49,8 +77,9 @@ internal object EngineBootstrap {
         rekey: function (oldId, newId) {
           var ok = !!(core && core.rekeyPlayer(oldId, newId));
           // The board moved ids: forget both ledger entries so the next pull
-          // re-sends the full grid under the new id (host cache follows suit).
-          if (ok) { delete sentGridVersions[oldId]; delete sentGridVersions[newId]; }
+          // re-sends the full grid under the new id (host cache follows suit),
+          // and void the scene signature (it keys on player ids).
+          if (ok) { delete sentGridVersions[oldId]; delete sentGridVersions[newId]; lastSceneSig = null; }
           return ok;
         },
         // Reads can't no-op like the writes above (they must return JSON), so a
@@ -61,7 +90,15 @@ internal object EngineBootstrap {
         frameJSON: function (now) {
           if (!core) throw new Error('no game: create() not called');
           var f = core.frame(now);
-          stripUnchangedGrids(f.snapshot);
+          var sig = sceneSig(f.snapshot);
+          if (sig === lastSceneSig) {
+            // Render-identical to the last delivered snapshot: omit it (grid
+            // ledger untouched — the next delivered snapshot strips as usual).
+            delete f.snapshot;
+          } else {
+            lastSceneSig = sig;
+            stripUnchangedGrids(f.snapshot);
+          }
           return JSON.stringify(f);
         },
         isEnded: function () { return !!(core && core.game && core.game.ended); }

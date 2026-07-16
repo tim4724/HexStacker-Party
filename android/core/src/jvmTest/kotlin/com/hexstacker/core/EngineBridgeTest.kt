@@ -94,6 +94,10 @@ class EngineBridgeTest {
             evaluate<Any?>(EngineBootstrap.SHIM + "\nvoid 0;")
             evaluate<Any?>("Bridge.create([[0,1],[1,1]], 7)")
             val first = evaluate<String>("Bridge.frameJSON(0)")
+            // HOLD changes the scene (so the snapshot is delivered at all — see the
+            // scene-signature omission) without touching any grid: the delivered
+            // snapshot strips every player's unchanged grid.
+            evaluate<Any?>("Bridge.processInput(0, 'hold')")
             val second = evaluate<String>("Bridge.frameJSON(16)")
             assertTrue("\"grid\":" in first, "first pull carries full grids")
             assertFalse("\"grid\":" in second, "unchanged grids are stripped from later pulls")
@@ -105,6 +109,29 @@ class EngineBridgeTest {
         Unit
     }
 
+    /** Wire-level half of the scene-signature cycle: frameJSON omits the whole
+     *  snapshot while the scene is render-identical to the last delivered one,
+     *  keeps events/commands on the wire, and re-delivers on a scene change. */
+    @Test
+    fun shimOmitsRenderIdenticalSnapshots() = runBlocking {
+        quickJs {
+            evaluate<Any?>(bundle())
+            evaluate<Any?>(EngineBootstrap.SHIM + "\nvoid 0;")
+            evaluate<Any?>("Bridge.create([[0,1],[1,1]], 7)")
+            val first = evaluate<String>("Bridge.frameJSON(0)")
+            assertTrue("\"snapshot\":" in first, "first pull delivers the snapshot")
+            // 16ms later: no input, no gravity step, same timer second — omitted.
+            val second = evaluate<String>("Bridge.frameJSON(16)")
+            assertFalse("\"snapshot\":" in second, "a render-identical frame omits the snapshot")
+            assertTrue("\"events\":" in second, "events stay on the wire")
+            assertTrue("\"commands\":" in second, "commands stay on the wire")
+            evaluate<Any?>("Bridge.processInput(0, 'left')") // moves p0's piece
+            val third = evaluate<String>("Bridge.frameJSON(33)")
+            assertTrue("\"snapshot\":" in third, "a scene change re-delivers the snapshot")
+        }
+        Unit
+    }
+
     /** Bridge-level half: consumers always see full, identical grids across
      *  pulls (the cached rows are re-attached), and a lock delivers the new grid. */
     @Test
@@ -112,13 +139,14 @@ class EngineBridgeTest {
         val b = newBridge()
         try {
             b.createGame(listOf(PlayerSpec(0, 1), PlayerSpec(1, 1)), seed = 7)
-            val first = b.frame(0.0).snapshot
+            val first = assertNotNull(b.frame(0.0).snapshot, "first frame delivers a snapshot")
             first.players.forEach {
                 assertEquals(EngineConstants.VISIBLE_ROWS, it.grid.size, "first pull carries full grids")
             }
-            // No engine change between pulls: the wire drops the grids, but the
-            // re-attached snapshots stay complete and identical.
-            val second = b.frame(16.0).snapshot
+            // HOLD changes the scene (so the frame delivers) but no grid: the wire
+            // drops the grids, and the re-attached snapshots stay complete and identical.
+            b.processInput(0, InputAction.HOLD)
+            val second = assertNotNull(b.frame(16.0).snapshot, "a scene change delivers a snapshot")
             assertEquals(first.players.map { it.grid }, second.players.map { it.grid })
 
             // A lock bumps player 0's gridVersion: the next pull delivers the new grid.
@@ -128,6 +156,29 @@ class EngineBridgeTest {
             assertNotEquals(before.gridVersion, after.gridVersion)
             assertEquals(EngineConstants.VISIBLE_ROWS, after.grid.size)
             assertTrue(after.grid.flatten().any { it != 0 }, "locked cells present in the resent grid")
+        } finally {
+            b.close()
+        }
+    }
+
+    /** Bridge-level half of the scene-signature cycle: frame() returns a null
+     *  snapshot for render-identical frames; snapshot() stays a full pure read. */
+    @Test
+    fun bridgeOmitsRenderIdenticalFrameSnapshots() = runBlocking {
+        val b = newBridge()
+        try {
+            b.createGame(listOf(PlayerSpec(0, 1), PlayerSpec(1, 1)), seed = 7)
+            val first = assertNotNull(b.frame(0.0).snapshot)
+            assertNull(b.frame(16.0).snapshot, "render-identical frame omits the snapshot")
+            // snapshot() is a pure read: always full, and it must NOT update the
+            // scene ledger (a countdown-static pull would otherwise suppress the
+            // first PLAYING delivery).
+            val pure = b.snapshot()
+            assertEquals(first.players.map { it.grid }, pure.players.map { it.grid })
+            assertNull(b.frame(33.0).snapshot, "a snapshot() read doesn't re-arm delivery")
+            b.processInput(0, InputAction.LEFT) // moves p0's piece
+            assertNotNull(b.frame(50.0).snapshot, "a scene change re-delivers the snapshot")
+            Unit
         } finally {
             b.close()
         }

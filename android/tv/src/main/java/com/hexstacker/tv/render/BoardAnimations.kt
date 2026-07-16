@@ -1,16 +1,20 @@
 package com.hexstacker.tv.render
 
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.RectF
 import com.hexstacker.core.model.Cell
 import com.hexstacker.core.model.EngineConstants
 import com.hexstacker.core.render.Theme
 import kotlin.math.PI
+import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.random.Random
 
 /** Active shake translate for one board (screen px); ZERO when not shaking. */
@@ -32,13 +36,48 @@ class BoardAnimations {
     private val active = ArrayList<Anim>()
     private var now: Double = 0.0
 
-    // Reused paints/paths (render thread only).
-    private val sparklePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
-    private val sparklePath = Path()
-    private val flashPath = Path()
-    private val flashPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+    // Reused paints (render thread only).
     private val popupPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val koAnimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+
+    // Effect hex stamps (tvOS parity: sprites off one shared texture): a flat-fill
+    // AA hex pre-rendered ONCE per (color, circumradius px) and blitted per particle,
+    // instead of tessellating a fresh Path per particle per frame — a multi-board
+    // triple clear is 100+ path draws, all landing in the effect windows where the
+    // render loop can't idle-skip. Bounded: effect colors are the fixed palette
+    // (cream, danger, piece colors) and sizes derive from the layout's cellSize.
+    // Each anim resolves its stamp at spawn, so render() does no cache lookups.
+    private val stampCache = HashMap<Long, Bitmap>()
+    private val stampPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = true }
+    private val stampDst = RectF()
+
+    /** Circumradius the stamp for [r] is actually rendered at (whole px, min 1);
+     *  callers scale their blit by `r / stampRadius(r)` to hit the exact size. */
+    private fun stampRadius(r: Float): Float = ceil(r).coerceAtLeast(1f)
+
+    /** Get-or-render the flat-fill hex stamp for (colorInt, circumradius [r] px). */
+    private fun hexStamp(colorInt: Int, r: Float): Bitmap {
+        val px = stampRadius(r).toInt()
+        val key = ((colorInt.toLong() and 0xFFFFFFFFL) shl 32) or px.toLong()
+        return stampCache.getOrPut(key) {
+            val pad = 2
+            val w = 2 * px + 2 * pad
+            val h = ceil(SQRT3 * px).toInt() + 2 * pad
+            val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            val c = Canvas(bmp)
+            val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; color = colorInt }
+            val path = Path().apply { addHex(w / 2f, h / 2f, px.toFloat()) }
+            c.drawPath(path, p)
+            bmp
+        }
+    }
+
+    /** Recycle the stamp bitmaps. Render-thread teardown only, and only AFTER
+     *  [clear]: live anims hold stamp references and would draw a recycled bitmap. */
+    fun releaseStamps() {
+        for (b in stampCache.values) b.recycle()
+        stampCache.clear()
+    }
 
     // Clear/KO flashes speak warm cream (text primary) and the danger token —
     // never pure white / pure red (web Animations.js A2).
@@ -216,25 +255,27 @@ class BoardAnimations {
         val y: Double,
         val vx: Double,
         val vy: Double,
-        val colorInt: Int,
+        colorInt: Int,
         val rotStart: Double,
         val rotSpeed: Double,
         val size: Double,
     ) : Anim(start, duration) {
+        // Resolved once at spawn; shrink/rotation ride canvas transforms at draw.
+        private val stamp = hexStamp(colorInt, size.toFloat())
+        private val baseScale = size.toFloat() / stampRadius(size.toFloat())
         override fun render(canvas: Canvas, progress: Double) {
             val t = progress * durationMs / 1000.0
             val px = (x + vx * t).toFloat()
             val py = (y + vy * t + 80 * t * t).toFloat() // gravity
-            val sz = (size * (1 - progress * 0.5)).toFloat()
+            val scale = baseScale * (1 - progress * 0.5).toFloat()
             val rot = rotStart + rotSpeed * t
             canvas.save()
             canvas.translate(px, py)
             canvas.rotate(Math.toDegrees(rot).toFloat())
-            sparklePaint.color = colorInt
-            sparklePaint.alpha = a255(1 - progress)
-            sparklePath.rewind()
-            sparklePath.addHex(0f, 0f, sz)
-            canvas.drawPath(sparklePath, sparklePaint)
+            canvas.scale(scale, scale)
+            stampPaint.alpha = a255(1 - progress)
+            canvas.drawBitmap(stamp, -stamp.width / 2f, -stamp.height / 2f, stampPaint)
+            stampPaint.alpha = 255
             canvas.restore()
         }
     }
@@ -244,22 +285,29 @@ class BoardAnimations {
         val cellPositions: List<FloatArray>,
         val hexSize: Float,
     ) : Anim(start, Theme_timing_lineClear) {
+        // Resolved once at spawn; the shrink phase scales the blit rect.
+        private val stamp = hexStamp(creamInt, hexSize)
+        private val stampR = stampRadius(hexSize)
         override fun render(canvas: Canvas, progress: Double) {
-            flashPaint.color = creamInt
+            val alpha: Double
+            val drawR: Float
             if (progress < 0.25) {
-                flashPaint.alpha = a255(0.9 * (1 - (progress / 0.25) * 0.5))
-                flashPath.rewind()
-                for (cp in cellPositions) flashPath.addHex(cp[0], cp[1], hexSize)
-                canvas.drawPath(flashPath, flashPaint)
+                alpha = 0.9 * (1 - (progress / 0.25) * 0.5)
+                drawR = hexSize
             } else {
-                val fade = 0.5 * (1 - (progress - 0.25) / 0.75)
-                if (fade <= 0) return
-                flashPaint.alpha = a255(fade)
-                val shrink = (hexSize * (1 - (progress - 0.25))).toFloat().coerceAtLeast(0f)
-                flashPath.rewind()
-                for (cp in cellPositions) flashPath.addHex(cp[0], cp[1], shrink)
-                canvas.drawPath(flashPath, flashPaint)
+                alpha = 0.5 * (1 - (progress - 0.25) / 0.75)
+                if (alpha <= 0) return
+                drawR = (hexSize * (1 - (progress - 0.25))).toFloat().coerceAtLeast(0f)
             }
+            val scale = drawR / stampR
+            val hw = stamp.width * scale / 2f
+            val hh = stamp.height * scale / 2f
+            stampPaint.alpha = a255(alpha)
+            for (cp in cellPositions) {
+                stampDst.set(cp[0] - hw, cp[1] - hh, cp[0] + hw, cp[1] + hh)
+                canvas.drawBitmap(stamp, null, stampDst, stampPaint)
+            }
+            stampPaint.alpha = 255
         }
     }
 
@@ -366,6 +414,7 @@ class BoardAnimations {
     companion object {
         private const val VIS = EngineConstants.VISIBLE_ROWS
         private const val COLS = EngineConstants.COLS
+        private val SQRT3 = sqrt(3f)
 
         // THEME.timing (ms).
         private const val Theme_timing_lineClear = 600.0

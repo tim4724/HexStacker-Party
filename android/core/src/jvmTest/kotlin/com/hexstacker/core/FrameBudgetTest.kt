@@ -41,14 +41,16 @@ class FrameBudgetTest {
             val samples = DoubleArray(measured)
             var now = 0.0
             for (i in 0 until warmup + measured) {
-                // Movement-only inputs (no hard drops): keeps all 8 boards alive for the
-                // whole run while the snapshot stays its full constant shape per frame.
+                // Movement-only inputs (no hard drops) on EVERY frame: keeps all 8
+                // boards alive for the whole run, and keeps every frame's scene
+                // signature changing so the shim never omits the snapshot — this
+                // measures the worst-case full-delivery round trip, not the
+                // omission fast path.
                 val pid = i % 8
-                when (i % 5) {
+                when (i % 3) {
                     0 -> b.processInput(pid, InputAction.LEFT)
                     1 -> b.processInput(pid, InputAction.RIGHT)
-                    2 -> b.processInput(pid, InputAction.ROTATE_CW)
-                    else -> Unit
+                    else -> b.processInput(pid, InputAction.ROTATE_CW)
                 }
                 now += EngineConstants.LOGIC_TICK_MS
                 val t0 = System.nanoTime()

@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
+import com.hexstacker.core.model.Cell
 import com.hexstacker.core.model.EngineConstants
 import com.hexstacker.core.model.PlayerState
 import com.hexstacker.core.render.ColorMath
@@ -167,7 +168,12 @@ class BoardRenderer(
     }
     private val qrDstRect = RectF()
 
-    // ── Reusable Paths (render thread only; rewound per use — never allocate in draw) ──
+    // ── Reusable Paths (render thread only; never allocate in draw). Rebuilt only
+    // when their inputs change (see the per-path keys below): an unchanged Path keeps
+    // its generation id, so pulse-driven redraw frames (near-clear / clearing glow,
+    // which repaint every vsync with only paint alpha moving) reuse Skia's cached
+    // tessellation instead of re-rasterizing identical geometry. garbageFxPath is
+    // the exception: its rows shift while an effect animates, so it stays per-frame.
     private val ghostPath = Path()
     private val previewPath = Path()
     private val nearClearPath = Path()
@@ -371,24 +377,47 @@ class BoardRenderer(
     }
 
     // ── 3. Ghost ──────────────────────────────────────────────────────────────
+    // Ghost-path key: the blocks are fully determined by (typeId, rotation via
+    // cells[0], landing anchor), so the Path is rebuilt only when one of those
+    // changes. typeId = -1 is the "invalid, rebuild next time" sentinel.
+    private var ghostPathType = -1
+    private var ghostPathCol = 0
+    private var ghostPathRow = 0
+    private var ghostPathRotQ = 0
+    private var ghostPathRotR = 0
+    private var ghostPathDrawn = false
+
     private fun drawGhost(canvas: Canvas, p: PlayerState) {
-        val ghost = p.ghost ?: return
-        val piece = p.currentPiece ?: return
-        if (!p.alive) return
+        val ghost = p.ghost
+        val piece = p.currentPiece
+        if (ghost == null || piece == null || !p.alive) {
+            ghostPathType = -1
+            return
+        }
         if (piece.typeId != cachedGhostType) {
             cachedGhostType = piece.typeId
             cachedGhostColor = ColorMath.ghost(Theme.pieceColors[piece.typeId] ?: TvColors.white)
         }
         val g = cachedGhostColor ?: return
-        ghostPath.rewind()
-        var drawn = false
-        for (b in ghost.blocks) {
-            if (b.row in 0 until VIS) {
-                ghostPath.addHex(hexCenterX(b.col, b.row), hexCenterY(b.col, b.row), sCell)
-                drawn = true
+        val c0 = piece.cells.firstOrNull()
+        val rotQ = c0?.q ?: 0
+        val rotR = c0?.r ?: 0
+        if (piece.typeId != ghostPathType || ghost.anchorCol != ghostPathCol ||
+            ghost.anchorRow != ghostPathRow || rotQ != ghostPathRotQ || rotR != ghostPathRotR
+        ) {
+            ghostPathType = piece.typeId; ghostPathCol = ghost.anchorCol
+            ghostPathRow = ghost.anchorRow; ghostPathRotQ = rotQ; ghostPathRotR = rotR
+            ghostPath.rewind()
+            var drawn = false
+            for (b in ghost.blocks) {
+                if (b.row in 0 until VIS) {
+                    ghostPath.addHex(hexCenterX(b.col, b.row), hexCenterY(b.col, b.row), sCell)
+                    drawn = true
+                }
             }
+            ghostPathDrawn = drawn
         }
-        if (!drawn) return
+        if (!ghostPathDrawn) return
         ghostFillPaint.color = g.rgb.argb(g.fillAlpha)
         canvas.drawPath(ghostPath, ghostFillPaint)
         ghostStrokePaint.color = g.rgb.argb(g.outlineAlpha)
@@ -397,6 +426,8 @@ class BoardRenderer(
     }
 
     // ── 4. Zigzag clear preview ───────────────────────────────────────────────
+    private var previewPathDrawn = false
+
     private fun drawPreview(canvas: Canvas, p: PlayerState) {
         val ghost = p.ghost
         val piece = p.currentPiece
@@ -404,6 +435,7 @@ class BoardRenderer(
             cachedPreviewCells = emptyList()
             prevGhostCol = -1; prevGhostRow = -1; prevGhostType = -1
             prevGhostGV = -1; prevRotQ = 0; prevRotR = 0
+            previewPathDrawn = false
             return
         }
         val c0 = piece.cells.firstOrNull()
@@ -425,17 +457,19 @@ class BoardRenderer(
                 isFilled = { col, row -> grid[row][col] > 0 || (col * STRIDE + row) in ghostSet },
                 ghostContributes = { col, row -> grid[row][col] == 0 && (col * STRIDE + row) in ghostSet },
             )
-        }
-        if (cachedPreviewCells.isEmpty()) return
-        previewPath.rewind()
-        var drawn = false
-        for (cl in cachedPreviewCells) {
-            if (cl.row in 0 until VIS) {
-                previewPath.addHex(hexCenterX(cl.col, cl.row), hexCenterY(cl.col, cl.row), hexSize)
-                drawn = true
+            // Rebuild the Path with the cells (same key), so unchanged frames draw
+            // the identical Path object.
+            previewPath.rewind()
+            var drawn = false
+            for (cl in cachedPreviewCells) {
+                if (cl.row in 0 until VIS) {
+                    previewPath.addHex(hexCenterX(cl.col, cl.row), hexCenterY(cl.col, cl.row), hexSize)
+                    drawn = true
+                }
             }
+            previewPathDrawn = drawn
         }
-        if (!drawn) return
+        if (!previewPathDrawn) return
         // Clear-related effects speak cream (text primary), not pure white —
         // warm flashes sit better on the plum surfaces (A2).
         previewFillPaint.color = Theme.textPrimary.argb(0.2)
@@ -446,11 +480,18 @@ class BoardRenderer(
     }
 
     // ── 5. Near-clear pulse ───────────────────────────────────────────────────
+    // Path key: (grid the cells came from, clearing row floor). The pulse itself is
+    // paint-alpha only, so the Path stays stable across its every-vsync repaints.
+    private var ncPathGV = Int.MIN_VALUE
+    private var ncPathRowFloor = -2
+    private var ncPathDrawn = false
+
     /** Returns true when the pulse was drawn (it animates on the wall clock). */
     private fun drawNearClear(canvas: Canvas, p: PlayerState, nowMs: Double): Boolean {
         if (!p.alive) {
             cachedNcCells = emptyList()
             cachedNcGV = -1
+            ncPathGV = Int.MIN_VALUE
             return false
         }
         val clearing = !p.clearingCells.isNullOrEmpty()
@@ -464,14 +505,19 @@ class BoardRenderer(
         var rowFloor = -1
         if (clearing) for (cc in p.clearingCells!!) if (cc.row > rowFloor) rowFloor = cc.row
 
-        nearClearPath.rewind()
-        var drawn = false
-        for (cl in cachedNcCells) {
-            if (cl.row <= rowFloor) continue
-            nearClearPath.addHex(hexCenterX(cl.col, cl.row), hexCenterY(cl.col, cl.row), sCell)
-            drawn = true
+        if (cachedNcGV != ncPathGV || rowFloor != ncPathRowFloor) {
+            ncPathGV = cachedNcGV
+            ncPathRowFloor = rowFloor
+            nearClearPath.rewind()
+            var drawn = false
+            for (cl in cachedNcCells) {
+                if (cl.row <= rowFloor) continue
+                nearClearPath.addHex(hexCenterX(cl.col, cl.row), hexCenterY(cl.col, cl.row), sCell)
+                drawn = true
+            }
+            ncPathDrawn = drawn
         }
-        if (!drawn) return false
+        if (!ncPathDrawn) return false
         val alpha = 0.60 + 0.20 * sin(2 * PI * nowMs / 600)
         nearClearPaint.color = Theme.nearClear.toArgb()
         nearClearPaint.alpha = a255(alpha)
@@ -495,20 +541,30 @@ class BoardRenderer(
     }
 
     // ── 7. Clearing-cells glow ────────────────────────────────────────────────
+    // Path key: the clearingCells list itself, by identity — snapshots are immutable
+    // value copies, and the render loop retains the same object while the scene is
+    // unchanged, so the every-vsync glow frames reuse the built Path.
+    private var clearingPathCells: List<Cell>? = null
+    private var clearingPathDrawn = false
+
     /** Returns true when the glow was drawn (it animates on the wall clock). */
     private fun drawClearing(canvas: Canvas, p: PlayerState, nowMs: Double): Boolean {
         val cells = p.clearingCells ?: return false
         if (cells.isEmpty()) return false
         val alpha = 0.3 + 0.2 * sin((nowMs / 150) * PI)
-        clearingPath.rewind()
-        var drawn = false
-        for (cc in cells) {
-            if (cc.row in 0 until VIS) {
-                clearingPath.addHex(hexCenterX(cc.col, cc.row), hexCenterY(cc.col, cc.row), sCell)
-                drawn = true
+        if (cells !== clearingPathCells) {
+            clearingPathCells = cells
+            clearingPath.rewind()
+            var drawn = false
+            for (cc in cells) {
+                if (cc.row in 0 until VIS) {
+                    clearingPath.addHex(hexCenterX(cc.col, cc.row), hexCenterY(cc.col, cc.row), sCell)
+                    drawn = true
+                }
             }
+            clearingPathDrawn = drawn
         }
-        if (!drawn) return false
+        if (!clearingPathDrawn) return false
         clearingPaint.color = Theme.textPrimary.toArgb()
         clearingPaint.alpha = a255(alpha)
         canvas.drawPath(clearingPath, clearingPaint)
@@ -572,14 +628,20 @@ class BoardRenderer(
         canvas.drawTextB(linesStr, panelX, linesY + valueYOffset, valuePaint, TextBaseline.TOP)
     }
 
+    // Meter-path key: the shown line count (geometry is construction-fixed).
+    private var meterPathLines = 0
+
     private fun drawGarbageMeter(canvas: Canvas, pending: Int) {
         val lines = min(pending, VIS)
         if (lines == 0) return
-        garbageMeterPath.rewind()
-        for (i in 0 until lines) {
-            val row = VIS - 1 - i
-            val cy = boardY + hexH * row + hexH / 2f
-            garbageMeterPath.addHex(meterXF, cy, sCell)
+        if (lines != meterPathLines) {
+            meterPathLines = lines
+            garbageMeterPath.rewind()
+            for (i in 0 until lines) {
+                val row = VIS - 1 - i
+                val cy = boardY + hexH * row + hexH / 2f
+                garbageMeterPath.addHex(meterXF, cy, sCell)
+            }
         }
         // Garbage meter speaks cream (A2), not pure white.
         meterStrokePaint.color = Theme.textPrimary.argb(Theme.Opacity.label)

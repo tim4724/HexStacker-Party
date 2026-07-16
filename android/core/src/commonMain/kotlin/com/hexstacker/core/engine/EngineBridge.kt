@@ -149,11 +149,15 @@ class EngineBridge private constructor(
      * (self-gating on paused/ended), returns this frame's events + value-copy snapshot
      * + normalized host commands.
      *
+     * The snapshot is null when the frame is render-identical to the last one this
+     * bridge delivered (the shim's scene signature) — skip the repaint and keep the
+     * retained snapshot. [snapshot] is unaffected: it always returns a full copy.
+     *
      * @param nowMs monotonic ms; only deltas matter, origin is free.
      */
     suspend fun frame(nowMs: Double): FrameResult = lock.withLock {
         val frame = decode<FrameResult>("frameJSON", "Bridge.frameJSON(${jsNum(nowMs)})")
-        frame.copy(snapshot = reattachGrids(frame.snapshot))
+        frame.snapshot?.let { frame.copy(snapshot = reattachGrids(it)) } ?: frame
     }
 
     /**

@@ -5,11 +5,16 @@ import kotlinx.serialization.Serializable
 /**
  * One pull of `PartyCore.frame(nowMs)`: this frame's complete ordered event
  * record, a value-copy snapshot, and the normalized host-effect commands.
+ *
+ * [snapshot] is null when the frame is render-identical to the previously
+ * delivered one (the Bridge shim's scene signature; see EngineBootstrap) —
+ * consumers keep rendering their retained snapshot. Events/commands always
+ * arrive in full.
  */
 @Serializable
 data class FrameResult(
     val events: List<GameEvent>,
-    val snapshot: GameSnapshot,
+    val snapshot: GameSnapshot? = null,
     val commands: List<Command>,
 )
 

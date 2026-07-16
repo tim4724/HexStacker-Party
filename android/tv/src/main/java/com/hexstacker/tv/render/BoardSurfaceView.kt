@@ -60,8 +60,11 @@ internal class GarbageFx(
  * and redraws every vsync while content changes. When nothing new was pushed AND no
  * wall-clock animation/pulse is running (countdown, pause, results), the thread
  * idle-skips instead of re-rendering an identical full-screen frame — see
- * [contentVersion] and the activity flag [drawFrame] returns. Embed in Compose
- * later via `AndroidView({ BoardSurfaceView(it) })`.
+ * [contentVersion] and the activity flag [drawFrame] returns. This covers most
+ * GAMEPLAY frames too: the engine shim's scene signature (EngineBootstrap) omits
+ * render-identical snapshots from frame(), so pieces sitting between discrete
+ * grid steps push nothing here (web parity: DisplayRender's computeRenderSig).
+ * Embed in Compose later via `AndroidView({ BoardSurfaceView(it) })`.
  */
 class BoardSurfaceView @JvmOverloads constructor(
     context: Context,
@@ -253,6 +256,10 @@ class BoardSurfaceView @JvmOverloads constructor(
         renderers = emptyList()
         stampCache.clear()
         qrCache.clear()
+        // Drop live anims BEFORE recycling their stamp bitmaps (each anim holds
+        // its stamp reference; a surviving one would draw a recycled bitmap).
+        animations.clear()
+        animations.releaseStamps()
         garbageIndicator.clear()
         garbageDefence.clear()
         pendingByPlayer.clear()

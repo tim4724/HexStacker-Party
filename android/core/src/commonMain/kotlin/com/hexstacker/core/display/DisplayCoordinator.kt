@@ -721,7 +721,10 @@ class DisplayCoordinator(
                     return
                 }
                 for (ev in frame.events) output.handleGameEvent(ev) // board animations
-                output.renderSnapshot(frame.snapshot) // snapshot carries music level
+                // Omitted (null) when the frame is render-identical to the last
+                // delivered one (shim scene signature): keep the retained snapshot
+                // instead of re-rendering a pixel-identical full screen.
+                frame.snapshot?.let { output.renderSnapshot(it) }
                 dispatchCommands(frame.commands) // host effects -> sends + match end
             }
             RoomState.LOBBY, RoomState.RESULTS -> {}
