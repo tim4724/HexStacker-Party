@@ -395,6 +395,11 @@ final class DisplayModel: ObservableObject {
         joinURL = nil
         qrText = nil
         boardScene.resetBoards()
+        // Sync the scene to the fresh model's .lobby: showScreen's same-screen
+        // guard would otherwise skip the scene flip for lobby-family states
+        // captured right after a game/results state, leaving the previous
+        // scene layer up instead of the lobby's ambient falling pieces.
+        boardScene.showScreen(state.screen)
         makeCoordinator(relayBacked: false)
         applyShot(entry.shot, playerCount: entry.players)
         // Report ready once labels / QR / board textures have rasterized. No
@@ -440,10 +445,10 @@ final class DisplayModel: ObservableObject {
             state.connection = .closed
         case "about":         // full-screen About page (Privacy / Imprint QR + Licenses drill-in)
             coordinator?.renderShot("lobby-empty", playerCount: pc)
-            state.aboutPath = [.about]
+            seedAboutPath([.about])
         case "licenses":      // full-screen Licenses page (scrolled to top)
             coordinator?.renderShot("lobby-empty", playerCount: pc)
-            state.aboutPath = [.about, .licenses]
+            seedAboutPath([.about, .licenses])
         default:
             coordinator?.renderShot(shot, playerCount: pc)
         }
@@ -453,6 +458,19 @@ final class DisplayModel: ObservableObject {
         // accent fallback in every shot.
         if state.lobby == nil || state.lobby?.players.isEmpty == true {
             state.lobby = buildLobby()
+        }
+    }
+
+    /// Seed the About/Licenses path one runloop late: a NavigationStack that is
+    /// INSERTED with a non-empty path (carousel "about" right after the results
+    /// state swaps the screen back to .lobby) resets the path to [] as it
+    /// attaches, and the gallery captured the bare lobby. Pushing on the next
+    /// tick targets the now-live stack, which is the same (working) order the
+    /// HEXSHOT/HEXLICENSES single-state paths get from onAppear. Well inside
+    /// the 0.35s marker delay, so the capture still sees the settled page.
+    private func seedAboutPath(_ path: [AboutRoute]) {
+        DispatchQueue.main.async { [weak self] in
+            self?.state.aboutPath = path
         }
     }
 }

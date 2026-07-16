@@ -34,7 +34,7 @@ struct ConnectionOverlayView: View {
                 // #pause-overlay h1, #reconnect-overlay h1 share clamp(1.6rem,4vh,3.5rem)).
                 Text(disconnected ? tr("disconnected") : tr("reconnecting"))
                     .styled(font: AppFont.brandExtraBold, size: vp.vh(25.6, 4, 56),
-                            color: UITheme.textPrimary(), tracking: 0.12)
+                            color: UITheme.textPrimary(), tracking: 0.15)
 
                 if !disconnected {
                     // Web shows the status only while reconnecting. "Attempt N of M"
@@ -43,15 +43,17 @@ struct ConnectionOverlayView: View {
                     Text(attempt > 0
                          ? tr("attempt_n_of_m", min(attempt, maxAttempts), maxAttempts)
                          : tr("connection_lost"))
-                        .styled(font: AppFont.brandBold, size: vp.vh(12.8, 2.4, 17.1),
+                        .styled(font: AppFont.brandBold, size: vp.vh(19.2, 2.4, 25.6),
                                 color: UITheme.textSecondary, tracking: 0.08)
                 }
 
                 if grabsFocus {
                     // Host-tinted like every web primary CTA (#reconnect-btn reads
-                    // --player-color); content-hugging width (SpriteKit probe+padding).
+                    // --player-color); web overlay CTAs share min-width
+                    // clamp(260px, 34vh, 420px) on top of the content hug.
                     ChromeButton(text: tr("reconnect"), primary: true,
                                  tint: UITheme.hostTint(hostColorSlot),
+                                 minWidth: vp.vh(260, 34, 420),
                                  height: btnH, action: onReconnect)
                         .focused($reconnectFocused)
                 }

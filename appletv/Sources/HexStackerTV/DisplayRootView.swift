@@ -40,7 +40,7 @@ struct DisplayChromeView: View {
 
     var body: some View {
         GeometryReader { geo in
-            let vp = Vp(size: geo.size)
+            let vp = Vp(fullScreenOf: geo)
             ZStack {
                 // allowsTransparency: the SKView's FIRST drawable presents
                 // before the scene renders and clears opaque (a white/grey

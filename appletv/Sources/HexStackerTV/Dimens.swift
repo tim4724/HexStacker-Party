@@ -12,6 +12,18 @@ struct Vp {
         h = max(size.height, 1)
     }
 
+    /// Full-screen basis from a root GeometryReader: geo.size plus the
+    /// safe-area insets (the tvOS simulator reports 60/80pt overscan). The web
+    /// reference renders its clamp() sizes against the whole 1080p viewport
+    /// and the SpriteKit boards are full-bleed, so chrome sizes must scale
+    /// against the same height or they read ~11% smaller than both; layout
+    /// still happens inside the title-safe geo.
+    init(fullScreenOf geo: GeometryProxy) {
+        self.init(size: CGSize(
+            width: geo.size.width + geo.safeAreaInsets.leading + geo.safeAreaInsets.trailing,
+            height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom))
+    }
+
     var vmin: CGFloat { min(w, h) }
 
     /// clamp(lo, pct·vh, hi) in points.

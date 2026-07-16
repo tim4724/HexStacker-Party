@@ -12,6 +12,7 @@ struct ChromeButton: View {
     let tint: Color
     var enabled = true
     var width: CGFloat? = nil
+    var minWidth: CGFloat? = nil   // web overlay CTAs: min-width over the content hug
     let height: CGFloat
     var hPad: CGFloat? = nil   // content-hugging pills override the default pad
     let action: () -> Void
@@ -21,7 +22,7 @@ struct ChromeButton: View {
         // the cursor never vanishes while a screen waits on state.
         Button(action: enabled ? action : {}) {
             ChromeButtonLabel(text: text, primary: primary, enabled: enabled,
-                              width: width, height: height, hPad: hPad)
+                              width: width, minWidth: minWidth, height: height, hPad: hPad)
         }
         .buttonStyle(ChromeButtonStyle(primary: primary, tint: tint, enabled: enabled))
     }
@@ -42,7 +43,7 @@ struct ChromeLink<V: Hashable>: View {
     var body: some View {
         NavigationLink(value: value) {
             ChromeButtonLabel(text: text, primary: primary, enabled: true,
-                              width: width, height: height, hPad: hPad)
+                              width: width, minWidth: nil, height: height, hPad: hPad)
         }
         .buttonStyle(ChromeButtonStyle(primary: primary, tint: tint, enabled: true))
     }
@@ -54,17 +55,21 @@ private struct ChromeButtonLabel: View {
     let primary: Bool
     let enabled: Bool
     let width: CGFloat?
+    let minWidth: CGFloat?
     let height: CGFloat
     let hPad: CGFloat?
 
     var body: some View {
+        // 0.32 = web CTA font clamp(1.1rem, 2.4vh, 1.7rem) over the shared
+        // .btn height max(48, 7.5vh): 2.4 / 7.5.
         Text(text)
-            .styled(font: AppFont.brandBold, size: height * 0.36,
+            .styled(font: AppFont.brandBold, size: height * 0.32,
                     color: !enabled ? UITheme.textSecondary
                         : (primary ? UITheme.btnPrimaryText : UITheme.textPrimary()),
                     tracking: 0.08)
             .lineLimit(1)
             .padding(.horizontal, hPad ?? height * 0.6)
+            .frame(minWidth: minWidth)
             .frame(width: width, height: height)
     }
 }

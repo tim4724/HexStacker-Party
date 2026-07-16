@@ -300,7 +300,7 @@ private struct LicensePageScaffold<Content: View>: View {
 
     var body: some View {
         GeometryReader { geo in
-            let vp = Vp(size: geo.size)
+            let vp = Vp(fullScreenOf: geo)
             let W = vp.w, H = vp.h
             let margin = H * 0.05
             let contentW = W - (W * 0.05) * 2
