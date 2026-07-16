@@ -154,6 +154,12 @@ async function run() {
   // live. Without this, every clip cut briefly flashes the HEX STACKER
   // title that the display defaults to before bootLocalGame transitions.
   await clipModule.stage(ctx);
+  // Staging may have just swapped screens, and showScreen's fade-through
+  // exit keeps the outgoing screen (welcome/lobby) visible ABOVE the staged
+  // scene as a fixed .closing layer for SCREEN_EXIT_MS. Wait for that fade
+  // to finish before declaring the scene staged, or the clip's first frames
+  // catch the welcome title cross-fading over the staged content.
+  await displayTransitionsSettled();
   // Two RAFs to make sure the canvas paints the staged scene before we
   // hand control to capture.js.
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -186,6 +192,20 @@ async function run() {
 }
 
 function wait(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+// Poll each frame until the display iframe has no running screen-exit fade
+// (.closing element, see fadeHide in DisplayState.js). The timeout guard
+// keeps a stuck class from hanging the capture; 2s covers SCREEN_EXIT_MS
+// (180ms) with a wide margin.
+async function displayTransitionsSettled(timeoutMs = 2000) {
+  const t0 = performance.now();
+  for (;;) {
+    const doc = displayIframe.contentDocument;
+    if (doc && !doc.querySelector('.closing')) return;
+    if (performance.now() - t0 > timeoutMs) return;
+    await new Promise((r) => requestAnimationFrame(() => r()));
+  }
+}
 
 // Patch performance.now / Date.now / requestAnimationFrame on the given
 // window so the in-page clock advances at TIME_SCALE × wall-clock.

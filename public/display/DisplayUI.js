@@ -46,6 +46,9 @@ function calculateLayout() {
     return (players.get(a)?.joinedAt ?? Infinity) - (players.get(b)?.joinedAt ?? Infinity);
   });
   clearStampCache();
+  // Renderers are being rebuilt, so the last painted frame no longer matches
+  // what render would produce and the identical-frame skip must not fire.
+  invalidateRenderSig();
 
   var n = playerOrder.length;
   var w = window.innerWidth;

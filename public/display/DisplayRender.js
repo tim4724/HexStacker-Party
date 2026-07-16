@@ -14,6 +14,59 @@ var IDLE_FRAME_INTERVAL_MS = 250;
 var lastThrottled = null;
 var _NO_SHAKE = Object.freeze({ x: 0, y: 0 });
 
+// Scene signature of the last painted frame. Pieces move in discrete grid
+// cells (no sub-row interpolation), so most RAF frames during play are
+// pixel-identical to the previous one: when the signature matches and no
+// time-driven effect is animating, the repaint is skipped entirely.
+// null = unknown/stale (always repaint next frame).
+var lastRenderSig = null;
+
+// Called whenever the canvas content is externally invalidated (layout
+// recalculation, canvas resize; assigning canvas.width clears the canvas).
+function invalidateRenderSig() {
+  lastRenderSig = null;
+}
+
+// Everything renderFrame draws must be reflected here; a missed input means
+// a skipped repaint after that input changes. Time-driven visuals (near-clear
+// pulse, clearing glow, sparkles, garbage effects) are excluded on purpose:
+// renderLoop treats those as "must animate" and bypasses the signature check.
+function computeRenderSig() {
+  // Font families flip when the webfonts finish loading (UIRenderer rebuilds
+  // its cached font strings on the next paint), so they must repaint too.
+  var sig = currentScreen + '|' + boardRenderers.length + '|'
+    + getDisplayFont() + '|' + getBrandFont();
+  if (!gameState) {
+    sig += '|empty';
+    for (var i = 0; i < playerOrder.length; i++) {
+      var pInfo = players.get(playerOrder[i]);
+      sig += '|' + playerOrder[i] + ':'
+        + (pInfo ? pInfo.playerName + ':' + pInfo.playerIndex + ':' + (pInfo.startLevel || 1) : '');
+    }
+    return sig;
+  }
+  sig += '|' + (gameState.elapsed != null ? Math.floor(gameState.elapsed / 1000) : -1);
+  var ps = gameState.players;
+  if (ps) {
+    for (var j = 0; j < ps.length; j++) {
+      var p = ps[j];
+      var pInfo = players.get(p.id);
+      // 0 = connected, 1 = disconnected (QR still generating), 2 = QR ready;
+      // the async QR arrival must trigger a repaint.
+      var qr = disconnectedQRs.has(p.id) ? (disconnectedQRs.get(p.id) ? 2 : 1) : 0;
+      sig += '|' + p.id + ':' + (p.alive ? 1 : 0) + ':' + p.lines + ':' + p.level
+        + ':' + p.pendingGarbage + ':' + p.gridVersion + ':' + (p.holdPiece || '')
+        + ':' + qr + ':' + (pInfo ? pInfo.playerName + ':' + pInfo.playerIndex : '');
+      var cp = p.currentPiece;
+      // cells[0] uniquely identifies rotation for every hex piece type (same
+      // invariant the clear-preview cache in BoardRenderer relies on).
+      if (cp) sig += ':' + cp.typeId + ':' + cp.anchorCol + ':' + cp.anchorRow
+        + ':' + cp.cells[0].q + ':' + cp.cells[0].r;
+    }
+  }
+  return sig;
+}
+
 // Returns all effects if any is still active; otherwise clears the map entry and returns [].
 var _EMPTY_EFFECTS = Object.freeze([]);
 function getOrClearEffects(effectsMap, playerId, timestamp) {
@@ -100,6 +153,31 @@ function renderLoop(timestamp) {
     lastThrottled = timestamp;
   } else {
     lastThrottled = null;
+  }
+
+  // Skip the repaint when the scene is provably identical to the last painted
+  // frame. Time-driven effects (sparkles, garbage flashes, clearing glow,
+  // near-clear pulse) animate against the clock, so any of them being active
+  // forces a paint; the near-clear check reads the renderers' cached cells
+  // from the previous paint, which stay valid while gridVersion is unchanged.
+  // window.__TEST__ (e2e/gallery) disables skipping because harness helpers
+  // like _extraGhosts inject render inputs the signature doesn't track.
+  // Adclip captures keep the skip (see the adclip flag in DisplayTestHarness).
+  var mustAnimate = hasAnimations || hasGarbageEffects ||
+    !!(window.__TEST__ && !window.__TEST__.adclip);
+  if (!mustAnimate && gameState && gameState.players) {
+    for (var mi = 0; mi < gameState.players.length; mi++) {
+      var mp = gameState.players[mi];
+      if (mp.clearingCells && mp.clearingCells.length > 0) { mustAnimate = true; break; }
+      if (boardRenderers[mi] && boardRenderers[mi]._cachedNcCells.length > 0) { mustAnimate = true; break; }
+    }
+  }
+  if (mustAnimate) {
+    lastRenderSig = null;
+  } else {
+    var sig = computeRenderSig();
+    if (sig === lastRenderSig) return;
+    lastRenderSig = sig;
   }
 
   try {

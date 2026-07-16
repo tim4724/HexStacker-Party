@@ -28,6 +28,12 @@ if (urlParams.get('seed') !== null) {
 
 if (urlParams.get('test') === '1' || debugCount > 0 || _adclipMode) {
   window.__TEST__ = {
+    // Adclip captures keep the render loop's identical-frame skip (prod
+    // behavior — a skipped repaint leaves the correct pixels on the canvas,
+    // and the screencast resampler duplicates the last frame). test/debug
+    // sessions bypass the skip instead: their helpers (e.g. _extraGhosts)
+    // inject render inputs the scene signature doesn't track.
+    adclip: _adclipMode,
     addPlayers: function(playerList) {
       for (var i = 0; i < playerList.length; i++) {
         var p = playerList[i];
