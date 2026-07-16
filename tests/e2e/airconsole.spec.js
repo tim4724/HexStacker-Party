@@ -401,8 +401,13 @@ test.describe.serial('AirConsole Integration', () => {
     await s.screenFrame.waitForFunction(() => roomState === 'playing', null, { timeout: 15000 });
     await s.ctrlFrame.waitForSelector('#game-screen:not(.hidden):not(.countdown)', { timeout: 15000 });
 
-    await s.screenFrame.waitForSelector('#results-screen:not(.hidden)', { timeout: 60000 });
-    await s.ctrlFrame.waitForSelector('#gameover-screen:not(.hidden)', { timeout: 60000 });
+    // Live mode: game physics run on rAF in the screen window; if it gets
+    // occluded by the controller window, Firefox throttles rAF and game time
+    // crawls (frame delta is capped at MAX_FRAME_DELTA_MS), so give the game
+    // twice the headroom to finish.
+    const resultsTimeout = USE_MOCK ? 60000 : 120000;
+    await s.screenFrame.waitForSelector('#results-screen:not(.hidden)', { timeout: resultsTimeout });
+    await s.ctrlFrame.waitForSelector('#gameover-screen:not(.hidden)', { timeout: resultsTimeout });
     expect(await s.screenFrame.evaluate(() => roomState)).toBe('results');
   });
 
