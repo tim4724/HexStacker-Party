@@ -14,6 +14,33 @@ final class HexStampFactory {
 
     private static let v = HexGeometry.unitVertices   // 6 (cos,sin) flat-top vertices
 
+    /// `flatHex`'s drawn circumradius; sprites scale the full texture size by
+    /// `radius / flatHexCircumradius` so the pad scales with the hex.
+    static let flatHexCircumradius: CGFloat = 32
+
+    /// One shared white flat-top hex fill for effect particles (sparkles, clear
+    /// flashes), tinted per sprite via SKSpriteNode color/colorBlendFactor. A
+    /// single texture for every particle color lets SpriteKit batch them all
+    /// into one draw call, where an SKShapeNode per particle is an unbatched
+    /// draw plus a CPU tessellation each. Sized generously and scaled down by
+    /// the sprite (particles run tiny, so linear filtering stays clean).
+    lazy var flatHex: SKTexture = {
+        let cr = Self.flatHexCircumradius
+        let pad: CGFloat = 1                        // keep the AA edge off the bitmap border
+        let w = 2 * cr + 2 * pad
+        let h = CGFloat(3.0.squareRoot()) * cr + 2 * pad
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: w, height: h))
+        let image = renderer.image { rctx in
+            let ctx = rctx.cgContext
+            ctx.addPath(hexPath(cx: w / 2, cy: h / 2, r: cr))
+            ctx.setFillColor(UIColor.white.cgColor)
+            ctx.fillPath()
+        }
+        let texture = SKTexture(image: image)
+        texture.filteringMode = .linear
+        return texture
+    }()
+
     /// `size` is the drawn cell HEIGHT (stampHeight). Returns a cached texture.
     func stamp(tier: Theme.StyleTier, color: RGB, size: CGFloat) -> SKTexture {
         let sizeKey = Int((size * 10).rounded())

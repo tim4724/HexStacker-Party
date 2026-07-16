@@ -169,6 +169,10 @@ public final class DisplayCoordinator {
     /// (built lazily, reused across a shot). nil if the core bundle fails to load.
     var galleryBridge: EngineBridge?
 
+    // Render-on-input coalescing: true once handleInput has pulled a snapshot
+    // since the last tick(), so message bursts cost at most one pull per frame.
+    private var renderedInputSinceTick = false
+
     // Countdown driven by accumulated frame time (deterministic, testable).
     private var countdownElapsed = 0.0
     private var countdownStep = -1   // last emitted step: 0->3,1->2,2->1,3->GO,4->start
@@ -475,7 +479,12 @@ public final class DisplayCoordinator {
         // instead of waiting for the next tick(). snapshot() is a pure read (value-copy,
         // no time advance), so it only front-runs the VISUAL; this frame's events/commands
         // (lock flash, garbage, sends) still flow on the next tick(). Mirrors the Android path.
-        if let engine, let snap = try? engine.snapshot() { output?.renderSnapshot(snap) }
+        // Coalesced to one pull per frame: each snapshot() is a full serialize + decode,
+        // and an 8-player input burst can land several messages inside one 16 ms window.
+        // Later inputs still show on the tick's own snapshot, at most one frame later.
+        guard !renderedInputSinceTick, let engine, let snap = try? engine.snapshot() else { return }
+        renderedInputSinceTick = true
+        output?.renderSnapshot(snap)
     }
 
     private func handleSetLevel(from: Int, msg: ControllerMessage) {
@@ -600,6 +609,7 @@ public final class DisplayCoordinator {
     /// elapsed milliseconds.
     public func tick(deltaMs rawDelta: Double) {
         assertOwningThread()
+        renderedInputSinceTick = false   // new frame: re-arm render-on-input
         let deltaMs = min(max(rawDelta, 0), Self.maxFrameDeltaMs)
         // The local demo has no controllers sending heartbeats, so keep its
         // synthetic players "seen" — otherwise the liveness sweep flags them

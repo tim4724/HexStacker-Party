@@ -20,7 +20,10 @@ final class BoardScene: SKScene {
 
     private let gameLayer = SKNode()
     private let timerNode = SKNode()          // container for the fixed-advance timer glyphs
-    private var lastTimerKey = ""             // change-gate for the once-a-second timer text
+    // Change-gate for the once-a-second timer text. A value struct, not an
+    // interpolated string: the gate runs every frame.
+    private struct TimerKey: Equatable { let seconds: Int; let fontSize: CGFloat; let playerCount: Int }
+    private var lastTimerKey: TimerKey?
     private var timerGlyphs: [SKLabelNode] = []
 
     private var boardNodes: [Int: BoardNode] = [:]
@@ -193,7 +196,7 @@ final class BoardScene: SKScene {
         lastBoardIds = []
         currentPlayerCount = -1
         timerNode.isHidden = true
-        lastTimerKey = ""
+        lastTimerKey = nil
         lastSnapshot = nil
     }
 
@@ -246,14 +249,13 @@ final class BoardScene: SKScene {
     private func relayout() {
         currentPlayerCount = -1
         lastBoardIds = []
-        lastTimerKey = ""
+        lastTimerKey = nil
     }
 
     // MARK: - Match timer
 
     private func updateTimer(elapsedMs: Double) {
         let total = Int(elapsedMs / 1000)
-        let str = String(format: "%02d:%02d", total / 60, total % 60)
         // Fixed size relative to scene height, not cell size, so the clock reads
         // the same regardless of board count and matches the web/Android renderers.
         // Two board rows (7-8 players) leave no free band above the top boards, so
@@ -264,10 +266,10 @@ final class BoardScene: SKScene {
         // The text changes once a second; skip the per-frame glyph
         // re-rasterization (setStyledText re-runs layout + texture upload)
         // unless something that feeds the render actually changed.
-        let key = "\(str)|\(fs)|\(currentPlayerCount)"
+        let key = TimerKey(seconds: total, fontSize: fs, playerCount: currentPlayerCount)
         if key == lastTimerKey && !timerNode.isHidden { return }
         lastTimerKey = key
-        let chars = Array(str)
+        let chars = Array(String(format: "%02d:%02d", total / 60, total % 60))
         // Fixed per-glyph advances (web drawTimer): digits share a width, the colon
         // is narrower, so nothing shifts as the seconds tick.
         let digitAdvance = fs * 0.92, colonAdvance = fs * 0.52

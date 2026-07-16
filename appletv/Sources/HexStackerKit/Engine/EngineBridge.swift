@@ -56,6 +56,13 @@ public final class EngineBridge {
     private let decoder = JSONDecoder()
     private let exceptionBox: ExceptionBox
 
+    /// Grid rows last received per player, keyed by id. The JS shim strips a
+    /// player's `grid` from the 60 Hz frame()/snapshot() payloads while its
+    /// `gridVersion` is unchanged (the grid dominates the serialized snapshot,
+    /// and it only changes on a lock/clear/garbage insert); FrameParsing
+    /// re-attaches these cached rows so consumers always see a full snapshot.
+    private var gridCache: [Int: [[Int]]] = [:]
+
     /// Reports a JS exception raised by a fire-and-forget engine call (input,
     /// tick, pause). Without this such errors were dropped AND left in the shared
     /// exception box, where they were mis-attributed to the next frame()/snapshot().
@@ -101,6 +108,7 @@ public final class EngineBridge {
     /// Construct and `init()` a new game. `players` order defines snapshot order.
     public func createGame(players: [(id: Int, startLevel: Int)], seed: UInt32) throws {
         let specs = players.map { [$0.id, $0.startLevel] }
+        gridCache = [:]   // fresh match: the shim's sent-grid ledger resets too
         bridge.invokeMethod("create", withArguments: [specs, Int(seed)])
         if let e = takeException() { throw EngineError.evalFailed("create: \(e)") }
     }
@@ -141,7 +149,11 @@ public final class EngineBridge {
     /// call failed) so the caller can keep roster and engine state in lockstep.
     @discardableResult
     public func rekeyPlayer(oldId: Int, newId: Int) -> Bool {
-        invoke("rekeyPlayer", [oldId, newId])?.toBool() ?? false
+        let ok = invoke("rekeyPlayer", [oldId, newId])?.toBool() ?? false
+        // Follow the engine's board move in the grid cache (the shim drops both
+        // ids from its sent-grid ledger, so the next pull re-sends a full grid).
+        if ok, let g = gridCache.removeValue(forKey: oldId) { gridCache[newId] = g }
+        return ok
     }
 
     /// Forget the previous `frame()` timestamp so the next `frame()` re-primes
@@ -156,8 +168,13 @@ public final class EngineBridge {
 
     // MARK: - Reading state
 
+    /// Value-copy snapshot via the fast path: shim-stripped grids re-attached
+    /// from `gridCache`, hand-rolled parsing instead of JSONDecoder (this and
+    /// `frame(nowMs:)` run up to once per display frame).
     public func snapshot() throws -> GameSnapshot {
-        try decode(GameSnapshot.self, method: "snapshotJSON")
+        let obj = try jsonObject(method: "snapshotJSON")
+        do { return try FrameParsing.gameSnapshot(obj, gridCache: &gridCache) }
+        catch { throw EngineError.decode("snapshotJSON: \(error)") }
     }
 
     // MARK: - Gallery fixtures
@@ -208,8 +225,11 @@ public final class EngineBridge {
     /// capped delta, ticks the engine (self-gating on paused/ended), and returns
     /// this frame's `events` (complete record), a value-copy `snapshot`, and the
     /// normalized host-effect `commands`. The blessed native integration surface.
+    /// Decodes through the fast path (see `snapshot()`).
     public func frame(nowMs: Double) throws -> FrameResult {
-        try decode(FrameResult.self, method: "frameJSON", args: [nowMs])
+        let obj = try jsonObject(method: "frameJSON", args: [nowMs])
+        do { return try FrameParsing.frameResult(obj, gridCache: &gridCache) }
+        catch { throw EngineError.decode("frameJSON: \(error)") }
     }
 
     // MARK: - Internals
@@ -239,6 +259,19 @@ public final class EngineBridge {
         catch { throw EngineError.decode("\(method): \(error)") }
     }
 
+    /// The per-frame twin of `decode`: same call + exception-drain discipline,
+    /// but returns the raw JSONSerialization tree for FrameParsing's hand-rolled
+    /// mapping instead of running it through JSONDecoder.
+    private func jsonObject(method: String, args: [Any] = []) throws -> Any {
+        let result = bridge.invokeMethod(method, withArguments: args)
+        if let e = takeException() { onEngineError?("\(method): \(e)"); throw EngineError.evalFailed("\(method): \(e)") }
+        guard let json = result?.toString(), let data = json.data(using: .utf8) else {
+            throw EngineError.decode("\(method): no string returned")
+        }
+        do { return try JSONSerialization.jsonObject(with: data) }
+        catch { throw EngineError.decode("\(method): \(error)") }
+    }
+
     private func takeException() -> String? {
         defer { exceptionBox.message = nil }
         return exceptionBox.message
@@ -251,12 +284,27 @@ public final class EngineBridge {
     var Bridge = (function () {
       var PartyCore = HexCore.PartyCore;
       var core = null;
+      // playerId -> gridVersion last serialized WITH its grid. The grid is the
+      // dominant payload of the 60 Hz frame()/snapshot() pulls and only changes
+      // on a lock/clear/garbage insert, so strip it while the version is
+      // unchanged; EngineBridge re-attaches the cached rows Swift-side. Safe to
+      // delete off the snapshot: PartyCore.snapshot() is a value copy.
+      var sentGridVersions = {};
+      function stripUnchangedGrids(snap) {
+        for (var i = 0; i < snap.players.length; i++) {
+          var p = snap.players[i];
+          if (sentGridVersions[p.id] === p.gridVersion) delete p.grid;
+          else sentGridVersions[p.id] = p.gridVersion;
+        }
+        return snap;
+      }
       return {
         create: function (specs, seed) {
           var map = new Map();
           for (var i = 0; i < specs.length; i++) {
             map.set(specs[i][0], { startLevel: specs[i][1] });
           }
+          sentGridVersions = {};
           core = new PartyCore(map, seed >>> 0);
           core.init();
         },
@@ -268,11 +316,22 @@ public final class EngineBridge {
         update: function (dt) { if (core) core.update(dt); },
         pause: function () { if (core) core.pause(); },
         resume: function () { if (core) core.resume(); },
-        rekeyPlayer: function (oldId, newId) { return core ? core.rekeyPlayer(oldId, newId) : false; },
+        rekeyPlayer: function (oldId, newId) {
+          if (!core) return false;
+          var ok = core.rekeyPlayer(oldId, newId);
+          // The board moved ids: forget both ledger entries so the next pull
+          // re-sends the full grid under the new id (host cache follows suit).
+          if (ok) { delete sentGridVersions[oldId]; delete sentGridVersions[newId]; }
+          return ok;
+        },
         resetFrameClock: function () { if (core) core.resetFrameClock(); },
-        snapshotJSON: function () { return JSON.stringify(core.snapshot()); },
+        snapshotJSON: function () { return JSON.stringify(stripUnchangedGrids(core.snapshot())); },
         drainEventsJSON: function () { return JSON.stringify(core.drainEvents()); },
-        frameJSON: function (now) { return JSON.stringify(core.frame(now)); },
+        frameJSON: function (now) {
+          var f = core.frame(now);
+          stripUnchangedGrids(f.snapshot);
+          return JSON.stringify(f);
+        },
         isEnded: function () { return !!(core && core.game && core.game.ended); },
         // Screen-gallery fixtures (HexCore.GalleryFixtures) — the single source
         // the web, tvOS and Android TV galleries all render.

@@ -43,6 +43,17 @@ final class BoardNode: SKNode {
     private let levelValue = SKLabelNode()
     private let linesValue = SKLabelNode()
 
+    // Change keys for the per-frame rebuild gates. Plain Equatable structs, not
+    // interpolated strings: the keys are compared every frame for every player,
+    // and value comparisons are allocation-free Int compares.
+    private struct PieceKey: Equatable { let blocks: [Cell]; let typeId: Int; let tier: Theme.StyleTier }
+    private struct GhostKey: Equatable { let blocks: [Cell]; let typeId: Int }
+    private struct PreviewKey: Equatable {
+        let anchorCol: Int; let anchorRow: Int; let typeId: Int
+        let rotation: Axial?   // first piece cell identifies the rotation (BoardRenderer cache key)
+        let gridVersion: Int
+    }
+
     private var lastGridVersion = -1
     private var lastTier: Theme.StyleTier?
     private var lastLevel = -1
@@ -50,12 +61,12 @@ final class BoardNode: SKNode {
     private var lastHold: String??
     private var lastNext: [String] = []
     private var lastPending = -1
-    private var lastPreviewKey = ""
+    private var lastPreview: PreviewKey?
     private var lastNearClearGV = -2
     private var lastClearingCells: [Cell] = []
-    private var lastPieceKey = ""    // live piece: rebuild only when its cells/type/tier change
-    private var lastGhostKey = ""    // ghost: rebuild only when its cells/type change
-    private var shakeBase: CGPoint?  // layout position captured at shake start (no drift on re-trigger)
+    private var lastPiece: PieceKey?  // live piece: rebuild only when its cells/type/tier change
+    private var lastGhost: GhostKey?  // ghost: rebuild only when its cells/type change
+    private var shakeBase: CGPoint?   // layout position captured at shake start (no drift on re-trigger)
 
     private var boxSize: CGFloat { cs * 2.7 }           // miniSize * 4.5
     private var miniSize: CGFloat { cs * 0.6 }
@@ -160,11 +171,10 @@ final class BoardNode: SKNode {
     func lineClearEffect(_ cells: [Cell], lines: Int) {
         for c in cells where c.row >= 0 && c.row < geo.visibleRows {
             let p = localPoint(col: c.col, row: c.row)
-            let path = CGMutablePath(); addHex(to: path, center: .zero, radius: CGFloat(geo.hexSize))
-            let node = SKShapeNode(path: path)
             // Clear flash in warm cream, matching the preview/near-clear vocabulary.
-            node.fillColor = SKTheme.textPrimary(0.9)
-            node.strokeColor = .clear
+            // Alpha 0.9 on the node (== the old shape's 0.9 fill) fading to 0.
+            let node = particleSprite(radius: CGFloat(geo.hexSize), color: SKTheme.textPrimary())
+            node.alpha = 0.9
             node.position = p; node.zPosition = 9
             effectsLayer.addChild(node)
             node.run(.sequence([.group([.fadeOut(withDuration: 0.6), .scale(to: 0.1, duration: 0.6)]), .removeFromParent()]))
@@ -364,6 +374,20 @@ final class BoardNode: SKNode {
         effectsLayer.addChild(label)
     }
 
+    /// Solid-fill hex sprite for effect particles: the shared white `flatHex`
+    /// texture tinted per sprite, so every particle batches into one draw call
+    /// regardless of color (an SKShapeNode each was an unbatched draw plus a
+    /// CPU tessellation).
+    private func particleSprite(radius: CGFloat, color: UIColor) -> SKSpriteNode {
+        let tex = HexStampFactory.shared.flatHex
+        let node = SKSpriteNode(texture: tex)
+        let s = radius / HexStampFactory.flatHexCircumradius
+        node.size = CGSize(width: tex.size().width * s, height: tex.size().height * s)
+        node.color = color
+        node.colorBlendFactor = 1
+        return node
+    }
+
     /// Hex confetti particle: launches with a random velocity, arcs under gravity,
     /// spins, shrinks and fades — matching the web `_addSparkle` (velocities in
     /// pt/s tuned so cs≈30 reproduces the web's 120/80 pixel constants).
@@ -371,9 +395,7 @@ final class BoardNode: SKNode {
                          sizeBase: CGFloat = 0.05, sizeRange: CGFloat = 0.07,
                          duration: TimeInterval = 0.45) {
         let r = cs * (sizeBase + CGFloat.random(in: 0...sizeRange))
-        let path = CGMutablePath(); addHex(to: path, center: .zero, radius: r)
-        let node = SKShapeNode(path: path)
-        node.fillColor = color; node.strokeColor = .clear
+        let node = particleSprite(radius: r, color: color)
         node.position = point; node.zPosition = 10
         let vx = CGFloat.random(in: -0.5...0.5) * 4 * cs           // web (rand-0.5)·120 @ cs≈30
         let vyUp = (CGFloat.random(in: 0...1) * 2.67 + 0.67) * cs  // web rand·80+20, upward (Y-up)
@@ -408,14 +430,14 @@ final class BoardNode: SKNode {
     private func rebuildPiece(_ p: PlayerSnapshot, tier: Theme.StyleTier) {
         guard let piece = p.currentPiece, p.alive else {
             if !pieceLayer.children.isEmpty { pieceLayer.removeAllChildren() }
-            lastPieceKey = ""
+            lastPiece = nil
             return
         }
         // The piece re-renders every frame; skip the node churn unless its cells,
         // type, or the style tier (stamp) actually changed.
-        let key = piece.blocks.map { "\($0.col),\($0.row)" }.joined(separator: ";") + "|\(piece.typeId)|\(tier)"
-        guard key != lastPieceKey else { return }
-        lastPieceKey = key
+        let key = PieceKey(blocks: piece.blocks, typeId: piece.typeId, tier: tier)
+        guard key != lastPiece else { return }
+        lastPiece = key
         pieceLayer.removeAllChildren()
         for block in piece.blocks where block.row >= 0 && block.row < geo.visibleRows {
             let sprite = SKSpriteNode(texture: stamp(piece.typeId, tier))
@@ -427,12 +449,12 @@ final class BoardNode: SKNode {
     private func rebuildGhost(_ p: PlayerSnapshot) {
         guard let ghost = p.ghost, let piece = p.currentPiece, p.alive else {
             if !ghostLayer.children.isEmpty { ghostLayer.removeAllChildren() }
-            lastGhostKey = ""
+            lastGhost = nil
             return
         }
-        let key = ghost.blocks.map { "\($0.col),\($0.row)" }.joined(separator: ";") + "|\(piece.typeId)"
-        guard key != lastGhostKey else { return }
-        lastGhostKey = key
+        let key = GhostKey(blocks: ghost.blocks, typeId: piece.typeId)
+        guard key != lastGhost else { return }
+        lastGhost = key
         ghostLayer.removeAllChildren()
         let g = ColorMath.ghost(Theme.pieceColors[piece.typeId] ?? RGB(255, 255, 255))
         let path = CGMutablePath()
@@ -461,13 +483,14 @@ final class BoardNode: SKNode {
     private func rebuildPreview(_ p: PlayerSnapshot) {
         guard p.alive, let ghost = p.ghost, let piece = p.currentPiece else {
             if !previewLayer.children.isEmpty { previewLayer.removeAllChildren() }
-            lastPreviewKey = ""
+            lastPreview = nil
             return
         }
-        let rot = piece.cells.first.map { "\($0.q),\($0.r)" } ?? ""
-        let key = "\(ghost.anchorCol),\(ghost.anchorRow),\(piece.typeId),\(rot),\(p.gridVersion)"
-        guard key != lastPreviewKey else { return }
-        lastPreviewKey = key
+        let key = PreviewKey(anchorCol: ghost.anchorCol, anchorRow: ghost.anchorRow,
+                             typeId: piece.typeId, rotation: piece.cells.first,
+                             gridVersion: p.gridVersion)
+        guard key != lastPreview else { return }
+        lastPreview = key
         previewLayer.removeAllChildren()
 
         let grid = p.grid

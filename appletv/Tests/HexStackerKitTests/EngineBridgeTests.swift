@@ -108,6 +108,29 @@ import Foundation
         #expect(reprimed.snapshot.elapsed == elapsedBefore)
     }
 
+    /// The shim strips a player's `grid` from frame()/snapshot() payloads while
+    /// its gridVersion is unchanged, and the bridge re-attaches the cached rows:
+    /// consumers must see a full, CURRENT grid on every pull regardless of how
+    /// the strip/resend cycle interleaves.
+    @Test func gridSurvivesStripAndResendCycle() throws {
+        let engine = try makeBridge()
+        try engine.createGame(players: [(id: 0, startLevel: 1)], seed: 7)
+
+        let first = try engine.snapshot().players[0]        // fresh ledger: full grid
+        let second = try engine.snapshot().players[0]       // unchanged version: stripped + rehydrated
+        #expect(second.gridVersion == first.gridVersion)
+        #expect(second.grid == first.grid)
+
+        engine.processInput(playerId: 0, action: "hard_drop")
+        let locked = try engine.frame(nowMs: 16).snapshot.players[0]   // version bumped: grid re-sent
+        #expect(locked.gridVersion != first.gridVersion)
+        #expect(locked.grid != first.grid, "the locked piece must land in the re-sent grid")
+        #expect(!locked.grid.flatMap { $0 }.filter { $0 != 0 }.isEmpty)
+
+        let after = try engine.frame(nowMs: 32).snapshot.players[0]    // stripped again: cache is current
+        #expect(after.grid == locked.grid)
+    }
+
     @Test func holdStoresPiece() throws {
         let engine = try makeBridge()
         try engine.createGame(players: [(id: 0, startLevel: 1)], seed: 99)
