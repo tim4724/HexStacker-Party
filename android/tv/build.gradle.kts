@@ -91,6 +91,10 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+        // On-device navigation tests (NavigationTest): run locally against an
+        // Android TV emulator via `:tv:connectedDebugAndroidTest` (not wired
+        // into CI, which has no emulator).
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Real Android TVs are arm64-v8a; x86_64 is for the emulator. Dropping the
         // legacy armeabi-v7a + x86 quickjs .so halves the native payload.
         ndk {
@@ -205,4 +209,11 @@ dependencies {
     testImplementation(libs.androidx.compose.ui.test.junit4)
     // Supplies the empty ComponentActivity that createComposeRule() hosts content in.
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // ── On-device navigation tests (uiautomator drives the real remote keys against
+    // the installed app, the Android analog of the tvOS UITests/NavigationTests).
+    // Local-only: `./gradlew :tv:connectedDebugAndroidTest` with a TV emulator attached.
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.uiautomator)
 }

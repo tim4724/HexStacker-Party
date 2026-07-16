@@ -64,8 +64,9 @@ object QrRenderer {
 }
 
 /**
- * Encodes [content] once (off the main thread) and caches it across recomposition,
- * keyed on the content + target size. Returns null until the first encode lands.
+ * Encodes [content] once per composition (off the main thread). Returns null
+ * until the encode lands. Used by the About legal cards, which have no fade
+ * tied to arrival; the lobby uses [rememberLobbyQrBitmap].
  *
  * Rendered modules-only (transparent background): these bitmaps sit on an opaque
  * white Compose card that supplies the light background, and a white-bled bitmap
@@ -79,3 +80,32 @@ fun rememberQrBitmap(content: String, sizePx: Int = 600): State<ImageBitmap?> =
             runCatching { QrRenderer.render(content, sizePx, light = 0x00000000) }.getOrNull()
         }
     }
+
+// The lobby join QR's last render — a single slot, because one lobby QR exists
+// at a time. No generic cache: this exists solely so QrBlock's module fade
+// (animateFloatAsState, which only animates on change) does not replay when a
+// page swap back to the lobby (About/Licenses pop, results -> NEW GAME)
+// re-composes the SAME join URL; a new room's URL mismatches and re-renders
+// async, which is exactly the delayed arrival the fade is for.
+private var lobbyQrKey: Pair<String, Int>? = null
+private var lobbyQrBitmap: ImageBitmap? = null
+
+/** [rememberQrBitmap] plus the single-slot last-render cache for the lobby:
+ *  unchanged content is served synchronously to the FIRST composition. */
+@Composable
+fun rememberLobbyQrBitmap(content: String, sizePx: Int = 600): State<ImageBitmap?> {
+    val key = content to sizePx
+    return produceState(initialValue = lobbyQrBitmap.takeIf { lobbyQrKey == key }, content, sizePx) {
+        // produceState's state holder SURVIVES key changes (only this producer
+        // restarts), so never gate on `value` — it may hold the PREVIOUS
+        // content's bitmap (the lobby URL changes from the pre-room fallback to
+        // the real join URL). Always resolve THIS key: slot hit, else render.
+        val cached = lobbyQrBitmap.takeIf { lobbyQrKey == key }
+        value = cached ?: withContext(Dispatchers.Default) {
+            runCatching { QrRenderer.render(content, sizePx, light = 0x00000000) }.getOrNull()
+        }?.also {
+            lobbyQrKey = key
+            lobbyQrBitmap = it
+        }
+    }
+}

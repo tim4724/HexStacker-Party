@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -47,13 +48,15 @@ import kotlin.math.max
 
 /**
  * Full lobby (web `#lobby-screen` / `updatePlayerList`, tvOS `buildLobby`):
- * falling-piece background, HEX STACKER wordmark + PARTY subtitle, QR card,
- * player-card grid, and the host-tinted START button. Stateless — [data] is
- * supplied by the integrator (players pre-sorted by join time); [onStart] fires
+ * HEX STACKER wordmark + PARTY subtitle, QR card, player-card grid, and the
+ * host-tinted START button, rendered over the host chrome's lobby backdrop
+ * (brand fill + falling-piece ambient). Stateless — [data] is supplied by the
+ * integrator (players pre-sorted by join time); [onStart] fires
  * `remoteStartMatch()`.
  *
- * The QR bitmap is rendered once per join URL off-thread (see [rememberQrBitmap]);
- * pass [qrOverride] to inject a cached/pre-rendered bitmap instead.
+ * The QR bitmap is rendered once per join URL off-thread (see
+ * [rememberLobbyQrBitmap]); pass [qrOverride] to inject a pre-rendered bitmap
+ * instead.
  */
 // Dim level for the QR card while the room awaits re-confirmation (matches tvOS).
 private const val QR_PENDING_ALPHA = 0.4f
@@ -68,16 +71,13 @@ fun LobbyScreen(
     // may point at a dead room (a rejoin can land in a fresh room), so dim the card
     // until the rejoin settles. Visual-only — no TV-only copy to invent.
     qrPending: Boolean = false,
-    // Non-null only for the screenshot gallery: a frozen ambient-piece background
-    // (see LobbyBackground) so the shot matches the web/tvOS lobby columns.
-    backgroundPieces: List<FallingPiece>? = null,
     // When supplied, the top-right ⓘ becomes a focusable button that opens the
     // About screen (Privacy / Imprint QR + Open Source Licenses); null keeps it a
     // plain, non-focusable glyph (previews / screenshot fixtures with no navigation).
     onOpenAbout: (() -> Unit)? = null,
 ) {
     val startFocus = remember { FocusRequester() }
-    val generatedQr by rememberQrBitmap(data.joinUrl) // called unconditionally (Compose rule)
+    val generatedQr by rememberLobbyQrBitmap(data.joinUrl) // called unconditionally (Compose rule)
     // Blank QR while there's no room yet (empty joinUrl): the pre-room / create-failure
     // lobby shows an empty white QR panel, matching the web + tvOS displays.
     val qrBitmap = qrOverride ?: generatedQr?.takeIf { data.joinUrl.isNotBlank() }
@@ -88,17 +88,16 @@ fun LobbyScreen(
     // there is actually a QR/code on screen that could mislead (tvOS parity).
     val dimAlpha = if (qrPending && data.joinUrl.isNotBlank()) QR_PENDING_ALPHA else 1f
 
-    // Seat D-pad focus on Start (the main action) both on entry, where the disabled
-    // Start holds focus so the engine doesn't grab the ⓘ (tvOS parity), and again
-    // when the first controller joins, because enabling the button swaps its focus
-    // target (focusable -> clickable) and would otherwise drop focus.
-    LaunchedEffect(hasPlayers) {
-        runCatching { startFocus.requestFocus() }
-    }
+    // Seat D-pad focus on Start (the main action) on entry: the disabled Start is
+    // still a stable focus target (ChromeButton gates the action, not the focus
+    // node), so the engine doesn't grab the ⓘ in an empty lobby (tvOS parity).
+    LaunchedEffect(Unit) { startFocus.requestFocus() }
 
-    Box(modifier.fillMaxSize().background(Tokens.bgPrimary)) {
-        LobbyBackground(Modifier.fillMaxSize(), active = true, fixedPieces = backgroundPieces)
-
+    // Transparent: the host chrome owns the lobby backdrop (brand fill +
+    // falling-piece ambient), shared with the About/Licenses pages so page
+    // swaps fade only the content (tvOS parity). Screenshot fixtures wrap this
+    // in the same backdrop with frozen pieces.
+    Box(modifier.fillMaxSize()) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val vp = Vp(maxWidth.value, maxHeight.value)
             val overscan = Theme.Size.tvOverscan.toFloat() // TV title-safe, each edge
@@ -288,12 +287,17 @@ private fun InfoButton(
 /**
  * Player-card grid: packs N players into the first N seats. The slot/column
  * bucket and sizing come from the caller (LobbyScreen computes them once,
- * shared with the QR row-fit; web `updatePlayerList` + `--cols`). The join-pop
- * replays only for genuinely new players, tracked by an explicit seen-set (web
- * `lobbyKnownPlayers`): `key(peerIndex)` alone is not enough, because keyed
- * siblings only match within the same Row, so a card pushed across a row
- * boundary by a grid reflow (5th player joins, someone leaves) would lose its
- * composition state and re-pop.
+ * shared with the QR row-fit; web `updatePlayerList` + `--cols`).
+ *
+ * A hand-rolled row/column grid, NOT LazyVerticalGrid: lazy containers clip
+ * content to their bounds (the scrollable-viewport clip, applied even with
+ * scrolling disabled), which cuts off the join-pop's scale overshoot on cards
+ * along the grid's outer edge. The join-pop replays only for genuinely new
+ * players, tracked by an explicit seen-set (web `lobbyKnownPlayers`):
+ * `key(peerIndex)` alone is not enough, because keyed siblings only match
+ * within the same Row, so a card pushed across a row boundary by a grid
+ * reflow (5th player joins, someone leaves) would lose its composition state
+ * and re-pop.
  */
 @Composable
 private fun PlayerGrid(players: List<LobbyPlayer>, vp: Vp, visibleSlots: Int, cols: Int, cardW: Dp, gap: Dp) {
@@ -311,7 +315,7 @@ private fun PlayerGrid(players: List<LobbyPlayer>, vp: Vp, visibleSlots: Int, co
                 for (col in 0 until cols) {
                     val slot = row * cols + col
                     when {
-                        slot >= visibleSlots -> androidx.compose.foundation.layout.Spacer(Modifier.width(cardW))
+                        slot >= visibleSlots -> Spacer(Modifier.width(cardW))
                         else -> {
                             val player = players.getOrNull(slot)
                             key(player?.peerIndex ?: "empty-$slot") {
@@ -400,6 +404,14 @@ private fun EntranceBand(
 @Preview(widthDp = 1280, heightDp = 720)
 @Composable
 private fun LobbyPreview() {
+    Box(Modifier.fillMaxSize().background(Tokens.bgPrimary)) {
+        LobbyBackground(Modifier.fillMaxSize(), active = true)
+        LobbyPreviewContent()
+    }
+}
+
+@Composable
+private fun LobbyPreviewContent() {
     LobbyScreen(
         data = LobbyData(
             joinHost = "play.hexstacker.com/",

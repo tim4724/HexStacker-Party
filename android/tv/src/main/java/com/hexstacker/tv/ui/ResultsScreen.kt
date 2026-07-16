@@ -99,7 +99,7 @@ fun ResultsScreen(
     val playAgainFocus = remember { FocusRequester() }
     // Buttons are live immediately — no anti-misclick gate on the TV. Grab D-pad
     // focus for the primary CTA on entry.
-    LaunchedEffect(Unit) { runCatching { playAgainFocus.requestFocus() } }
+    LaunchedEffect(Unit) { playAgainFocus.requestFocus() }
 
     // Buttons fade in with the list (web .result-actions fade, matching the 0.4s
     // row stagger duration; no per-row delay).

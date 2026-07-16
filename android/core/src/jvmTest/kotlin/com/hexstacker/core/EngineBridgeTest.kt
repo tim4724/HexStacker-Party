@@ -1,5 +1,7 @@
 package com.hexstacker.core
 
+import com.dokar.quickjs.quickJs
+import com.hexstacker.core.engine.EngineBootstrap
 import com.hexstacker.core.engine.EngineBridge
 import com.hexstacker.core.engine.EngineBridge.PlayerSpec
 import com.hexstacker.core.engine.InputAction
@@ -77,6 +79,55 @@ class EngineBridgeTest {
             val before = b.snapshot().players[0].currentPiece!!.type
             b.processInput(0, InputAction.HOLD)
             assertEquals(before, b.snapshot().players[0].holdPiece)
+        } finally {
+            b.close()
+        }
+    }
+
+    /** Wire-level half of the grid strip/resend cycle: the shim omits a player's
+     *  grid once its gridVersion has been delivered, keeps gridVersion for cache
+     *  keying, and re-sends the grid after a lock bumps the version. */
+    @Test
+    fun shimStripsUnchangedGridsOnTheWire() = runBlocking {
+        quickJs {
+            evaluate<Any?>(bundle())
+            evaluate<Any?>(EngineBootstrap.SHIM + "\nvoid 0;")
+            evaluate<Any?>("Bridge.create([[0,1],[1,1]], 7)")
+            val first = evaluate<String>("Bridge.frameJSON(0)")
+            val second = evaluate<String>("Bridge.frameJSON(16)")
+            assertTrue("\"grid\":" in first, "first pull carries full grids")
+            assertFalse("\"grid\":" in second, "unchanged grids are stripped from later pulls")
+            assertTrue("\"gridVersion\":" in second, "gridVersion stays on the wire")
+            evaluate<Any?>("Bridge.processInput(0, 'hard_drop')") // lock bumps p0's gridVersion
+            val third = evaluate<String>("Bridge.snapshotJSON()")
+            assertTrue("\"grid\":" in third, "a lock re-sends the changed grid")
+        }
+        Unit
+    }
+
+    /** Bridge-level half: consumers always see full, identical grids across
+     *  pulls (the cached rows are re-attached), and a lock delivers the new grid. */
+    @Test
+    fun bridgeReattachesStrippedGrids() = runBlocking {
+        val b = newBridge()
+        try {
+            b.createGame(listOf(PlayerSpec(0, 1), PlayerSpec(1, 1)), seed = 7)
+            val first = b.frame(0.0).snapshot
+            first.players.forEach {
+                assertEquals(EngineConstants.VISIBLE_ROWS, it.grid.size, "first pull carries full grids")
+            }
+            // No engine change between pulls: the wire drops the grids, but the
+            // re-attached snapshots stay complete and identical.
+            val second = b.frame(16.0).snapshot
+            assertEquals(first.players.map { it.grid }, second.players.map { it.grid })
+
+            // A lock bumps player 0's gridVersion: the next pull delivers the new grid.
+            b.processInput(0, InputAction.HARD_DROP)
+            val before = second.players.first { it.id == 0 }
+            val after = b.snapshot().players.first { it.id == 0 }
+            assertNotEquals(before.gridVersion, after.gridVersion)
+            assertEquals(EngineConstants.VISIBLE_ROWS, after.grid.size)
+            assertTrue(after.grid.flatten().any { it != 0 }, "locked cells present in the resent grid")
         } finally {
             b.close()
         }

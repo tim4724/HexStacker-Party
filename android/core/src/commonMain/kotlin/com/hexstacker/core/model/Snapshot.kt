@@ -18,7 +18,12 @@ data class GameSnapshot(
 @Serializable
 data class PlayerState(
     val id: Int,                                 // == relay peer index
-    val grid: List<List<Int>>,                   // grid[row][col], 15 x 9
+    // grid[row][col], 15 x 9. Absent on the wire when unchanged (the Bridge
+    // shim strips grids whose gridVersion it already delivered); EngineBridge
+    // re-attaches its cached rows before the snapshot reaches consumers, so
+    // downstream code always sees the full grid. Empty = the stripped
+    // sentinel, never a real grid.
+    val grid: List<List<Int>> = emptyList(),
     val currentPiece: Piece? = null,             // null mid line-clear / after death
     val ghost: Ghost? = null,
     val holdPiece: String? = null,               // piece-type name, or null

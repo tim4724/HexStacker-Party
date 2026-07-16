@@ -4,7 +4,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -24,6 +23,8 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -91,15 +92,13 @@ fun ChromeButton(
             .then(ringModifier)
             .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier)
             .onFocusChanged { focused = it.isFocused }
-            // clickable provides the focus target itself (focusable-in-non-touch-mode).
-            // Do NOT stack Modifier.focusable on top of an enabled clickable: the
-            // second focus target wins D-pad focus, and DPAD_CENTER then never reaches
-            // the clickable's key handler; the button highlights but can't be
-            // activated. clickable(enabled = false) has no focus target at all, so a
-            // disabled button swaps in a plain focusable to stay a D-pad stop (the
-            // empty lobby's Start must be able to hold focus).
-            .then(if (enabled) Modifier else Modifier.focusable())
-            .clickable(enabled = enabled) { onClick() }
+            // clickable provides the focus target itself (focusable-in-non-touch-mode)
+            // and stays enabled even for a disabled button, so the focus node survives
+            // enable/disable (a disabled Start holds focus in the empty lobby, and
+            // enabling it must not drop focus). The action is gated instead; semantics
+            // carry the disabled state for accessibility.
+            .semantics { if (!enabled) disabled() }
+            .clickable { if (enabled) onClick() }
             .padding(contentPadding),
         contentAlignment = Alignment.Center,
     ) {

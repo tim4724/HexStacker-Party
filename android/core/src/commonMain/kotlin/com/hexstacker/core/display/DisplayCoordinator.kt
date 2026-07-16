@@ -125,6 +125,11 @@ class DisplayCoordinator(
     // Liveness: accumulates tick time to run a ~1 Hz expiredPeers() sweep.
     private var livenessAccumMs = 0.0
 
+    // Render-on-input coalescing: true once handleInput has pulled a snapshot
+    // since the last tick(), so a message burst costs at most one full
+    // serialize + decode + render per frame (see handleInput).
+    private var renderedInputSinceTick = false
+
     // Monotonic source for the diagnostics-only lastPingTime (commonMain-safe; the
     // Swift port used Date().timeIntervalSince1970, but nothing in this subsystem
     // reads the value, so a monotonic ms reading is equivalent for the contract).
@@ -575,7 +580,12 @@ class DisplayCoordinator(
         // waiting for the next frame() tick. snapshot() is a pure read (getSnapshot deep-copy,
         // no time advance), so this only front-runs the VISUAL; this frame's events/commands
         // (lock flash, garbage, sends) still flow on the next frame(). Guarded to PLAYING above.
+        // Coalesced to one pull per frame (tvOS parity): each snapshot() is a full
+        // serialize + decode, and an 8-player input burst can land several messages
+        // inside one 16 ms window. Later inputs ride the tick's own snapshot.
+        if (renderedInputSinceTick) return
         val snap = try { e.snapshot() } catch (t: Throwable) { onError("inputSnapshot", t); return }
+        renderedInputSinceTick = true
         output.renderSnapshot(snap)
     }
 
@@ -683,6 +693,7 @@ class DisplayCoordinator(
     }
 
     private suspend fun tickLocked(rawDelta: Double) {
+        renderedInputSinceTick = false // new frame: re-arm render-on-input
         // Only sanitize negatives/NaN here; do NOT clamp to MAX_FRAME_DELTA_MS.
         // The engine's frame() applies that cap itself (per its contract), and the
         // countdown must advance by real elapsed time (a 1000ms tick is one second

@@ -43,7 +43,7 @@ fun PauseOverlay(
     musicFocusedForShot: Boolean = false,
 ) {
     val continueFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { continueFocus.requestFocus() } }
+    LaunchedEffect(Unit) { continueFocus.requestFocus() }
     val hostColor = hostTint(hostColorIndex)
 
     BoxWithConstraints(modifier.fillMaxSize().background(Tokens.overlayBg)) {

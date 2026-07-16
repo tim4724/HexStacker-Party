@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.background
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -15,16 +16,19 @@ import com.hexstacker.core.display.DisplayScreen
 import com.hexstacker.core.net.RelayTransport
 import com.hexstacker.tv.DisplayChrome
 import com.hexstacker.tv.UiModel
+import com.hexstacker.tv.ui.AboutScreen
 import com.hexstacker.tv.ui.CountdownValue
 import com.hexstacker.tv.ui.LicenseEntry
 import com.hexstacker.tv.ui.LicensesScreen
 import com.hexstacker.tv.ui.assembleLicenseList
+import com.hexstacker.tv.ui.LobbyBackground
 import com.hexstacker.tv.ui.LobbyData
 import com.hexstacker.tv.ui.LobbyPlayer
 import com.hexstacker.tv.ui.LobbyScreen
 import com.hexstacker.tv.ui.PauseOverlay
 import com.hexstacker.tv.ui.QrRenderer
 import com.hexstacker.tv.ui.ResultCard
+import com.hexstacker.tv.ui.Tokens
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -96,8 +100,6 @@ class ComposeScreenshotTest {
         name: String,
         model: UiModel,
         board: Bitmap? = null,
-        showAbout: Boolean = false,
-        showLicenses: Boolean = false,
     ) = shoot(name) {
         DisplayChrome(
             model = model,
@@ -111,9 +113,23 @@ class ComposeScreenshotTest {
                     )
                 }
             },
-            showAbout = showAbout,
-            showLicenses = showLicenses,
         )
+    }
+
+    // The lobby backdrop DisplayChrome keeps beneath every lobby page (brand fill +
+    // falling-piece ambient), with the ambient frozen to the shared cross-platform
+    // fixture — the determinism seam the production chrome deliberately doesn't
+    // expose (its ambient is live and random-seeded).
+    @Composable
+    private fun LobbyBackdrop(content: @Composable () -> Unit) {
+        Box(Modifier.fillMaxSize().background(Tokens.bgPrimary)) {
+            LobbyBackground(
+                Modifier.fillMaxSize(),
+                active = true,
+                fixedPieces = GalleryFixtures.ambientPieces(),
+            )
+            content()
+        }
     }
 
     // Minimal lobby carrying just the host color, for the in-match overlays (pause /
@@ -129,24 +145,24 @@ class ComposeScreenshotTest {
         val players = if (count == 0) emptyList() else GalleryFixtures.roster(count, longNames).map {
             LobbyPlayer(peerIndex = it.id, name = it.name, colorIndex = it.slot, level = it.level)
         }
-        val ambient = GalleryFixtures.ambientPieces()
         shoot(name) {
-            LobbyScreen(
-                data = LobbyData(
-                    joinHost = join.host,
-                    joinCode = join.code,
-                    joinUrl = join.qrText,
-                    players = players,
-                    hostColorIndex = if (players.isEmpty()) null else 0, // host is roster slot 0
-                ),
-                onStart = {},
-                // Inject a deterministic QR so the shot never races the async generator.
-                // Modules-only like the production rememberQrBitmap render.
-                qrOverride = QrRenderer.render(join.qrText, 480, light = 0x00000000), // crisp at 1080p
-                // Freeze the ambient background to the shared fixture so the four lobby
-                // shots (and the web/tvOS galleries) show identical falling pieces.
-                backgroundPieces = ambient,
-            )
+            // Frozen ambient via LobbyBackdrop so the lobby shots (and the web/tvOS
+            // galleries) show identical falling pieces.
+            LobbyBackdrop {
+                LobbyScreen(
+                    data = LobbyData(
+                        joinHost = join.host,
+                        joinCode = join.code,
+                        joinUrl = join.qrText,
+                        players = players,
+                        hostColorIndex = if (players.isEmpty()) null else 0, // host is roster slot 0
+                    ),
+                    onStart = {},
+                    // Inject a deterministic QR so the shot never races the async generator.
+                    // Modules-only like the production rememberQrBitmap render.
+                    qrOverride = QrRenderer.render(join.qrText, 480, light = 0x00000000), // crisp at 1080p
+                )
+            }
         }
     }
 
@@ -170,27 +186,29 @@ class ComposeScreenshotTest {
             LicenseEntry("WebRTC SDK", "The WebRTC project authors", "The 3-Clause BSD License", null, "Copyright (c) 2011, The WebRTC project authors."),
             LicenseEntry("Compose UI", "The Android Open Source Project", "Apache License 2.0", null, "Apache License 2.0\n\n(full text...)"),
         )
-        LicensesScreen(
-            entries = assembleLicenseList(
-                deps = deps,
-                music = LicenseEntry("Lunar Joyride", "FoxSynergy", "CC BY 3.0", "https://creativecommons.org/licenses/by/3.0/", null),
-                fonts = listOf(
-                    LicenseEntry("Baloo 2", "Ek Type", "SIL Open Font License 1.1", null, "Copyright 2021 The Baloo 2 Project Authors"),
-                    LicenseEntry("Orbitron", "The Orbitron Project Authors", "SIL Open Font License 1.1", null, "Copyright 2018 The Orbitron Project Authors"),
+        LobbyBackdrop {
+            LicensesScreen(
+                entries = assembleLicenseList(
+                    deps = deps,
+                    music = LicenseEntry("Lunar Joyride", "FoxSynergy", "CC BY 3.0", "https://creativecommons.org/licenses/by/3.0/", null),
+                    fonts = listOf(
+                        LicenseEntry("Baloo 2", "Ek Type", "SIL Open Font License 1.1", null, "Copyright 2021 The Baloo 2 Project Authors"),
+                        LicenseEntry("Orbitron", "The Orbitron Project Authors", "SIL Open Font License 1.1", null, "Copyright 2018 The Orbitron Project Authors"),
+                    ),
+                    quickJs = LicenseEntry("QuickJS", "Fabrice Bellard, Charlie Gordon et al.", "MIT License", null, "MIT License\n\n(full text...)"),
                 ),
-                quickJs = LicenseEntry("QuickJS", "Fabrice Bellard, Charlie Gordon et al.", "MIT License", null, "MIT License\n\n(full text...)"),
-            ),
-            onClose = {},
-        )
+                onOpenLicense = {},
+            )
+        }
     }
 
-    // ── About (through DisplayChrome: the lobby ⓘ sub-screen) ─────────────────────
+    // ── About (direct: frozen ambient beneath, like the lobby shots) ──────────────
 
-    // Two QR cards (Privacy / Imprint) + the licenses drill-in. No fixture data needed
-    // — the QR URLs derive from the locale (English default → /en/) and labels come
-    // from resources.
+    // Two QR cards (Privacy / Imprint) + the licenses drill-in over the lobby
+    // backdrop. The QR URLs derive from the locale (English default → /en/) and
+    // labels come from resources.
     @Test
-    fun about() = chromeShot("about", UiModel(screen = DisplayScreen.LOBBY), showAbout = true)
+    fun about() = shoot("about") { LobbyBackdrop { AboutScreen(onOpenLicenses = {}) } }
 
     // ── Results (through DisplayChrome, over the real board layer) ────────────────
 

@@ -35,6 +35,14 @@ class EngineBridge private constructor(
 ) {
     private val lock = Mutex()
 
+    // Grid rows last received per player, keyed by id. The JS shim strips a
+    // player's `grid` from the 60 Hz frame()/snapshot() payloads while its
+    // `gridVersion` is unchanged (the grid dominates the serialized snapshot
+    // at 8 players, and it only changes on a lock/clear/garbage insert);
+    // [reattachGrids] substitutes these cached rows so consumers always see a
+    // full snapshot. Guarded by [lock] like every engine call.
+    private val gridCache = HashMap<Int, List<List<Int>>>()
+
     companion object {
         /**
          * Build a ready bridge: create QuickJS (with [dispatcher] as its async-job
@@ -76,6 +84,7 @@ class EngineBridge private constructor(
 
     /** Construct + init() a new game. [players] order fixes snapshot order. */
     suspend fun createGame(players: List<PlayerSpec>, seed: Long): Unit = lock.withLock {
+        gridCache.clear() // fresh match: the shim's sent-grid ledger resets too
         val specs = players.joinToString(",", "[", "]") { "[${it.id},${it.startLevel}]" }
         eval("create", "Bridge.create($specs, $seed)")
     }
@@ -105,7 +114,11 @@ class EngineBridge private constructor(
      * owns a board (the engine's forged-claim guard). Calls `PartyCore.rekeyPlayer`.
      */
     suspend fun rekey(oldId: Int, newId: Int): Boolean = lock.withLock {
-        evalTyped("rekey", "Bridge.rekey($oldId, $newId)")
+        val ok = evalTyped<Boolean>("rekey", "Bridge.rekey($oldId, $newId)")
+        // Follow the engine's board move in the grid cache (the shim drops both
+        // ids from its sent-grid ledger, so the next pull re-sends a full grid).
+        if (ok) gridCache.remove(oldId)?.let { gridCache[newId] = it }
+        ok
     }
 
     /**
@@ -124,7 +137,7 @@ class EngineBridge private constructor(
     // --- reads ---------------------------------------------------------------
 
     suspend fun snapshot(): GameSnapshot = lock.withLock {
-        decode("snapshotJSON", "Bridge.snapshotJSON()")
+        reattachGrids(decode("snapshotJSON", "Bridge.snapshotJSON()"))
     }
 
     suspend fun drainEvents(): List<GameEvent> = lock.withLock {
@@ -139,7 +152,8 @@ class EngineBridge private constructor(
      * @param nowMs monotonic ms; only deltas matter, origin is free.
      */
     suspend fun frame(nowMs: Double): FrameResult = lock.withLock {
-        decode("frameJSON", "Bridge.frameJSON(${jsNum(nowMs)})")
+        val frame = decode<FrameResult>("frameJSON", "Bridge.frameJSON(${jsNum(nowMs)})")
+        frame.copy(snapshot = reattachGrids(frame.snapshot))
     }
 
     /**
@@ -150,6 +164,24 @@ class EngineBridge private constructor(
     suspend fun close() = lock.withLock { withContext(dispatcher) { qjs.close() } }
 
     // --- internals -----------------------------------------------------------
+
+    /** Substitute cached rows for shim-stripped grids (see [gridCache]) and
+     *  refresh the cache from the grids that did arrive. */
+    private fun reattachGrids(snap: GameSnapshot): GameSnapshot {
+        var stripped = false
+        val players = snap.players.map { p ->
+            if (p.grid.isEmpty()) {
+                stripped = true
+                val cached = gridCache[p.id]
+                    ?: error("stripped grid for player ${p.id} with no cached rows")
+                p.copy(grid = cached)
+            } else {
+                gridCache[p.id] = p.grid
+                p
+            }
+        }
+        return if (stripped) snap.copy(players = players) else snap
+    }
 
     private suspend fun eval(label: String, code: String) {
         evalTyped<Any?>(label, code)

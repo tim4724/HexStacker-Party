@@ -11,12 +11,12 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -50,15 +50,17 @@ import com.hexstacker.tv.render.SeatMeta
 import com.hexstacker.tv.ui.AboutScreen
 import com.hexstacker.tv.ui.ConnectionOverlay
 import com.hexstacker.tv.ui.CountdownOverlay
+import com.hexstacker.tv.ui.LicenseTextScreen
 import com.hexstacker.tv.ui.LicensesScreen
+import com.hexstacker.tv.ui.LobbyBackground
 import com.hexstacker.tv.ui.LobbyData
 import com.hexstacker.tv.ui.LobbyPlayer
 import com.hexstacker.tv.ui.LobbyScreen
+import com.hexstacker.tv.ui.Tokens
 import com.hexstacker.tv.ui.rememberLicenseEntries
 import com.hexstacker.tv.ui.PauseOverlay
 import com.hexstacker.tv.ui.ResultCard
 import com.hexstacker.tv.ui.ResultsScreen
-import com.hexstacker.tv.ui.onRemoteKeys
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.android.awaitFrame
@@ -167,14 +169,6 @@ class MainActivity : ComponentActivity() {
                 // The coordinator's TOGGLE_MUTE drives output.setMuted (music + UI),
                 // so the overlay switch just needs to trigger it.
                 onToggleMusic = { lifecycleScope.launch { coordinator.remoteToggleMute() } },
-                onPlayPause = { coordinator.remotePlayPause(); true },
-                onMenu = {
-                    if (model.screen == DisplayScreen.GAME) {
-                        lifecycleScope.launch { coordinator.remoteTogglePause() }; true
-                    } else {
-                        false
-                    }
-                },
                 onReconnect = { relay.reconnect() },
             )
         }
@@ -306,11 +300,12 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Remote/keyboard handling at the Activity level so it works even when no
-     * Compose element is focused (e.g. during GAME, where the only on-screen
-     * elements are the board + overlays). Play/Pause is the context action
-     * (start / pause / continue / play-again); Menu pauses during a game.
-     * D-pad navigation + Select are left to Compose focus on the lobby/results.
+     * The single remote/keyboard context-key path: keys the focused Compose node
+     * doesn't consume bubble up here, and during GAME (board + overlays only)
+     * nothing is focused, so they arrive directly. Play/Pause is the context action
+     * (start / pause / continue / play-again); P mirrors it for keyboards; Menu
+     * pauses during a game. D-pad navigation + Select are left to Compose focus
+     * on the lobby/results.
      *
      * BACK is intentionally NOT handled here: consuming it in onKeyDown would
      * suppress the OnBackPressedDispatcher (which fires the app's game-pause
@@ -324,6 +319,7 @@ class MainActivity : ComponentActivity() {
             KeyEvent.KEYCODE_MEDIA_PLAY,
             KeyEvent.KEYCODE_MEDIA_PAUSE,
             KeyEvent.KEYCODE_BUTTON_START,
+            KeyEvent.KEYCODE_P,
             -> {
                 // repeatCount == 0: act on the first press only; a held key auto-repeats
                 // KeyDown, which would otherwise toggle pause/start over and over.
@@ -558,6 +554,21 @@ private const val LOBBY_TICK_MS = 250.0
 // animation runs ~950ms; don't compete with it for CPU).
 private const val WARMUP_DELAY_MS = 1000L
 
+// The one fade token for every screen, page, and overlay change (tvOS parity:
+// its single 300ms token, shared with the board layer's fades).
+private const val FADE_MS = 300
+
+// The one screen/page transition (see DisplayChrome): a plain cross-fade, safe
+// because every full-screen surface shares the plum backdrop. sizeTransform is
+// OFF: every screen is fullscreen, and the GAME branch composes nothing, so the
+// default SizeTransform would shrink-clip the outgoing screen toward 0x0.
+private fun screenCrossfade(): ContentTransform =
+    ContentTransform(
+        targetContentEnter = fadeIn(tween(FADE_MS)),
+        initialContentExit = fadeOut(tween(FADE_MS)),
+        sizeTransform = null,
+    )
+
 // Pre-room lobby: shown from launch until the relay answers `created`. Empty
 // joinUrl => blank QR panel; empty roster => empty player grid + "waiting for
 // players". The create-failure overlay renders on top of this (web / tvOS parity).
@@ -569,6 +580,15 @@ private val WAITING_LOBBY = LobbyData(
     hostColorIndex = null,
 )
 
+/** Lobby-local page stack: About opens from the lobby ⓘ, Licenses drills in from
+ *  About, and a Licenses row pushes that license's full text as its own page. */
+internal sealed interface LobbyPage {
+    data object Lobby : LobbyPage
+    data object About : LobbyPage
+    data object Licenses : LobbyPage
+    data class LicenseText(val index: Int) : LobbyPage
+}
+
 @Composable
 private fun HexStackerApp(
     board: BoardSurfaceView,
@@ -578,31 +598,31 @@ private fun HexStackerApp(
     onNewGame: () -> Unit,
     onContinue: () -> Unit,
     onToggleMusic: () -> Unit,
-    onPlayPause: () -> Boolean,
-    onMenu: () -> Boolean,
     onReconnect: () -> Unit,
 ) {
-    // About + Open Source Licenses are lobby-only local screens (not coordinator
-    // screens): About opens from the lobby ⓘ, Licenses drills in from About. Force
-    // both shut whenever the game leaves the lobby so neither lingers over a
-    // countdown/results.
-    var showAbout by remember { mutableStateOf(false) }
-    var showLicenses by remember { mutableStateOf(false) }
+    // About + Open Source Licenses are lobby-only local pages (not coordinator
+    // screens). Force back to the lobby whenever the game leaves it so none of
+    // them lingers over a countdown/results.
+    var page by remember { mutableStateOf<LobbyPage>(LobbyPage.Lobby) }
     LaunchedEffect(model.screen) {
-        if (model.screen != DisplayScreen.LOBBY) { showLicenses = false; showAbout = false }
+        if (model.screen != DisplayScreen.LOBBY) page = LobbyPage.Lobby
     }
-    // Back steps back one level (Licenses -> About -> Lobby) via the
-    // OnBackPressedDispatcher, which consumes the press. A manual Compose Back key
-    // handler instead let one Back both close the screen (on KeyDown) AND finish the
-    // Activity (the dispatcher fires on KeyUp), a double-back straight to the launcher.
-    BackHandler(enabled = showAbout || showLicenses) {
-        if (showLicenses) showLicenses = false else showAbout = false
+    // Back steps back one level (license text -> Licenses -> About -> Lobby) via
+    // the OnBackPressedDispatcher, which consumes the press. A manual Compose Back
+    // key handler instead let one Back both close the page (on KeyDown) AND finish
+    // the Activity (the dispatcher fires on KeyUp), a double-back to the launcher.
+    BackHandler(enabled = page != LobbyPage.Lobby) {
+        page = when (page) {
+            is LobbyPage.LicenseText -> LobbyPage.Licenses
+            LobbyPage.Licenses -> LobbyPage.About
+            else -> LobbyPage.Lobby
+        }
     }
     // During a game (COUNTDOWN + PLAYING) Back toggles pause instead of exiting.
-    // Going through the dispatcher (not onKeyDown/onRemoteKeys) is what keeps a
-    // single Back from BOTH pausing and finishing the Activity. Disabled on the
-    // lobby/results, so Back there falls through to the default finish() and exits
-    // to the launcher (Android TV: Back must eventually reach the home screen).
+    // Going through the dispatcher (not onKeyDown) is what keeps a single Back
+    // from BOTH pausing and finishing the Activity. Disabled on the lobby/results,
+    // so Back there falls through to the default finish() and exits to the
+    // launcher (Android TV: Back must eventually reach the home screen).
     BackHandler(enabled = model.screen == DisplayScreen.GAME) { onContinue() }
 
     DisplayChrome(
@@ -615,23 +635,23 @@ private fun HexStackerApp(
         onContinue = onContinue,
         onToggleMusic = onToggleMusic,
         onReconnect = onReconnect,
-        showAbout = showAbout,
-        showLicenses = showLicenses,
-        onOpenAbout = { showAbout = true },
-        onOpenLicenses = { showLicenses = true },
-        onCloseLicenses = { showLicenses = false },
-        modifier = Modifier.onRemoteKeys(onPlayPause = onPlayPause, onMenu = onMenu),
+        page = page,
+        onOpenAbout = { page = LobbyPage.About },
+        onOpenLicenses = { page = LobbyPage.Licenses },
+        onOpenLicense = { index -> page = LobbyPage.LicenseText(index) },
     )
 }
 
 /**
- * The display's full visual tree for a given [UiModel]: the board layer, the active
- * screen (lobby / results — GAME shows only the board), and the additive overlays
- * (countdown, pause, and the relay-link connection overlay) in z-order.
+ * The display's full visual tree for a given [UiModel], in z-order: the board
+ * layer, the countdown scrim directly above it (beneath the screens, so screen
+ * fades reveal already-dimmed boards), the active screen (lobby / results —
+ * GAME shows only the board), and the additive overlays (pause and the
+ * relay-link connection overlay) on top.
  *
  * This is the SINGLE SOURCE OF TRUTH for "what's on screen for this state", shared by:
  *  - the live app ([HexStackerApp]), which passes the real [BoardSurfaceView] as
- *    [board] and drives [showAbout] / [showLicenses] from local state, and
+ *    [board] and drives [page] from local state, and
  *  - the screenshot gallery ([ComposeScreenshotTest]), which passes a baked board
  *    bitmap and a constructed [UiModel].
  * So the gallery shots render the real layering + the real derived logic (e.g. the
@@ -648,116 +668,34 @@ internal fun DisplayChrome(
     onContinue: () -> Unit = {},
     onToggleMusic: () -> Unit = {},
     onReconnect: () -> Unit = {},
-    // Lobby-local sub-screens (About / Licenses). Hoisted so the host owns Back
-    // handling + focus; the screenshot test drives them via the same flags.
-    showAbout: Boolean = false,
-    showLicenses: Boolean = false,
+    // Lobby-local page (About / Licenses / license text). Hoisted so the host owns
+    // Back handling + focus; the screenshot test drives it via the same parameter.
+    page: LobbyPage = LobbyPage.Lobby,
     onOpenAbout: () -> Unit = {},
     onOpenLicenses: () -> Unit = {},
-    onCloseLicenses: () -> Unit = {},
+    onOpenLicense: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Box(modifier.fillMaxSize()) {
         board()
 
-        // Cross-fade between screens over the board (web #game-screen fadeIn 0.3s /
-        // #results-screen fadeIn 0.5s). Exits mirror the web's fade-through: the
-        // outgoing screen fades over the incoming one — 180ms (SCREEN_EXIT_MS) for
-        // full-screen swaps, 300ms leaving RESULTS (its .closing cross-fade), which
-        // also exits ON TOP of the entering screen like the web overlay does.
-        // LOBBY / GAME / RESULTS all share the plum backdrop, so fading one out
-        // over the board reads clean.
-        AnimatedContent(
-            targetState = model.screen,
-            // Always fullscreen: the GAME branch composes nothing once the countdown
-            // clears, and without a pinned size the default SizeTransform would
-            // clip-expand the next screen from 0x0 instead of fading it.
-            modifier = Modifier.fillMaxSize(),
-            transitionSpec = {
-                val leavingResults = initialState == DisplayScreen.RESULTS
-                val exit = fadeOut(tween(if (leavingResults) 300 else 180))
-                val enter = when (targetState) {
-                    // The countdown rides the GAME branch fade so match start reads
-                    // as one unit (web #game-screen fadeIn 0.3s).
-                    DisplayScreen.GAME -> fadeIn(tween(300))
-                    // Scrim + rows fade in (web #results-screen fadeIn 0.5s).
-                    DisplayScreen.RESULTS -> fadeIn(tween(500))
-                    // The lobby owns its own entrance stagger, so it enters instantly
-                    // beneath the fading results (web NEW GAME cross-fade). From GAME
-                    // the board layer sits BENEATH the entering lobby, so the web's
-                    // game-screen exit fade inverts into a lobby fade-in here — the
-                    // same 180ms dissolve, under the pause overlay's 200ms exit.
-                    DisplayScreen.LOBBY ->
-                        if (initialState == DisplayScreen.GAME) fadeIn(tween(180))
-                        else EnterTransition.None
-                }
-                (enter togetherWith exit).apply {
-                    targetContentZIndex = if (leavingResults) -1f else 0f
-                }
-            },
-            label = "screen",
-        ) { screen ->
-            when (screen) {
-                // About / Licenses each replace the lobby chrome (rather than layering over
-                // it) so D-pad focus can't escape back to the buttons underneath. The swap
-                // fades (tvOS enterFade/exitFade parity): 300ms cross-fade opening a page,
-                // 200ms closing it; the lobby re-enters instantly and replays its own
-                // entrance stagger, like every other return to the lobby.
-                DisplayScreen.LOBBY -> AnimatedContent(
-                    targetState = if (showLicenses) 2 else if (showAbout) 1 else 0,
-                    modifier = Modifier.fillMaxSize(),
-                    transitionSpec = {
-                        if (targetState > initialState) fadeIn(tween(300)) togetherWith fadeOut(tween(300))
-                        else (if (targetState == 0) EnterTransition.None else fadeIn(tween(200)))
-                            .togetherWith(fadeOut(tween(200)))
-                    },
-                    label = "lobbyPage",
-                ) { page ->
-                    when (page) {
-                        2 -> LicensesScreen(entries = rememberLicenseEntries(), onClose = onCloseLicenses)
-                        1 -> AboutScreen(onOpenLicenses = onOpenLicenses)
-                        else ->
-                            // Render the lobby scaffold even before the room exists (model.lobby
-                            // still null): a waiting lobby with a blank QR, so the create-failure
-                            // overlay sits on top of the lobby (web / tvOS parity) instead of a
-                            // bare screen. roomReady swaps in the real room + QR.
-                            LobbyScreen(
-                                data = model.lobby ?: WAITING_LOBBY,
-                                onStart = onStart,
-                                qrPending = model.qrPending,
-                                onOpenAbout = onOpenAbout,
-                            )
-                    }
-                }
-                DisplayScreen.RESULTS -> ResultsScreen(
-                    results = model.results,
-                    hostColorIndex = model.lobby?.hostColorIndex,
-                    onPlayAgain = onPlayAgain,
-                    onNewGame = onNewGame,
-                )
-                DisplayScreen.GAME -> {
-                    // Hold the last non-null value so the overlay keeps rendering it
-                    // through its exit fade instead of vanishing when countdown clears.
-                    // (Web fades 0.25s after a 0.4s GO timer; here the dismissal rides
-                    // the first PLAYING snapshot — GO + the coordinator's ~500ms hold —
-                    // so the scrim never lifts before gameplay actually renders.)
-                    var lastCountdown by remember { mutableStateOf(model.countdown) }
-                    model.countdown?.let { lastCountdown = it }
-                    // Seeded visible so a branch enter (match start, play again) doesn't
-                    // double-fade the countdown with the GAME branch fade; a countdown
-                    // re-shown while GAME is already composed fades in on its own (web
-                    // #countdown-overlay fadeIn 0.3s).
-                    val countdownState = remember { MutableTransitionState(true) }
-                    countdownState.targetState = model.countdown != null
-                    AnimatedVisibility(
-                        visibleState = countdownState,
-                        enter = fadeIn(tween(300)),
-                        exit = fadeOut(tween(250)),
-                    ) {
-                        lastCountdown?.let { CountdownOverlay(value = it) }
-                    }
-                }
-            }
+        // Countdown 3-2-1-GO, INSERTED COMPLETE (no enter fade) BENEATH the
+        // screen layer: match start reads as a fade-through — the outgoing
+        // lobby/results fades out above the already-dimmed boards, so they
+        // never show undimmed (tvOS parity: the countdown composite sits under
+        // the exiting screen on a static z-order). The exit still fades: the
+        // scrim lifts off the running boards. Hold the last non-null value so
+        // that exit keeps rendering it. (The dismissal rides the first PLAYING
+        // snapshot — GO + the coordinator's ~500ms hold — so the scrim never
+        // lifts before gameplay actually renders.)
+        var lastCountdown by remember { mutableStateOf(model.countdown) }
+        model.countdown?.let { lastCountdown = it }
+        AnimatedVisibility(
+            visible = model.countdown != null,
+            enter = EnterTransition.None,
+            exit = fadeOut(tween(FADE_MS)),
+        ) {
+            lastCountdown?.let { CountdownOverlay(value = it) }
         }
 
         // The relay-link overlay outranks the pause overlay below it: both are
@@ -768,17 +706,73 @@ internal fun DisplayChrome(
         val connectionVisible = model.connection == RelayTransport.ConnectionState.RECONNECTING ||
             model.connection == RelayTransport.ConnectionState.CLOSED
 
-        // Additive overlays on top of any screen (web .game-overlay fadeIn 0.3s / new
-        // 0.2s exit). Content keeps rendering through the exit fade: the pause fields
-        // stay valid, so read them directly. Callbacks are gated on visibility (the
-        // web's .closing pointer-events guard): a fading-out overlay keeps D-pad
-        // focus for the 200ms exit, and an un-gated CONTINUE would re-pause the
-        // game it just resumed on a double press.
+        // One dissolve for every screen/page swap: LOBBY / GAME / RESULTS and the
+        // window background all share the plum backdrop, so a uniform cross-fade
+        // reads clean everywhere (the web's per-screen timings are not mirrored).
+        // The lobby replays its own entrance stagger whenever it re-enters.
+        AnimatedContent(
+            targetState = model.screen,
+            // Always fullscreen: the GAME branch composes nothing, so the
+            // container size must not follow the content (see also the disabled
+            // sizeTransform in screenCrossfade).
+            modifier = Modifier.fillMaxSize(),
+            transitionSpec = { screenCrossfade() },
+            label = "screen",
+        ) { screen ->
+            when (screen) {
+                // About / Licenses / license text each replace the lobby chrome (rather
+                // than layering over it) so D-pad focus can't escape back to the buttons
+                // underneath. The backdrop (brand fill + falling-piece ambient with the
+                // accent vignette) sits BENEATH the page cross-fade, so page swaps fade
+                // only their content over a continuous background (tvOS parity).
+                DisplayScreen.LOBBY -> Box(Modifier.fillMaxSize().background(Tokens.bgPrimary)) {
+                    LobbyBackground(Modifier.fillMaxSize(), active = true)
+                    AnimatedContent(
+                        targetState = page,
+                        modifier = Modifier.fillMaxSize(),
+                        transitionSpec = { screenCrossfade() },
+                        label = "lobbyPage",
+                    ) { p ->
+                        when (p) {
+                            is LobbyPage.LicenseText ->
+                                LicenseTextScreen(entries = rememberLicenseEntries(), index = p.index)
+                            LobbyPage.Licenses ->
+                                LicensesScreen(entries = rememberLicenseEntries(), onOpenLicense = onOpenLicense)
+                            LobbyPage.About -> AboutScreen(onOpenLicenses = onOpenLicenses)
+                            LobbyPage.Lobby ->
+                                // Render the lobby scaffold even before the room exists (model.lobby
+                                // still null): a waiting lobby with a blank QR, so the create-failure
+                                // overlay sits on top of the lobby (web / tvOS parity) instead of a
+                                // bare screen. roomReady swaps in the real room + QR.
+                                LobbyScreen(
+                                    data = model.lobby ?: WAITING_LOBBY,
+                                    onStart = onStart,
+                                    qrPending = model.qrPending,
+                                    onOpenAbout = onOpenAbout,
+                                )
+                        }
+                    }
+                }
+                DisplayScreen.RESULTS -> ResultsScreen(
+                    results = model.results,
+                    hostColorIndex = model.lobby?.hostColorIndex,
+                    onPlayAgain = onPlayAgain,
+                    onNewGame = onNewGame,
+                )
+                DisplayScreen.GAME -> Unit // board only; the countdown layers on top below
+            }
+        }
+
+        // Additive overlays on top of any screen. Content keeps rendering through
+        // the exit fade: the pause fields stay valid, so read them directly.
+        // Callbacks are gated on visibility (the web's .closing pointer-events
+        // guard): a fading-out overlay keeps D-pad focus for the exit fade, and an
+        // un-gated CONTINUE would re-pause the game it just resumed on a double press.
         val pauseVisible = model.paused && model.screen == DisplayScreen.GAME && !connectionVisible
         AnimatedVisibility(
             visible = pauseVisible,
-            enter = fadeIn(tween(300)),
-            exit = fadeOut(tween(200)),
+            enter = fadeIn(tween(FADE_MS)),
+            exit = fadeOut(tween(FADE_MS)),
         ) {
             PauseOverlay(
                 hostColorIndex = model.lobby?.hostColorIndex,
@@ -791,8 +785,8 @@ internal fun DisplayChrome(
 
         // Topmost: the display's own relay-link overlay (covers everything when our
         // connection to the relay drops). Hold the last overlay-worthy state so the
-        // exiting overlay keeps its content through the fade-out (web .game-overlay
-        // fadeOut 0.2s) instead of recomposing to nothing when the link reopens.
+        // exiting overlay keeps its content through the fade-out instead of
+        // recomposing to nothing when the link reopens.
         var lastConnection by remember { mutableStateOf(model.connection) }
         var lastReplaced by remember { mutableStateOf(model.replaced) }
         var lastReconnectAttempt by remember { mutableStateOf(model.reconnectAttempt) }
@@ -803,15 +797,15 @@ internal fun DisplayChrome(
         }
         AnimatedVisibility(
             visible = connectionVisible,
-            enter = fadeIn(tween(300)),
-            exit = fadeOut(tween(200)),
+            enter = fadeIn(tween(FADE_MS)),
+            exit = fadeOut(tween(FADE_MS)),
         ) {
             when (lastConnection) {
                 RelayTransport.ConnectionState.RECONNECTING ->
                     ConnectionOverlay(
                         disconnected = false,
                         // Gated like the pause callbacks: RECONNECT stays focusable
-                        // through the 200ms exit fade, and firing it against the
+                        // through the exit fade, and firing it against the
                         // just-recovered link would re-kick the reconnect machinery.
                         onReconnect = { if (connectionVisible) onReconnect() },
                         attempt = lastReconnectAttempt,

@@ -79,7 +79,10 @@ fun AboutScreen(
         }.getOrDefault("")
     }
 
-    Box(modifier.fillMaxSize().background(Tokens.bgPrimary)) {
+    // Transparent: the host chrome keeps the lobby backdrop (brand fill +
+    // falling-piece ambient + accent vignette) beneath every lobby page, so the
+    // About push fades only this content over a continuous background.
+    Box(modifier.fillMaxSize()) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val vp = Vp(maxWidth.value, maxHeight.value)
             val overscan = Theme.Size.tvOverscan.toFloat() // TV title-safe, each edge
@@ -146,7 +149,7 @@ fun AboutScreen(
     }
 
     // Seat focus on the licenses row so the remote is live on entry and Back is caught.
-    LaunchedEffect(Unit) { runCatching { licensesFocus.requestFocus() } }
+    LaunchedEffect(Unit) { licensesFocus.requestFocus() }
 }
 
 /**
