@@ -41,12 +41,22 @@ jobs:
           IMAGE="ghcr.io/${REPO}:${TAG}"
 
           echo "Deploying ${TAG} to production"
-          kubectl set image deployment/couch-games \
-            couch-games="${IMAGE}" -n default
-          kubectl set env deployment/couch-games \
-            APP_ENV=production \
-            GIT_SHA="${GIT_SHA}" -n default
-          kubectl rollout status deployment/couch-games -n default --timeout=120s
+          # Single patch = single rollout; separate `set image` + `set env`
+          # calls each trigger their own pod replacement.
+          kubectl patch deployment/couch-games -n default --patch "
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: couch-games
+                    image: '${IMAGE}'
+                    env:
+                      - name: APP_ENV
+                        value: production
+                      - name: GIT_SHA
+                        value: '${GIT_SHA}'
+          "
+          kubectl rollout status deployment/couch-games -n default --timeout=180s
 
           {
             echo "### Production Deploy ${TAG}"
