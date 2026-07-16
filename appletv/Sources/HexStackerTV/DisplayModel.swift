@@ -161,7 +161,6 @@ final class DisplayModel: ObservableObject {
             self.coordinator?.setRelayConnected(connState == .open)
             withAnimation(Self.fade) {
                 self.state.connection = connState
-                if connState == .reconnecting { self.state.reconnectAttempt = 0 }
                 if connState == .open { self.state.replaced = false }
             }
             // Any state but .open means the link is (still) down, so the shown lobby

@@ -27,7 +27,6 @@
 
     <string name="reconnecting">正在重连</string>
     <string name="disconnected">已断开连接</string>
-    <string name="connection_lost">连接已断开</string>
     <string name="attempt_n_of_m">第 %1$d 次尝试，共 %2$d 次</string>
     <string name="reconnect">重新连接</string>
 

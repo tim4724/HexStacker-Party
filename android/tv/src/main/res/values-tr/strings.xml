@@ -26,7 +26,6 @@
 
     <string name="reconnecting">YENİDEN BAĞLANIYOR</string>
     <string name="disconnected">BAĞLANTI KESİLDİ</string>
-    <string name="connection_lost">Bağlantı kesildi</string>
     <string name="attempt_n_of_m">Deneme %1$d/%2$d</string>
     <string name="reconnect">YENİDEN BAĞLAN</string>
 

@@ -20,7 +20,7 @@ import com.hexstacker.tv.R
 
 /**
  * Full-screen overlay shown when the display's own relay link drops. Mirrors the
- * web: while auto-retrying it reads RECONNECTING / "Connection lost"; once the
+ * web: while auto-retrying it reads RECONNECTING / "Attempt N of M"; once the
  * client gives up it reads DISCONNECTED with a focusable RECONNECT button. Copy is
  * the web i18n source (no TV-only strings). A failed first-launch create drives the
  * same overlay as a lost room (RECONNECTING → DISCONNECTED).
@@ -35,7 +35,7 @@ fun ConnectionOverlay(
     onReconnect: () -> Unit = {},
     showReconnect: Boolean = true,
     // Current retry / max, shown as "Attempt N of M" while reconnecting (web parity).
-    // attempt <= 0 falls back to the static "Connection lost" (the first tick).
+    // Every RECONNECTING emission carries an attempt >= 1.
     attempt: Int = 0,
     maxAttempts: Int = 0,
     // Host tint for the RECONNECT CTA (web: #reconnect-btn reads --player-color).
@@ -76,13 +76,8 @@ fun ConnectionOverlay(
             if (!disconnected) {
                 Spacer(Modifier.height(14.dp))
                 Text(
-                    // "Attempt N of M" once retries begin (web clamps N to M); the static
-                    // "Connection lost" is the fallback until the first retry tick.
-                    text = if (attempt > 0) {
-                        stringResource(R.string.attempt_n_of_m, attempt.coerceAtMost(maxAttempts), maxAttempts)
-                    } else {
-                        stringResource(R.string.connection_lost)
-                    },
+                    // "Attempt N of M" (web clamps N to M).
+                    text = stringResource(R.string.attempt_n_of_m, attempt.coerceAtMost(maxAttempts), maxAttempts),
                     style = AppType.connStatus,
                     color = Tokens.textSecondary,
                     // Legible from the couch (web A2 .game-overlay__status:

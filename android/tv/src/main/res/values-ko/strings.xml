@@ -27,7 +27,6 @@
 
     <string name="reconnecting">재연결 중</string>
     <string name="disconnected">연결 끊김</string>
-    <string name="connection_lost">연결 끊겼어</string>
     <string name="attempt_n_of_m">시도 %1$d/%2$d</string>
     <string name="reconnect">재연결</string>
 

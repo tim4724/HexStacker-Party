@@ -75,7 +75,7 @@ object AppType {
     val musicCredit = brand(400, 0.02f) // "Music by …" footer
     val versionTag = hud(600, 0.02f) // About version marker (tvOS AppFont.semibold)
     val connHeading = brand(800, 0.12f) // "RECONNECTING" / "DISCONNECTED"
-    val connStatus = brand(700, 0.08f) // "Connection lost..."
+    val connStatus = brand(700, 0.08f) // "Attempt N of M"
     val wordmarkMain = brand(800, 0.06f) // "HEX STACKER" (.brand-lockup)
     val wordmarkSub = brand(600, 0.35f) // "PARTY"
     val resultName = brand(700, 0.0f) // result row name

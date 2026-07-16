@@ -139,7 +139,7 @@ describe('i18n', function () {
       'start_new_game', 'play_again',
       'new_game', 'continue_btn',
       'reconnect', 'join', 'share_aria',
-      'reconnecting', 'disconnected', 'connecting', 'connection_lost',
+      'reconnecting', 'disconnected', 'connecting',
       'attempt_n_of_m', 'display_reconnecting', 'bad_connection',
       'paused', 'device_choice_continue',
       'chip_players', 'chip_players_sub',

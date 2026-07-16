@@ -37,12 +37,11 @@ struct ConnectionOverlayView: View {
                             color: UITheme.textPrimary(), tracking: 0.15)
 
                 if !disconnected {
-                    // Web shows the status only while reconnecting. "Attempt N of M"
-                    // once retries begin (clamp N to M); "Connection lost" is the
-                    // pre-first-tick fallback. web .game-overlay__status clamp(1.2rem,2.4vh,1.6rem).
-                    Text(attempt > 0
-                         ? tr("attempt_n_of_m", min(attempt, maxAttempts), maxAttempts)
-                         : tr("connection_lost"))
+                    // Web shows the status only while reconnecting: "Attempt N of M"
+                    // (clamp N to M). Every .reconnecting emission is preceded by
+                    // onReconnecting, so the count is always ≥ 1 here.
+                    // web .game-overlay__status clamp(1.2rem,2.4vh,1.6rem).
+                    Text(tr("attempt_n_of_m", min(attempt, maxAttempts), maxAttempts))
                         .styled(font: AppFont.brandBold, size: vp.vh(19.2, 2.4, 25.6),
                                 color: UITheme.textSecondary, tracking: 0.08)
                 }

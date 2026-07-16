@@ -26,7 +26,6 @@
 
     <string name="reconnecting">RECONECTANDO</string>
     <string name="disconnected">DESCONECTADO</string>
-    <string name="connection_lost">Conexión perdida</string>
     <string name="attempt_n_of_m">Intento %1$d de %2$d</string>
     <string name="reconnect">RECONECTAR</string>
 
