@@ -20,6 +20,11 @@ final class MusicPlayer {
     private var isPaused = false
     private var configChangeObserver: NSObjectProtocol?
 
+    // Volume-fade timer (mirrors Music.js's linearRampToValueAtTime; invalidation
+    // plays the role of its `generation` guard, so overlapping stop/pause/resume
+    // calls cancel cleanly). Main-thread only.
+    private var fadeTimer: Timer?
+
     private static let masterVolume: Float = 0.50
     // Beeps are mono; the player is connected with this exact format and the
     // mixer up-mixes to the output. Connection format MUST match the scheduled
@@ -60,6 +65,7 @@ final class MusicPlayer {
     }
 
     deinit {
+        fadeTimer?.invalidate()
         if let configChangeObserver { NotificationCenter.default.removeObserver(configChangeObserver) }
     }
 
@@ -73,6 +79,7 @@ final class MusicPlayer {
     func start() {
         guard trackURL != nil else { return }
         startEngineIfNeeded()
+        cancelFade()
         musicMixer.outputVolume = Self.masterVolume
         loopGeneration += 1
         musicPlayer.stop()
@@ -99,20 +106,29 @@ final class MusicPlayer {
         }
     }
 
+    /// Stop the loop: fade out (0.4s, Music.js stop) then halt the player.
     func stop() {
-        musicPlayer.stop()
         isPlaying = false
         isPaused = false
+        fade(to: 0, duration: 0.4) { [weak self] in self?.musicPlayer.stop() }
     }
 
+    /// Pause (overlay / host mute): fade out (0.3s, Music.js pause) then pause,
+    /// keeping the position.
     func pause() {
         isPaused = true
-        musicPlayer.pause()
+        fade(to: 0, duration: 0.3) { [weak self] in self?.musicPlayer.pause() }
     }
+
+    /// Resume from pause: restart playback silent and fade back in over 0.3s
+    /// (Music.js resume).
     func resume() {
         isPaused = false
         startEngineIfNeeded()
-        if isPlaying { musicPlayer.play() }
+        guard isPlaying else { return }
+        musicMixer.outputVolume = 0
+        musicPlayer.play()
+        fade(to: Self.masterVolume, duration: 0.3)
     }
 
     /// Countdown beep. Tick: 440Hz square 0.12s; Go: 600->1200Hz sweep 0.3s.
@@ -125,6 +141,35 @@ final class MusicPlayer {
     }
 
     // MARK: - Internals
+
+    private func cancelFade() {
+        fadeTimer?.invalidate()
+        fadeTimer = nil
+    }
+
+    /// Ramp `musicMixer.outputVolume` to `target` over `duration`, then run
+    /// `completion` (once). A newer fade/cancel supersedes both the ramp and the
+    /// pending completion.
+    private func fade(to target: Float, duration: TimeInterval, completion: (() -> Void)? = nil) {
+        cancelFade()
+        let start = musicMixer.outputVolume
+        guard duration > 0, start != target else {
+            musicMixer.outputVolume = target
+            completion?()
+            return
+        }
+        let startTime = Date()
+        fadeTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { [weak self] timer in
+            guard let self else { timer.invalidate(); return }
+            let t = Float(min(Date().timeIntervalSince(startTime) / duration, 1))
+            self.musicMixer.outputVolume = start + (target - start) * t
+            if t >= 1 {
+                timer.invalidate()
+                self.fadeTimer = nil
+                completion?()
+            }
+        }
+    }
 
     private func startEngineIfNeeded() {
         guard !engine.isRunning else { return }
