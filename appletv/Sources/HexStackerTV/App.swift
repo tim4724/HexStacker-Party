@@ -38,22 +38,6 @@ final class PressHostController: UIViewController {
         host.view.backgroundColor = SKTheme.bgPrimary
         view.addSubview(host.view)
         host.didMove(toParent: self)
-
-        // The Siri Remote's touch surface moves focus by SWIPES, which never
-        // reach pressesBegan: bridge them to the lobby's manual menu like the
-        // old SKView shell did. Native-focus screens ignore these (the
-        // recognizers don't block the engine's own swipe handling).
-        if !model.galleryMode {
-            for dir in [UISwipeGestureRecognizer.Direction.up, .down] {
-                let g = UISwipeGestureRecognizer(target: self, action: #selector(handleSwipe(_:)))
-                g.direction = dir
-                view.addGestureRecognizer(g)
-            }
-        }
-    }
-
-    @objc private func handleSwipe(_ g: UISwipeGestureRecognizer) {
-        _ = model.lobbyMoveFocus(up: g.direction == .up)
     }
 
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
@@ -73,12 +57,6 @@ final class PressHostController: UIViewController {
                 // At the top level handleMenu() declines and the press falls
                 // through to super for the default exit to the home screen.
                 handled = model.handleMenu()
-            case .select:
-                handled = model.lobbySelect()
-            case .upArrow:
-                handled = model.lobbyMoveFocus(up: true)
-            case .downArrow:
-                handled = model.lobbyMoveFocus(up: false)
             default:
                 break
             }

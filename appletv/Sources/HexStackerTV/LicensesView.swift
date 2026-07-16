@@ -1,10 +1,16 @@
 import SwiftUI
+import UIKit
 
-/// Full-screen Licenses page for the tvOS display, reached from the About page.
-/// One focusable row per third-party component the app actually bundles (mirroring
-/// the Android LicensesScreen): d-pad Up/Down moves row focus and the focus engine
-/// scrolls the list, Select folds the full license text open in place, and Menu
-/// steps back (DisplayModel.handleMenu, fed by PressHostController).
+/// Full-screen Licenses list for the tvOS display, pushed from the About page.
+/// One focusable row per third-party component the app actually bundles: d-pad
+/// Up/Down moves row focus and the focus engine scrolls the list, Select pushes
+/// that license's text as its own page (LicenseTextView), and Menu pops back
+/// (the NavigationStack's own handling).
+///
+/// A page rather than the old fold-open-in-place: folding a body open grew the
+/// list by thousands of points and stepped focus through every paragraph, which
+/// read poorly on the remote. A pushed page is the platform's own idiom, the
+/// list never resizes, and the text scrolls itself.
 ///
 /// The list is short by design: unlike Android (which bundles the whole AndroidX /
 /// Compose Apache stack), the tvOS app runs on Apple system frameworks
@@ -15,63 +21,35 @@ import SwiftUI
 /// The title localizes via `licenses_title`; the per-component license bodies and
 /// names (BSD-3, OFL, the font/library names) stay English, as canonical license
 /// texts are. No on-screen back hint (tvOS HIG: the remote navigates back).
-struct LicensesView: View {
-    @State private var expanded: Set<Int> = []
+struct LicensesListView: View {
     @FocusState private var focusedRow: Int?
 
     var body: some View {
-        GeometryReader { geo in
-            let vp = Vp(size: geo.size)
-            let W = vp.w, H = vp.h
-            let margin = H * 0.05
-            // Row proportions are relative to the content width (the list width
-            // after the horizontal margin).
-            let contentW = W - (W * 0.05) * 2
-
-            VStack(alignment: .leading, spacing: 0) {
-                // No on-screen back hint (tvOS HIG): the remote's Back/Menu button
-                // navigates back implicitly. The title carries the gap the hint used
-                // to hold before the list.
-                Text(tr("licenses_title"))
-                    .styled(font: AppFont.brandExtraBold, size: max(30, min(H * 0.05, 52)),
-                            color: UITheme.textPrimary(), tracking: 0.08)
-                    .padding(.bottom, margin * 0.5)
-
-                ScrollView(showsIndicators: false) {
-                    LazyVStack(spacing: contentW * 0.016) {
-                        ForEach(Array(Self.entries.enumerated()), id: \.offset) { index, entry in
-                            LicenseRow(entry: entry, width: contentW,
-                                       expanded: expanded.contains(index),
-                                       onToggle: { toggle(index) })
-                                .focused($focusedRow, equals: index)
+        LicensePageScaffold(title: tr("licenses_title")) { contentW, _ in
+            ScrollView(showsIndicators: false) {
+                LazyVStack(spacing: contentW * 0.016) {
+                    ForEach(Array(Self.entries.enumerated()), id: \.offset) { index, entry in
+                        NavigationLink(value: AboutRoute.license(index)) {
+                            LicenseRowLabel(entry: entry, width: contentW)
                         }
+                        .buttonStyle(LicenseRowStyle())
+                        .focused($focusedRow, equals: index)
                     }
-                    // Room for the 4pt focus ring: the scroll view clips at
-                    // its bounds (web #results-list keeps 4px padding for
-                    // the same reason).
-                    .padding(4)
                 }
+                // Room for the 4pt focus ring: the scroll view clips at
+                // its bounds (web #results-list keeps 4px padding for
+                // the same reason).
+                .padding(4)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .padding(.horizontal, W * 0.05)
-            .padding(.vertical, H * 0.05)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // Only the fill bleeds full-screen; the content stays inside the
-            // title-safe area (real TVs report overscan insets).
-            .background(UITheme.bgPrimary.ignoresSafeArea())
         }
         // Seat focus on the first row so the remote is live on entry (matches the
-        // Android screen and the SpriteKit overlay opening focused on row 0).
+        // Android screen; the stack restores it here after a text-page pop).
         .onAppear { focusedRow = 0 }
-    }
-
-    private func toggle(_ i: Int) {
-        if expanded.contains(i) { expanded.remove(i) } else { expanded.insert(i) }
     }
 
     // MARK: - Attribution data (English-only license text, embedded verbatim)
 
-    // fileprivate so the sibling LicenseRow in this file can name the type.
+    // fileprivate so the sibling LicenseTextView / LicenseRowLabel can name the type.
     fileprivate struct Entry {
         let name: String
         let author: String
@@ -81,7 +59,7 @@ struct LicensesView: View {
 
     // Music and fonts lead the list (the app's most audible/visible credits); the
     // WebRTC binary attribution follows (matches the Android assembleLicenseList order).
-    private static let entries: [Entry] = [
+    fileprivate static let entries: [Entry] = [
         Entry(
             name: "Lunar Joyride",
             author: "FoxSynergy",
@@ -247,111 +225,176 @@ struct LicensesView: View {
     }
 }
 
-/// A focusable, expand-in-place license row. Focus highlights the header with
-/// the game-UI convention shared with ChromeButton / MusicSwitchView (4pt white
-/// ring + 6% white wash), minus the scale pop, which reads wrong on a
-/// full-width list row; Select toggles the license body, whose paragraphs are
-/// their own focus stops.
-private struct LicenseRow: View {
-    let entry: LicensesView.Entry
-    let width: CGFloat
-    let expanded: Bool
-    let onToggle: () -> Void
+/// One license's text, full-screen and scrolling on its own (pushed by a list
+/// row; the page title is the component name, existing data, no new copy).
+struct LicenseTextView: View {
+    let index: Int
 
-    /// The expanded body split at blank lines: each paragraph is a focus stop.
-    static func chunks(for entry: LicensesView.Entry) -> [String] {
-        entry.body.components(separatedBy: "\n\n").filter { !$0.isEmpty }
+    var body: some View {
+        let entry = LicensesListView.entries[min(max(index, 0), LicensesListView.entries.count - 1)]
+        LicensePageScaffold(title: entry.name) { _, viewportH in
+            LicenseTextBody(text: entry.body, viewportH: viewportH)
+        }
+    }
+}
+
+/// The text sliced into blocks of HALF THE VIEWPORT, each an invisible focus
+/// stop, and the FOCUS ENGINE does the scrolling: Down moves to the next
+/// block, the engine scrolls it into view, and the text advances half a
+/// screen. Focusable content is not a workaround here, it IS how tvOS
+/// scrolls: a ScrollView moves to reveal the focused view, and there is no
+/// other lever. SwiftUI has no first-class long-text view, and the UIKit one
+/// does not survive the trip (a UITextView rendered but never took focus with
+/// isSelectable set, canBecomeFocused overridden, and a controller vending
+/// preferredFocusEnvironments); a plain `ScrollView { Text }.focusable()`
+/// does not scroll either. Blocks and not paragraphs: paragraphs are uneven,
+/// so the text lurched a line at a time through short ones. This mechanism
+/// (and those measurements) come from the about-licenses-rjwyn spike.
+private struct LicenseTextBody: View {
+    let text: String
+    let viewportH: CGFloat
+
+    /// Monospace: display faces are unreadable at license-text length, and the
+    /// canonical texts are hard-wrapped for a fixed pitch. 26pt for the
+    /// 10-foot read; the ~72-column hard wrap still fits the full-width page
+    /// (72 chars x ~0.6em advance = ~1120pt inside the ~1730pt content width).
+    private static let size: CGFloat = 26
+    private static let lineH = UIFont(name: "Menlo", size: size)?.lineHeight ?? size * 1.21
+
+    /// Sliced into half-viewport blocks, measured in LINES: the text is
+    /// hard-wrapped well inside the full-width page, so no line soft-wraps and
+    /// a block's height is exactly its line count times the line height.
+    private var blocks: [String] {
+        let lines = text.components(separatedBy: "\n")
+        let per = max(4, Int((viewportH * 0.5) / Self.lineH))
+        return stride(from: 0, to: lines.count, by: per).map {
+            lines[$0..<min($0 + per, lines.count)].joined(separator: "\n")
+        }
     }
 
     var body: some View {
-        let padX = width * 0.022
-        let padY = width * 0.016
-
-        // One element in the outer list: tight internal spacing keeps the
-        // paragraphs reading as the row's body, not as separate list items.
-        VStack(alignment: .leading, spacing: 2) {
-            Button(action: onToggle) {
-                VStack(alignment: .leading, spacing: padY * 0.4) {
-                    HStack(alignment: .top, spacing: 16) {
-                        // Name takes the row and truncates (Android weight(1f)); the license
-                        // keeps its intrinsic width and stays pinned right.
-                        Text(entry.name)
-                            .styled(font: AppFont.brandBold, size: max(18, min(width * 0.015, 28)),
-                                    color: UITheme.textPrimary(), tracking: 0.02)
-                            .lineLimit(1)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        Text(entry.license)
-                            .styled(font: AppFont.brandRegular, size: max(13, min(width * 0.011, 20)),
-                                    color: UITheme.textSecondary, tracking: 0.02)
-                            .lineLimit(1)
-                            .layoutPriority(1)
-                    }
-                    Text(entry.author)
-                        .styled(font: AppFont.brandRegular, size: max(12, min(width * 0.0095, 18)),
-                                color: UITheme.textFaint, tracking: 0.02)
-                        .lineLimit(1)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, padX)
-                .padding(.vertical, padY)
-            }
-            .buttonStyle(LicenseRowStyle())
-
-            if expanded {
-                // Monospace: display faces are unreadable at license-text length.
-                // Fixed 20pt, matching the SpriteKit Menlo body. One FOCUSABLE
-                // paragraph per chunk: the Siri Remote moves focus by touch
-                // swipes (which bypass onMoveCommand entirely), so paragraph
-                // focus stops are what lets the engine scroll a body taller
-                // than the screen. Select on a paragraph folds the body shut.
-                ForEach(Array(Self.chunks(for: entry).enumerated()), id: \.offset) { _, para in
-                    Button(action: onToggle) {
-                        Text(para)
-                            .font(.custom("Menlo", size: 20))
-                            .foregroundColor(UITheme.textSecondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, padX)
-                            .padding(.vertical, padY * 0.4)
-                    }
-                    .buttonStyle(LicenseChunkStyle())
+        ScrollView(showsIndicators: false) {
+            // No spacing and no decoration: the blocks are slices of ONE text,
+            // so any gap or highlight would show up as a seam mid-paragraph.
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(blocks.enumerated()), id: \.offset) { _, chunk in
+                    Text(chunk)
+                        .font(.custom("Menlo", size: Self.size))
+                        .foregroundColor(UITheme.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .focusable()
                 }
             }
         }
     }
 }
 
-/// Reading-position highlight for a focused license paragraph: the row-card
-/// fill for continuity with the header, plus a quiet wash when focused (a
-/// ring per paragraph would read as noise at license-text length).
-private struct LicenseChunkStyle: ButtonStyle {
-    @Environment(\.isFocused) private var focused
+/// The shared Licenses page chrome: transparent over the BoardScene's ambient
+/// falling pieces (these pages live under `case .lobby`; the accent vignette
+/// mirrors LobbyView for backdrop continuity), leading title inside the
+/// title-safe area, and the content sized by a GeometryReader so the text
+/// page can slice against the real body height.
+private struct LicensePageScaffold<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: (CGFloat, CGFloat) -> Content   // (contentW, bodyH)
 
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(
-                ZStack {
-                    UITheme.bgSecondary
-                    if focused { Color.white.opacity(0.05) }
+    var body: some View {
+        GeometryReader { geo in
+            let vp = Vp(size: geo.size)
+            let W = vp.w, H = vp.h
+            let margin = H * 0.05
+            let contentW = W - (W * 0.05) * 2
+
+            VStack(alignment: .leading, spacing: 0) {
+                // No on-screen back hint (tvOS HIG): the remote's Back/Menu button
+                // navigates back implicitly. The title carries the gap the hint used
+                // to hold before the list.
+                Text(title)
+                    .styled(font: AppFont.brandExtraBold, size: max(30, min(H * 0.05, 52)),
+                            color: UITheme.textPrimary(), tracking: 0.08)
+                    .lineLimit(1)
+                    .padding(.bottom, margin * 0.5)
+
+                GeometryReader { body in
+                    content(contentW, body.size.height)
                 }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(.horizontal, W * 0.05)
+            .padding(.vertical, H * 0.05)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Only the vignette bleeds full-screen; the content stays inside
+            // the title-safe area (real TVs report overscan insets).
+            .background(
+                RadialGradient(colors: [UITheme.accentPrimary.opacity(0.06), .clear],
+                               center: UnitPoint(x: 0.5, y: 0.3),
+                               startRadius: 0,
+                               endRadius: max(W, H) * 0.575)
+                    .ignoresSafeArea()
             )
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
     }
 }
 
+/// A license list row face in the app's card language: name over author on
+/// the left, the license tag in a recessed capsule chip on the right (the
+/// lobby card's LEVEL pill treatment).
+private struct LicenseRowLabel: View {
+    let entry: LicensesListView.Entry
+    let width: CGFloat
+
+    var body: some View {
+        let padX = width * 0.022
+        let padY = width * 0.016
+        // 10-foot scale in line with the result rows (~3vh names): the first
+        // cut used web-ish point sizes and read too small from the couch.
+        let nameSize = max(24, min(width * 0.019, 36))
+        let subSize = max(18, min(width * 0.014, 26))
+        let chipSize = max(16, min(width * 0.011, 22))
+
+        HStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: padY * 0.35) {
+                Text(entry.name)
+                    .styled(font: AppFont.brandBold, size: nameSize,
+                            color: UITheme.textPrimary(), tracking: 0.02)
+                    .lineLimit(1)
+                Text(entry.author)
+                    .styled(font: AppFont.brandRegular, size: subSize,
+                            color: UITheme.textSecondary, tracking: 0.02)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            // Quiet chip like the lobby's LEVEL pill: recessed dark capsule,
+            // HUD face, keeps its intrinsic width pinned right.
+            Text(entry.license)
+                .styled(font: AppFont.name, size: chipSize,
+                        color: UITheme.textSecondary, tracking: 0.06)
+                .lineLimit(1)
+                .padding(.horizontal, chipSize)
+                .frame(height: chipSize * 2.3)
+                .background(Capsule().fill(UITheme.socket(0.35)))
+                .layoutPriority(1)
+        }
+        .padding(.horizontal, padX)
+        .padding(.vertical, padY)
+    }
+}
+
+/// Borderless raised card (web .result-row: 20px radius, bg-card, --shadow-sm),
+/// the same surface as the lobby player cards and result rows; focus adds the
+/// white ring + 6% wash, minus the scale pop, which reads wrong on a
+/// full-width row.
 private struct LicenseRowStyle: ButtonStyle {
     @Environment(\.isFocused) private var focused
 
     func makeBody(configuration: Configuration) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 12)   // var(--radius-md)
+        let shape = RoundedRectangle(cornerRadius: 20)
         return configuration.label
             .background(
-                ZStack {
-                    UITheme.bgSecondary
-                    if focused { Color.white.opacity(0.06) }   // 6% focus wash over the fill
-                }
+                shape.fill(UITheme.bgCard)
+                    .shadow(color: .black.opacity(0.32), radius: 4, x: 0, y: 2)
             )
-            .clipShape(shape)
-            .overlay(shape.stroke(focused ? Color.white : UITheme.border,
-                                  lineWidth: focused ? 4 : 1))
+            .overlay(shape.fill(Color.white.opacity(focused ? 0.06 : 0)))
+            .overlay(shape.stroke(focused ? Color.white : .clear, lineWidth: 4))
     }
 }

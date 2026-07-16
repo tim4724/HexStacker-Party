@@ -13,7 +13,6 @@ enum SKTheme {
     static func player(slot: Int) -> UIColor { UIColor(Theme.playerColor(slot: slot)) }
 
     static let bgPrimary = UIColor(Theme.bgPrimary)
-    static let bgSecondary = UIColor(Theme.bgSecondary)
     static let bgBoard = UIColor(Theme.bgBoard)
 
     // Lobby / results UI tokens, mirrored from theme.css.

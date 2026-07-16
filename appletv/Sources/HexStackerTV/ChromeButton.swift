@@ -14,27 +14,50 @@ struct ChromeButton: View {
     var width: CGFloat? = nil
     let height: CGFloat
     var hPad: CGFloat? = nil   // content-hugging pills override the default pad
-    // nil = a native focus-engine Button (overlays). Non-nil = a manually
-    // focused rendering with no engine participation: the lobby drives its
-    // own two-item menu, because the engine skips entrance-transparent views
-    // and strands the live lobby without a cursor.
-    var manualFocus: Bool? = nil
     let action: () -> Void
 
     var body: some View {
-        if let manualFocus {
-            label
-                .modifier(ChromeButtonChrome(primary: primary, tint: tint,
-                                             enabled: enabled, focused: manualFocus))
-        } else {
-            // A disabled button stays FOCUSABLE (action gated to a no-op) so
-            // the cursor never vanishes while a screen waits on state.
-            Button(action: enabled ? action : {}) { label }
-                .buttonStyle(ChromeButtonStyle(primary: primary, tint: tint, enabled: enabled))
+        // A disabled button stays FOCUSABLE (action gated to a no-op) so
+        // the cursor never vanishes while a screen waits on state.
+        Button(action: enabled ? action : {}) {
+            ChromeButtonLabel(text: text, primary: primary, enabled: enabled,
+                              width: width, height: height, hPad: hPad)
         }
+        .buttonStyle(ChromeButtonStyle(primary: primary, tint: tint, enabled: enabled))
     }
+}
 
-    private var label: some View {
+/// A ChromeButton that pushes `value` on the enclosing NavigationStack instead
+/// of running an action: same skin, but the push/pop (and the focus handoff
+/// across it) belongs to the framework.
+struct ChromeLink<V: Hashable>: View {
+    let text: String
+    let primary: Bool
+    let tint: Color
+    var width: CGFloat? = nil
+    let height: CGFloat
+    var hPad: CGFloat? = nil
+    let value: V
+
+    var body: some View {
+        NavigationLink(value: value) {
+            ChromeButtonLabel(text: text, primary: primary, enabled: true,
+                              width: width, height: height, hPad: hPad)
+        }
+        .buttonStyle(ChromeButtonStyle(primary: primary, tint: tint, enabled: true))
+    }
+}
+
+/// The shared pill face (text, metrics, color), worn by the button and the link.
+private struct ChromeButtonLabel: View {
+    let text: String
+    let primary: Bool
+    let enabled: Bool
+    let width: CGFloat?
+    let height: CGFloat
+    let hPad: CGFloat?
+
+    var body: some View {
         Text(text)
             .styled(font: AppFont.brandBold, size: height * 0.36,
                     color: !enabled ? UITheme.textSecondary
@@ -59,9 +82,7 @@ private struct ChromeButtonStyle: ButtonStyle {
     }
 }
 
-/// The shared fill + focus ring treatment (web .btn-primary/.btn-secondary
-/// A2), applied identically whether focus comes from the engine or the
-/// lobby's manual menu.
+/// The shared fill + focus ring treatment (web .btn-primary/.btn-secondary A2).
 private struct ChromeButtonChrome: ViewModifier {
     let primary: Bool
     let tint: Color

@@ -105,9 +105,9 @@ struct ResultsView: View {
             withAnimation(.easeOut(duration: 0.4)) { buttonsShown = true }
             // Imperative seed alongside .defaultFocus: the buttons insert at
             // opacity 0 (the entrance fade), and the focus engine skips
-            // entrance-transparent views (see UiModel.lobbyFocus). Assigning
-            // FocusState directly works even while transparent
-            // (ConnectionOverlayView does the same).
+            // entrance-transparent views. Assigning FocusState directly works
+            // even while transparent (LobbyView and ConnectionOverlayView do
+            // the same).
             focus = .playAgain
         }
     }

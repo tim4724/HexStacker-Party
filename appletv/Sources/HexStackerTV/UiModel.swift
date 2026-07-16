@@ -21,18 +21,14 @@ struct UiModel: Equatable {
     // Link dropped or app resigning: the shown room QR may be stale, dim it.
     // Cleared only by roomReady (the relay re-confirmed the room).
     var qrPending = false
-    // Lobby-local overlays (web: full-screen pages reached from the ⓘ button).
-    // Model-owned rather than view-local so the gallery can seed them.
-    var showAbout = false
-    var showLicenses = false
+    // The lobby's NavigationStack path: the About page and its Licenses
+    // drill-in are pushed destinations (web: full-screen pages reached from
+    // the ⓘ button). Model-owned rather than view-local so the gallery can
+    // seed it and a match start can clear it.
+    var aboutPath: [AboutRoute] = []
     // Gallery-only focus seed: the pause-music shot renders the Game Music
     // switch focused (no web equivalent; the scenario documents the TV focus).
     var focusMusicForShot = false
-    // The lobby's two-item focus menu (START / corner ⓘ), driven manually
-    // from the remote's responder chain. The native engine skips the buttons
-    // while the entrance stagger has them transparent and never re-seats, so
-    // a live lobby ended up with no cursor at all.
-    var lobbyFocus: LobbyFocus = .start
 
     /// The current host's identity color slot (web --player-color); nil when
     /// no host. Every host-tinted CTA reads this LIVE value, so a handoff
@@ -40,14 +36,16 @@ struct UiModel: Equatable {
     var hostColorSlot: Int? { lobby?.hostColorSlot }
 
     /// The relay-link overlay is on screen. It outranks everything beneath it:
-    /// the lobby's manual menu, Play/Pause and Menu all decline while it is up,
-    /// and the pause overlay hides under it so the two full-screen scrims
-    /// don't stack.
+    /// Play/Pause and Menu decline while it is up, and the pause overlay hides
+    /// under it so the two full-screen scrims don't stack.
     var connectionOverlayUp: Bool { connection == .reconnecting || connection == .closed }
 }
 
-enum LobbyFocus {
-    case start, info
+/// A page pushed on the lobby's NavigationStack: About, its Licenses list,
+/// then one license's text (by index into LicensesListView.entries).
+enum AboutRoute: Hashable {
+    case about, licenses
+    case license(Int)
 }
 
 /// Lobby scaffold data. `room` empty = the pre-room waiting lobby (blank QR,

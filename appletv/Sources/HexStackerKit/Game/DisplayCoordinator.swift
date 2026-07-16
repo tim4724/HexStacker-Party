@@ -534,7 +534,6 @@ public final class DisplayCoordinator {
         aliveState = [:]      // fresh match: everyone alive, last ranking is stale
         lastResults = nil
         countdownElapsed = 0
-        countdownStep = -1
 
         // Build the engine now and show the game screen so the boards are visible
         // behind the countdown overlay, matching the web's 3-2-1-GO over the game
@@ -543,6 +542,10 @@ public final class DisplayCoordinator {
         guard makeEngine() else { returnToLobby(); return }
         output?.showScreen(.game)
         if let engine, let snap = try? engine.snapshot() { output?.renderSnapshot(snap.preGame()) }
+        // First countdown value in the SAME call as the screen change, so the
+        // output can present boards + scrim as one unit (no bare-board frames
+        // while waiting for the first tick).
+        emitCountdownStep(0)
     }
 
     private func makeEngine() -> Bool {
@@ -647,11 +650,6 @@ public final class DisplayCoordinator {
     }
 
     private func advanceCountdown(deltaMs: Double) {
-        if countdownStep < 0 {
-            // step 0 fires immediately at entry
-            emitCountdownStep(0)
-            return
-        }
         guard !paused else { return }
         countdownElapsed += deltaMs
         let nextStep = countdownStep + 1

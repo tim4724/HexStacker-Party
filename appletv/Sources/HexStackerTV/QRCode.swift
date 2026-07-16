@@ -28,7 +28,7 @@ enum QRCode {
     }
 
     /// Black modules on WHITE (the raw generator output). Used where the code
-    /// is drawn over its own opaque card (About, the per-board rejoin QR).
+    /// is drawn over its own opaque card (the per-board rejoin QR).
     static func image(for string: String, sidePixels: CGFloat = 600) -> UIImage? {
         render(string, sidePixels: sidePixels, transparent: false)
     }

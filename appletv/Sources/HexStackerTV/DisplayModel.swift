@@ -33,14 +33,6 @@ final class DisplayModel: ObservableObject {
         || ProcessInfo.processInfo.environment["HEXSHOT"] != nil
     private var relayStarted = false   // false in the offline harness modes
 
-    // A match is starting but the countdown scrim isn't on screen yet: hold
-    // the visible screen until the first countdown value arrives, so the
-    // outgoing lobby/results and the incoming countdown swap in ONE
-    // cross-fade. The web does exactly this (onCountdownDisplay calls
-    // showScreen); flipping on showScreen alone left the boards bare for as
-    // long as the engine took to boot before the first tick.
-    private var pendingGameReveal = false
-
     // Lobby identity (fed by roomReady, joined with the roster by updateLobby).
     private var room: String?
     private var joinURL: String?
@@ -53,19 +45,12 @@ final class DisplayModel: ObservableObject {
     // than a transient overlay (app switcher peek, Siri) that returns to active.
     private var backgroundedSinceResign = false
 
-    // MARK: - Transition tokens (the cross-platform spec)
-
-    static let enterFade = Animation.easeOut(duration: 0.3)
-    static let exitFade = Animation.easeIn(duration: 0.2)
-    static let resultsFade = Animation.easeOut(duration: 0.5)
-    static let countdownExitFade = Animation.easeIn(duration: 0.25)
-    // Full-screen swap exit (web SCREEN_EXIT_MS / .closing fadeOut 0.18s):
-    // the outgoing screen dissolves over the synchronously revealed one.
-    // The curve is CSS `ease` like the web keyframe — front-loaded; easeIn
-    // spends half the 180ms near-invisible and reads as a hard cut.
-    static let screenExitFade = Animation.timingCurve(0.25, 0.1, 0.25, 1, duration: 0.18)
-    // Leaving RESULTS on either edge (web fadeHide(resultsScreen, 300) ease).
-    static let resultsExitFade = Animation.timingCurve(0.25, 0.1, 0.25, 1, duration: 0.3)
+    // The one transition token: every screen/overlay change cross-fades with
+    // this. Views declare plain .transition(.opacity); the model wraps its
+    // state mutations in withAnimation(Self.fade). BoardScene's SKAction
+    // layer fades share the duration so scene and chrome move as one.
+    static let fadeDuration: TimeInterval = 0.3
+    static let fade = Animation.easeInOut(duration: fadeDuration)
 
     // MARK: - Boot
 
@@ -82,8 +67,7 @@ final class DisplayModel: ObservableObject {
         // away so it can be screenshotted deterministically — the tvOS simulator has
         // no Siri-Remote CLI to navigate to it. Inert without the env var.
         if ProcessInfo.processInfo.environment["HEXLICENSES"] != nil {
-            state.showAbout = true
-            state.showLicenses = true
+            state.aboutPath = [.about, .licenses]
         }
 
         // Visual-parity capture: render the fixed fixture board and stop.
@@ -178,8 +162,7 @@ final class DisplayModel: ObservableObject {
             guard let self else { return }
             self.linkState = connState
             self.coordinator?.setRelayConnected(connState == .open)
-            withAnimation(connState == .open || connState == .connecting || connState == .idle
-                          ? Self.exitFade : Self.enterFade) {
+            withAnimation(Self.fade) {
                 self.state.connection = connState
                 if connState == .reconnecting { self.state.reconnectAttempt = 0 }
                 if connState == .open { self.state.replaced = false }
@@ -191,7 +174,7 @@ final class DisplayModel: ObservableObject {
             // what marks the QR untrusted. .open does NOT clear it — the socket
             // opens before the relay answers the join; only roomReady re-confirms.
             if connState != .open {
-                withAnimation(Self.exitFade) { self.state.qrPending = true }
+                withAnimation(Self.fade) { self.state.qrPending = true }
             }
         }
         // Evicted because another client claimed the "display" slot: reconnecting
@@ -199,7 +182,7 @@ final class DisplayModel: ObservableObject {
         relay.onReplaced = { [weak self] in
             guard let self else { return }
             self.coordinator?.setRelayConnected(false)
-            withAnimation(Self.enterFade) {
+            withAnimation(Self.fade) {
                 self.state.replaced = true
                 self.state.connection = .closed
             }
@@ -219,7 +202,7 @@ final class DisplayModel: ObservableObject {
 
     // MARK: - Intents (remote / focus-engine driven)
 
-    func playAgain() { coordinator?.remoteStartMatch() }
+    func startMatch() { coordinator?.remoteStartMatch() }
     func newGame() { coordinator?.remoteReturnToLobby() }
     func togglePause() { coordinator?.remoteTogglePause() }
     func toggleMusic() { _ = coordinator?.remoteToggleMute() }
@@ -229,54 +212,32 @@ final class DisplayModel: ObservableObject {
     /// match under a legal page) or while the connection overlay is up (it
     /// can't start a match under a frozen, relay-less simulation).
     func playPause() {
-        guard !state.showAbout, !state.showLicenses, !state.connectionOverlayUp else { return }
+        guard state.aboutPath.isEmpty, !state.connectionOverlayUp else { return }
         coordinator?.remotePlayPause()
     }
     func reconnectNow() { relay?.reconnectNow() }
-    /// About / Licenses swaps fade like the other screen changes; returning to
-    /// the lobby uses the exit fade (the lobby itself re-enters instantly with
-    /// its entrance stagger).
-    func openLicenses() { withAnimation(Self.enterFade) { state.showLicenses = true } }
+    /// The About stack path, bound into the lobby's NavigationStack.
+    func setAboutPath(_ path: [AboutRoute]) { state.aboutPath = path }
 
-    /// Menu button: step back one level; return false at the top level so tvOS
-    /// exits the app normally (the caller falls through to the default). Also
-    /// declines under the connection overlay — exiting to the home screen there
-    /// is safe (backgrounding suspends the socket; the party resumes gracefully).
+    /// Menu button: pause during gameplay; return false at the top level so
+    /// tvOS exits the app normally (the caller falls through to the default).
+    /// Also declines under the connection overlay: exiting to the home screen
+    /// there is safe (backgrounding suspends the socket; the party resumes
+    /// gracefully).
+    ///
+    /// While About/Licenses are up, the NavigationStack is the ONLY owner of
+    /// Menu: it pops one level itself (on press-ENDED). This handler must
+    /// consume the press WITHOUT touching aboutPath. Popping here too (this
+    /// fires on press-BEGAN) double-popped on a real remote press: the stack's
+    /// ENDED pop landed after the root's pop transition settled, and Licenses
+    /// fell straight through to the lobby. Fast synthetic test presses masked
+    /// it (a UINavigationController declines a pop while one is in flight).
+    /// The consume keeps a bubbled press off super's default app-exit.
     func handleMenu() -> Bool {
         guard !state.connectionOverlayUp else { return false }
-        if state.showLicenses { withAnimation(Self.exitFade) { state.showLicenses = false }; return true }
-        if state.showAbout { withAnimation(Self.exitFade) { state.showAbout = false }; return true }
+        if !state.aboutPath.isEmpty { return true }
         if state.screen == .game { coordinator?.remoteTogglePause(); return true }
         return false
-    }
-
-    // MARK: - Lobby menu (manual focus)
-
-    // The lobby's two-item menu (START / ⓘ) is driven from the responder
-    // chain, not the focus engine (see UiModel.lobbyFocus). Consuming presses
-    // here is safe: while About/Licenses or an overlay is up, or on any other
-    // screen, these decline and the press stays with the engine.
-    private var lobbyMenuActive: Bool {
-        state.screen == .lobby && !state.showAbout && !state.showLicenses
-            && !state.connectionOverlayUp
-    }
-
-    func lobbyMoveFocus(up: Bool) -> Bool {
-        guard lobbyMenuActive else { return false }
-        state.lobbyFocus = up ? .info : .start
-        return true
-    }
-
-    func lobbySelect() -> Bool {
-        guard lobbyMenuActive else { return false }
-        switch state.lobbyFocus {
-        case .start:
-            // Consume even while disabled (web: a disabled START ignores input).
-            if !(state.lobby?.players.isEmpty ?? true) { coordinator?.remoteStartMatch() }
-        case .info:
-            withAnimation(Self.enterFade) { state.showAbout = true }
-        }
-        return true
     }
 
     // MARK: - App lifecycle
@@ -338,7 +299,7 @@ final class DisplayModel: ObservableObject {
     /// genuinely down, where roomReady clears it after the reconnect instead.
     func appDidBecomeActive() {
         if !backgroundedSinceResign, linkState == .open {
-            withAnimation(Self.exitFade) { state.qrPending = false }
+            withAnimation(Self.fade) { state.qrPending = false }
         }
         backgroundedSinceResign = false
     }
@@ -477,13 +438,12 @@ final class DisplayModel: ObservableObject {
             state.screen = .lobby
             state.lobby = LobbyData()
             state.connection = .closed
-        case "about":         // full-screen About overlay (Privacy / Imprint QR + Licenses drill-in)
+        case "about":         // full-screen About page (Privacy / Imprint QR + Licenses drill-in)
             coordinator?.renderShot("lobby-empty", playerCount: pc)
-            state.showAbout = true
-        case "licenses":      // full-screen Licenses overlay (scrolled to top)
+            state.aboutPath = [.about]
+        case "licenses":      // full-screen Licenses page (scrolled to top)
             coordinator?.renderShot("lobby-empty", playerCount: pc)
-            state.showAbout = true
-            state.showLicenses = true
+            state.aboutPath = [.about, .licenses]
         default:
             coordinator?.renderShot(shot, playerCount: pc)
         }
@@ -502,44 +462,18 @@ final class DisplayModel: ObservableObject {
 extension DisplayModel: DisplayOutput {
 
     func showScreen(_ screen: DisplayScreen) {
-        guard screen != state.screen || pendingGameReveal else { return }
-        // The GAME board-scene flip rides the reveal (first countdown), not
-        // this call: on match start the engine boots for a beat after
-        // showScreen(.game), and flipping here pops the lobby's falling
-        // pieces off behind the still-visible chrome. Deferred, the ambient
-        // keeps drifting under the lobby until the countdown scrim covers
-        // the swap (the web defers its bg-canvas hide the same way).
-        // Snapshots arriving before the flip build the hidden game layer.
-        if screen != .game { boardScene.showScreen(screen) }
-        // The About / licenses overlays are lobby-only; a match starting (from a
-        // controller while one is open) must not leave it stranded over the game.
-        if screen != .lobby { state.showAbout = false; state.showLicenses = false }
-        switch screen {
-        case .lobby:
-            // The lobby's own entrance stagger is the transition (insertion stays
-            // .identity), but the OUTGOING side fades like the web: leaving
-            // RESULTS (NEW GAME) dissolves it over the entering lobby for 300ms;
-            // leaving GAME rides the pause overlay's 200ms exit (its near-opaque
-            // scrim hides the board→lobby swap beneath, web dismissOverlay).
-            // Also drop any lingering countdown, and seat the menu cursor back
-            // on START (a stale ⓘ focus from the previous visit reads as random
-            // after a match).
-            let leaving = state.screen
-            pendingGameReveal = false
-            var s = state
-            s.screen = .lobby
-            s.countdown = nil
-            s.lobbyFocus = .start
-            switch leaving {
-            case .results: withAnimation(Self.resultsExitFade) { state = s }
-            case .game: withAnimation(Self.exitFade) { state = s }
-            case .lobby: state = s
-            }
-        case .results:
-            pendingGameReveal = false
-            withAnimation(Self.resultsFade) { state.screen = .results }
-        case .game:
-            pendingGameReveal = true
+        guard screen != state.screen else { return }
+        // The scene cross-fades its own layers (boards/ambient) in step with
+        // the chrome fade. On match start the coordinator sends the first
+        // countdown value in the same call stack, so the scrim and the boards
+        // arrive in one transaction (no bare-board frames).
+        boardScene.showScreen(screen)
+        withAnimation(Self.fade) {
+            state.screen = screen
+            state.countdown = nil
+            // About/Licenses are lobby-only; a match starting (from a controller
+            // while one is open) must not leave them stranded over the game.
+            if screen != .lobby { state.aboutPath = [] }
         }
     }
 
@@ -557,7 +491,7 @@ extension DisplayModel: DisplayOutput {
         // the pending dim lifts. Scoped .animation(value:) modifiers in the
         // lobby are banned for this: one firing mid-entrance snapped the
         // band's in-flight slide (~10px single-frame jump, measured).
-        withAnimation(Self.enterFade) {
+        withAnimation(Self.fade) {
             state.qrPending = false
             state.lobby = buildLobby()
         }
@@ -586,50 +520,23 @@ extension DisplayModel: DisplayOutput {
     }
 
     func showCountdown(_ value: CountdownValue) {
-        // The countdown inserts at full opacity, so on a game reveal the only
-        // animated element in this transaction is the outgoing screen's removal:
-        // the lobby dissolves in 180ms (web SCREEN_EXIT_MS), results in 300ms
-        // (web fadeHide 300, PLAY AGAIN). A countdown re-shown while GAME is
-        // already up keeps the plain enter fade.
-        let anim = pendingGameReveal && state.screen == .lobby
-            ? Self.screenExitFade : Self.enterFade
-        withAnimation(anim) {
-            if pendingGameReveal {
-                pendingGameReveal = false
-                // The scene cross-fades its own layers (boards in over 0.3s,
-                // ambient out beneath the scrim), so no deferral gymnastics:
-                // even an SKView frame that lands before this SwiftUI commit
-                // just shows the first sliver of the same fade.
-                boardScene.showScreen(.game)
-                state.screen = .game
-            }
-            state.countdown = value
-        }
+        withAnimation(Self.fade) { state.countdown = value }
         if case .go = value { armGoDismissal() }
     }
 
-    /// GO holds 0.4s, then the scrim fades off (web overlayTimer + the 0.25s
-    /// dismissal fade). Declines while paused — the web clears its countdown
-    /// timers on pause for the same reason — and setPaused(false) re-arms the
-    /// full hold, so a pause landing inside the GO window can't strand the
-    /// resumed game behind (or without) the scrim.
+    /// GO holds 0.4s, then the scrim fades off (web overlayTimer). Declines
+    /// while paused (the web clears its countdown timers on pause for the
+    /// same reason), and setPaused(false) re-arms the full hold, so a pause
+    /// landing inside the GO window can't strand the resumed game behind (or
+    /// without) the scrim.
     private func armGoDismissal() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
             guard let self, self.state.countdown == .go, !self.state.paused else { return }
-            withAnimation(Self.countdownExitFade) { self.state.countdown = nil }
+            withAnimation(Self.fade) { self.state.countdown = nil }
         }
     }
 
     func renderSnapshot(_ snapshot: GameSnapshot) {
-        // Gallery fixtures render game states with no countdown, so the frozen
-        // snapshot is what reveals the screen there. Live flows keep waiting
-        // for the countdown: beginCountdown renders a pre-game snapshot in the
-        // same call as showScreen(.game), long before the scrim is ready.
-        if pendingGameReveal && shotMode {
-            pendingGameReveal = false
-            boardScene.showScreen(.game)   // the deferred scene flip
-            state.screen = .game
-        }
         boardScene.renderSnapshot(snapshot)
     }
 
@@ -650,7 +557,7 @@ extension DisplayModel: DisplayOutput {
     }
 
     func setPaused(_ paused: Bool) {
-        withAnimation(paused ? Self.enterFade : Self.exitFade) { state.paused = paused }
+        withAnimation(Self.fade) { state.paused = paused }
         if !paused, state.countdown == .go { armGoDismissal() }
     }
 

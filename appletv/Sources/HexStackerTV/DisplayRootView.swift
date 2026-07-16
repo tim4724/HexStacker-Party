@@ -30,8 +30,9 @@ struct DisplayRootView: View {
 
 /// The full compositing stack, bottom-up: board scene, active screen,
 /// countdown, pause, connection overlay. Screen/overlay presence is pure
-/// state; the transition matrix rides the model's withAnimation transactions
-/// through plain .opacity transitions.
+/// state; every change fades through plain .opacity transitions riding the
+/// model's single withAnimation token, except the countdown's insertion,
+/// which reveals complete beneath the outgoing screen's fade (see below).
 struct DisplayChromeView: View {
     @ObservedObject var model: DisplayModel
 
@@ -52,69 +53,54 @@ struct DisplayChromeView: View {
                                ? [.showsFPS, .showsNodeCount] : [])
                     .ignoresSafeArea()
 
-                // Explicit z per layer (web z-index parity): SwiftUI renders
-                // an INSERTED branch above the branch being removed, so
-                // without these the countdown scrim (inserted at full
-                // opacity) covers the lobby's exit fade and match start
-                // reads as a hard cut — the web solves the same problem by
-                // lifting the outgoing screen to z-index 12 (.closing). With
-                // lobby(1) and results(2) above the countdown(0), the
-                // outgoing screen dissolves over the incoming composite on
-                // every edge; overlays (5/6) stay above any exiting screen.
-                Group {
-                    switch ui.screen {
-                    case .lobby:
-                        // About/Licenses REPLACE the lobby (not layer over it)
-                        // so d-pad focus can't leak into covered buttons. The
-                        // swap fades via the withAnimation transactions in the
-                        // model's open/close paths (Android lobbyPage parity).
-                        if ui.showLicenses {
-                            LicensesView()
-                                .transition(.opacity)
-                                .zIndex(1)
-                        } else if ui.showAbout {
-                            AboutView(vp: vp,
-                                      onOpenLicenses: { model.openLicenses() })
-                                .transition(.opacity)
-                                .zIndex(1)
-                        } else {
-                            LobbyView(data: ui.lobby ?? LobbyData(),
-                                      qrPending: ui.qrPending,
-                                      vp: vp,
-                                      focusTarget: ui.lobbyFocus)
-                                // Entry is an instant swap (the entrance stagger
-                                // is the transition, web parity); the EXIT fades,
-                                // so match start reads as one unit: the lobby
-                                // dissolves over the boards while the countdown
-                                // scrim fades in (Android AnimatedContent parity).
-                                .transition(.asymmetric(insertion: .identity, removal: .opacity))
-                                .zIndex(1)
-                        }
-                    case .results:
-                        ResultsView(results: ui.results,
-                                    hostColorSlot: ui.hostColorSlot,
-                                    vp: vp,
-                                    onPlayAgain: { model.playAgain() },
-                                    onNewGame: { model.newGame() })
-                            .transition(.opacity)
-                            .zIndex(2)
-                    case .game:
-                        if let value = ui.countdown {
-                            // Scrim + digit fade IN over 300ms (web
-                            // #countdown-overlay fadeIn 0.3s) while the
-                            // outgoing screen dissolves above — the animation
-                            // rides the transition itself, not the (shorter)
-                            // reveal transaction. The old full-opacity
-                            // insertion predates the zIndex exit fix: with the
-                            // lobby exit invisible it masked the swap, but now
-                            // it popped the scrim behind the still-visible
-                            // chrome and match start read as a bang-then-fade.
-                            CountdownOverlayView(value: value, paused: ui.paused, vp: vp)
-                                .transition(.asymmetric(
-                                    insertion: .opacity.animation(DisplayModel.enterFade),
-                                    removal: .opacity))
-                                .zIndex(0)
-                        }
+                // Static stacking order (web z-index parity): SwiftUI renders
+                // an inserted branch above the one being removed, so screens
+                // sit at 1 and the countdown reveal at 0 (an outgoing screen
+                // dissolves ON TOP of the revealed composite), with overlays
+                // above everything.
+                switch ui.screen {
+                case .lobby:
+                    // The lobby owns a NavigationStack: About and its Licenses
+                    // drill-in are pushed destinations, so tvOS itself seats
+                    // focus on each pushed page, restores it on the way back,
+                    // and pops on Menu. The path lives in the model so the
+                    // gallery can seed it and a match start can clear it.
+                    NavigationStack(path: Binding(
+                        get: { model.state.aboutPath },
+                        set: { model.setAboutPath($0) })
+                    ) {
+                        LobbyView(data: ui.lobby ?? LobbyData(),
+                                  qrPending: ui.qrPending,
+                                  vp: vp,
+                                  onStart: { model.startMatch() })
+                            .navigationDestination(for: AboutRoute.self) { route in
+                                switch route {
+                                case .about: AboutView(vp: vp)
+                                case .licenses: LicensesListView()
+                                case .license(let i): LicenseTextView(index: i)
+                                }
+                            }
+                    }
+                    .transition(.opacity)
+                    .zIndex(1)
+                case .results:
+                    ResultsView(results: ui.results,
+                                hostColorSlot: ui.hostColorSlot,
+                                vp: vp,
+                                onPlayAgain: { model.startMatch() },
+                                onNewGame: { model.newGame() })
+                        .transition(.opacity)
+                        .zIndex(1)
+                case .game:
+                    if let value = ui.countdown {
+                        // Fade-through on match start (web SCREEN_EXIT): the
+                        // countdown composite (scrim + digit over the boards)
+                        // is revealed COMPLETE beneath the outgoing screen's
+                        // fade, so the boards never show undimmed. A faded-in
+                        // scrim left them bright for its first half.
+                        CountdownOverlayView(value: value, paused: ui.paused, vp: vp)
+                            .transition(.asymmetric(insertion: .identity, removal: .opacity))
+                            .zIndex(0)
                     }
                 }
 
@@ -130,7 +116,7 @@ struct DisplayChromeView: View {
                                      onContinue: { model.togglePause() },
                                      onNewGame: { model.newGame() })
                         .transition(.opacity)
-                        .zIndex(5)
+                        .zIndex(2)
                 }
 
                 if ui.connectionOverlayUp {
@@ -142,7 +128,7 @@ struct DisplayChromeView: View {
                                           vp: vp,
                                           onReconnect: { model.reconnectNow() })
                         .transition(.opacity)
-                        .zIndex(6)
+                        .zIndex(3)
                 }
             }
         }

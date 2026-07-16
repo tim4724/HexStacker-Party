@@ -11,7 +11,6 @@ enum UITheme {
     static func hostTint(_ slot: Int?) -> Color { slot.map { player(slot: $0) } ?? accentPrimary }
 
     static let bgPrimary = Color(SKTheme.bgPrimary)
-    static let bgSecondary = Color(SKTheme.bgSecondary)
     static let bgCard = Color(SKTheme.bgCard)
     static let bgCardSoft = Color(SKTheme.bgCardSoft)
     static let accentPrimary = Color(SKTheme.accentPrimary)

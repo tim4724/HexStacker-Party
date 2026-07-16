@@ -12,13 +12,10 @@ struct LobbyView: View {
     let data: LobbyData
     let qrPending: Bool
     let vp: Vp
-    // The lobby's manual two-item focus menu (START / ⓘ). The remote drives
-    // it through the responder chain (PressHostController), not the focus
-    // engine: entrance-transparent views are skipped by the engine and a live
-    // lobby ended up with no cursor and unreachable buttons. Activation also
-    // lives there (DisplayModel.lobbySelect), so this view takes no action
-    // closures.
-    let focusTarget: LobbyFocus
+    let onStart: () -> Void
+
+    private enum Field { case start, info }
+    @FocusState private var focus: Field?
 
     // Peers already seen while the lobby is up: the join pop fires only for
     // newly arriving players, not on entry or on unrelated roster churn.
@@ -26,11 +23,11 @@ struct LobbyView: View {
     // onAppear) already knows the entry roster.
     @State private var seenPeers: Set<Int>
 
-    init(data: LobbyData, qrPending: Bool, vp: Vp, focusTarget: LobbyFocus) {
+    init(data: LobbyData, qrPending: Bool, vp: Vp, onStart: @escaping () -> Void) {
         self.data = data
         self.qrPending = qrPending
         self.vp = vp
-        self.focusTarget = focusTarget
+        self.onStart = onStart
         _seenPeers = State(initialValue: Set(data.players.map { $0.peerIndex }))
     }
 
@@ -68,6 +65,11 @@ struct LobbyView: View {
                 startButton()
                     .padding(.bottom, margin)
                     .modifier(Entrance(dy: 16, delay: 0.45))  // web #start-btn fadeUp
+                    // Full-width section, mirroring the ⓘ band: Down from the
+                    // far top-right corner would otherwise miss the centered
+                    // START (same off-axis beam problem, opposite direction).
+                    .frame(maxWidth: .infinity)
+                    .focusSection()
             }
 
             // Triad corner badge (web .brand-badge: clamp(40px, 6.4vmin, 80px),
@@ -78,12 +80,37 @@ struct LobbyView: View {
                           y: margin * 0.4 + badge.size.height / 2)
                 .modifier(Entrance(dy: 0, delay: 0.3, duration: 0.6))
 
-            // Top-right ⓘ: the entry to the About screen. Icon-only, so there
-            // is no TV-only string.
+            // Top-right ⓘ: pushes the About page. Icon-only, so there is no
+            // TV-only string. The full-width .focusSection() is what makes the
+            // corner reachable: d-pad Up from the bottom-center START projects
+            // a narrow vertical beam that misses a small far-corner target, and
+            // a section spanning the top edge catches the move and routes it to
+            // its only focusable child (the tvOS API for off-axis targets).
             let infoD = max(40, min(H * 0.07, 64))
-            InfoCircleButton(diameter: infoD, focused: focusTarget == .info)
-                .position(x: W - infoD / 2 - margin * 0.2, y: infoD / 2 + margin * 0.2)
-                .modifier(Entrance(dy: 0, delay: 0.6, duration: 0.5))
+            VStack(spacing: 0) {
+                HStack(spacing: 0) {
+                    Spacer()
+                    NavigationLink(value: AboutRoute.about) {
+                        InfoGlyph(diameter: infoD)
+                    }
+                    .buttonStyle(InfoCircleStyle(diameter: infoD))
+                    .accessibilityIdentifier("info-button")   // icon-only; names it for UI tests
+                    .focused($focus, equals: .info)
+                    .modifier(Entrance(dy: 0, delay: 0.6, duration: 0.5))
+                }
+                .padding(.top, margin * 0.2)
+                .padding(.trailing, margin * 0.2)
+                .focusSection()
+                Spacer()
+            }
+        }
+        .defaultFocus($focus, .start)
+        .onAppear {
+            // Imperative seed alongside .defaultFocus: the buttons insert at
+            // opacity 0 (the entrance stagger), and the focus engine skips
+            // entrance-transparent views. Assigning FocusState directly works
+            // even while transparent (same pattern as ResultsView).
+            focus = .start
         }
         .onChange(of: data.players.map { $0.peerIndex }) { ids in
             // Track exactly the CURRENT roster (not a grow-only union): a
@@ -144,9 +171,9 @@ struct LobbyView: View {
             enabled: hasPlayers,
             height: pillH,
             hPad: min(vp.w * 0.04, 96),   // web .btn padding clamp(2rem, 4vw, 6rem)
-            manualFocus: focusTarget == .start,
-            action: {}   // manual-focus rendering; Select routes via lobbySelect()
+            action: onStart
         )
+        .focused($focus, equals: .start)
     }
 }
 
@@ -466,13 +493,10 @@ struct JoinLineView: View {
 
 // MARK: - Info button
 
-/// Small circular ⓘ (the About entry), focused by the lobby's manual menu.
-/// Recessed translucent disc + warm hairline ring (A2 .icon-btn); the glyph
-/// is drawn (dot + rounded stem) so it reads as an icon and matches Android
-/// regardless of the font.
-struct InfoCircleButton: View {
+/// The drawn ⓘ glyph (dot + rounded stem), so it reads as an icon and matches
+/// Android regardless of the font.
+struct InfoGlyph: View {
     let diameter: CGFloat
-    let focused: Bool
 
     var body: some View {
         let unit = diameter * 0.13     // dot diameter == stem width
@@ -481,12 +505,24 @@ struct InfoCircleButton: View {
             Capsule().frame(width: unit, height: diameter * 0.3)
         }
         .foregroundColor(UITheme.textPrimary())
-        .frame(width: diameter, height: diameter)
-        .background(Circle().fill(UITheme.socket(0.4)))
-        .overlay(Circle().stroke(focused ? Color.white : UITheme.hairline(0.12),
-                                 lineWidth: focused ? 4 : 1))
-        .scaleEffect(focused ? 1.06 : 1.0)
-        .animation(.easeOut(duration: 0.15), value: focused)
+    }
+}
+
+/// The ⓘ button chrome: recessed translucent disc + warm hairline ring (A2
+/// .icon-btn); focus adds the white ring + slight scale, driven by the focus
+/// engine (same treatment as ChromeButtonStyle).
+private struct InfoCircleStyle: ButtonStyle {
+    let diameter: CGFloat
+    @Environment(\.isFocused) private var focused
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .frame(width: diameter, height: diameter)
+            .background(Circle().fill(UITheme.socket(0.4)))
+            .overlay(Circle().stroke(focused ? Color.white : UITheme.hairline(0.12),
+                                     lineWidth: focused ? 4 : 1))
+            .scaleEffect(focused ? 1.06 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: focused)
     }
 }
 

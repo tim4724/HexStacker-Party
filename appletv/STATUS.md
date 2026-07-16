@@ -61,7 +61,7 @@ Modules:
 - **`BoardNode`** — one board from a snapshot: baked well+grid background, locked stack (cached by `gridVersion`), live piece + ghost, name/stats labels. Handles the canvas-Y-down → SpriteKit-Y-up flip.
 - **`BoardScene`** — the SpriteKit remainder after the SwiftUI chrome migration: per-player game boards + match timer + the lobby's falling-piece background; stays the per-frame pump (`update(_:)` → coordinator tick).
 - **`DisplayModel`** — the shell: owns `RelayClient` + `DisplayCoordinator` + `MusicPlayer` + `BoardScene`, implements `DisplayOutput` by folding chrome callbacks into a published `UiModel` (mirrors Android's `TvDisplayOutput` + `MainActivity` wiring).
-- **`DisplayRootView` + SwiftUI chrome** (`LobbyView`, `ResultsView`, `AboutView`/`LicensesView`, pause/countdown/connection overlays) — composites the chrome above the `SpriteView`, Android `DisplayChrome` parity.
+- **`DisplayRootView` + SwiftUI chrome** (`LobbyView`, `ResultsView`, `AboutView`/`LicensesListView`+`LicenseTextView`, pause/countdown/connection overlays) — composites the chrome above the `SpriteView`, Android `DisplayChrome` parity.
 - **`MusicPlayer`** — AVAudioEngine looping music at 0.50 volume with constant-pitch tempo scaling (0.95→1.35 by level), plus synthesized square-wave countdown beeps.
 - **`QRCode`** — `CIQRCodeGenerator` at EC level L for the join URL.
 - **`App` / `PressHostController`** — SwiftUI entry behind a UIKit root shim that owns the remote's focus-independent presses (Play/Pause, Menu), audio session setup.

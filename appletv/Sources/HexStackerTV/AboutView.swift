@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// About page for the tvOS display, opened from the lobby info button. Two QR
-/// cards (Privacy / Imprint) link the phone the player is already holding to the
-/// web legal pages, plus a focusable button that drills into the Open Source
-/// Licenses page. Menu returns to the lobby (owned by the parent chrome).
+/// About page for the tvOS display, pushed on the lobby's NavigationStack by
+/// the info button. Two QR cards (Privacy / Imprint) link the phone the player
+/// is already holding to the web legal pages, plus a link that drills into the
+/// Open Source Licenses page. Menu pops back to the lobby (the stack's job).
 ///
 /// The game is played on phones, so the long-form legal text stays single-sourced
 /// on the web (not re-rendered natively): the TV only offers a scan target + the
@@ -16,7 +16,6 @@ import SwiftUI
 /// LegalQrCards + the Licenses button) at the original page proportions.
 struct AboutView: View {
     let vp: Vp
-    let onOpenLicenses: () -> Void
 
     var body: some View {
         // Full-viewport metrics with a single title-safe edge margin, matching the
@@ -27,11 +26,15 @@ struct AboutView: View {
         let cardW = min(W * 0.28, 360)
 
         ZStack {
-            // Opaque brand fill: this page replaces the lobby, so nothing shows
-            // through. Only the fill bleeds full-screen — the content stays inside
-            // the title-safe area (real TVs report overscan insets; see
-            // DisplayRootView).
-            UITheme.bgPrimary.ignoresSafeArea()
+            // No opaque fill: this page lives under `case .lobby`, so the
+            // BoardScene's ambient falling pieces keep rendering beneath
+            // (showScreen never fires for a push). The accent vignette mirrors
+            // LobbyView, so the backdrop reads identical across the swap.
+            RadialGradient(colors: [UITheme.accentPrimary.opacity(0.06), .clear],
+                           center: UnitPoint(x: 0.5, y: 0.3),
+                           startRadius: 0,
+                           endRadius: max(W, H) * 0.575)
+                .ignoresSafeArea()
 
             // No on-screen back hint (tvOS HIG): the remote's Back/Menu button
             // navigates back implicitly, and its label differs across remote
@@ -46,10 +49,11 @@ struct AboutView: View {
                     LegalQrCard(label: trUpper("imprint"), url: Self.legalURL("imprint"), width: cardW)
                 }
                 // Uppercased for parity with web `.btn { text-transform: uppercase }`
-                // (styling, not new copy). The only focusable element on the page.
-                ChromeButton(text: trUpper("licenses_title"), primary: false,
-                             tint: UITheme.accentPrimary, height: vp.actionButtonH,
-                             action: onOpenLicenses)
+                // (styling, not new copy). The only focusable element on the page,
+                // so the stack seats focus here on push.
+                ChromeLink(text: trUpper("licenses_title"), primary: false,
+                           tint: UITheme.accentPrimary, height: vp.actionButtonH,
+                           value: AboutRoute.licenses)
             }
             .padding(.horizontal, W * 0.05)
 
@@ -101,17 +105,13 @@ private struct LegalQrCard: View {
                         color: UITheme.textPrimary(), tracking: 0.12)
                 .lineLimit(1)
 
-            ZStack {
-                RoundedRectangle(cornerRadius: w * 0.05).fill(Color.white)
-                if let qr = QRCode.image(for: url) {
-                    Image(uiImage: qr)
-                        .resizable()
-                        .interpolation(.none)   // nearest-neighbor: crisp QR modules
-                        .scaledToFit()
-                        .padding(qrSide * 0.04)
-                }
-            }
-            .aspectRatio(1, contentMode: .fit)
+            // ONE baked bitmap for the white panel + modules (QRCode.cardImage,
+            // same as the lobby card): composed as Shape + Image they fade as
+            // separate layers through the page's push/pop cross-fade, and the
+            // two white rectangles visibly overlapped mid-transition.
+            Image(uiImage: QRCode.cardImage(for: url, side: qrSide,
+                                            cornerRadius: w * 0.05,
+                                            padding: qrSide * 0.04))
 
             // Auto-shrink rather than clip: the URL is the human-readable fallback for
             // the QR, so a truncated path is useless.

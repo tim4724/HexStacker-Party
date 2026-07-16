@@ -28,6 +28,7 @@ final class BoardScene: SKScene {
     private var currentGridRows = 1           // board-grid rows, for the timer size (web cachedGridRows)
     private var lastBoardIds: [Int] = []      // the player-id set the boards were built for
     private var lastTime: TimeInterval = 0
+    private var requestedScreen: DisplayScreen = .lobby  // last showScreen(), may predate didMove
     // The last rendered snapshot, replayed after a size/inset change. A frozen
     // gallery shot renders exactly once, and the tvOS safe-area insets can land
     // an instant AFTER that render; without the replay the boards would keep
@@ -67,14 +68,20 @@ final class BoardScene: SKScene {
         addChild(lobbyBg)
 
         addChild(gameLayer)
-        // Boot in LOBBY mode explicitly: isHidden defaults to false, and the
-        // app's first showScreen(.lobby) is swallowed by the same-screen guard
-        // (UiModel also boots on .lobby), so this layer stayed visible from
-        // birth — the pre-game snapshot then flashed bare boards behind the
-        // lobby chrome the instant a match started, until the countdown scrim
-        // caught up. Alpha 0 to match: fadeIn animates from the current alpha.
-        gameLayer.isHidden = true
-        gameLayer.alpha = 0
+        // Boot in the mode showScreen last asked for, NOT unconditionally LOBBY.
+        // Booting LOBBY is right when nothing has asked yet: isHidden defaults to
+        // false, and the app's first showScreen(.lobby) is swallowed by the
+        // same-screen guard (UiModel also boots on .lobby), so this layer stayed
+        // visible from birth and the pre-game snapshot flashed bare boards behind
+        // the lobby chrome the instant a match started. But showScreen can also
+        // land BEFORE the scene is presented (HEXSHOT renders a frozen game state
+        // during start-up), and then it saw the defaults, decided the layer was
+        // already visible, and scheduled no fadeIn, so forcing hidden here
+        // stranded it hidden forever and every game shot came out empty.
+        // Alpha follows: fadeIn animates from the current alpha.
+        let lobbyMode = requestedScreen == .lobby
+        gameLayer.isHidden = lobbyMode
+        gameLayer.alpha = lobbyMode ? 0 : 1
         timerNode.zPosition = 20
         timerNode.isHidden = true
         gameLayer.addChild(timerNode)
@@ -117,16 +124,18 @@ final class BoardScene: SKScene {
     /// Entering GAME starts a fresh match, so force a board rebuild even if
     /// the new roster happens to match the previous one's id set.
     func showScreen(_ screen: DisplayScreen) {
+        requestedScreen = screen
         lobbyBg.removeAllActions()
         gameLayer.removeAllActions()
+        let d = DisplayModel.fadeDuration
         if screen == .lobby {
             if lobbyBg.isHidden { lobbyBg.alpha = 0; lobbyBg.isHidden = false }
-            lobbyBg.run(.fadeIn(withDuration: 0.18))
-            gameLayer.run(.sequence([.fadeOut(withDuration: 0.18), .hide()]))
+            lobbyBg.run(.fadeIn(withDuration: d))
+            gameLayer.run(.sequence([.fadeOut(withDuration: d), .hide()]))
         } else {
             if gameLayer.isHidden { gameLayer.alpha = 0; gameLayer.isHidden = false }
-            if gameLayer.alpha < 1 { gameLayer.run(.fadeIn(withDuration: 0.3)) }
-            lobbyBg.run(.sequence([.fadeOut(withDuration: 0.3), .hide()]))
+            if gameLayer.alpha < 1 { gameLayer.run(.fadeIn(withDuration: d)) }
+            lobbyBg.run(.sequence([.fadeOut(withDuration: d), .hide()]))
         }
         if screen == .game { lastBoardIds = []; timerNode.isHidden = true }
     }
