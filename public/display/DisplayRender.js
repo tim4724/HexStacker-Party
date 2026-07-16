@@ -160,9 +160,11 @@ function renderLoop(timestamp) {
   // near-clear pulse) animate against the clock, so any of them being active
   // forces a paint; the near-clear check reads the renderers' cached cells
   // from the previous paint, which stay valid while gridVersion is unchanged.
-  // window.__TEST__ (e2e/gallery/adclip) disables skipping so captures see
-  // every frame.
-  var mustAnimate = hasAnimations || hasGarbageEffects || !!window.__TEST__;
+  // window.__TEST__ (e2e/gallery) disables skipping because harness helpers
+  // like _extraGhosts inject render inputs the signature doesn't track.
+  // Adclip captures keep the skip (see the adclip flag in DisplayTestHarness).
+  var mustAnimate = hasAnimations || hasGarbageEffects ||
+    !!(window.__TEST__ && !window.__TEST__.adclip);
   if (!mustAnimate && gameState && gameState.players) {
     for (var mi = 0; mi < gameState.players.length; mi++) {
       var mp = gameState.players[mi];
