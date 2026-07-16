@@ -5,12 +5,11 @@
 # with all assets referenced via relative paths.
 #
 # All JS ships as ONE content-hashed esbuild bundle per app (the AC variants
-# from scripts/build.js — web load order minus AC-dead modules, plus the AC
+# from scripts/build.js: web load order minus AC-dead modules, plus the AC
 # bootstrap), and the CSS as the same bundles the web serves. One tag per app
-# means a load is atomic: a flaky fetch on the AC CDN can no longer half-load
-# the app and cascade into ReferenceErrors (uploads up to 4.4.4 shipped ~25
-# individual <script> tags and did exactly that). The bundles are already
-# minified and es2017-lowered, so the old per-file transpile step is gone too.
+# keeps a load atomic: a flaky fetch on the AC CDN would otherwise half-load the
+# app and cascade into ReferenceErrors. The bundles are already minified and
+# es2017-lowered, so no separate transpile step is needed.
 
 set -e
 
@@ -60,7 +59,7 @@ cp "$PROJECT_DIR/public/controller/$CTRL_CSS" "$BUILD_DIR/controller/"
 cp "$PROJECT_DIR/public/display/$DISP_CSS" "$BUILD_DIR/display/"
 
 # AirConsole entry points at the zip root: expand the AC markers to relative
-# bundle tags and bake the version (replaces the old sed pass).
+# bundle tags and bake the version.
 node "$SCRIPT_DIR/finalize-airconsole-html.js" "$BUILD_DIR"
 
 # Remove standalone-only entry points and the duplicate AC HTML from subdirs
