@@ -51,11 +51,16 @@ html, body {
    sits inside .phone__screen so we don't have to layer the bezel art. */
 .phone {
   position: relative;
-  background: #1a1530;
+  /* Bezel sits well below bg-primary and carries a warm rim, same
+     treatment as banner.html: the A2 pass put the controller chrome on
+     bg-primary (same plum as the stage), so the silhouette needs its own
+     contrast to read as a device. Ring is 3px (vs the banner's 2px)
+     because these phones render ~1.7× wider. */
+  background: #120e1b;
   border-radius: 28px;
   padding: 10px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6),
-              inset 0 0 0 2px rgba(255, 255, 255, 0.06);
+              inset 0 0 0 3px rgba(255, 248, 236, 0.22);
   /* Slightly springy ease (overshoot a hair) so the phone "lands" instead
      of just sliding to a stop — matches the player-card .slotPopIn beat
      in the display lobby. Duration tightened to 480ms so the player card

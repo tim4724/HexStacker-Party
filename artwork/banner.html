@@ -36,8 +36,12 @@
       transform: scale(var(--phone-scale, 1.1));
       transform-origin: bottom left;
       border-radius: 18px;
-      background: #1a1420;
-      border: 1px solid rgba(255,255,255,0.08);
+      /* Bezel sits well below bg-primary and carries a warm rim: since the
+         A2 pass put the controller chrome on bg-primary (same plum as the
+         banner backdrop), the silhouette needs its own contrast to read
+         as a device instead of dissolving into the scene. */
+      background: #120e1b;
+      border: 2px solid rgba(255, 248, 236, 0.22);
       padding: 3px;
       box-shadow: 0 0 24px rgba(0, 0, 0, 0.65);
       z-index: 10;
@@ -61,10 +65,10 @@
       height: 100%;
       border-radius: 15px;
       overflow: hidden;
-      /* Matches #game-top-bar background in controller.css so the 14px
-         status-bar gap flows into the controller screenshot below without
-         a visible seam. */
-      background: var(--bg-board);
+      /* Matches #game-top-bar background in controller.css (bg-primary
+         since the A2 in-game pass) so the 14px status-bar gap flows into
+         the controller screenshot below without a visible seam. */
+      background: var(--bg-primary);
       padding-top: 14px;
     }
 
