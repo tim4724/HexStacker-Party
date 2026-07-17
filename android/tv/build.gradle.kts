@@ -38,22 +38,40 @@ aboutLibraries {
     }
 }
 
-// Sync the canonical engine bundle (dist/partycore.js, the HexCore iife produced
-// by `npm run build` at the repo root) into the app's assets at build time, so
-// the app loads the EXACT same engine artifact the web/tests use. Git-ignored,
-// regenerated, cannot drift — the Gradle analog of appletv/scripts/sync-engine.sh.
+// The canonical engine bundle (dist/partycore.js, the HexCore iife) is the EXACT
+// same JS artifact the web/tests use. It is git-ignored and built from the JS
+// sources, so it cannot drift; the app bundles it into assets and loads it in
+// QuickJS at runtime.
 val engineBundleAssets = layout.buildDirectory.dir("generated/engineAssets")
+val repoRoot = rootProject.layout.projectDirectory.dir("..")
+val engineBundle = repoRoot.file("dist/partycore.js")
+
+// Regenerate the bundle from source at build time, the Gradle analog of the Xcode
+// "Sync engine JS" pre-build phase (appletv/scripts/sync-engine.sh): a fresh clone
+// builds and runs the APK with no manual `npm run build` first, and the bundle can
+// never be stale. Bootstraps node_modules on first build, then runs the same
+// `npm run build:core` the web/tvOS/CI paths use. Declared inputs/outputs let
+// Gradle skip this when no engine source changed.
+val buildEngineBundle by tasks.registering(Exec::class) {
+    workingDir = repoRoot.asFile
+    // Gradle launched from Android Studio inherits a minimal PATH (as Xcode's build
+    // phase does); prepend the usual node homes so npm resolves. No-op in a normal
+    // shell or on CI, where node is already on PATH.
+    environment("PATH", "/opt/homebrew/bin:/usr/local/bin:" + (System.getenv("PATH") ?: ""))
+    commandLine(
+        "bash", "-c",
+        "[ -d node_modules/esbuild ] || npm ci; npm run --silent build:core",
+    )
+    // The core bundle's module graph is server/*.js + partyplug/RoomFlow.js, driven
+    // by scripts/build.js — any change there must rebuild it (see server/core-entry.js).
+    inputs.dir(repoRoot.dir("server")).withPropertyName("engineSources")
+    inputs.file(repoRoot.file("partyplug/RoomFlow.js")).withPropertyName("roomFlow")
+    inputs.file(repoRoot.file("scripts/build.js")).withPropertyName("buildScript")
+    outputs.file(engineBundle)
+}
 val syncEngineBundle by tasks.registering(Copy::class) {
-    val bundle = rootProject.layout.projectDirectory.file("../dist/partycore.js")
-    from(bundle)
+    from(buildEngineBundle)
     into(engineBundleAssets)
-    doFirst {
-        if (!bundle.asFile.exists()) {
-            throw GradleException(
-                "Missing ${bundle.asFile}. Run `npm run build` at the repo root first.",
-            )
-        }
-    }
 }
 
 // Release signing is driven by a gitignored `android/keystore.properties` (see
