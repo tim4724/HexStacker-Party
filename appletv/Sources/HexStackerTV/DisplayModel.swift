@@ -183,7 +183,8 @@ final class DisplayModel: ObservableObject {
                 self.state.connection = .closed
             }
         }
-        // Live "Attempt N of M" on the reconnect overlay (web parity).
+        // Live "Attempt N of M" on the reconnect overlay (web parity;
+        // 0 = the heartbeat path's unnumbered immediate retry, status hidden).
         relay.onReconnecting = { [weak self] attempt, max in
             self?.state.reconnectAttempt = attempt
             self?.state.reconnectMax = max

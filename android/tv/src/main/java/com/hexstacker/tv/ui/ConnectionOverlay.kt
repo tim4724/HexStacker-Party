@@ -35,7 +35,7 @@ fun ConnectionOverlay(
     onReconnect: () -> Unit = {},
     showReconnect: Boolean = true,
     // Current retry / max, shown as "Attempt N of M" while reconnecting (web parity).
-    // Every RECONNECTING emission carries an attempt >= 1.
+    // 0 = the heartbeat path's unnumbered immediate retry (status line hidden).
     attempt: Int = 0,
     maxAttempts: Int = 0,
     // Host tint for the RECONNECT CTA (web: #reconnect-btn reads --player-color).
