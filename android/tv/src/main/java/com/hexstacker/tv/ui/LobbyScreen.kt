@@ -78,6 +78,9 @@ fun LobbyScreen(
     // About screen (Privacy / Imprint QR + Open Source Licenses); null keeps it a
     // plain, non-focusable glyph (previews / screenshot fixtures with no navigation).
     onOpenAbout: (() -> Unit)? = null,
+    // Freezes the join line on the scan hint for a static screenshot (the live
+    // crossfade never advances in a captured frame); production leaves it false.
+    scanHint: Boolean = false,
 ) {
     val startFocus = remember { FocusRequester() }
     val generatedQr by rememberLobbyQrBitmap(data.joinUrl) // called unconditionally (Compose rule)
@@ -175,6 +178,7 @@ fun LobbyScreen(
                             // The stale-room pending dim covers the code too (the
                             // line is what could mislead), matching the QR.
                             modifier = Modifier.alpha(dimAlpha),
+                            startOnHint = scanHint,
                         )
                     }
                 }

@@ -161,6 +161,9 @@ class ComposeScreenshotTest {
                     // Inject a deterministic QR so the shot never races the async generator.
                     // Modules-only like the production rememberQrBitmap render.
                     qrOverride = QrRenderer.render(join.qrText, 480, light = 0x00000000), // crisp at 1080p
+                    // Freeze the join line on the scan hint (web hint=1 / tvOS shotMode
+                    // parity): the live crossfade never advances in a single captured frame.
+                    scanHint = true,
                 )
             }
         }

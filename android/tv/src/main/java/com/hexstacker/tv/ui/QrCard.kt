@@ -93,12 +93,16 @@ fun JoinLine(
     joinCode: String,
     vp: Vp,
     modifier: Modifier = Modifier,
+    // Freezes the crossfade on the scan hint for a static screenshot: the live
+    // 4.5s beat never advances in a captured frame, so a shot would otherwise
+    // always catch the URL phase (web parity: DisplayTestHarness `hint=1`).
+    startOnHint: Boolean = false,
 ) {
     // Shared HUD face + size for URL and hint so the crossfade reads as one
     // line changing content (web clamp(1.05rem,2.2vmin,1.5rem), px/1.5 → sp).
     val lineSize = vp.vminSp(11.2f, 2.2f, 16f)
 
-    var showHint by remember { mutableStateOf(false) }
+    var showHint by remember { mutableStateOf(startOnHint) }
     LaunchedEffect(Unit) {
         while (true) {
             delay(4500)

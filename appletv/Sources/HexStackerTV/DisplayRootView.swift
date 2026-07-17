@@ -78,6 +78,7 @@ struct DisplayChromeView: View {
                         LobbyView(data: ui.lobby ?? LobbyData(),
                                   qrPending: ui.qrPending,
                                   vp: vp,
+                                  shotMode: model.shotMode,
                                   onStart: { model.startMatch() })
                             .navigationDestination(for: AboutRoute.self) { route in
                                 switch route {

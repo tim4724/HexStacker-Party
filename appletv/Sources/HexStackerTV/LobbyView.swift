@@ -13,6 +13,9 @@ struct LobbyView: View {
     let qrPending: Bool
     let vp: Vp
     let onStart: () -> Void
+    // Frozen-capture mode: the join line freezes on the scan hint instead of
+    // the URL (the live crossfade never advances in a static shot).
+    let shotMode: Bool
 
     private enum Field { case start, info }
     @FocusState private var focus: Field?
@@ -23,10 +26,11 @@ struct LobbyView: View {
     // onAppear) already knows the entry roster.
     @State private var seenPeers: Set<Int>
 
-    init(data: LobbyData, qrPending: Bool, vp: Vp, onStart: @escaping () -> Void) {
+    init(data: LobbyData, qrPending: Bool, vp: Vp, shotMode: Bool = false, onStart: @escaping () -> Void) {
         self.data = data
         self.qrPending = qrPending
         self.vp = vp
+        self.shotMode = shotMode
         self.onStart = onStart
         _seenPeers = State(initialValue: Set(data.players.map { $0.peerIndex }))
     }
@@ -143,7 +147,7 @@ struct LobbyView: View {
                     }
                 }
             }
-            JoinLineView(joinURL: data.joinURL, fontSize: m.joinSize)
+            JoinLineView(joinURL: data.joinURL, fontSize: m.joinSize, startOnHint: shotMode)
                 .frame(height: m.joinLineH)
         }
         // Stale-room pending dim covers the QR and the join line as one group
@@ -466,8 +470,18 @@ struct JoinLineView: View {
     let joinURL: String
     let fontSize: CGFloat
 
-    @State private var showHint = false
+    @State private var showHint: Bool
     private let beat = Timer.publish(every: 4.5, on: .main, in: .common).autoconnect()
+
+    /// `startOnHint` freezes the crossfade on the scan hint for gallery/shot
+    /// captures: the live 4.5s beat never fires in a static frame, so a shot
+    /// would otherwise always catch the URL phase (web parity: DisplayTestHarness
+    /// `hint=1`). Production starts on the URL so the address is actionable first.
+    init(joinURL: String, fontSize: CGFloat, startOnHint: Bool = false) {
+        self.joinURL = joinURL
+        self.fontSize = fontSize
+        _showHint = State(initialValue: startOnHint)
+    }
 
     var body: some View {
         let (host, code) = Self.splitJoinURL(joinURL)

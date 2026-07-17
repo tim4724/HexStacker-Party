@@ -4,35 +4,35 @@
     {
       "key": "lobby",
       "title": "Lobby (4 players)",
-      "web": { "scenario": "lobby", "players": 4, "params": { "host": 0 } },
+      "web": { "scenario": "lobby", "players": 4, "params": { "host": 0, "hint": 1 } },
       "tvos": { "shot": "lobby", "players": 4 },
       "android": { "file": "lobby" }
     },
     {
       "key": "lobby-2p",
       "title": "Lobby (2 players + empty slots)",
-      "web": { "scenario": "lobby", "players": 2, "params": { "host": 0 } },
+      "web": { "scenario": "lobby", "players": 2, "params": { "host": 0, "hint": 1 } },
       "tvos": { "shot": "lobby", "players": 2 },
       "android": { "file": "lobby_2p" }
     },
     {
       "key": "lobby-8p",
       "title": "Lobby (8 players)",
-      "web": { "scenario": "lobby", "players": 8, "params": { "host": 0 } },
+      "web": { "scenario": "lobby", "players": 8, "params": { "host": 0, "hint": 1 } },
       "tvos": { "shot": "lobby", "players": 8 },
       "android": { "file": "lobby_8p" }
     },
     {
       "key": "lobby-long-names",
       "title": "Lobby (16-char names)",
-      "web": { "scenario": "lobby", "players": 4, "params": { "host": 0, "names": "long" } },
+      "web": { "scenario": "lobby", "players": 4, "params": { "host": 0, "names": "long", "hint": 1 } },
       "tvos": { "shot": "lobby-long", "players": 4 },
       "android": { "file": "lobby_long_names" }
     },
     {
       "key": "lobby-empty",
       "title": "Lobby (waiting)",
-      "web": { "scenario": "lobby", "players": 0 },
+      "web": { "scenario": "lobby", "players": 0, "params": { "hint": 1 } },
       "tvos": { "shot": "lobby-empty", "players": 0 },
       "android": { "file": "lobby_waiting" }
     },
