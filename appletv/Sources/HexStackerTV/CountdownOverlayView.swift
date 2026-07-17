@@ -45,13 +45,14 @@ private struct PopNumber: View {
     // animator plays the keyframes ONCE. The trigger-less overload defaults to
     // repeating and would snap 1.0 → 0.7 at every 0.98s loop restart.
     @State private var began = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let label = Text(text)
             .styled(font: AppFont.black, size: size,
                     color: UITheme.accentPrimary, tracking: 0.05)
-        if paused {
-            label   // paused / frozen shot: no motion, full scale
+        if paused || reduceMotion {
+            label   // paused / frozen shot / Reduce Motion: no motion, full scale
         } else {
             label.keyframeAnimator(initialValue: CGFloat(0.7), trigger: began) { view, scale in
                 view.scaleEffect(scale)

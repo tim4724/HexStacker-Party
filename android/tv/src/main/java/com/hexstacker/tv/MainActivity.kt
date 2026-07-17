@@ -20,6 +20,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,7 +57,9 @@ import com.hexstacker.tv.ui.LobbyBackground
 import com.hexstacker.tv.ui.LobbyData
 import com.hexstacker.tv.ui.LobbyPlayer
 import com.hexstacker.tv.ui.LobbyScreen
+import com.hexstacker.tv.ui.LocalReduceMotion
 import com.hexstacker.tv.ui.Tokens
+import com.hexstacker.tv.ui.systemAnimationsRemoved
 import com.hexstacker.tv.ui.rememberLicenseEntries
 import com.hexstacker.tv.ui.PauseOverlay
 import com.hexstacker.tv.ui.ResultCard
@@ -97,6 +100,10 @@ class MainActivity : ComponentActivity() {
     // read + bundle compile; engineFactory awaits the SAME deferred, so a START that
     // beats the warm-up just joins it instead of racing a second engine into being.
     private var engineDeferred: Deferred<EngineBridge>? = null
+
+    // The system "Remove animations" accessibility state, feeding LocalReduceMotion.
+    // Compose state so a toggle picked up on resume recomposes the chrome.
+    private var reduceMotion by mutableStateOf(false)
 
     /** Get-or-start the engine creation. Main-thread only (no lock needed: the
      *  warm-up launcher and the coordinator's engineFactory both run on Main). */
@@ -157,20 +164,23 @@ class MainActivity : ComponentActivity() {
             dispatcher = kotlinx.coroutines.Dispatchers.Main,
         )
 
+        reduceMotion = systemAnimationsRemoved(this)
         setContent {
             val model by ui.state.collectAsStateWithLifecycle()
-            HexStackerApp(
-                board = board,
-                model = model,
-                onStart = { coordinator.remoteStartMatch() },
-                onPlayAgain = { coordinator.remoteStartMatch() },
-                onNewGame = { coordinator.remoteReturnToLobby() },
-                onContinue = { lifecycleScope.launch { coordinator.remoteTogglePause() } },
-                // The coordinator's TOGGLE_MUTE drives output.setMuted (music + UI),
-                // so the overlay switch just needs to trigger it.
-                onToggleMusic = { lifecycleScope.launch { coordinator.remoteToggleMute() } },
-                onReconnect = { relay.reconnect() },
-            )
+            CompositionLocalProvider(LocalReduceMotion provides reduceMotion) {
+                HexStackerApp(
+                    board = board,
+                    model = model,
+                    onStart = { coordinator.remoteStartMatch() },
+                    onPlayAgain = { coordinator.remoteStartMatch() },
+                    onNewGame = { coordinator.remoteReturnToLobby() },
+                    onContinue = { lifecycleScope.launch { coordinator.remoteTogglePause() } },
+                    // The coordinator's TOGGLE_MUTE drives output.setMuted (music + UI),
+                    // so the overlay switch just needs to trigger it.
+                    onToggleMusic = { lifecycleScope.launch { coordinator.remoteToggleMute() } },
+                    onReconnect = { relay.reconnect() },
+                )
+            }
         }
 
         coordinator.start()
@@ -250,6 +260,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // The accessibility "Remove animations" toggle lives outside the app;
+        // re-read it on every return to the foreground.
+        reduceMotion = systemAnimationsRemoved(this)
         // Transient pause (no onStop): the socket never suspended and the room is
         // unchanged, so lift onPause's precautionary dim — unless the link is
         // genuinely down, where roomReady clears it after the reconnect instead.

@@ -18,6 +18,8 @@ struct MusicSwitchView: View {
     var focusedForShot: Bool = false
     let onToggle: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         Button(action: onToggle) { pair }
             .buttonStyle(MusicSwitchStyle(rowHeight: rowHeight, focusedForShot: focusedForShot))
@@ -43,8 +45,9 @@ struct MusicSwitchView: View {
                     .fill(Color.white)
                     .frame(width: knobD, height: knobD)
                     .offset(x: isOn ? trackW - margin - knobD : margin)
-                    // Brief slide on toggle (Android animateDpAsState parity).
-                    .animation(.easeInOut(duration: 0.15), value: isOn)
+                    // Brief slide on toggle (Android animateDpAsState parity);
+                    // Reduce Motion snaps the thumb.
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isOn)
             }
         }
     }
@@ -60,6 +63,7 @@ private struct MusicSwitchStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         let focused = isFocused || focusedForShot
+        let pressed = configuration.isPressed
         return configuration.label
             .padding(.horizontal, rowHeight * 0.5)   // Android: frame side padding 0.5×rowHeight
             .frame(height: rowHeight)
@@ -69,7 +73,10 @@ private struct MusicSwitchStyle: ButtonStyle {
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(focused ? Color.white : .clear, lineWidth: 4)
             )
-            .scaleEffect(focused ? 1.03 : 1.0)
-            .animation(.easeOut(duration: 0.15), value: focused)
+            // Press sinks the row back to rest size (the ChromeButton press
+            // treatment; web .btn:active).
+            .scaleEffect(pressed ? 1.0 : (focused ? 1.03 : 1.0))
+            .animation(PressFeel.focus, value: focused)
+            .animation(PressFeel.press, value: pressed)
     }
 }

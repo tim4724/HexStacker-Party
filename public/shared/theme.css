@@ -137,10 +137,13 @@
 
 /* .press-sim: harness-only alias of :active — synthetic clicks can't trigger
    the real pseudo-class, so the gallery transition tour toggles this class to
-   show the pressed state before firing each step. Never set by product code. */
+   show the pressed state before firing each step. Never set by product code.
+   Press = sink: the button compresses and its shadow drops, the same
+   treatment as the tvOS/Android TV ChromeButton (scale 1.06 focused → 1.0
+   pressed, a ~5% dip). */
 .btn-primary:active,
 .btn-primary.press-sim {
-  transform: translateY(1px);
+  transform: scale(0.95);
   box-shadow: none;
 }
 
@@ -193,7 +196,7 @@
 
 .btn-secondary:active,
 .btn-secondary.press-sim {
-  transform: translateY(1px);
+  transform: scale(0.95);
   box-shadow: none;
 }
 
@@ -249,10 +252,11 @@
   }
 }
 
-/* Pressed = deeper recess (darker translucent fill), not a lighter wash. */
+/* Pressed = deeper recess (darker translucent fill), not a lighter wash,
+   plus the shared press sink (see .btn-primary:active). */
 .icon-btn:active {
   background: rgba(21, 18, 31, 0.7);
-  transform: translateY(1px);
+  transform: scale(0.95);
 }
 
 /* Icons scale with the circle — the inline SVG width/height attributes

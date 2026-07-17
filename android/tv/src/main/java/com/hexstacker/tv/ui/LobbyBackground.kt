@@ -70,11 +70,19 @@ fun LobbyBackground(
     // Keyed on size + active: the loop cancels and restarts when either changes,
     // so flipping `active` false stops the animation (mirror tvOS lobby gating).
     // A frozen fixture skips the loop outright — the shot must not race an animation.
-    LaunchedEffect(size, active, fixedPieces != null) {
+    val reduceMotion = LocalReduceMotion.current
+    LaunchedEffect(size, active, fixedPieces != null, reduceMotion) {
         if (fixedPieces != null || size == IntSize.Zero || !active) return@LaunchedEffect
         // Simulate in the reference space (drawFallingPiece scales to the canvas);
         // raw canvas px would halve the apparent piece size/speed on 4K surfaces.
         field.resize(REF_W, REF_W * size.height / size.width)
+        // Reduce Motion parks the drift: the pool stays grid-seeded across the
+        // screen, so the lobby keeps its scattered piece backdrop as a still,
+        // like the frozen gallery fixture (tvOS BoardScene parity).
+        if (reduceMotion) {
+            tick.value++ // one invalidation to paint the seeded static field
+            return@LaunchedEffect
+        }
         var last = 0L
         while (isActive) {
             val now = withFrameNanos { it }

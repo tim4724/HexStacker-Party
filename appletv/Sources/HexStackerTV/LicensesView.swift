@@ -383,18 +383,21 @@ private struct LicenseRowLabel: View {
 /// Borderless raised card (web .result-row: 20px radius, bg-card, --shadow-sm),
 /// the same surface as the lobby player cards and result rows; focus adds the
 /// white ring + 6% wash, minus the scale pop, which reads wrong on a
-/// full-width row.
+/// full-width row. Press sinks the row flat instead: wash and shadow drop
+/// together (web .btn:active's box-shadow: none).
 private struct LicenseRowStyle: ButtonStyle {
     @Environment(\.isFocused) private var focused
 
     func makeBody(configuration: Configuration) -> some View {
         let shape = RoundedRectangle(cornerRadius: 20)
+        let pressed = configuration.isPressed
         return configuration.label
             .background(
                 shape.fill(UITheme.bgCard)
-                    .shadow(color: .black.opacity(0.32), radius: 4, x: 0, y: 2)
+                    .shadow(color: .black.opacity(pressed ? 0 : 0.32), radius: 4, x: 0, y: 2)
             )
-            .overlay(shape.fill(Color.white.opacity(focused ? 0.06 : 0)))
+            .overlay(shape.fill(Color.white.opacity(focused && !pressed ? 0.06 : 0)))
             .overlay(shape.stroke(focused ? Color.white : .clear, lineWidth: 4))
+            .animation(PressFeel.press, value: pressed)
     }
 }

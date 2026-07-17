@@ -83,16 +83,23 @@ fun PlayerCard(
         // slowly (@keyframes breathe: opacity 0.5 → 0.27 → 0.5 over 3.2s
         // ease-in-out). Only the hex breathes; pulsing the whole card read
         // as background flicker once the lobby cards grew (web parity).
-        val breathe = rememberInfiniteTransition(label = "socketBreathe")
-        val hexAlpha by breathe.animateFloat(
-            initialValue = 0.5f,
-            targetValue = 0.27f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1600, easing = LinearOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-            label = "socketBreatheAlpha",
-        )
+        // Reduce Motion holds the hex at its bright value (web: the breathe
+        // keyframes are the one animation theme.css gates behind
+        // prefers-reduced-motion).
+        val hexAlpha = if (LocalReduceMotion.current) {
+            0.5f
+        } else {
+            val breathe = rememberInfiniteTransition(label = "socketBreathe")
+            breathe.animateFloat(
+                initialValue = 0.5f,
+                targetValue = 0.27f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1600, easing = LinearOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse,
+                ),
+                label = "socketBreatheAlpha",
+            ).value
+        }
         Box(
             modifier
                 .width(cardW)

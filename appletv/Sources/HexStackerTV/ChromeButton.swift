@@ -74,6 +74,16 @@ private struct ChromeButtonLabel: View {
     }
 }
 
+/// The shared focus/press animation feel, used by every focusable chrome
+/// control (ChromeButton, the lobby ⓘ, the music switch, the license rows) so
+/// the whole remote UI moves as one.
+enum PressFeel {
+    /// Slightly springy, tracking the system focus engine's own feel.
+    static let focus = Animation.spring(response: 0.28, dampingFraction: 0.75)
+    /// Fast plain ease so the click lands instantly.
+    static let press = Animation.easeOut(duration: 0.1)
+}
+
 private struct ChromeButtonStyle: ButtonStyle {
     let primary: Bool
     let tint: Color
@@ -83,40 +93,61 @@ private struct ChromeButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .modifier(ChromeButtonChrome(primary: primary, tint: tint,
-                                         enabled: enabled, focused: focused))
+                                         enabled: enabled, focused: focused,
+                                         // Disabled pills stay focusable but must not
+                                         // sink (web: no :active on :disabled).
+                                         pressed: configuration.isPressed && enabled))
     }
 }
 
-/// The shared fill + focus ring treatment (web .btn-primary/.btn-secondary A2).
+/// The shared fill + focus/press treatment (web .btn-primary/.btn-secondary A2).
+/// Rest carries the web --shadow-sm; focus lifts (white ring, 1.06 scale, deeper
+/// drop shadow, the tvOS focus convention); press sinks the pill back to rest
+/// size and drops the shadow (web .btn:active translateY(1px) + box-shadow:
+/// none, scaled up to 10-foot visibility).
 private struct ChromeButtonChrome: ViewModifier {
     let primary: Bool
     let tint: Color
     let enabled: Bool
     let focused: Bool
+    let pressed: Bool
 
     func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 16)   // var(--radius-btn)
         content
-            .background(fill)
-            .clipShape(RoundedRectangle(cornerRadius: 16))   // var(--radius-btn)
+            .background(
+                // Shadow on the fill shape, not the composed content: a plain
+                // .shadow after .background would also shadow the label glyphs.
+                shape.fill(fill)
+                    .shadow(color: .black.opacity(shadowAlpha),
+                            radius: focused ? 12 : 4, x: 0, y: focused ? 8 : 2)
+            )
             .overlay(
                 // Both variants are borderless at rest (A2); focus adds the
                 // white ring, on the quiet disabled fill too (the cursor must
                 // stay visible while the pill waits for players).
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(focused ? Color.white : .clear, lineWidth: 4)
+                shape.stroke(focused ? Color.white : .clear, lineWidth: 4)
             )
-            .scaleEffect(focused ? 1.06 : 1.0)
-            .animation(.easeOut(duration: 0.15), value: focused)
+            .scaleEffect(pressed ? 1.0 : (focused ? 1.06 : 1.0))
+            .animation(PressFeel.focus, value: focused)
+            .animation(PressFeel.press, value: pressed)
     }
 
-    @ViewBuilder private var fill: some View {
+    /// web --shadow-sm at rest, grown into the focus lift; gone while pressed
+    /// (web .btn:active) or disabled (web .btn-primary:disabled).
+    private var shadowAlpha: CGFloat {
+        if !enabled || pressed { return 0 }
+        return focused ? 0.4 : 0.32
+    }
+
+    private var fill: AnyShapeStyle {
         if enabled && primary {
-            LinearGradient(colors: [tint, tint.scaled(0.82)],
-                           startPoint: .top, endPoint: .bottom)
+            AnyShapeStyle(LinearGradient(colors: [tint, tint.scaled(0.82)],
+                                         startPoint: .top, endPoint: .bottom))
         } else if enabled {
-            UITheme.bgCardSoft    // web .btn-secondary A2: borderless soft-card fill
+            AnyShapeStyle(UITheme.bgCardSoft)    // web .btn-secondary A2: borderless soft-card fill
         } else {
-            UITheme.bgCard        // web .btn-primary:disabled: quiet card, no tint
+            AnyShapeStyle(UITheme.bgCard)        // web .btn-primary:disabled: quiet card, no tint
         }
     }
 }

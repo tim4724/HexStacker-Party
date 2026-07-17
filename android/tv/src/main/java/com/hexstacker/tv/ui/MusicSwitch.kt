@@ -2,9 +2,15 @@ package com.hexstacker.tv.ui
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -57,7 +63,14 @@ fun MusicSwitch(
     focusedForShot: Boolean = false,
 ) {
     var focused by remember { mutableStateOf(focusedForShot) }
-    val scale by animateFloatAsState(if (focused) 1.03f else 1f, label = "musicSwitchScale")
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    // Press sinks the row back to rest size (the ChromeButton press treatment;
+    // web .btn:active).
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 1f else if (focused) 1.03f else 1f,
+        label = "musicSwitchScale",
+    )
     val shape = RoundedCornerShape(Tokens.radiusMd)
 
     val trackH = rowHeight * 0.46f
@@ -66,6 +79,13 @@ fun MusicSwitch(
     val margin = trackH * (3f / 30f)
     val thumbX by animateDpAsState(
         targetValue = if (isOn) trackW - margin - knobD else margin,
+        // Reduce Motion snaps the thumb (tvOS parity); otherwise the
+        // animateDpAsState default spring.
+        animationSpec = if (LocalReduceMotion.current) {
+            snap()
+        } else {
+            spring(visibilityThreshold = Dp.VisibilityThreshold)
+        },
         label = "musicSwitchThumb",
     )
 
@@ -81,7 +101,8 @@ fun MusicSwitch(
             .onFocusChanged { focused = it.isFocused || focusedForShot }
             // clickable provides the focus target (see ChromeButton): a separate
             // Modifier.focusable would steal D-pad focus from the click handler.
-            .clickable { onToggle() }
+            // The explicit interaction source feeds the press-sink visual above.
+            .clickable(interactionSource = interaction, indication = LocalIndication.current) { onToggle() }
             .padding(horizontal = rowHeight * 0.5f),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(rowHeight * 0.75f),

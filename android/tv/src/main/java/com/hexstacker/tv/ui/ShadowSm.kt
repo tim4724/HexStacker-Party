@@ -14,15 +14,25 @@ import androidx.compose.ui.unit.dp
  * and don't render under Robolectric, so the gallery columns would silently
  * lose them. Apply BEFORE clip() so the blur isn't cut at the card bounds.
  */
-fun Modifier.shadowSm(cornerRadius: Dp): Modifier = drawBehind {
+fun Modifier.shadowSm(cornerRadius: Dp): Modifier =
+    softShadow(cornerRadius, dy = 1.33.dp, blur = 2.67.dp, color = 0x52000000) // web 0 2px 4px @0.32
+
+/**
+ * The focused button's grown shadow (the tvOS-style focus lift, shared with
+ * the Apple TV ChromeButtonChrome): same recipe as [shadowSm], deeper and
+ * softer so the focused pill separates from the backdrop.
+ */
+fun Modifier.shadowLift(cornerRadius: Dp): Modifier =
+    softShadow(cornerRadius, dy = 5.3.dp, blur = 8.dp, color = 0x66000000) // 0 8px 12px @0.4 in web px
+
+private fun Modifier.softShadow(cornerRadius: Dp, dy: Dp, blur: Dp, color: Int): Modifier = drawBehind {
     val r = cornerRadius.toPx()
-    val dy = 1.33.dp.toPx() // web offset-y 2px
-    val blur = 2.67.dp.toPx() // web blur 4px
+    val dyPx = dy.toPx()
     drawIntoCanvas { canvas ->
         val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            color = 0x52000000 // black at 0.32
-            maskFilter = android.graphics.BlurMaskFilter(blur, android.graphics.BlurMaskFilter.Blur.NORMAL)
+            this.color = color
+            maskFilter = android.graphics.BlurMaskFilter(blur.toPx(), android.graphics.BlurMaskFilter.Blur.NORMAL)
         }
-        canvas.nativeCanvas.drawRoundRect(0f, dy, size.width, size.height + dy, r, r, paint)
+        canvas.nativeCanvas.drawRoundRect(0f, dyPx, size.width, size.height + dyPx, r, r, paint)
     }
 }

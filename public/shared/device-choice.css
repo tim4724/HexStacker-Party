@@ -248,7 +248,7 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
   outline: none;
 }
 .device-choice__banner:active {
-  transform: translateY(1px);
+  transform: scale(0.95);
   /* Drop the shadow on press — the button visibly "sits down" (same
      press treatment as .btn-primary:active). */
   box-shadow: none;

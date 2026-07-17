@@ -236,19 +236,26 @@ private struct LobbyMetrics {
 
 /// Fade + slide a view into place (web fadeDown/fadeUp entrance keyframes).
 /// `dy` is the starting offset (negative = starts above and drops).
+/// Reduce Motion renders the view settled: the entrance is decorative, and the
+/// slide + stagger are exactly the class of motion the setting opts out of.
 struct Entrance: ViewModifier {
     let dy: CGFloat
     let delay: Double
     var duration: Double = 0.5
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown = false
 
     func body(content: Content) -> some View {
-        content
-            .opacity(shown ? 1 : 0)
-            .offset(y: shown ? 0 : dy)
-            .onAppear {
-                withAnimation(.easeOut(duration: duration).delay(delay)) { shown = true }
-            }
+        if reduceMotion {
+            content
+        } else {
+            content
+                .opacity(shown ? 1 : 0)
+                .offset(y: shown ? 0 : dy)
+                .onAppear {
+                    withAnimation(.easeOut(duration: duration).delay(delay)) { shown = true }
+                }
+        }
     }
 }
 
@@ -260,6 +267,7 @@ struct PlayerCardView: View {
     let h: CGFloat
     let vp: Vp
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var breatheDim = false
     // Latched at identity creation, NOT read live from the parent: the same
     // roster update that seats a new player also records the peer as seen
@@ -275,7 +283,10 @@ struct PlayerCardView: View {
         self.w = w
         self.h = h
         self.vp = vp
-        _popped = State(initialValue: !pop)
+        // UIAccessibility, not the environment: init runs before environment
+        // installation, and the seeded value must already be settled so the
+        // card never renders a small/clear first frame under Reduce Motion.
+        _popped = State(initialValue: !pop || UIAccessibility.isReduceMotionEnabled)
     }
 
     var body: some View {
@@ -350,7 +361,9 @@ struct PlayerCardView: View {
     /// Empty slot: recessed socket (web .player-card.empty) with a faint hex
     /// opening, breathing slowly (opacity 0.5 → 0.27 → 0.5 over 3.2s). Only
     /// the hex breathes; pulsing the whole card read as background flicker
-    /// once the lobby cards grew.
+    /// once the lobby cards grew. Reduce Motion holds the hex at its bright
+    /// value (web: the breathe keyframes are the one animation theme.css
+    /// gates behind prefers-reduced-motion).
     private var empty: some View {
         let openW = max(28, min(vp.vmin * 0.055, 56))
         let radius = w * 0.057   // scales with the card, see filled()
@@ -365,6 +378,7 @@ struct PlayerCardView: View {
                     .opacity(breatheDim ? 0.27 : 0.5)
             )
             .onAppear {
+                guard !reduceMotion else { return }
                 withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
                     breatheDim = true
                 }
@@ -431,6 +445,14 @@ struct QrBlockView: View {
                 // scoped .animation(value:) (see the band comment below).
                 .opacity(qrText.isEmpty ? 0 : 1)
         }
+        // Flatten the two stacked white cards before ancestor opacity applies:
+        // SwiftUI fades layers INDIVIDUALLY (no group opacity), so through the
+        // screen-exit fade the stack composited to 1-(1-a)^2 (~2a at the tail)
+        // and the bright QR visibly outlived the rest of the lobby; the
+        // qrPending 0.4 dim landed at ~0.64 the same way. The confirm
+        // crossfade above is untouched (children composite first, inside the
+        // group).
+        .compositingGroup()
         .shadow(color: .black.opacity(0.32), radius: 4, x: 0, y: 2)   // --shadow-sm
     }
 }
@@ -510,19 +532,22 @@ struct InfoGlyph: View {
 
 /// The ⓘ button chrome: recessed translucent disc + warm hairline ring (A2
 /// .icon-btn); focus adds the white ring + slight scale, driven by the focus
-/// engine (same treatment as ChromeButtonStyle).
+/// engine (same treatment as ChromeButtonStyle). Press sinks the scale back
+/// and deepens the recess (web .icon-btn:active: rgba(21,18,31,0.7)).
 private struct InfoCircleStyle: ButtonStyle {
     let diameter: CGFloat
     @Environment(\.isFocused) private var focused
 
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
+        let pressed = configuration.isPressed
+        return configuration.label
             .frame(width: diameter, height: diameter)
-            .background(Circle().fill(UITheme.socket(0.4)))
+            .background(Circle().fill(UITheme.socket(pressed ? 0.7 : 0.4)))
             .overlay(Circle().stroke(focused ? Color.white : UITheme.hairline(0.12),
                                      lineWidth: focused ? 4 : 1))
-            .scaleEffect(focused ? 1.06 : 1.0)
-            .animation(.easeOut(duration: 0.15), value: focused)
+            .scaleEffect(pressed ? 1.0 : (focused ? 1.06 : 1.0))
+            .animation(PressFeel.focus, value: focused)
+            .animation(PressFeel.press, value: pressed)
     }
 }
 

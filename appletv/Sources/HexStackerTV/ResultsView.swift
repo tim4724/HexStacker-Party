@@ -23,7 +23,9 @@ struct ResultsView: View {
     @FocusState private var focus: Field?
 
     /// Buttons fade in with the list (web .result-actions), matching the 0.4s row
-    /// stagger duration with no per-row delay.
+    /// stagger duration with no per-row delay. Reduce Motion shows them settled
+    /// (web results.css forces this gate open under prefers-reduced-motion).
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var buttonsShown = false
 
     /// Winner glow color: the lowest-rank player's identity color at 0.08 (web
@@ -130,7 +132,7 @@ struct ResultsView: View {
                                  width: btnW, height: btnH, action: onNewGame)
                         .focused($focus, equals: .newGame)
                 }
-                .opacity(buttonsShown ? 1 : 0)
+                .opacity(reduceMotion || buttonsShown ? 1 : 0)
                 .defaultFocus($focus, .playAgain)
             }
         }
@@ -161,6 +163,8 @@ private struct ResultRow: View {
     let vp: Vp
 
     /// Stagger entrance: fade + 10pt upward drift, delay 0.2 + 0.08*index s.
+    /// Reduce Motion renders the row settled (decorative entrance).
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown = false
 
     private var playerColor: Color? { res.colorIndex.map { UITheme.player(slot: $0) } }
@@ -194,8 +198,8 @@ private struct ResultRow: View {
         .padding(.trailing, padR)
         .frame(width: rowW, height: rowH)
         .background(card)
-        .opacity(shown ? baseOpacity : 0)
-        .offset(y: shown ? 0 : 10)
+        .opacity(reduceMotion || shown ? baseOpacity : 0)
+        .offset(y: reduceMotion || shown ? 0 : 10)
         .onAppear {
             withAnimation(.easeOut(duration: 0.4).delay(0.2 + 0.08 * Double(index))) { shown = true }
         }

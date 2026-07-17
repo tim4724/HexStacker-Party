@@ -112,7 +112,10 @@ final class BoardScene: SKScene {
         let deltaMs = lastTime == 0 ? 0 : (currentTime - lastTime) * 1000.0
         lastTime = currentTime
         if let insets = view?.safeAreaInsets, insets != safe { safe = insets; applySize() }
-        if !lobbyBg.isHidden {
+        // Reduce Motion parks the ambient drift: the pool stays seeded across
+        // the screen (buildRandomPool), so the lobby keeps its scattered piece
+        // backdrop as a still, like the frozen gallery fixture.
+        if !lobbyBg.isHidden && !UIAccessibility.isReduceMotionEnabled {
             lobbyBg.tick(dt: CGFloat(min(deltaMs, 50.0) / 1000.0))
         }
         onTick?(deltaMs)

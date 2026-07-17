@@ -1,9 +1,12 @@
 package com.hexstacker.tv.ui
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -197,18 +200,23 @@ private fun LicenseRow(
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
     val shape = RoundedCornerShape(Tokens.radiusCard)
 
     Row(
         modifier
             .fillMaxWidth()
-            .shadowSm(Tokens.radiusCard)
+            // Press sinks the full-width row flat instead of the pill scale
+            // dip (which reads wrong at this width): wash and shadow drop
+            // together (web .btn:active box-shadow: none; tvOS LicenseRowStyle).
+            .then(if (pressed) Modifier else Modifier.shadowSm(Tokens.radiusCard))
             .clip(shape)
             .background(Tokens.bgCard, shape)
-            .then(if (focused) Modifier.background(Tokens.white.copy(alpha = 0.06f), shape) else Modifier)
+            .then(if (focused && !pressed) Modifier.background(Tokens.white.copy(alpha = 0.06f), shape) else Modifier)
             .then(if (focused) Modifier.border(4.dp, Tokens.white, shape) else Modifier)
             .onFocusChanged { focused = it.isFocused }
-            .clickable { onOpen() }
+            .clickable(interactionSource = interaction, indication = LocalIndication.current) { onOpen() }
             .padding(
                 horizontal = vp.vwDp(20f, 2f, 26f),
                 vertical = vp.vwDp(12f, 1.45f, 19f),

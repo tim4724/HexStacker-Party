@@ -102,9 +102,11 @@ fun ResultsScreen(
     LaunchedEffect(Unit) { playAgainFocus.requestFocus() }
 
     // Buttons fade in with the list (web .result-actions fade, matching the 0.4s
-    // row stagger duration; no per-row delay).
-    val buttonsEnter = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { buttonsEnter.animateTo(1f, tween(400)) }
+    // row stagger duration; no per-row delay). Reduce Motion shows them settled
+    // (web results.css forces this gate open under prefers-reduced-motion).
+    val reduceMotion = LocalReduceMotion.current
+    val buttonsEnter = remember { Animatable(if (reduceMotion) 1f else 0f) }
+    if (!reduceMotion) LaunchedEffect(Unit) { buttonsEnter.animateTo(1f, tween(400)) }
 
     BoxWithConstraints(
         modifier
@@ -209,9 +211,11 @@ private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, vp: Vp) {
     val statsStyle = AppType.resultStats.copy(fontFamily = FontFamily.Default, fontWeight = FontWeight.Medium)
     val gap = 13.3.dp // .result-row gap 1.25rem = 20px (web-px/1.5)
 
-    // Stagger entrance: fade + slide up, delay 0.2 + i*0.08 s.
-    val enter = remember(index) { Animatable(0f) }
-    LaunchedEffect(index) {
+    // Stagger entrance: fade + slide up, delay 0.2 + i*0.08 s. Reduce Motion
+    // renders the row settled (decorative entrance).
+    val reduceMotion = LocalReduceMotion.current
+    val enter = remember(index) { Animatable(if (reduceMotion) 1f else 0f) }
+    if (!reduceMotion) LaunchedEffect(index) {
         delay((200L + index * 80L))
         enter.animateTo(1f, tween(400))
     }

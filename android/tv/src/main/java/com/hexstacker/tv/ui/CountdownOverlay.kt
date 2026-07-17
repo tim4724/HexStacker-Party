@@ -49,12 +49,14 @@ fun CountdownOverlay(value: CountdownValue, modifier: Modifier = Modifier) {
             CountdownValue.Go -> stringResource(R.string.go)
         }
 
-        // Entry pop 0.7 -> 1.0, re-run per value.
-        val entry = remember(value) { Animatable(0.7f) }
-        LaunchedEffect(value) { entry.animateTo(1f, tween(180, easing = FastOutSlowInEasing)) }
+        // Entry pop 0.7 -> 1.0, re-run per value; Reduce Motion renders the
+        // digit at full scale with no pop or beat (tvOS PopNumber parity).
+        val reduce = LocalReduceMotion.current
+        val entry = remember(value) { Animatable(if (reduce) 1f else 0.7f) }
+        if (!reduce) LaunchedEffect(value) { entry.animateTo(1f, tween(180, easing = FastOutSlowInEasing)) }
 
         // Beat pulse on numbers only.
-        val beat = if (isNumber) {
+        val beat = if (isNumber && !reduce) {
             val transition = rememberInfiniteTransition(label = "countdownBeat")
             transition.animateFloat(
                 initialValue = 1f,

@@ -3,8 +3,12 @@ package com.hexstacker.tv.ui
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -240,14 +244,23 @@ private fun InfoButton(
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
     val ringFocused = onOpen != null && focused
+    // Focus pops the disc slightly (tvOS InfoCircleStyle parity); press sinks
+    // it back and deepens the recess (web .icon-btn:active).
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 1f else if (ringFocused) 1.06f else 1f,
+        label = "infoButtonScale",
+    )
     // Round utility button (A2 .icon-btn): recessed translucent disc + warm
     // hairline ring, not a card-colored chip.
     Box(
         modifier
             .size(diameter)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(CircleShape)
-            .background(Tokens.socketBtn, CircleShape)
+            .background(if (pressed) Tokens.socketBtnPressed else Tokens.socketBtn, CircleShape)
             .border(
                 width = if (ringFocused) 3.dp else 1.dp,
                 color = if (ringFocused) Tokens.white else Tokens.hairlineRing,
@@ -257,7 +270,11 @@ private fun InfoButton(
                 if (onOpen != null) {
                     Modifier
                         .onFocusChanged { focused = it.isFocused }
-                        .clickable(onClick = onOpen)
+                        .clickable(
+                            interactionSource = interaction,
+                            indication = LocalIndication.current,
+                            onClick = onOpen,
+                        )
                 } else {
                     Modifier
                 },
@@ -347,9 +364,11 @@ private val SlotPopEasing = CubicBezierEasing(0.34f, 1.8f, 0.64f, 1f)
 
 @Composable
 private fun JoinPop(play: Boolean, content: @Composable () -> Unit) {
-    val scale = remember { Animatable(if (play) 0.6f else 1f) }
-    val alpha = remember { Animatable(if (play) 0f else 1f) }
-    if (play) LaunchedEffect(Unit) {
+    // Reduce Motion renders the card settled: the pop is decorative.
+    val animate = play && !LocalReduceMotion.current
+    val scale = remember { Animatable(if (animate) 0.6f else 1f) }
+    val alpha = remember { Animatable(if (animate) 0f else 1f) }
+    if (animate) LaunchedEffect(Unit) {
         launch { scale.animateTo(1f, tween(500, easing = SlotPopEasing)) }
         launch { alpha.animateTo(1f, tween(500, easing = SlotPopEasing)) }
     }
@@ -367,17 +386,21 @@ private fun JoinPop(play: Boolean, content: @Composable () -> Unit) {
     ) { content() }
 }
 
-/** Plain fade-in for the corner brand badge (web .brand-badge: fadeIn 0.6s 0.3s). */
+/** Plain fade-in for the corner brand badge (web .brand-badge: fadeIn 0.6s 0.3s).
+ *  Reduce Motion renders it settled (decorative entrance). */
 @Composable
 private fun BadgeFadeIn(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    val anim = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
+    val reduce = LocalReduceMotion.current
+    val anim = remember { Animatable(if (reduce) 1f else 0f) }
+    if (!reduce) LaunchedEffect(Unit) {
         anim.animateTo(1f, tween(durationMillis = 600, delayMillis = 300, easing = FastOutSlowInEasing))
     }
     Box(modifier.graphicsLayer { alpha = anim.value }) { content() }
 }
 
-/** fadeDown/fadeUp entrance: vertical offset → 0 with alpha 0 → 1, played once. */
+/** fadeDown/fadeUp entrance: vertical offset → 0 with alpha 0 → 1, played once.
+ *  Reduce Motion renders the band settled: the slide + stagger are exactly the
+ *  class of motion the setting opts out of. */
 @Composable
 private fun EntranceBand(
     startOffsetY: Dp,
@@ -385,8 +408,9 @@ private fun EntranceBand(
     delayMs: Int,
     content: @Composable () -> Unit,
 ) {
-    val anim = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
+    val reduce = LocalReduceMotion.current
+    val anim = remember { Animatable(if (reduce) 1f else 0f) }
+    if (!reduce) LaunchedEffect(Unit) {
         anim.animateTo(1f, tween(durationMillis = durationMs, delayMillis = delayMs, easing = FastOutSlowInEasing))
     }
     Box(

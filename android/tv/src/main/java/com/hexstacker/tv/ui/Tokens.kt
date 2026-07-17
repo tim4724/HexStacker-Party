@@ -43,6 +43,7 @@ object Tokens {
     val socketEmpty = Color(0x8C15121F) // .player-card.empty bg rgba(21,18,31,0.55)
     val socketPill = Color(0x5915121F) // .card-level__pill bg rgba(21,18,31,0.35)
     val socketBtn = Color(0x6615121F) // .icon-btn bg rgba(21,18,31,0.4)
+    val socketBtnPressed = Color(0xB315121F) // .icon-btn:active bg rgba(21,18,31,0.7)
 
     // Warm-paper hairline family (#FFF8EC) beyond the border ramp above.
     val hairlineRing = Color(0x1FFFF8EC) // .icon-btn ring rgba(255,248,236,0.12)
