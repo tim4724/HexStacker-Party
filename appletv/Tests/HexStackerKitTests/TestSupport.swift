@@ -13,8 +13,16 @@ enum EngineFixture {
         .deletingLastPathComponent()   // appletv
         .deletingLastPathComponent()   // <repo>
 
+    /// Build the core + conformance bundles once per run via the shared
+    /// scripts/build-engine.sh (the SAME script the app's pre-build phase and the
+    /// Android :tv build use), so node resolution and the bundle set don't drift
+    /// between the native phases and this harness. `static let` => run exactly once.
+    private static let built: Void = {
+        run(["/bin/bash", "scripts/build-engine.sh", "build:native"])
+    }()
+
     static let coreBundleDir: URL = {
-        run(["npm", "run", "--silent", "build:core"])
+        _ = built
         return repoRoot.appendingPathComponent("dist")
     }()
 
@@ -22,7 +30,7 @@ enum EngineFixture {
     /// from the same tests/helpers/partycore-frame-script.js the Node golden
     /// test replays. Built once per run, like coreBundleDir.
     static let frameTestBundle: URL = {
-        run(["node", "scripts/build-conformance-bundle.js"])
+        _ = built
         return repoRoot.appendingPathComponent("dist/partycore-frame-test.js")
     }()
 
@@ -34,10 +42,7 @@ enum EngineFixture {
         proc.currentDirectoryURL = repoRoot
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         proc.arguments = arguments
-        var env = ProcessInfo.processInfo.environment
-        // `swift test` from Xcode runs with a minimal PATH; add the usual node homes.
-        env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + (env["PATH"] ?? "")
-        proc.environment = env
+        // node resolution lives in build-engine.sh; no PATH shim needed here.
         let pipe = Pipe()
         proc.standardOutput = pipe
         proc.standardError = pipe

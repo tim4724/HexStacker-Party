@@ -27,7 +27,7 @@ class FrameGoldenConformanceTest {
         val path = System.getProperty(prop) ?: error("$prop not set by the build")
         val f = File(path)
         require(f.exists()) {
-            "Missing $path. Run `npm run build` and `node scripts/build-conformance-bundle.js` at the repo root."
+            "Missing $path. Run `npm run build:native` at the repo root."
         }
         return f
     }

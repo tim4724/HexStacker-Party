@@ -15,10 +15,6 @@
 # Usage: sync-engine.sh <dest-dir>
 set -euo pipefail
 
-# Xcode's build-phase PATH is minimal and usually lacks node; add the usual homes
-# so `npm` resolves. (A no-op when run from a normal shell.)
-export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # repo root is two levels up: <repo>/appletv/scripts -> <repo>
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -32,14 +28,10 @@ rm -rf "$DEST"
 mkdir -p "$DEST"
 
 # Build the portable native core (server/core-entry.js -> dist/partycore.js: an
-# iife exposing globalThis.HexCore with PartyCore + RoomFlow). On a fresh clone
-# the repo-root deps are not installed yet; bootstrap them so the first Xcode
-# build works without any manual setup (later builds skip this).
-if [[ ! -d "$REPO_ROOT/node_modules/esbuild" ]]; then
-  echo "sync-engine: node_modules missing, running 'npm ci' at the repo root (first build only)"
-  ( cd "$REPO_ROOT" && npm ci )
-fi
-( cd "$REPO_ROOT" && npm run --silent build:core )
+# iife exposing globalThis.HexCore with PartyCore + RoomFlow). Node resolution +
+# fresh-clone bootstrap live in the shared build-engine.sh (the Gradle :tv build
+# uses it too), so the toolchain handling can't drift between the native phases.
+"$REPO_ROOT/scripts/build-engine.sh" build:core
 
 # Artifacts the app bundle needs at runtime:
 #   dist/partycore.js : the engine, loaded into JavaScriptCore

@@ -47,26 +47,22 @@ val repoRoot = rootProject.layout.projectDirectory.dir("..")
 val engineBundle = repoRoot.file("dist/partycore.js")
 
 // Regenerate the bundle from source at build time, the Gradle analog of the Xcode
-// "Sync engine JS" pre-build phase (appletv/scripts/sync-engine.sh): a fresh clone
-// builds and runs the APK with no manual `npm run build` first, and the bundle can
-// never be stale. Bootstraps node_modules on first build, then runs the same
-// `npm run build:core` the web/tvOS/CI paths use. Declared inputs/outputs let
-// Gradle skip this when no engine source changed.
+// "Sync engine JS" pre-build phase: a fresh clone builds and runs the APK with no
+// manual `npm run build` first, and the bundle can never be stale. Node resolution
+// and the fresh-clone `npm ci` bootstrap live in scripts/build-engine.sh, the SAME
+// script sync-engine.sh runs, so the toolchain handling can't drift between the two
+// native phases. Declared inputs/outputs let Gradle skip this when nothing changed.
 val buildEngineBundle by tasks.registering(Exec::class) {
     workingDir = repoRoot.asFile
-    // Gradle launched from Android Studio inherits a minimal PATH (as Xcode's build
-    // phase does); prepend the usual node homes so npm resolves. No-op in a normal
-    // shell or on CI, where node is already on PATH.
-    environment("PATH", "/opt/homebrew/bin:/usr/local/bin:" + (System.getenv("PATH") ?: ""))
-    commandLine(
-        "bash", "-c",
-        "[ -d node_modules/esbuild ] || npm ci; npm run --silent build:core",
-    )
+    // /bin/bash by absolute path so locating the shell itself doesn't depend on the
+    // (possibly minimal) PATH Gradle inherits; the script resolves node from there.
+    commandLine("/bin/bash", "scripts/build-engine.sh", "build:core")
     // The core bundle's module graph is server/*.js + partyplug/RoomFlow.js, driven
     // by scripts/build.js — any change there must rebuild it (see server/core-entry.js).
     inputs.dir(repoRoot.dir("server")).withPropertyName("engineSources")
     inputs.file(repoRoot.file("partyplug/RoomFlow.js")).withPropertyName("roomFlow")
     inputs.file(repoRoot.file("scripts/build.js")).withPropertyName("buildScript")
+    inputs.file(repoRoot.file("scripts/build-engine.sh")).withPropertyName("buildEngineScript")
     outputs.file(engineBundle)
 }
 val syncEngineBundle by tasks.registering(Copy::class) {

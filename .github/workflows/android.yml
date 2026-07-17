@@ -46,9 +46,7 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - name: Build engine bundles (QuickJS core + conformance golden driver)
-        run: |
-          npm run build:core
-          node scripts/build-conformance-bundle.js
+        run: npm run build:native
 
       - uses: actions/setup-java@v5
         with:
