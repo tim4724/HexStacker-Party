@@ -73,7 +73,9 @@ fun ConnectionOverlay(
             )
             // Status line only while reconnecting (web/tvOS show none in the terminal
             // disconnected state — that screen is just heading + RECONNECT button).
-            if (!disconnected) {
+            // attempt == 0 is the heartbeat path's unnumbered immediate retry:
+            // heading-only, matching the web's empty status line.
+            if (!disconnected && attempt > 0) {
                 Spacer(Modifier.height(14.dp))
                 Text(
                     // "Attempt N of M" (web clamps N to M).

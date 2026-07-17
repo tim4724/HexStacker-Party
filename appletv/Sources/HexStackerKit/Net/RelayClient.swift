@@ -182,11 +182,14 @@ public final class RelayClient: NSObject, RelayTransport {
 
     // MARK: - Connection lifecycle
 
-    private func connectLocked() {
+    // `reconnecting` forces the .reconnecting state even with the attempt counter
+    // at 0 — the heartbeat path's immediate retry is unnumbered (web reconnectNow
+    // parity), but must still freeze the sim and show the overlay.
+    private func connectLocked(reconnecting: Bool = false) {
         cancelReconnectTimer()
         cancelHandshakeTimer()
         dropHandled = false
-        setState(reconnectAttempt > 0 ? .reconnecting : .connecting)
+        setState(reconnecting || reconnectAttempt > 0 ? .reconnecting : .connecting)
 
         guard let url = currentURL() else {
             shouldReconnect = false
@@ -303,17 +306,19 @@ public final class RelayClient: NSObject, RelayTransport {
         let old = task
         task = nil
         old?.cancel(with: .goingAway, reason: nil)
-        // A silently-dead socket is a drop: bump the attempt so connectLocked emits
-        // `.reconnecting` (not `.connecting`) and surface the attempt UI. The
-        // display only freezes the sim + shows the overlay on .reconnecting/.closed,
-        // so emitting `.connecting` here would let the game run blind (gravity +
-        // liveness sweeps) for the whole reconnect window. Mirrors the web
-        // self-heartbeat, which pauses the instant the socket is declared dead.
-        // `created`/`joined` resets the counter to 0 on a successful reconnect.
-        reconnectAttempt += 1
-        let attempt = reconnectAttempt, max = maxReconnectAttempts
-        emit { self.onReconnecting?(attempt, max) }
-        connectLocked()
+        // This immediate retry is unnumbered — web reconnectNow parity: the
+        // overlay shows heading-only until the retry fails, and that failure's
+        // handleDrop numbers attempt 1. Numbering it here would burn attempt 1
+        // on a connect that dies within milliseconds when the network is truly
+        // down, so the counter would visibly start at 2 (and one backoff retry
+        // would be lost). Emit 0 so the overlay drops any count from a previous
+        // cycle, and force .reconnecting despite the counter being 0 — the
+        // display only freezes the sim + shows the overlay on
+        // .reconnecting/.closed, so `.connecting` would let the game run blind
+        // (gravity + liveness sweeps) for the whole reconnect window.
+        let max = maxReconnectAttempts
+        emit { self.onReconnecting?(0, max) }
+        connectLocked(reconnecting: true)
     }
 
     // MARK: - Inbound frames

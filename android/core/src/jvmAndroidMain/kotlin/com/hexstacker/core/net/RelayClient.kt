@@ -153,11 +153,14 @@ class RelayClient(
 
     // ----- connection lifecycle (run on ops) -----
 
-    private fun connectLocked() {
+    // `reconnecting` forces the RECONNECTING state even with the attempt counter
+    // at 0 — the heartbeat path's immediate retry is unnumbered (web reconnectNow
+    // parity), but must still pause the game and show the overlay.
+    private fun connectLocked(reconnecting: Boolean = false) {
         cancelReconnect()
         cancelHandshakeTimeout()
         dropHandled = false
-        emitState(if (reconnectAttempt > 0) RelayTransport.ConnectionState.RECONNECTING else RelayTransport.ConnectionState.CONNECTING)
+        emitState(if (reconnecting || reconnectAttempt > 0) RelayTransport.ConnectionState.RECONNECTING else RelayTransport.ConnectionState.CONNECTING)
         val old = webSocket
         val req = Request.Builder().url(currentURL()).build()
         val newWs = httpClient.newWebSocket(req, listener)
@@ -263,8 +266,13 @@ class RelayClient(
         val old = webSocket
         webSocket = null
         old?.cancel()
+        // This immediate retry is unnumbered (web reconnectNow parity): the overlay
+        // shows heading-only until it fails, and that failure's handleDrop numbers
+        // attempt 1. Force RECONNECTING despite the counter being 0 — CONNECTING
+        // would neither pause the game (DisplayCoordinator.onLinkState) nor show
+        // the overlay, letting the sim run blind for the whole reconnect window.
         reconnectAttempt = 0
-        connectLocked()
+        connectLocked(reconnecting = true)
     }
 
     // ----- heartbeat (self-echo liveness canary) -----

@@ -36,10 +36,10 @@ struct ConnectionOverlayView: View {
                     .styled(font: AppFont.brandExtraBold, size: vp.vh(25.6, 4, 56),
                             color: UITheme.textPrimary(), tracking: 0.15)
 
-                if !disconnected {
-                    // Web shows the status only while reconnecting: "Attempt N of M"
-                    // (clamp N to M). Every .reconnecting emission is preceded by
-                    // onReconnecting, so the count is always ≥ 1 here.
+                if !disconnected && attempt > 0 {
+                    // "Attempt N of M" (clamp N to M) once numbered retries begin.
+                    // attempt == 0 is the heartbeat path's unnumbered immediate
+                    // retry: heading-only, matching the web's empty status line.
                     // web .game-overlay__status clamp(1.2rem,2.4vh,1.6rem).
                     Text(tr("attempt_n_of_m", min(attempt, maxAttempts), maxAttempts))
                         .styled(font: AppFont.brandBold, size: vp.vh(19.2, 2.4, 25.6),
