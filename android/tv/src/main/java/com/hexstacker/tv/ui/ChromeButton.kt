@@ -4,7 +4,6 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -127,8 +126,14 @@ fun ChromeButton(
             // enabling it must not drop focus). The action is gated instead; semantics
             // carry the disabled state for accessibility. The explicit interaction
             // source feeds the press-sink visual above.
+            //
+            // indication = null: the scale/shadow above IS the feedback. The default
+            // (LocalIndication, unset app-wide) is foundation's debug indication, which
+            // washes focus with 10% and press with 30% black. That has no web/tvOS
+            // counterpart, and the gallery can't see it: its headless host seeds
+            // `focused` without firing the focus interactions that would draw it.
             .semantics { if (!enabled) disabled() }
-            .clickable(interactionSource = interaction, indication = LocalIndication.current) {
+            .clickable(interactionSource = interaction, indication = null) {
                 if (enabled) onClick()
             }
             .padding(contentPadding),

@@ -1,6 +1,5 @@
 package com.hexstacker.tv.ui
 
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -216,7 +215,7 @@ private fun LicenseRow(
             .then(if (focused && !pressed) Modifier.background(Tokens.white.copy(alpha = 0.06f), shape) else Modifier)
             .then(if (focused) Modifier.border(4.dp, Tokens.white, shape) else Modifier)
             .onFocusChanged { focused = it.isFocused }
-            .clickable(interactionSource = interaction, indication = LocalIndication.current) { onOpen() }
+            .clickable(interactionSource = interaction, indication = null) { onOpen() }
             .padding(
                 horizontal = vp.vwDp(20f, 2f, 26f),
                 vertical = vp.vwDp(12f, 1.45f, 19f),

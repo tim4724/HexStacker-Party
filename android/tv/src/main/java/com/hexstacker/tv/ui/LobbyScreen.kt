@@ -5,7 +5,6 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -272,7 +271,7 @@ private fun InfoButton(
                         .onFocusChanged { focused = it.isFocused }
                         .clickable(
                             interactionSource = interaction,
-                            indication = LocalIndication.current,
+                            indication = null,
                             onClick = onOpen,
                         )
                 } else {

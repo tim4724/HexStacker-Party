@@ -5,7 +5,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -101,8 +100,9 @@ fun MusicSwitch(
             .onFocusChanged { focused = it.isFocused || focusedForShot }
             // clickable provides the focus target (see ChromeButton): a separate
             // Modifier.focusable would steal D-pad focus from the click handler.
-            // The explicit interaction source feeds the press-sink visual above.
-            .clickable(interactionSource = interaction, indication = LocalIndication.current) { onToggle() }
+            // The explicit interaction source feeds the press-sink visual above,
+            // which is why indication is null (see ChromeButton).
+            .clickable(interactionSource = interaction, indication = null) { onToggle() }
             .padding(horizontal = rowHeight * 0.5f),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(rowHeight * 0.75f),
