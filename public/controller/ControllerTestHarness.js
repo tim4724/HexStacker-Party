@@ -24,7 +24,14 @@
   var scenario = params.get('scenario');
   var colorIdx = Math.max(0, Math.min(parseInt(params.get('color'), 10) || 0, 7));
   var levelParam = parseInt(params.get('level'), 10);
-  var FAKE_NAMES = ['Emma','Jake','Sofia','Liam','Mia','Noah','Ava','Leo'];
+  // Mirrors GalleryFixtures.NAMES / LONG_NAMES — keep the two in sync. The
+  // fixture module itself is display-only (it pulls the whole engine in to
+  // build boards), so the controller carries its own copy of the rosters.
+  // ?names=long swaps in the 16-char set, the same toggle the display honours.
+  var SHORT_NAMES = ['Emma','Jake','Sofia','Liam','Mia','Noah','Ava','Leo'];
+  var LONG_NAMES = ['Fabulous Chicken', 'Grumpy Flamingo', 'Majestic Warthog', 'Sneaky Capybara',
+                    'Bouncy Axolotl', 'Mighty Pigeon', 'Wobbly Ostrich', 'Zesty Armadillo'];
+  var FAKE_NAMES = params.get('names') === 'long' ? LONG_NAMES : SHORT_NAMES;
   var fakeName = params.get('name') || FAKE_NAMES[colorIdx];
   if (peerIndex == null) peerIndex = clientId;
   // Default non-host scenarios to a host at the next color slot so the

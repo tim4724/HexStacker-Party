@@ -18,7 +18,7 @@ var CONTROLLER_CARDS = [
   { key: 'bail-game-full',      title: 'Bail · Room full',         isDisplayPage: true, replayable: true },
   { key: 'bail-game-ended',     title: 'Bail · Game ended',        isDisplayPage: true, replayable: true },
   { key: 'name',             title: 'Name input' },
-  { key: 'name-connecting',  title: 'Connecting…', extra: { name: 'Tim' } },
+  { key: 'name-connecting',  title: 'Connecting…', perColor: true },
   { key: 'lobby-host',                title: 'Lobby (host)',           perColor: true },
   { key: 'lobby-waiting',             title: 'Lobby (waiting)',        perColor: true },
   { key: 'lobby-latejoiner',          title: 'Lobby (late joiner)',    perColor: true },
@@ -154,6 +154,7 @@ Gallery.bindSelect(state, 'player-count', 'controllerPlayers', function() {
 Gallery.bindSelect(state, 'view-as-player', 'viewAs', updateViewAs, function(v) {
   return clampViewAs(parseInt(v, 10) || 0);
 });
+Gallery.bindSelect(state, 'names', 'names', render);
 Gallery.bindSelect(state, 'language', 'lang', render);
 Gallery.bindSelect(state, 'cards-per-row', 'controllerCardsPerRow', updateLayout, function(v) {
   return Math.max(1, Math.min(parseInt(v, 10) || CTRL_MAX_COLS, CTRL_MAX_COLS));

@@ -657,7 +657,7 @@ function initScenario(opts) {
       }
     }, 1000);
     function tourResults() {
-      var r = GameEngine.GalleryFixtures.results(tourRoster.length);
+      var r = GameEngine.GalleryFixtures.results(tourRoster.length, longNames);
       for (var ri = 0; ri < r.results.length; ri++) {
         r.results[ri].playerId = 'debug' + r.results[ri].playerId;
       }
@@ -932,7 +932,7 @@ function initScenario(opts) {
   if (scenario === 'results') {
     // Canonical ranking from the shared fixture module, remapped onto the
     // harness's debug roster ids.
-    var results = GameEngine.GalleryFixtures.results(playerCount);
+    var results = GameEngine.GalleryFixtures.results(playerCount, longNames);
     for (var i = 0; i < results.results.length; i++) {
       results.results[i].playerId = 'debug' + results.results[i].playerId;
     }

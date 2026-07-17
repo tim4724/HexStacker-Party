@@ -58,7 +58,10 @@ var Gallery = (function() {
     players: 4,
     viewAs: 0,
     level: 1,
-    lang: 'en'
+    lang: 'en',
+    // 'long' swaps every roster to the 16-char LONG_NAMES fixture so the
+    // shrink-to-fit name paths can be reviewed on any screen.
+    names: 'standard'
   };
   function loadState() {
     try {
@@ -81,11 +84,18 @@ var Gallery = (function() {
     return parts.length ? '?' + parts.join('&') : '';
   }
 
+  // 'standard' is the harness default — leave the param off entirely so the
+  // URLs stay as short as they were before the toggle existed.
+  function namesParam(state) {
+    return state.names === 'long' ? 'long' : undefined;
+  }
+
   function displayURL(state, scenario, levelOverride, extra) {
     var p = {
       test: 1, bg: 1, lang: state.lang,
       scenario: scenario,
       players: state.players,
+      names: namesParam(state),
       level: levelOverride !== undefined ? levelOverride : state.level
     };
     if (extra) for (var k in extra) p[k] = extra[k];
@@ -98,7 +108,8 @@ var Gallery = (function() {
       scenario: scenario,
       color: colorIdx,
       level: state.level,
-      players: state.players
+      players: state.players,
+      names: namesParam(state)
     };
     if (extra) for (var k in extra) p[k] = extra[k];
     // First path segment is the controller's roomCode — any value works in test mode.

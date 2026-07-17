@@ -137,3 +137,12 @@ test('results mirror the historic web ranking formula', () => {
   assert.equal(solo.results.length, 1);
   assert.equal(solo.results[0].playerName, 'Emma');
 });
+
+test('long-name results swap only the names', () => {
+  const short = GalleryFixtures.results(4);
+  const long = GalleryFixtures.results(4, true);
+  assert.deepEqual(long.results.map((x) => x.playerName), GalleryFixtures.LONG_NAMES.slice(0, 4));
+  assert.deepEqual(
+    long.results.map(({ playerName, ...rest }) => rest),
+    short.results.map(({ playerName, ...rest }) => rest));
+});

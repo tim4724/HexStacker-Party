@@ -274,12 +274,15 @@ function fitLobbyRow(cols, isAirConsole, landscape) {
 // measure each name at its stylesheet size and scale it down only when it
 // overflows its card (narrow viewports where the grid's minmax() squeezes
 // the columns below --card-w). Names at or under the card width keep the
-// default size untouched. Below the floor the existing ellipsis takes
-// over; a sub-60% name would be unreadable from the couch anyway.
+// default size untouched. Below the floor the existing ellipsis takes over:
+// past that the name is too small to read from the couch, so truncating beats
+// shrinking further.
 // Re-run on every roster change and window resize (both funnel through
 // updatePlayerList), plus once when the webfont finishes loading since
 // fallback-font metrics under-measure Baloo 2.
-var NAME_FIT_MIN_SCALE = 0.6;
+// Kept in sync with the controller's NAME_FIT_MIN_SCALE (ControllerGame.js) —
+// separate bundles, so the value is mirrored rather than shared.
+var NAME_FIT_MIN_SCALE = 0.5;
 function fitPlayerNames() {
   var names = playerListEl.querySelectorAll('.identity-name');
   for (var i = 0; i < names.length; i++) {

@@ -82,13 +82,16 @@ function applyLocalPlayerName() {
 // at the stylesheet size and scale down only on overflow; below the floor
 // the .identity-name ellipsis takes over. No-op while the card is hidden
 // (clientWidth 0); showLobbyUI() re-runs it once the lobby is visible.
+// Kept in sync with the display's NAME_FIT_MIN_SCALE (DisplayUI.js) —
+// separate bundles, so the value is mirrored rather than shared.
+var NAME_FIT_MIN_SCALE = 0.5;
 function fitIdentityName() {
   var el = playerIdentityName;
   el.style.fontSize = '';
   if (!el.textContent || !el.clientWidth) return;
   if (el.scrollWidth <= el.clientWidth) return;
   var base = parseFloat(getComputedStyle(el).fontSize);
-  var scale = Math.max(0.6, (el.clientWidth / el.scrollWidth) * 0.98);
+  var scale = Math.max(NAME_FIT_MIN_SCALE, (el.clientWidth / el.scrollWidth) * 0.98);
   el.style.fontSize = (base * scale).toFixed(2) + 'px';
 }
 

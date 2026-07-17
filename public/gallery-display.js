@@ -23,7 +23,6 @@ var DISPLAY_CARDS = [
   { key: 'transitions',      title: 'Transitions (full journey)', hostVariant: true, replayable: true, params: TOUR_PARAMS },
   { key: 'welcome',          title: 'Welcome' },
   { key: 'lobby',            title: 'Lobby (Standard)',   hostVariant: true },
-  { key: 'lobby',            title: 'Lobby (16-char names)', hostVariant: true, params: { names: 'long' } },
   { key: 'lobby',            title: 'Lobby (Scan hint)',  hostVariant: true, params: { hint: 1 } },
   { key: 'airconsole-lobby', title: 'Lobby (AirConsole)', hostVariant: true },
   { key: 'countdown',        title: 'Countdown', replayable: true },
@@ -149,6 +148,7 @@ Gallery.bindSelect(state, 'player-count', 'displayPlayers', function() {
 Gallery.bindSelect(state, 'view-as-player', 'viewAs', updateViewAs, function(v) {
   return clampViewAs(parseInt(v, 10) || 0);
 });
+Gallery.bindSelect(state, 'names', 'names', render);
 Gallery.bindSelect(state, 'language', 'lang', render);
 Gallery.bindSelect(state, 'cards-per-row', 'displayCardsPerRow', updateLayout, function(v) {
   return Math.max(1, Math.min(parseInt(v, 10) || DISPLAY_DEFAULT_COLS, DISPLAY_MAX_COLS));

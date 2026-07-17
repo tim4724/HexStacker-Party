@@ -53,7 +53,7 @@ var JOIN = {
 // board levels come from the variant spec instead.
 var NAMES = ['Emma', 'Jake', 'Sofia', 'Liam', 'Mia', 'Noah', 'Ava', 'Leo'];
 // Couch-Games-style auto names at/near the 16-char cap (the controller
-// input's maxlength), for the lobby-long-names gallery row: every platform
+// input's maxlength), for the long-names gallery rows: every platform
 // renders its shrink-to-fit name path against the same worst case.
 var LONG_NAMES = ['Fabulous Chicken', 'Grumpy Flamingo', 'Majestic Warthog', 'Sneaky Capybara',
                   'Bouncy Axolotl', 'Mighty Pigeon', 'Wobbly Ostrich', 'Zesty Armadillo'];
@@ -284,13 +284,14 @@ function ambientPieces() {
 
 // Canonical results roster — the exact ranking the web harness has always
 // rendered (rank i+1, lines 30-3i, level counting down to 1).
-function results(count) {
-  var n = Math.max(1, Math.min(count, NAMES.length));
+function results(count, longNames) {
+  var names = longNames ? LONG_NAMES : NAMES;
+  var n = Math.max(1, Math.min(count, names.length));
   var list = [];
   for (var i = 0; i < n; i++) {
     list.push({
       playerId: i,
-      playerName: NAMES[i],
+      playerName: names[i],
       colorIndex: i,
       rank: i + 1,
       lines: 30 - i * 3,
