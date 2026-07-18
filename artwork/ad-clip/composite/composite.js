@@ -4,11 +4,11 @@
 // Node-side capture knows when to close the recording context.
 
 const params = new URLSearchParams(window.location.search);
-const CLIP = params.get('clip') || 'lobby-reveal';
+const CLIP = params.get('clip') || 'normal4p';
 const ASPECT = params.get('aspect') === '9x16' ? '9x16' : '16x9';
 const SEED = parseInt(params.get('seed'), 10) || 42;
-// Forwarded from capture.js so card-style clips (logo, winner) can size
-// their hold-time to the slot the variant allocated. 0 means unset.
+// Forwarded from capture.js so the card-style logo clip can size its
+// hold-time to the slot the variant allocated. 0 means unset.
 const DURATION_MS = parseInt(params.get('duration'), 10) || 0;
 // Game-speed multiplier applied via patched performance.now / Date.now.
 // 1 = real time. 0.5 = half speed (browser has 2× wall-time per game-frame),
@@ -32,34 +32,9 @@ const displayIframe = document.getElementById('display-iframe');
 const phonesEl = document.getElementById('phones');
 const titleCard = document.getElementById('title-card');
 
-// --- Display URL: the lobby-reveal clip mounts the lobby with ZERO
-// players so the clip module can pop them in one-by-one in the captured
-// timeline. Other clips bypass the lobby entirely and boot the local
-// game inside their own stage().
-function displayURL() {
-  if (CLIP === 'lobby-reveal') {
-    return `/?adclip=1&scenario=lobby&players=0&seed=${SEED}`;
-  }
-  return `/?adclip=1&seed=${SEED}`;
-}
-
-displayIframe.src = displayURL();
-
-// Hide the START button in the lobby clip — the simulated-press animation
-// reads as "weird" in the trailer (button just turns red briefly with no
-// continuation). visibility:hidden (not display:none) so it still occupies
-// its slot in the layout flow — without it the lobby content reflows
-// upward and the visual balance shifts. The lobby-reveal clip module
-// still runs the press for timing purposes; nothing's visible.
-if (CLIP === 'lobby-reveal') {
-  displayIframe.addEventListener('load', () => {
-    const doc = displayIframe.contentDocument;
-    if (!doc || !doc.head) return;
-    const style = doc.createElement('style');
-    style.textContent = '#start-btn { visibility: hidden !important; }';
-    doc.head.appendChild(style);
-  });
-}
+// Every clip bypasses the lobby entirely and boots the local game inside
+// its own stage().
+displayIframe.src = `/?adclip=1&seed=${SEED}`;
 
 // --- Build phone iframes ---
 const phones = [];
@@ -126,12 +101,9 @@ async function run() {
   await Promise.race([readyPromise, readyTimeout]);
   document.body.classList.remove('loading');
 
-  // Slot 0-3 are visible from the start of every non-lobby clip (the lobby
-  // animates them in itself). Slots 4-7 only appear in chaos8p, which adds
-  // .in to them inside its own clip module.
-  if (CLIP !== 'lobby-reveal') {
-    for (let i = 0; i < PLAYER_COUNT; i++) phones[i].wrapper.classList.add('in');
-  }
+  // Slots 0-3 are visible from the start of every clip. Slots 4-7 only
+  // appear in chaos8p, which adds .in to them inside its own clip module.
+  for (let i = 0; i < PLAYER_COUNT; i++) phones[i].wrapper.classList.add('in');
 
   await wait(150);
   const clipModule = await import(`./clips/${clipFileFor(CLIP)}.js`);
@@ -145,7 +117,10 @@ async function run() {
     aspect: ASPECT,
     seed: SEED,
     playerCount: PLAYER_COUNT,
-    durationMs: DURATION_MS
+    durationMs: DURATION_MS,
+    // Sleep in game-time. Clip modules must use this rather than setTimeout
+    // whenever their pacing should track the time-scaled clock.
+    waitScaled,
   };
 
   // Stage the scene BEFORE recording starts — bootLocalGame, prefilled
@@ -176,15 +151,19 @@ async function run() {
   // Patching both this window AND the display iframe's window — same-origin
   // so we can reach into it. Canvas-based animations (the game's renderer)
   // and JS that reads perf.now (gameplay-clip's AI loop, displayGame's
-  // update tick) all follow the slowdown. CSS animations don't.
+  // update tick) all follow the slowdown; scaleCssAnimations covers the
+  // compositor-driven CSS transitions that the clock patch can't reach.
+  let cssPoller = null;
   if (TIME_SCALE !== 1) {
     applyTimeScale(window);
     if (displayIframe.contentWindow) applyTimeScale(displayIframe.contentWindow);
+    cssPoller = scaleCssAnimations(document);
   }
 
   window.__AD_CLIP_T_START__ = performance.now();
   await clipModule.run(ctx);
   window.__AD_CLIP_T_END__ = performance.now();
+  if (cssPoller !== null) clearInterval(cssPoller);
   // Hold the final scene a few frames so the closing cut doesn't slice
   // into the last animation frame.
   await wait(120);
@@ -215,6 +194,11 @@ async function displayTransitionsSettled(timeoutMs = 2000) {
 // rate while AI dispatch (which uses perf.now) ran at scaled rate — the
 // resulting pace mismatch caused pieces to auto-lock before plans
 // completed, leading to back-half hangs on slower-paced clips.
+//
+// setTimeout is deliberately NOT patched: gameplay-clip staggers its AI
+// moves with a wall-clock setTimeout, and stretching that would change how
+// every gameplay clip plays. Clip modules that need to sleep in game-time
+// use waitScaled() below instead.
 // Idempotent: marked after first patch so calling twice is a no-op.
 function applyTimeScale(win) {
   if (win.__AD_TIME_PATCHED__) return;
@@ -230,10 +214,54 @@ function applyTimeScale(win) {
   win.requestAnimationFrame = (cb) => origRAF((timestamp) => cb(scalePerf(timestamp)));
 }
 
+// Sleep for `ms` of GAME time. performance.now is patched by applyTimeScale,
+// so polling it via RAF yields a wall-clock sleep of ms / TIME_SCALE without
+// touching the global setTimeout that gameplay-clip's AI stagger depends on.
+function waitScaled(ms) {
+  return new Promise((resolve) => {
+    const t0 = performance.now();
+    (function poll() {
+      if (performance.now() - t0 >= ms) return resolve();
+      requestAnimationFrame(poll);
+    })();
+  });
+}
+
+// CSS animations and transitions run on the compositor's own clock, so the
+// applyTimeScale patch above cannot reach them — a CSS fade plays at
+// wall-clock speed even inside a slowed clip. At 4K that's a real defect:
+// the screencast emits ~40fps, so the logo card's 600ms fade lands ~40
+// distinct frames into a 60fps output and visibly steps.
+//
+// The Web Animations API is the way in: every CSS animation/transition is
+// reflected as an Animation object with a settable playbackRate. Slowing
+// them to TIME_SCALE stretches the fade across 1/TIME_SCALE× more wall-clock,
+// so the screencast's real frame rate covers it densely and capture.js's
+// resampler maps it back to a smooth 60fps fade in game-time.
+//
+// Polled rather than applied once: a transition only becomes an Animation
+// when the class that triggers it lands, which happens after GO. The parent
+// document's only animation is the title card's fade (phone transitions are
+// disabled for slots 0-3 and the extras are display:none), so this is
+// effectively a no-op for the gameplay clips.
+function scaleCssAnimations(doc) {
+  const seen = new WeakSet();
+  const apply = () => {
+    for (const anim of doc.getAnimations()) {
+      if (seen.has(anim)) continue;
+      seen.add(anim);
+      anim.playbackRate = TIME_SCALE;
+    }
+  };
+  apply();
+  // Unpatched setInterval — the poller itself must run in wall-clock.
+  return setInterval(apply, 16);
+}
+
 // Standalone clip files have their own module; everything else routes to
 // gameplay-clip which keys per-tier config off the clip name. Unknown names
 // throw — the silent chaos8p fallback used to hide typos in the capture log.
-const STANDALONE_CLIPS = new Set(['lobby-reveal', 'winner', 'logo']);
+const STANDALONE_CLIPS = new Set(['logo']);
 const GAMEPLAY_CLIPS = new Set(['normal4p', 'pillow4p', 'neon4p', 'chaos8p']);
 function clipFileFor(name) {
   if (STANDALONE_CLIPS.has(name)) return name;

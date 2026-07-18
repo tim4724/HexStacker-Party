@@ -14,20 +14,8 @@
 'use strict';
 
 const VARIANTS = {
-  full: {
-    description: '30s trailer — lobby intro, four tier-showcase clips, QR card finale.',
-    clips: [
-      { name: 'lobby-reveal', durationMs: 3500 },
-      { name: 'normal4p',     durationMs: 7000 },
-      { name: 'pillow4p',     durationMs: 6000 },
-      { name: 'neon4p',       durationMs: 5500 },
-      { name: 'chaos8p',      durationMs: 7000 },
-      { name: 'winner',       durationMs: 3000 },
-    ],
-  },
-
   clean: {
-    description: '30s trailer — no lobby intro, four tier-showcase clips, plain-logo finale.',
+    description: '30s trailer — four tier-showcase clips, plain-logo finale.',
     // 25.5s gameplay − 4 × 400ms xfades + 6.1s logo hold = ~30s.
     clips: [
       { name: 'normal4p', durationMs: 7000 },

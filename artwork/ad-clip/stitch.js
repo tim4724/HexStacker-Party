@@ -1,10 +1,17 @@
-// Stitch the per-clip JPEG frame sequences into a single mp4. Each clip
+// Stitch the per-clip JPEG frame sequences into the deliverables. Each clip
 // dir was written by capture.js with frame-%04d.jpg + meta.json. We feed
 // each as an ffmpeg image-sequence input, chain xfades between them, and
-// (optionally) lanczos-upscale the result for delivery.
+// encode one output per profile (see outputProfiles):
 //
-// Single ffmpeg pass — no per-clip intermediate encode, so we save the
-// VP9 round-trip the old pipeline did and avoid one generation of loss.
+//   output/final-<variant>-16x9.mp4     master, native capture res
+//   public/artwork/trailer.mp4          in-app welcome-screen trailer, 1080p
+//   output/appstore-<variant>-16x9.mp4  App Store Connect preview, 1080p30
+//
+// Every profile is encoded straight from the frames in its own pass, so each
+// costs exactly one generation of loss. Deriving the small outputs by
+// re-encoding the master would be faster but stacks a second generation on
+// top of the first — which is what made the old trailer look soft.
+
 //
 // Usage: node artwork/ad-clip/stitch.js
 // Requires: ffmpeg + ffprobe on PATH. Soft-fails if ffmpeg is missing.
@@ -48,33 +55,61 @@ const FPS = 60;
 const MAX = process.env.AD_MAX === '1';
 const PROD = process.env.AD_PROD === '1' || MAX;
 
-// Final-output upscale factor. Default 1 = ship captured frames as-is
-// (1080p). 2 lanczos-upscales to 4K. Pair with AD_SCALE=2 in capture so
-// the upscale source is supersampled rather than just bilinearly enlarged.
-//
-// AD_MAX=1 ships native 1080p (no upscale, no lanczos) — the capture path
-// already supersamples (DSF=2 → internal 4K raster downsampled to 1080p
-// frames), so the delivered 1080p is high-quality. Adding OUT_SCALE=2 on
-// top would just lanczos-enlarge those 1080p frames; no real detail gain.
-// PROD (without MAX) still defaults to 2 to keep the legacy 4K-upscale path.
+// Final-output scale, relative to the captured frame size. Default 1 ships
+// the master at whatever the capture produced — 3840×2160 under AD_PROD /
+// AD_MAX, 1920×1080 otherwise. Output resolution is a capture-side decision
+// (AD_SCALE); this knob only exists to rescale after the fact, e.g.
+// AD_OUT_SCALE=0.5 to emit a 1080p master from 4K frames.
 const OUT_SCALE_ENV = parseFloat(process.env.AD_OUT_SCALE);
-const OUT_SCALE = Number.isFinite(OUT_SCALE_ENV) ? OUT_SCALE_ENV : (MAX ? 1 : PROD ? 2 : 1);
+const OUT_SCALE = Number.isFinite(OUT_SCALE_ENV) ? OUT_SCALE_ENV : 1;
 
 // libx264 CRF — lower = higher quality + larger file. 18 is a sane default
 // for social-platform delivery (which re-encodes anyway). 14 is a master.
-// 10 is "visually lossless" — gradient banding gone, fast-motion blur
-// minimised, file ~3× larger. 23 is YouTube's recommended "default".
+// 6 (AD_MAX) is past "visually lossless" and close to the point of
+// diminishing returns: the capture frames are JPEG q100 4:2:0, so below
+// ~CRF 6 the encoder is mostly spending bits preserving JPEG's own
+// artefacts rather than recovering detail.
 // AD_CRF=0 enables true mathematically-lossless: also switches the encoder
 // to yuv444p + high444 profile (libx264 rejects CRF 0 with the default
 // yuv420p chroma subsampling). File is ~10× larger; rarely useful.
 const CRF_ENV = parseInt(process.env.AD_CRF, 10);
-const CRF = Number.isFinite(CRF_ENV) ? CRF_ENV : (MAX ? 10 : PROD ? 14 : 18);
+const CRF = Number.isFinite(CRF_ENV) ? CRF_ENV : (MAX ? 6 : PROD ? 14 : 18);
 
-// CRF for the in-app trailer served from public/artwork. Welcome-screen
-// playback doesn't need master-grade bytes: 23 cuts the download from
-// ~11 MB (CRF 10 master) to ~4 MB with no visible difference in the modal.
+// CRF for the in-app trailer served from public/artwork. Delivered at 1080p
+// downscaled from the 4K capture, so it's a supersample rather than a native
+// 1080p encode — edges and text survive the bitrate far better. Encoded from
+// the source frames in its own pass (not re-encoded from the master), so it
+// costs one generation of loss instead of two.
 const PUBLISH_CRF_ENV = parseInt(process.env.AD_PUBLISH_CRF, 10);
-const PUBLISH_CRF = Number.isFinite(PUBLISH_CRF_ENV) ? PUBLISH_CRF_ENV : 23;
+const PUBLISH_CRF = Number.isFinite(PUBLISH_CRF_ENV) ? PUBLISH_CRF_ENV : 16;
+
+// App Store Connect app-preview deliverable (output/appstore-<variant>-16x9.mp4),
+// one per stitched variant. Every value here is pinned by Apple's spec, not
+// by taste — see:
+// https://developer.apple.com/help/app-store-connect/reference/app-preview-specifications/
+//   - Apple TV previews are accepted at 1920×1080 ONLY. There is no 4K tier,
+//     so the 4K capture's job here is to be a supersampled source.
+//   - Max 30 fps (we capture 60, so this halves cleanly to 30).
+//   - H.264 up to High Profile Level 4.0 — note the master ships Level 4.2,
+//     which Apple would reject.
+//   - Target bit rate 10-12 Mbps, hence VBR rather than the master's CRF.
+//   - Audio must be stereo 256kbps AAC at 44.1 or 48 kHz.
+//   - Length must be 15-30s inclusive. Both variants land at ~30.4s (each
+//     clip carries capture.js's 120ms TAIL_MS past its declared duration),
+//     so the deliverable is trimmed to APPSTORE_MAX_SEC with the music
+//     fade-out retimed to match — a plain -t would cut the fade mid-way.
+// ProRes 422 HQ is the other accepted codec and is nominally higher quality,
+// but 1080p30 HQ runs ~176 Mbps → ~660MB for 30s, over Apple's 500MB cap.
+const APPSTORE_WIDTH = 1920;
+const APPSTORE_HEIGHT = 1080;
+const APPSTORE_FPS = 30;
+const APPSTORE_BITRATE = '11M';
+const APPSTORE_MAXRATE = '12M';
+const APPSTORE_BUFSIZE = '24M';
+const APPSTORE_AUDIO_BITRATE = '256k';
+const APPSTORE_AUDIO_RATE = 48000;
+const APPSTORE_MAX_SEC = 29.9;
+const APPSTORE_MAX_BYTES = 500 * 1024 * 1024;
 
 function main() {
   const variants = getVariants();
@@ -98,32 +133,55 @@ function main() {
     }
   }
 
-  const publishSource = path.join(OUTPUT_DIR, `final-${PUBLISH_VARIANT}-${PUBLISH_ASPECT}.mp4`);
-  if (fs.existsSync(publishSource)) {
-    fs.mkdirSync(path.dirname(PUBLISH_PATH), { recursive: true });
-    console.log(`Publishing (delivery CRF ${PUBLISH_CRF}): ${path.relative(process.cwd(), PUBLISH_PATH)}`);
-    try {
-      execFileSync('ffmpeg', [
-        '-y', '-loglevel', 'error', '-stats',
-        '-i', publishSource,
-        '-c:v', 'libx264',
-        '-pix_fmt', 'yuv420p',
-        '-preset', 'slow',
-        '-crf', String(PUBLISH_CRF),
-        '-profile:v', 'high', '-level', '4.2',
-        '-color_range', 'tv', '-colorspace', 'bt709',
-        '-color_primaries', 'bt709', '-color_trc', 'bt709',
-        '-c:a', 'copy',
-        '-movflags', '+faststart',
-        PUBLISH_PATH,
-      ], { stdio: 'inherit' });
-    } catch (err) {
-      console.error(`ffmpeg publish encode failed: ${err.message}`);
-      process.exit(1);
-    }
-  } else {
-    console.log(`Skipping publish: ${PUBLISH_VARIANT}/${PUBLISH_ASPECT} not produced this run.`);
+  if (!variants.some((v) => v.name === PUBLISH_VARIANT)) {
+    console.log(`Note: variant "${PUBLISH_VARIANT}" not in this run — ${path.relative(process.cwd(), PUBLISH_PATH)} left untouched.`);
   }
+}
+
+// One entry per deliverable. Each is encoded in its own pass straight from
+// the JPEG frames, so no output is a re-encode of another.
+function outputProfiles(variant, aspect, ref) {
+  const profiles = [{
+    label: 'master',
+    outPath: path.join(OUTPUT_DIR, `final-${variant.name}-${aspect}.mp4`),
+    width: Math.round(ref.captureWidth * OUT_SCALE),
+    height: Math.round(ref.captureHeight * OUT_SCALE),
+    fps: FPS,
+    crf: CRF,
+    level: '4.2',
+    audioBitrate: '192k',
+  }];
+
+  if (variant.name === PUBLISH_VARIANT && aspect === PUBLISH_ASPECT) {
+    profiles.push({
+      label: 'in-app trailer',
+      outPath: PUBLISH_PATH,
+      width: 1920,
+      height: 1080,
+      fps: FPS,
+      crf: PUBLISH_CRF,
+      level: '4.2',
+      audioBitrate: '192k',
+    });
+  }
+
+  profiles.push({
+    label: 'App Store preview',
+    outPath: path.join(OUTPUT_DIR, `appstore-${variant.name}-${aspect}.mp4`),
+    width: APPSTORE_WIDTH,
+    height: APPSTORE_HEIGHT,
+    fps: APPSTORE_FPS,
+    bitrate: APPSTORE_BITRATE,
+    maxrate: APPSTORE_MAXRATE,
+    bufsize: APPSTORE_BUFSIZE,
+    level: '4.0',
+    audioBitrate: APPSTORE_AUDIO_BITRATE,
+    audioRate: APPSTORE_AUDIO_RATE,
+    maxDurationSec: APPSTORE_MAX_SEC,
+    maxBytes: APPSTORE_MAX_BYTES,
+  });
+
+  return profiles;
 }
 
 function stitchAspect(variant, aspect) {
@@ -145,9 +203,20 @@ function stitchAspect(variant, aspect) {
   });
   const durations = metas.map((m) => m.frameCount / m.fps);
 
-  const outPath = path.join(OUTPUT_DIR, `final-${variant.name}-${aspect}.mp4`);
+  const ref = metas[0];
+  const totalSecFull = durations.reduce((a, b) => a + b, 0) - (clipDirs.length - 1) * (XFADE_MS / 1000);
+  for (const profile of outputProfiles(variant, aspect, ref)) {
+    encodeProfile(profile, { aspect, clipDirs, durations, ref, totalSecFull });
+  }
+}
+
+function encodeProfile(profile, ctx) {
+  const { aspect, clipDirs, durations, ref, totalSecFull } = ctx;
+  const outPath = profile.outPath;
   const xfadeNote = clipDirs.length > 1 ? `xfade ${XFADE_MS}ms, ` : '';
-  console.log(`Stitching ${aspect} → ${path.relative(process.cwd(), outPath)} (${xfadeNote}${FPS}fps, CRF ${CRF})`);
+  const rateNote = profile.crf != null ? `CRF ${profile.crf}` : `${profile.bitrate} VBR`;
+  console.log(`Encoding ${profile.label} → ${path.relative(process.cwd(), outPath)} ` +
+    `(${profile.width}×${profile.height}, ${xfadeNote}${profile.fps}fps, ${rateNote})`);
 
   // Each clip is an image-sequence input. ffmpeg requires `-framerate` to
   // come BEFORE its `-i`, so we build the input args explicitly per clip.
@@ -157,13 +226,15 @@ function stitchAspect(variant, aspect) {
   }
 
   // --- Filter graph: optional uniform pre-scale, then xfade chain ---
+  // Scaling happens per-input, BEFORE the xfade chain: for the 1080p
+  // deliverables that means the blends run at 1080p instead of 4K, at no
+  // quality cost (scale-then-blend and blend-then-scale are equivalent here).
   const xfadeSec = XFADE_MS / 1000;
-  const ref = metas[0];
-  const targetW = Math.round(ref.captureWidth * OUT_SCALE);
-  const targetH = Math.round(ref.captureHeight * OUT_SCALE);
-  const needsScale = OUT_SCALE !== 1;
+  const targetW = profile.width;
+  const targetH = profile.height;
+  const needsScale = targetW !== ref.captureWidth || targetH !== ref.captureHeight;
   if (needsScale) {
-    console.log(`  upscale: ${ref.captureWidth}×${ref.captureHeight} → ${targetW}×${targetH}`);
+    console.log(`  scale: ${ref.captureWidth}×${ref.captureHeight} → ${targetW}×${targetH} (lanczos)`);
   }
 
   const filterParts = [];
@@ -194,14 +265,23 @@ function stitchAspect(variant, aspect) {
   // reject (e.g. AirConsole's trailer uploader).
   filterParts.push('[vraw]scale=in_range=full:out_range=tv,format=yuv420p,setparams=range=tv:colorspace=bt709:color_primaries=bt709:color_trc=bt709[vout]');
 
+  // Duration the encode actually emits. Only the App Store profile caps it
+  // (Apple's 30s ceiling); everything else runs the variant's full length.
+  const totalSec = profile.maxDurationSec != null
+    ? Math.min(totalSecFull, profile.maxDurationSec)
+    : totalSecFull;
+  if (totalSec < totalSecFull) {
+    console.log(`  trim: ${totalSecFull.toFixed(2)}s → ${totalSec.toFixed(2)}s`);
+  }
+
   // --- Audio: optional music bed mixed in the same pass ---
-  const totalSec = durations.reduce((a, b) => a + b, 0) - (clipDirs.length - 1) * xfadeSec;
   const useMusic = MUSIC_LEVEL > 0 && fs.existsSync(MUSIC_PATH);
   const audioInputs = [];
   if (useMusic) {
     // -t caps music duration to the video length so a high MUSIC_OFFSET_SEC
     // near end-of-track can't make audio the shorter stream and let -shortest
-    // truncate the video. afade tail still trims the last 0.7s gracefully.
+    // truncate the video. The fade-out is timed off this profile's own
+    // duration, so a trimmed output still ends on a complete fade.
     audioInputs.push('-ss', String(MUSIC_OFFSET_SEC), '-t', totalSec.toFixed(3), '-i', MUSIC_PATH);
     const fadeOutStart = Math.max(0, totalSec - 0.7);
     filterParts.push(
@@ -210,6 +290,7 @@ function stitchAspect(variant, aspect) {
     );
   }
 
+  const lossless = profile.crf === 0;
   const args = [
     '-y', '-loglevel', 'error', '-stats',
     ...inputArgs,
@@ -218,26 +299,36 @@ function stitchAspect(variant, aspect) {
     '-map', '[vout]',
   ];
   if (useMusic) {
-    args.push('-map', '[aout]', '-c:a', 'aac', '-b:a', '192k', '-shortest');
+    args.push('-map', '[aout]', '-c:a', 'aac', '-b:a', profile.audioBitrate, '-ac', '2');
+    if (profile.audioRate) args.push('-ar', String(profile.audioRate));
+    args.push('-shortest');
     console.log(`  music: ${path.basename(MUSIC_PATH)} @ ${MUSIC_LEVEL}× from ${MUSIC_OFFSET_SEC}s`);
   }
   args.push(
     '-c:v', 'libx264',
-    '-pix_fmt', CRF === 0 ? 'yuv444p' : 'yuv420p',
+    '-pix_fmt', lossless ? 'yuv444p' : 'yuv420p',
     '-preset', 'slow',
-    '-crf', String(CRF),
-    '-r', String(FPS),
-    '-profile:v', CRF === 0 ? 'high444' : 'high', '-level', '4.2',
+  );
+  if (profile.crf != null) {
+    args.push('-crf', String(profile.crf));
+  } else {
+    args.push('-b:v', profile.bitrate, '-maxrate', profile.maxrate, '-bufsize', profile.bufsize);
+  }
+  args.push(
+    '-r', String(profile.fps),
+    '-t', totalSec.toFixed(3),
+    '-profile:v', lossless ? 'high444' : 'high', '-level', profile.level,
     '-color_range', 'tv', '-colorspace', 'bt709',
     '-color_primaries', 'bt709', '-color_trc', 'bt709',
     '-movflags', '+faststart',
     outPath,
   );
 
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
   try {
     execFileSync('ffmpeg', args, { stdio: 'inherit' });
   } catch (err) {
-    console.error(`ffmpeg failed for ${variant.name}/${aspect}: ${err.message}`);
+    console.error(`ffmpeg failed for ${profile.label} (${aspect}): ${err.message}`);
     console.error(`  command: ffmpeg ${args.map(quoteArg).join(' ')}`);
     process.exit(1);
   }
@@ -258,7 +349,38 @@ function stitchAspect(variant, aspect) {
       process.exit(1);
     }
     console.log(`  verified: ${actual.toFixed(2)}s (expected ${expectedSec.toFixed(2)}s)`);
+    if (profile.maxBytes != null) verifyAppStoreSpec(profile, outPath, actual);
   }
+}
+
+// Apple rejects an out-of-spec preview at upload, long after this script has
+// exited, so the spec is asserted here rather than trusted. Checks what the
+// encoder could plausibly get wrong; codec/profile/level are pinned above.
+function verifyAppStoreSpec(profile, outPath, durationSec) {
+  const probe = JSON.parse(execFileSync('ffprobe', [
+    '-v', 'error', '-select_streams', 'v:0',
+    '-show_entries', 'stream=width,height,r_frame_rate,profile,level',
+    '-of', 'json', outPath,
+  ], { encoding: 'utf-8' })).streams[0];
+
+  const [num, den] = probe.r_frame_rate.split('/').map(Number);
+  const fps = num / den;
+  const bytes = fs.statSync(outPath).size;
+  const problems = [];
+
+  if (durationSec < 15 || durationSec > 30) problems.push(`duration ${durationSec.toFixed(2)}s outside Apple's 15-30s range`);
+  if (probe.width !== APPSTORE_WIDTH || probe.height !== APPSTORE_HEIGHT) problems.push(`resolution ${probe.width}×${probe.height} — Apple TV previews must be ${APPSTORE_WIDTH}×${APPSTORE_HEIGHT}`);
+  if (fps > 30.01) problems.push(`${fps.toFixed(2)}fps exceeds Apple's 30fps max`);
+  // ffprobe reports level as an integer: 40 == Level 4.0.
+  if (Number(probe.level) > 40) problems.push(`H.264 Level ${(Number(probe.level) / 10).toFixed(1)} exceeds Apple's High Profile Level 4.0`);
+  if (bytes > profile.maxBytes) problems.push(`${(bytes / 1024 / 1024).toFixed(0)}MB exceeds Apple's 500MB max`);
+
+  if (problems.length) {
+    console.error(`App Store preview is out of spec:\n  - ${problems.join('\n  - ')}`);
+    process.exit(1);
+  }
+  console.log(`  App Store spec OK: ${probe.width}×${probe.height}, ${fps.toFixed(0)}fps, ` +
+    `${probe.profile} L${(Number(probe.level) / 10).toFixed(1)}, ${(bytes / 1024 / 1024).toFixed(1)}MB`);
 }
 
 function quoteArg(a) {

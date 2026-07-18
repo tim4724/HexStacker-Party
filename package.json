@@ -18,11 +18,8 @@
     "ad:capture": "node artwork/ad-clip/capture.js",
     "ad:stitch": "node artwork/ad-clip/stitch.js",
     "ad": "npm run ad:capture && npm run ad:stitch",
-    "ad:clean": "AD_VARIANT=clean npm run ad",
     "ad:prod": "AD_PROD=1 npm run ad",
-    "ad:prod:clean": "AD_PROD=1 AD_VARIANT=clean npm run ad",
-    "ad:max": "AD_MAX=1 npm run ad",
-    "ad:max:clean": "AD_MAX=1 AD_VARIANT=clean npm run ad"
+    "ad:max": "AD_MAX=1 npm run ad"
   },
   "dependencies": {},
   "devDependencies": {

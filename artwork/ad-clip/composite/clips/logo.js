@@ -1,14 +1,15 @@
-// Plain-logo finale — like winner.js but without the QR card or URL/tag
-// copy. Just the brand wordmark on the dark composite backdrop. Used by
-// the "clean" variant for placements where the QR + URL doesn't suit
-// (e.g. embedded video where the viewer can't scan, or contexts that
-// already have their own surrounding CTA).
+// Plain-logo finale — the brand wordmark on the dark composite backdrop.
 //
-// composite.css's `body.clip-logo` rules hide the iframe and the title-card
-// QR/URL/tag elements; this module just toggles the title-card visibility.
+// composite.css's `body.clip-logo` rules hide the display iframe and the
+// phones; this module just toggles the title-card visibility and holds.
+//
+// All pacing here runs on ctx.waitScaled (game-time), not setTimeout
+// (wall-clock), because this clip is time-scaled during capture: the card's
+// 600ms CSS fade is slowed to match by composite.js's scaleCssAnimations, so
+// the hold has to be slowed the same way or the clip would end mid-fade.
 
 export async function stage() {
-  // No QR fetch, no DOM mutation — visibility is driven by run().
+  // No DOM mutation — visibility is driven by run().
 }
 
 // Tail buffer between when run() returns and the screencast's last frame.
@@ -16,15 +17,15 @@ export async function stage() {
 // so the captured sequence covers the full configured duration.
 const TAIL_MS = 100;
 
-export async function run({ titleCard, durationMs }) {
-  setTimeout(() => titleCard.classList.add('in'), 200);
+// Beat before the card fades up, so the cut from chaos8p lands first.
+const FADE_DELAY_MS = 200;
+
+export async function run({ titleCard, durationMs, waitScaled }) {
   titleCard.classList.remove('hidden');
+  await waitScaled(FADE_DELAY_MS);
+  titleCard.classList.add('in');
   // durationMs comes from variants.js via composite ctx — keeps the
   // hold-time coupled to the slot the variant allocated. Fallback for
   // older callers / direct loads.
-  await wait(Math.max(500, (durationMs || 6000) - TAIL_MS));
-}
-
-function wait(ms) {
-  return new Promise((r) => setTimeout(r, ms));
+  await waitScaled(Math.max(500, (durationMs || 6000) - FADE_DELAY_MS - TAIL_MS));
 }

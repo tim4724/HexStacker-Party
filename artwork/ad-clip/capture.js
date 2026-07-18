@@ -52,11 +52,8 @@ const OUTPUT_RAW = path.resolve(__dirname, 'output', 'raw');
 // AD_PROD=1 AD_JPEG_QUALITY=92 keeps the supersampling but compresses harder.
 // Stitch reads the same flag for OUT_SCALE + CRF.
 //
-// AD_MAX=1 — superset of AD_PROD: 1080p capture with DSF=2 supersample,
-// JPEG=100, CRF=10, TIME_SCALE=0.25, OUT_SCALE=1 (deliver 1080p, no upscale).
-// DSF=2 rasterises internally at 4K (so AA quality is preserved on text and
-// hex edges) while the screencast emits 1080p frames — 4× less encode work
-// than native-4K capture and no contention-driven renderer stalls.
+// AD_MAX=1 — superset of AD_PROD: true 4K capture (3840×2160 frames),
+// JPEG=100, CRF=10, TIME_SCALE=0.25, OUT_SCALE=1 (deliver native 4K).
 const MAX = process.env.AD_MAX === '1';
 const PROD = process.env.AD_PROD === '1' || MAX;
 
@@ -64,17 +61,29 @@ const PROD = process.env.AD_PROD === '1' || MAX;
 // wall-clock second covers less game-time, giving the browser more time to
 // paint per game-frame at the target 60fps output. Patches performance.now
 // and Date.now in the composite + iframe contexts; canvas-based animations
-// (the game's renderer) follow correctly. CSS animations and setTimeout
-// keep wall-clock timing — fine for gameplay clips (no CSS-timed visuals)
-// but would compress the lobby-reveal slot-pop-in and winner/logo fades.
+// (the game's renderer) follow correctly, and composite.js scales CSS
+// transitions separately via the Web Animations API. Every clip is scaled.
 // Capture wall-clock time becomes durationMs / TIME_SCALE per clip.
 const TIME_SCALE_ENV = parseFloat(process.env.AD_TIME_SCALE);
 const TIME_SCALE = Number.isFinite(TIME_SCALE_ENV) ? TIME_SCALE_ENV : (MAX ? 0.25 : PROD ? 0.5 : 1);
 
-// Render scale — Playwright deviceScaleFactor. SCALE=1 captures at native
-// 1920×1080. SCALE=2 supersamples for crisper anti-aliasing on text/canvas
-// at the cost of ~4× per-frame work. Pair with AD_OUT_SCALE=2 in stitch to
-// actually deliver at 4K.
+// Render scale. The page always lays out at ASPECTS' CSS size (1920×1080),
+// so SCALE never changes composition — only raster density. SCALE=2 emits
+// true 3840×2160 frames at ~4× the per-frame cost.
+//
+// This needs BOTH knobs, and they do different jobs:
+//   --force-device-scale-factor (browser-level, applied in main()) is what
+//     actually widens the screencast frame. CDP screencast emits frames at
+//     the CSS viewport size, so Playwright's deviceScaleFactor alone is
+//     invisible to it — DSF=2 rasterises internally at 4K but still hands
+//     back a downsampled 1080p JPEG. The launch flag moves the whole
+//     device-pixel grid instead, so frames come out at 3840×2160.
+//   deviceScaleFactor (context-level, below) is what sets window.devicePixel-
+//     Ratio in the page. BoardRenderer sizes its canvas backing store by DPR,
+//     so without it the board would render at 1920×1080 and merely be scaled
+//     up into the 4K frame — sharp DOM text, mushy hexes.
+// Set one without the other and you get resolution with no detail, or detail
+// with no resolution.
 const SCALE_ENV = parseFloat(process.env.AD_SCALE);
 const SCALE = Number.isFinite(SCALE_ENV) ? SCALE_ENV : (PROD ? 2 : 1);
 
@@ -85,27 +94,19 @@ const SCALE = Number.isFinite(SCALE_ENV) ? SCALE_ENV : (PROD ? 2 : 1);
 const JPEG_QUALITY_ENV = parseInt(process.env.AD_JPEG_QUALITY, 10);
 const JPEG_QUALITY = Number.isFinite(JPEG_QUALITY_ENV) ? JPEG_QUALITY_ENV : (MAX ? 100 : PROD ? 96 : 92);
 
-// Clips that DON'T get time-scaled. Their visuals depend on CSS animations
-// (slot pop-in, fade-in transitions) which our perf.now patch can't reach,
-// so applying the scale would compress those animations in playback. They
-// also aren't compute-bound — there's no fps headroom problem to solve.
-const NON_SCALABLE_CLIPS = new Set(['lobby-reveal', 'winner', 'logo']);
-
 // Per-clip threshold (ms of output/game-time) for the post-capture freeze
 // sniff. The resampled frames are run through ffmpeg freezedetect; a visual
 // freeze longer than this means either the iframe's compositor cache went
 // stale OR the page's main thread stalled mid-capture (canvas RAF blocked
 // while compositor-driven CSS animations kept the frames byte-different,
 // a failure mode an md5-identical check can't see), and we retry.
-// Static card clips have multi-second static content by design; Infinity
-// skips the sniff for them.
+// The logo card holds a still frame for seconds by design; Infinity skips
+// the sniff for it.
 const FREEZE_THRESHOLD_MS = {
-  'lobby-reveal': 1500,
   normal4p: 1000,
   pillow4p: 1000,
   neon4p:   250,
   chaos8p:  1000,
-  winner: Infinity,
   logo:   Infinity,
 };
 const MAX_CAPTURE_ATTEMPTS = 3;
@@ -116,7 +117,7 @@ const MAX_CAPTURE_ATTEMPTS = 3;
 // frames. The heartbeat for active content was suspected of causing 1-2s
 // renderer stalls during paint pressure (the 4K JPEG aggregation commit
 // blocked the iframe's RAF), so we restrict it to static-content clips.
-const HEARTBEAT_CLIPS = new Set(['lobby-reveal', 'winner', 'logo']);
+const HEARTBEAT_CLIPS = new Set(['logo']);
 
 // Output frame rate. Native screencast emits at ~95 fps at 1080p, so 60 fps
 // output gets near-1:1 nearest-neighbour copies (rare duplicates).
@@ -146,8 +147,8 @@ async function main() {
   if (variants.length > 1) {
     console.log(`Capturing ${clips.length} unique clips shared by ${variants.length} variants.`);
   }
-  if (MAX) console.log('AD_MAX=1: VIEWPORT=1920×1080, DSF=2 supersample, JPEG=100, OUT_SCALE=1, CRF=10, TIME_SCALE=0.25');
-  else if (PROD) console.log('AD_PROD=1: SCALE=2, JPEG=96, OUT_SCALE=2, CRF=14, TIME_SCALE=0.5');
+  if (MAX) console.log('AD_MAX=1: SCALE=2 (true 3840×2160 frames), JPEG=100, OUT_SCALE=1, CRF=6, TIME_SCALE=0.25');
+  else if (PROD) console.log('AD_PROD=1: SCALE=2 (true 3840×2160 frames), JPEG=96, OUT_SCALE=1, CRF=14, TIME_SCALE=0.5');
   if (TIME_SCALE !== 1) console.log(`Time scale: ${TIME_SCALE}× (game runs at this speed during capture)`);
 
   let chromium;
@@ -205,7 +206,10 @@ async function main() {
     console.log(`Spawning server on port ${PORT}…`);
     server = spawnServer(PORT);
     await waitForServer(PORT, server);
-    browser = await chromium.launch({ headless: true });
+    browser = await chromium.launch({
+      headless: true,
+      args: [`--force-device-scale-factor=${SCALE}`],
+    });
     for (const { aspect, clip } of toCapture) {
       await captureWithRetry(browser, aspect, clip);
     }
@@ -222,8 +226,7 @@ async function captureOne(browser, aspect, clip, opts) {
   // clips (logo, winner) can size their hold-time to the slot the variant
   // allocated. `timeScale` triggers in-page time patching so the game runs
   // slower than wall-clock for higher-quality recording (see TIME_SCALE).
-  // Non-scalable clips (CSS-animated card/lobby) get scale=1 regardless.
-  const clipTimeScale = clipTimeScaleFor(clip);
+  const clipTimeScale = TIME_SCALE;
   const url = `${BASE_URL}/artwork/ad-clip/index.html?clip=${encodeURIComponent(clip.name)}&aspect=${aspect.name}&duration=${clip.durationMs}&timeScale=${clipTimeScale}`;
   const targetDir = path.join(OUTPUT_RAW, `clip-${clip.name}-${aspect.name}`);
   const stagingDir = path.join(targetDir, '_staging');
@@ -231,7 +234,7 @@ async function captureOne(browser, aspect, clip, opts) {
 
   const outW = Math.round(aspect.width * SCALE);
   const outH = Math.round(aspect.height * SCALE);
-  console.log(`  capture ${clip.name} ${aspect.name} → ${aspect.width}×${aspect.height} @ ${SCALE}× DSF (effective ${outW}×${outH})`);
+  console.log(`  capture ${clip.name} ${aspect.name} → ${outW}×${outH} frames (${aspect.width}×${aspect.height} CSS @ ${SCALE}×)`);
 
   const context = await browser.newContext({
     viewport: { width: aspect.width, height: aspect.height },
@@ -402,10 +405,10 @@ async function captureOne(browser, aspect, clip, opts) {
     durationMs: clip.durationMs,
     actualClipMs,
     // captureWidth/Height = actual screencast frame dimensions in pixels
-    // (== viewport CSS size, since DSF doesn't enlarge the screencast frame).
-    // stitch reads these to compute its lanczos target.
-    captureWidth: aspect.width,
-    captureHeight: aspect.height,
+    // (viewport CSS size × SCALE, via --force-device-scale-factor).
+    // stitch reads these as its source size.
+    captureWidth: outW,
+    captureHeight: outH,
     scale: SCALE,
     jpegQuality: JPEG_QUALITY,
     timeScale: clipTimeScale,
@@ -419,15 +422,11 @@ async function captureOne(browser, aspect, clip, opts) {
 function isReusableCapture(meta, aspect, clip) {
   return meta.durationMs === clip.durationMs &&
     meta.fps === FPS &&
-    meta.captureWidth === aspect.width &&
-    meta.captureHeight === aspect.height &&
+    meta.captureWidth === Math.round(aspect.width * SCALE) &&
+    meta.captureHeight === Math.round(aspect.height * SCALE) &&
     meta.scale === SCALE &&
     meta.jpegQuality === JPEG_QUALITY &&
-    meta.timeScale === clipTimeScaleFor(clip);
-}
-
-function clipTimeScaleFor(clip) {
-  return NON_SCALABLE_CLIPS.has(clip.name) ? 1 : TIME_SCALE;
+    meta.timeScale === TIME_SCALE;
 }
 
 // Wrap captureOne with retry-on-freeze. Up to MAX_CAPTURE_ATTEMPTS
