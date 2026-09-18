@@ -324,8 +324,7 @@ jobs:
                 services:
                   - name: tv-gallery
                     port: 80
-            tls:
-              secretName: hexstacker-wildcard-tls
+            tls: {}
           ---
           apiVersion: traefik.io/v1alpha1
           kind: IngressRoute

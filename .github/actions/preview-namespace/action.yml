@@ -1,9 +1,13 @@
 name: Preview namespace
 description: >
   Create (idempotently) the per-branch preview namespace and everything every
-  preview workload needs in it: scoped deployer RBAC, default-deny network
-  policies with DNS + Traefik holes punched, and a copy of the wildcard TLS
-  secret. Both Preview Deploy and TV Gallery land in the same namespace and
+  preview workload needs in it: scoped deployer RBAC and default-deny network
+  policies with DNS + Traefik holes punched. Preview TLS needs nothing here:
+  Traefik keeps ONE SNI-keyed certificate store across all namespaces, so the
+  cert-manager wildcard in `default` already serves preview hosts. Copying it
+  per namespace produced snapshots that never renewed and, once expired, won
+  the SNI match over the live cert and took the apex domain down.
+  Both Preview Deploy and TV Gallery land in the same namespace and
   either can get there first (a native-only branch deploys a gallery with no app
   preview), so both apply the whole set. Kept here so the two can't drift.
 
@@ -92,17 +96,3 @@ runs:
             ports:
             - protocol: TCP
         NETPOL
-
-        # Copy the wildcard cert in: IngressRoutes reference it per namespace.
-        TLS_CRT=$(kubectl get secret hexstacker-wildcard-tls -n default -o jsonpath='{.data.tls\.crt}')
-        TLS_KEY=$(kubectl get secret hexstacker-wildcard-tls -n default -o jsonpath='{.data.tls\.key}')
-        cat <<EOS | kubectl apply -n "$NS" -f -
-        apiVersion: v1
-        kind: Secret
-        metadata:
-          name: hexstacker-wildcard-tls
-        type: kubernetes.io/tls
-        data:
-          tls.crt: ${TLS_CRT}
-          tls.key: ${TLS_KEY}
-        EOS
