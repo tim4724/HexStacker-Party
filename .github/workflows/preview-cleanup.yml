@@ -8,10 +8,23 @@ on:
 permissions:
   contents: read
 
+# Join the groups of both workflows that deploy into the branch's namespace
+# (Preview Deploy here, TV Gallery on the job) and cancel whatever is in flight.
+# Otherwise push-then-merge races: this deletes the namespace while the last
+# push's deploy is still building, and that deploy then recreates it for a
+# branch that no longer exists. Delete events carry the short branch name in
+# event.ref, hence the spelled-out refs/heads/ to match preview's github.ref.
+concurrency:
+  group: preview-refs/heads/${{ github.event.ref }}
+  cancel-in-progress: true
+
 jobs:
   cleanup:
     runs-on: [self-hosted, k8s]
     if: github.event.ref_type == 'branch' && github.event.ref != 'main'
+    concurrency:
+      group: tv-gallery-${{ github.event.ref }}
+      cancel-in-progress: true
     environment: preview
     timeout-minutes: 10
     steps:
@@ -23,7 +36,7 @@ jobs:
       - name: Install kubectl
         uses: azure/setup-kubectl@v5
         with:
-          version: v1.30.0
+          version: v1.35.9
 
       - name: Write kubeconfig
         run: |
