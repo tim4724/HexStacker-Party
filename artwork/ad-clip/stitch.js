@@ -34,9 +34,10 @@ const MUSIC_PATH = path.resolve(__dirname, '..', '..', 'public', 'shared', 'musi
 // don't download master-grade bytes.
 //
 // The CouchPad apps play this file from couchpad.games/games-manifest.json and
-// cache it by URL forever, so a re-render must ship under a new name
-// (trailer-v2.mp4, …): bump PUBLISH_PATH and every page that plays it, then the
-// manifest's `video` in Couch-Games and its bundled copies in Couch-Games-Controller.
+// never revalidate it, keyed on the full URL, so after a re-render is deployed
+// here, bump the `?v=N` on the manifest's `video` in Couch-Games and its
+// bundled copies in Couch-Games-Controller. Bumping before the deploy caches
+// the old bytes under the new URL.
 const PUBLISH_VARIANT = 'clean';
 const PUBLISH_ASPECT = '16x9';
 const PUBLISH_PATH = path.resolve(__dirname, '..', '..', 'public', 'artwork', 'trailer.mp4');
@@ -84,9 +85,10 @@ const CRF = Number.isFinite(CRF_ENV) ? CRF_ENV : (MAX ? 6 : PROD ? 14 : 18);
 // downscaled from the 4K capture, so it's a supersample rather than a native
 // 1080p encode — edges and text survive the bitrate far better. Encoded from
 // the source frames in its own pass (not re-encoded from the master), so it
-// costs one generation of loss instead of two.
+// costs one generation of loss instead of two. 28 (with 96k audio) was chosen
+// by eye in a side-by-side review; lower it if artefacts show.
 const PUBLISH_CRF_ENV = parseInt(process.env.AD_PUBLISH_CRF, 10);
-const PUBLISH_CRF = Number.isFinite(PUBLISH_CRF_ENV) ? PUBLISH_CRF_ENV : 16;
+const PUBLISH_CRF = Number.isFinite(PUBLISH_CRF_ENV) ? PUBLISH_CRF_ENV : 28;
 
 // App Store Connect app-preview deliverable (output/appstore-<variant>-16x9.mp4),
 // one per stitched variant. Every value here is pinned by Apple's spec, not
@@ -166,7 +168,7 @@ function outputProfiles(variant, aspect, ref) {
       fps: FPS,
       crf: PUBLISH_CRF,
       level: '4.2',
-      audioBitrate: '192k',
+      audioBitrate: '96k',
     });
   }
 
