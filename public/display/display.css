@@ -137,7 +137,8 @@ body.airconsole #lobby-version-label { display: block; }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: clamp(1rem, 4vh, 3rem);
+  --trailer-pad: clamp(1rem, 4vh, 3rem);
+  padding: var(--trailer-pad);
   background: var(--overlay-bg);
   transition: opacity 0.2s ease-out;
 }
@@ -151,9 +152,10 @@ body.airconsole #lobby-version-label { display: block; }
 }
 
 .trailer-modal__video {
-  width: min(100%, 1280px);
+  /* Always 16:9, bounded by 80vw and by the height between the paddings.
+     No pixel cap, so the film keeps growing on large displays. */
+  width: min(80vw, calc((100vh - 2 * var(--trailer-pad)) * 16 / 9));
   aspect-ratio: 16 / 9;
-  max-height: 100%;
   background: #000;
   border-radius: 8px;
   box-shadow: var(--shadow-sm);
