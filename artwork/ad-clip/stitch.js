@@ -32,6 +32,11 @@ const MUSIC_PATH = path.resolve(__dirname, '..', '..', 'public', 'shared', 'musi
 // output/ masters for side-by-side iteration and uploaders, while the
 // public/ copy is re-encoded at PUBLISH_CRF delivery quality so clients
 // don't download master-grade bytes.
+//
+// The CouchPad apps play this file from couchpad.games/games-manifest.json and
+// cache it by URL forever, so a re-render must ship under a new name
+// (trailer-v2.mp4, …): bump PUBLISH_PATH and every page that plays it, then the
+// manifest's `video` in Couch-Games and its bundled copies in Couch-Games-Controller.
 const PUBLISH_VARIANT = 'clean';
 const PUBLISH_ASPECT = '16x9';
 const PUBLISH_PATH = path.resolve(__dirname, '..', '..', 'public', 'artwork', 'trailer.mp4');
