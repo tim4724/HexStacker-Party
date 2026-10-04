@@ -137,4 +137,33 @@ test.describe('Game Lifecycle', () => {
     expect(c1Errors).toEqual([]);
     expect(c2Errors).toEqual([]);
   });
+
+  // A tap that swaps in a new surface must not land on it too. Phones send the
+  // compatibility mousedown/click after the pointerup that opened the overlay,
+  // and the sensitivity slider sits right under the pause menu's Settings
+  // button, so the ghost mousedown used to set the slider to the tap position.
+  test('pause → settings tap does not bleed into the sensitivity slider', async ({ page, browser }, testInfo) => {
+    const { roomCode } = await createRoom(page);
+    const phone = await browser.newContext({
+      baseURL: testInfo.project.use.baseURL,
+      viewport: { width: 393, height: 852 },
+      hasTouch: true,
+      isMobile: true,
+    });
+    const controller = await joinController(phone, roomCode, 'Alice');
+    await controller.click('#start-btn');
+    await waitForDisplayGame(page);
+    await waitForControllerGame(controller);
+
+    await controller.tap('#pause-btn');
+    await controller.waitForSelector('#pause-overlay:not(.hidden)');
+    const sensitivity = () => controller.evaluate(() => ControllerSettings.getSensitivity());
+    const before = await sensitivity();
+    const btn = await controller.locator('#pause-settings-btn').boundingBox();
+    await controller.touchscreen.tap(btn.x + btn.width * 0.8, btn.y + btn.height / 2);
+    await expect(controller.locator('#settings-overlay')).toBeVisible();
+    await controller.waitForTimeout(300);
+    expect(await sensitivity()).toBe(before);
+    await phone.close();
+  });
 });

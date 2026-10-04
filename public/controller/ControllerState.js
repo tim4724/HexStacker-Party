@@ -279,11 +279,14 @@ function showScreen(name) {
 // same element) without depending on click synthesis. The click listener
 // stays as the non-pointer path (keyboard, assistive tech, programmatic
 // .click() from tests and bootstraps); the compatibility click that trails a
-// handled pointerup is suppressed by timestamp. Delegating callers read
-// e.target, which on the pointer path is the release target.
+// handled pointerup is suppressed by timestamp. On touch the following
+// touchend is cancelled too, so no compatibility mousedown lands on a
+// surface the handler just swapped in. Delegating callers read e.target,
+// which on the pointer path is the release target.
 function bindTap(el, handler) {
   var armed = false;
   var lastPointerFire = -Infinity;
+  function trailsPointerFire(e) { return e.timeStamp - lastPointerFire < 700; }
   el.addEventListener('pointerdown', function (e) {
     armed = e.isPrimary && e.button === 0;
   });
@@ -295,8 +298,11 @@ function bindTap(el, handler) {
     lastPointerFire = e.timeStamp;
     handler(e);
   });
+  el.addEventListener('touchend', function (e) {
+    if (trailsPointerFire(e)) e.preventDefault();
+  });
   el.addEventListener('click', function (e) {
-    if (e.timeStamp - lastPointerFire < 700) return;
+    if (trailsPointerFire(e)) return;
     handler(e);
   });
 }
