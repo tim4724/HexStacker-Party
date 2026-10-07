@@ -253,7 +253,7 @@ function _acVibrate(pattern) {
   pattern = ControllerSettings.scaleVibration(pattern);
   if (pattern === null) return;
   // AirConsole SDK takes only a single duration. Collapse array patterns
-  // (hard drop's [8, 8, 8]) by summing the on-durations — even indices are
+  // (hard drop's [10, 50, 10]) by summing the on-durations — even indices are
   // vibrate, odd are pauses — so the total energy survives even though the
   // rhythm is lost.
   if (Array.isArray(pattern)) {
