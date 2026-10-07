@@ -352,7 +352,7 @@ class TouchInput {
       this._haptic(15);
     } else if (action === INPUT.HARD_DROP) {
       this.onInput(INPUT.HARD_DROP);
-      this._haptic([8, 8, 8]);
+      this._haptic([10, 50, 10]);
     } else if (action === INPUT.HOLD) {
       this.onInput(INPUT.HOLD);
       this._haptic(23);

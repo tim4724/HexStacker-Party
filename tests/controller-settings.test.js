@@ -84,13 +84,16 @@ describe('ControllerSettings — haptic scaleVibration', () => {
     });
   });
 
-  test('array patterns are scaled element-wise', () => {
+  test('array patterns scale their pulses, never their pauses', () => {
     withTier('medium', () => {
-      assert.deepEqual(ControllerSettings.scaleVibration([8, 8, 8]), [8, 8, 8]);
+      assert.deepEqual(ControllerSettings.scaleVibration([10, 50, 10]), [10, 50, 10]);
     });
     withTier('strong', () => {
-      // [8 × 1.8, 8 × 1.8, 8 × 1.8] = [14.4, 14.4, 14.4] → round → [14, 14, 14]
-      assert.deepEqual(ControllerSettings.scaleVibration([8, 8, 8]), [14, 14, 14]);
+      // 10 × 1.8 = 18 per pulse; the 50 ms pause stays put
+      assert.deepEqual(ControllerSettings.scaleVibration([10, 50, 10]), [18, 50, 18]);
+    });
+    withTier('light', () => {
+      assert.deepEqual(ControllerSettings.scaleVibration([10, 50, 10]), [6, 50, 6]);
     });
   });
 
