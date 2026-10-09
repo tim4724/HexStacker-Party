@@ -23,9 +23,11 @@ async function joinCouchPadController(context, roomCode, name) {
     localStorage.removeItem('clientId_' + rc);
     window.__cpEnded = [];
     window.__cpBack = [];
+    window.__cpHaptics = [];
     window.CouchPadHost = {
       gameEnded: (reason) => window.__cpEnded.push(reason),
       enableSystemBack: (on) => window.__cpBack.push(on),
+      haptic: (primitive, scale) => window.__cpHaptics.push([primitive, scale]),
     };
   }, roomCode);
   await page.goto(`/${roomCode}?test=1&cpName=${encodeURIComponent(name)}`);
@@ -67,6 +69,10 @@ test.describe('CouchPad shell contract', () => {
     await expect(controller.locator('#settings-overlay')).toBeVisible();
     await controller.click('#settings-close');
     await expect(controller.locator('#settings-overlay')).toBeHidden();
+
+    // Haptics go to the launcher as primitives (CONTRACT §13): Done is a
+    // 'button' effect (click 0.7) at the default Medium tier (x0.75).
+    expect(await controller.evaluate(() => window.__cpHaptics.at(-1))).toEqual(['click', 0.7 * 0.75]);
 
     // Live rename from the shell propagates to controller UI and display.
     await controller.evaluate(() => window.CouchPad.setName('Maxi'));

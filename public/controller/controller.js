@@ -152,10 +152,11 @@ nameInput.addEventListener('blur', function () {
   setTimeout(syncViewportLayout, 50);
 });
 
-// Prime audio and (web-only, where AirConsole doesn't route haptics through
-// its SDK) vibration on first interaction
+// Prime audio and, on the Vibration API path, vibration on first interaction.
+// Not where a bootstrap plays haptics natively: there it buys nothing, and the
+// CouchPad iOS vibrate polyfill would play the prime as a full-strength tap.
 document.addEventListener('pointerdown', function onFirstPointer() {
-  if (!window.airconsole && navigator.vibrate) navigator.vibrate(1);
+  if (playHaptic === webPlayHaptic && navigator.vibrate) navigator.vibrate(1);
   ControllerAudio.prime();
   document.removeEventListener('pointerdown', onFirstPointer, true);
 }, { capture: true, passive: true });

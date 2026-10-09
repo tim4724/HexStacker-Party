@@ -316,11 +316,11 @@ function bindTap(el, handler) {
 
 // Haptic effects by role, at the Strong tier (Medium and Light scale them
 // down): an AirConsole/Android composition primitive at a scale of 0-1. Where
-// the platform plays primitives natively they're used as such
-// (controller-airconsole.js); the web Vibration API only has duration, so
-// there each primitive gets a length at full scale, sized against Android's
-// own fallbacks for its haptic effects (click 20 ms, heavy click 30 ms;
-// frameworks/base config_*VibePattern).
+// the platform plays primitives natively they're used as such (the AirConsole
+// and CouchPad bootstraps replace playHaptic); the web Vibration API only has
+// duration, so there each primitive gets a length at full scale, sized against
+// Android's own fallbacks for its haptic effects (click 20 ms, heavy click
+// 30 ms; frameworks/base config_*VibePattern).
 var HAPTIC_EFFECTS = {
   move: { primitive: 'click', scale: 1 },                    // ratchet step
   rotate: { primitive: 'spin', scale: 0.8 },
@@ -332,11 +332,14 @@ var HAPTIC_EFFECTS = {
 };
 var WEB_PRIMITIVE_MS = { click: 20, spin: 35, quick_rise: 50, quick_fall: 50 };
 
+function webPlayHaptic(primitive, scale) {
+  if (navigator.vibrate) navigator.vibrate(Math.round(WEB_PRIMITIVE_MS[primitive] * scale));
+}
+var playHaptic = webPlayHaptic;
+
 function haptic(name) {
-  if (!navigator.vibrate) return;
   var effect = ControllerSettings.scaleHaptic(HAPTIC_EFFECTS[name]);
-  if (!effect) return;
-  navigator.vibrate(Math.round(WEB_PRIMITIVE_MS[effect.primitive] * effect.scale));
+  if (effect) playHaptic(effect.primitive, effect.scale);
 }
 
 function generateClientId() {

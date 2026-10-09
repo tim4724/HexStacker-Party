@@ -246,16 +246,11 @@ performDisconnect = function() {};
 // blocks navigator.vibrate, and iOS ignores a plain duration (it plays a fixed
 // ~0.4s buzz per call). Its composition interface plays the effect's own
 // primitive (HAPTIC_EFFECTS names are the SDK's PRIMITIVE keys, lowercased).
-// Overrides ControllerState.js#haptic (global), the one entry point.
-haptic = function (name) {
-  var effect = ControllerSettings.scaleHaptic(HAPTIC_EFFECTS[name]);
-  if (!effect) return;
+// Overrides ControllerState.js#playHaptic (global).
+playHaptic = function (primitive, scale) {
   airconsole.vibrate({
     type: AirConsole.VIBRATE.TYPE.COMPOSITION,
-    value: [{
-      primitive: AirConsole.VIBRATE.PRIMITIVE[effect.primitive.toUpperCase()],
-      scale: effect.scale
-    }]
+    value: [{ primitive: AirConsole.VIBRATE.PRIMITIVE[primitive.toUpperCase()], scale: scale }]
   });
 };
 

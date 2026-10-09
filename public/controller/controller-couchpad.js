@@ -16,6 +16,7 @@
 //     r: 'game_ended' | 'room_not_found' | 'game_full' | 'replaced'
 //   game -> launcher   CouchPadHost.enableSystemBack(b)  arm the back gesture
 //   launcher -> game   window.CouchPad.back()            armed back gesture
+//   game -> launcher   CouchPadHost.haptic(p, scale)     play a haptic primitive
 // The launcher is the identity authority: the name screen is skipped (CSS
 // hides it via body.couchpad), the injected name is never persisted as the
 // user's own typed name, and the shell owns leaving.
@@ -117,6 +118,15 @@
   // instead of history.back(). The system gesture reaches us as back() below.
   history.pushState = function () {};
   performDisconnect = function () {};
+
+  // --- Haptics (CONTRACT §13) ---
+  // The launcher plays HAPTIC_EFFECTS' primitives natively, at a real
+  // strength, where navigator.vibrate (§12) only varies pulse length. A
+  // launcher predating §13 keeps the web path.
+  var host = window.CouchPadHost;
+  if (host && typeof host.haptic === 'function') {
+    playHaptic = function (primitive, scale) { host.haptic(primitive, scale); };
+  }
 
   // --- System back (CONTRACT §9) ---
   // Arming yields the screen edges to the system, so it is off during a live
