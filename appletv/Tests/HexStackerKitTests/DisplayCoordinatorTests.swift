@@ -365,9 +365,10 @@ import Foundation
         ft.onMessage?(1, ["type": "pause_game"])
         #expect(fo.paused == true, "manual pause shows the overlay")
         #expect(ft.states.last?["paused"] as? Bool == true)
-        // One frame, so the batched "heard from" stamps land at the CURRENT clock:
-        // the room core's tick(nowMs, seen) applies a whole frame's arrivals at one time,
+        // One sweep, so the batched "heard from" stamps land at the CURRENT clock:
+        // the room core's tick(nowMs, seen) applies a whole sweep's arrivals at one time,
         // which is why the silence below has to start from a drained sweep.
+        clock.ms += DisplayCoordinator.presenceSweepMs
         coord.tick(deltaMs: 16)
 
         // Both controllers then go silent past the liveness window. The host's pause
@@ -630,6 +631,7 @@ import Foundation
         // A late joiner connects mid-game (in roster, NOT a participant).
         ft.onPeerJoined?(9); ft.onMessage?(9, ["type": "hello", "name": "Late"])
         #expect(!coord.participants.contains(9), "they wait out the round")
+        clock.ms += DisplayCoordinator.presenceSweepMs
         coord.tick(deltaMs: 16)   // drain the join's liveness stamp at the current clock
         // Everyone goes silent → all flagged disconnected, sim auto-pauses.
         clock.ms = 10_000
@@ -766,6 +768,7 @@ import Foundation
 
         // `joined` reconciles the roster, re-stamping the survivors: sweep back on, clean.
         ft.onJoined?("ROOM42", [1, 2])
+        clock.ms += DisplayCoordinator.presenceSweepMs
         coord.tick(deltaMs: 16)
         #expect(!coord.isDisconnected(1), "re-stamped by the roster reconcile")
         #expect(!coord.isDisconnected(2), "re-stamped by the roster reconcile")

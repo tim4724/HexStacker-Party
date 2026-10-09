@@ -190,10 +190,14 @@ public final class DisplayCoordinator {
     var demoSeedOverride: UInt32?   // deterministic seed for HEXDEMO
     private let nowProvider: () -> Double    // wall-clock ms for liveness (injectable for tests)
 
-    /// Peers heard from since the last frame. Batched deliberately: the room core's
-    /// `tick(nowMs, seen)` exists so an 8-player input burst costs ONE bridge
-    /// crossing per frame instead of one per packet.
+    /// Peers heard from since the last presence sweep. Batched deliberately: the room
+    /// core's `tick(nowMs, seen)` exists so an 8-player input burst costs ONE bridge
+    /// crossing per sweep instead of one per packet.
     private var seenSinceTick: Set<Int> = []
+    /// When the last presence sweep ran. The sweep is a bridge crossing, so it runs
+    /// once a second like web's liveness interval and Android's, not every frame.
+    private var lastPresenceSweepMs = -Double.infinity
+    static let presenceSweepMs = 1000.0
 
     /// Which boards currently show a rejoin QR. Shell state, not room state: it is
     /// the set of overlays we have raised (the web's `disconnectedQRs`).
@@ -967,13 +971,16 @@ public final class DisplayCoordinator {
         // on RESULTS the presence sweep would auto-return a finished demo
         // match to the lobby (which cuts the HEXTOUR results dwell short).
         if demoActive, roomState != .lobby { seenSinceTick.formUnion(participants) }
+        let now = nowProvider()
+        let sweepDue = now - lastPresenceSweepMs >= Self.presenceSweepMs
+        if sweepDue { lastPresenceSweepMs = now }
         switch roomState {
         case .countdown:
-            pollPresence(nowProvider(), roomState)
+            if sweepDue { pollPresence(now, roomState) }
             guard state == .countdown else { return }
             advanceCountdown(deltaMs: deltaMs)
         case .playing:
-            pollPresence(nowProvider(), roomState)
+            if sweepDue { pollPresence(now, roomState) }
             // pollPresence can return to lobby (grace) — re-check before ticking.
             guard state == .playing, !paused, let engine else { return }
             if demoActive { driveDemoInput() }
@@ -1011,11 +1018,11 @@ public final class DisplayCoordinator {
         case .results:
             // Run presence so the results screen returns to the lobby once every
             // controller has dropped (web RESULTS auto-return).
-            pollPresence(nowProvider(), roomState)
+            if sweepDue { pollPresence(now, roomState) }
         case .lobby:
             // Flush the batched liveness stamps anyway, so a lobby that sat idle
             // doesn't hand the first COUNTDOWN sweep a roster of stale timestamps.
-            _ = drainSeen(nowProvider())
+            if sweepDue { _ = drainSeen(now) }
         }
     }
 
@@ -1302,14 +1309,14 @@ public final class DisplayCoordinator {
     // MARK: - Presence / liveness
 
     /// Push the batched "heard from" set across and read back the room core's liveness
-    /// decisions. One bridge crossing per frame however many packets landed.
+    /// decisions. One bridge crossing per sweep however many packets landed.
     private func drainSeen(_ now: Double) -> RoomTick {
         let seen = Array(seenSinceTick)
         seenSinceTick.removeAll(keepingCapacity: true)
         return roomValue(RoomTick.self, "tick", [now, seen]) ?? RoomTick(expired: [], graceFired: false)
     }
 
-    /// Once-per-frame presence sweep. Flags silently-dead controllers, returns to the
+    /// Once-a-second presence sweep. Flags silently-dead controllers, returns to the
     /// lobby after the late-joiner grace, and silently auto-pauses / auto-resumes on
     /// the all-disconnected boundary. Mirrors the web DisplayLiveness loop +
     /// checkAllPlayersDisconnected.
