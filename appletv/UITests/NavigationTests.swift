@@ -7,10 +7,9 @@ import XCTest
 /// the CI artifact carries only the gallery states (ScreenshotTests); the pause /
 /// focus visuals are covered by the pause and pause-music gallery rows.
 ///
-/// Only Play/Pause + d-pad are used, deliberately not Menu: at the top level
-/// `menu` is not consumed by the app and tvOS backgrounds it, which would
-/// invalidate the rest of the flow. During a game the app consumes it, but
-/// Play/Pause is the unambiguous, always-safe toggle.
+/// Menu is only pressed where the app consumes it (a game, the About stack): at
+/// the lobby root tvOS backgrounds the app, which would invalidate the rest of
+/// the flow.
 final class NavigationTests: XCTestCase {
 
     override func setUp() { continueAfterFailure = false }
@@ -44,6 +43,45 @@ final class NavigationTests: XCTestCase {
         remote.press(.playPause)
         Thread.sleep(forTimeInterval: 1.5)
         XCTAssertEqual(app.state, .runningForeground)
+    }
+
+    /// Menu during a game pauses it, with CONTINUE focused, and must NOT background
+    /// the app (only the lobby root lets Menu through to the system exit).
+    func testMenuPausesDuringGame() {
+        let app = XCUIApplication()
+        app.launchEnvironment["HEXDEMO"] = "1"
+        app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 20), "app did not launch")
+        Thread.sleep(forTimeInterval: 5.0)   // past the countdown, into live play
+
+        XCUIRemote.shared.press(.menu, forDuration: 0.5)
+        let paused = app.staticTexts.matching(NSPredicate(format: "label ==[c] 'paused'")).firstMatch
+        XCTAssertTrue(paused.waitForExistence(timeout: 5), "Menu did not pause the game")
+        Thread.sleep(forTimeInterval: 1.0)
+        XCTAssertTrue(app.buttons["CONTINUE"].hasFocus, "the pause overlay must open with CONTINUE focused")
+        XCTAssertEqual(app.state, .runningForeground, "Menu during a game must not background the app")
+    }
+
+    /// A match started from the lobby leaves the focus engine on the removed START
+    /// button; the pause overlay must still open with CONTINUE focused. (The
+    /// HEXLOBBY players are silent, so the match is auto-paused by now: Menu raises
+    /// the overlay over that freeze.)
+    func testPauseFocusesContinueAfterLobbyStart() {
+        let app = XCUIApplication()
+        app.launchEnvironment["HEXLOBBY"] = "1"
+        app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        let start = app.buttons["START (3 PLAYERS)"]
+        XCTAssertTrue(start.waitForExistence(timeout: 10), "lobby START button not found")
+        Thread.sleep(forTimeInterval: 1.5)
+        XCUIRemote.shared.press(.select)
+        Thread.sleep(forTimeInterval: 5.0)   // past the countdown
+
+        XCUIRemote.shared.press(.menu)
+        XCTAssertTrue(app.buttons["CONTINUE"].waitForExistence(timeout: 5), "Menu did not raise the pause overlay")
+        Thread.sleep(forTimeInterval: 1.0)
+        XCTAssertTrue(app.buttons["CONTINUE"].hasFocus, "the pause overlay must open with CONTINUE focused")
     }
 
     /// Drives the lobby's native focus + the About/Licenses NavigationStack:

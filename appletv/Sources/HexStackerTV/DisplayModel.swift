@@ -278,11 +278,11 @@ final class DisplayModel: ObservableObject {
     /// The About stack path, bound into the lobby's NavigationStack.
     func setAboutPath(_ path: [AboutRoute]) { state.aboutPath = path }
 
-    /// Menu button: pause during gameplay; return false at the top level so
-    /// tvOS exits the app normally (the caller falls through to the default).
-    /// Also declines under the connection overlay: exiting to the home screen
-    /// there is safe (backgrounding suspends the socket; the party resumes
-    /// gracefully).
+    /// Menu button: only the lobby root lets it through (return false), so tvOS
+    /// exits the app from there and nowhere else. During a match it toggles pause;
+    /// on results it returns to the lobby, as Back does on the web display. Under
+    /// the connection overlay it is consumed without acting: the match is already
+    /// held for the reconnect.
     ///
     /// While About/Licenses are up, the NavigationStack is the ONLY owner of
     /// Menu: it pops one level itself (on press-ENDED). This handler must
@@ -293,10 +293,13 @@ final class DisplayModel: ObservableObject {
     /// it (a UINavigationController declines a pop while one is in flight).
     /// The consume keeps a bubbled press off super's default app-exit.
     func handleMenu() -> Bool {
-        guard !state.connectionOverlayUp else { return false }
         if !state.aboutPath.isEmpty { return true }
-        if state.screen == .game { coordinator?.remoteTogglePause(); return true }
-        return false
+        switch state.screen {
+        case .lobby: return false
+        case .game: if !state.connectionOverlayUp { coordinator?.remoteTogglePause() }
+        case .results: if !state.connectionOverlayUp { newGame() }
+        }
+        return true
     }
 
     // MARK: - App lifecycle

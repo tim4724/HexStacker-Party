@@ -61,8 +61,8 @@ final class PressHostController: UIViewController {
                 model.playPause()
                 handled = true
             case .menu:
-                // At the top level handleMenu() declines and the press falls
-                // through to super for the default exit to the home screen.
+                // Only the lobby root declines; the press then falls through
+                // to super for the default exit to the home screen.
                 handled = model.handleMenu()
             default:
                 break

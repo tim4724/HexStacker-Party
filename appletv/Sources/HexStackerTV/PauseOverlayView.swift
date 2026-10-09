@@ -62,5 +62,9 @@ struct PauseOverlayView: View {
         }
         // Default focus = Continue; the pause-music shot seeds the switch instead.
         .defaultFocus($focus, focusMusicForShot ? .music : .cont)
+        // Imperative seed alongside .defaultFocus (as ResultsView does): after a
+        // match started from the lobby, focus last sat on the now-removed START
+        // button, and .defaultFocus alone left the overlay with nothing focused.
+        .onAppear { focus = focusMusicForShot ? .music : .cont }
     }
 }
