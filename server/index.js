@@ -300,6 +300,10 @@ const server = http.createServer((req, res) => {
           },
         ],
       },
+      // The launcher's App Clip: a room link opens the controller without an
+      // install. App Clip domains can't be wildcards, so each game's own host
+      // lists it.
+      appclips: { apps: ['5ZH48MPAM3.games.couchpad.controller.Clip'] },
     });
     return;
   }

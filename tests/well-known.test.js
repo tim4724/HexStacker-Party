@@ -31,6 +31,7 @@ test('apple-app-site-association is JSON with the room-code applink', async () =
   assert.ok(detail.appIDs.every((id) => /^\w{10}\..+/.test(id)));
   // Exactly one path component: the 6-char room code.
   assert.deepEqual(detail.components.map((c) => c['/']), ['/??????']);
+  assert.ok(aasa.appclips.apps.every((id) => /^\w{10}\..+\.Clip$/.test(id)));
 });
 
 test('assetlinks.json is JSON with a handle_all_urls statement', async () => {
