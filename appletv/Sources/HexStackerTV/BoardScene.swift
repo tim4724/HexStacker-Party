@@ -28,6 +28,10 @@ final class BoardScene: SKScene {
     private var timerGlyphs: [SKLabelNode] = []
 
     private var boardNodes: [Int: BoardNode] = [:]
+    /// Rejoin-QR URL per disconnected player. Kept here, not only on the node, because
+    /// ensureBoards rebuilds every node (a mid-game rekey, a size/inset change) and a
+    /// rebuilt node must come back with its QR (Android BoardSurfaceView `disconnects`).
+    private var rejoinURLs: [Int: String] = [:]
     /// The seat state each board node was last updated from, so an unchanged seat can skip
     /// [BoardNode.update]. A controller input moves exactly ONE board and gravity steps at
     /// most a couple per frame, but every snapshot used to re-sync all eight — rebuilding
@@ -161,6 +165,9 @@ final class BoardScene: SKScene {
             lobbyBg.run(.sequence([.fadeOut(withDuration: d), .hide()]))
         }
         if screen == .game { lastBoardIds = []; timerNode.isHidden = true }
+        // A new match (or the lobby) starts with no one gone; the coordinator clears
+        // its own set at the same edges without sending a nil per player.
+        if screen != .results { rejoinURLs.removeAll() }
     }
 
     // MARK: - Board rendering (DisplayOutput forwards)
@@ -202,6 +209,7 @@ final class BoardScene: SKScene {
     }
 
     func setDisconnected(playerId: Int, joinURL: String?) {
+        rejoinURLs[playerId] = joinURL
         boardNodes[playerId]?.setDisconnected(joinURL)
     }
 
@@ -216,6 +224,7 @@ final class BoardScene: SKScene {
     func resetBoards() {
         gameLayer.removeChildren(in: boardNodes.values.map { $0 })
         boardNodes.removeAll()
+        rejoinURLs.removeAll()
         lastBoardIds = []
         currentPlayerCount = -1
         timerNode.isHidden = true
@@ -269,6 +278,7 @@ final class BoardScene: SKScene {
                                     y: playRect.maxY - placement.originY - layout.geometry.boardHeight)
             gameLayer.addChild(node)
             boardNodes[player.id] = node
+            if let url = rejoinURLs[player.id] { node.setDisconnected(url) }
         }
     }
 
