@@ -268,3 +268,6 @@ function _acVibrate(pattern) {
 // Overrides ControllerState.js#vibrate (global) and the TouchInput prototype.
 vibrate = _acVibrate;
 TouchInput.prototype._haptic = _acVibrate;
+// The SDK vibrates even where navigator.vibrate is missing, so undo
+// ControllerState's hide of the haptics setting.
+rowHaptics.hidden = false;

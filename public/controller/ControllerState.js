@@ -223,6 +223,10 @@ var rowMuteDisplay = document.getElementById('row-mute-display');
 var toggleMuteDisplay = document.getElementById('toggle-mute-display');
 var toggleMuteController = document.getElementById('toggle-mute-controller');
 var rowHaptics = document.getElementById('row-haptics');
+// No Vibration API (every iOS browser, most desktops) means haptics can never
+// fire, so don't offer the setting. The AirConsole bootstrap re-shows it: it
+// vibrates through the SDK instead.
+rowHaptics.hidden = !navigator.vibrate;
 var sensitivitySlider = document.getElementById('sensitivity-slider');
 var sensitivityValueEl = document.getElementById('sensitivity-value');
 var sensitivityPreview = document.getElementById('sensitivity-preview');
