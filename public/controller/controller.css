@@ -25,6 +25,7 @@ html, body {
   -webkit-tap-highlight-color: transparent;
   position: fixed;
   inset: 0;
+  top: var(--app-offset-top, 0px);
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: system-ui, -apple-system, sans-serif;
@@ -215,6 +216,10 @@ html, body {
   flex: 1;
   height: auto;
   justify-content: center;
+  /* Clear the absolutely-positioned top bar (its padding + 52px icon
+     buttons) so the column centers in the space below it; otherwise short
+     phones push the title up against the buttons with dead space below. */
+  padding-top: calc(max(var(--safe-top), 12px) + 52px);
 }
 
 .hidden {
@@ -297,30 +302,19 @@ html, body {
   animation: fadeUp 0.5s 0.3s ease-out both;
 }
 
-/* Content-hugging halves + space-evenly (same treatment as the display
-   lobby card): name and stepper collapse to content height and the card's
-   whitespace distributes evenly above, between, and below them, instead
-   of pooling into a wide gap between the theme's 50/50 halves. */
-#player-identity-card {
-  justify-content: space-evenly;
-}
-
 /* Identity trigger button — adds button-specific styling on top of the
-   shared .player-card__top layout (in theme.css). Vertical padding keeps
-   the tap region comfortable (~54px) now that the trigger hugs the name
-   instead of filling the top half; the radius rounds the floating
-   :active highlight. */
+   shared .player-card__top layout (in theme.css): it fills the card's top
+   half, so the :active highlight reads as that half pressing in. The
+   top-only radius follows the card's corners. */
 .identity-trigger {
   appearance: none;
   -webkit-appearance: none;
-  flex: 0 0 auto;
-  padding: 6px clamp(8px, 1.4vmin, 14px);
   background: transparent;
   border: 0;
   /* Receives restored focus when the color picker closes; touch-only UI,
      so suppress the UA focus ring (same as .rose-cell). */
   outline: none;
-  border-radius: 14px;
+  border-radius: 20px 20px 0 0;
   color: inherit;
   font: inherit;
   cursor: pointer;
@@ -341,7 +335,6 @@ html, body {
    the value in the center block. Wider gap than the shared .card-level
    default so the circles don't crowd the value. */
 #level-selector {
-  flex: 0 0 auto;
   gap: 16px;
 }
 
@@ -387,9 +380,8 @@ html, body {
 
 #level-selector .level-btn {
   /* Round utility button (same family as .icon-btn, same 52px size).
-     Fixed height: the stepper row hugs its content now, so a percentage
-     would be circular, and 52px + the evenly-spaced gaps fits the 2:1
-     card down to very narrow phones. */
+     Fixed height: 52px fits the 2:1 card's bottom half down to very
+     narrow phones. */
   height: 52px;
   aspect-ratio: 1;
   border: 1px solid rgba(255, 248, 236, 0.12);
@@ -837,7 +829,7 @@ html, body {
   padding: 1px 12px;
   padding-right: max(var(--safe-right), 12px);
   padding-left: max(var(--safe-left), 12px);
-  padding-bottom: max(var(--safe-bottom), 12px);
+  padding-bottom: max(var(--safe-bottom), 1px);
   flex-shrink: 0;
   background: var(--bg-primary);
 }
@@ -1027,13 +1019,13 @@ html, body {
    edges. Other .game-overlay instances (pause, reconnect) keep the wider
    padding — this override is scoped to #settings-overlay only. The goal
    is to bring the preview canvas closer to the real touchpad's width.
-   Bottom override also drops the shared rule's extra +16px (that belonged
-   to pause/reconnect's single-CTA layout); the settings panel has its own
-   internal padding already. */
+   Bottom override drops the shared rule's extra +16px (that belonged to
+   pause/reconnect's single-CTA layout) and any gap beyond the safe area:
+   the panel has its own internal padding, and short phones need the room. */
 #settings-overlay {
   padding-left: max(var(--safe-left), 8px);
   padding-right: max(var(--safe-right), 8px);
-  padding-bottom: max(var(--safe-bottom), 8px);
+  padding-bottom: var(--safe-bottom);
 }
 
 .settings-panel {
@@ -1053,10 +1045,13 @@ html, body {
 
 .settings-panel::-webkit-scrollbar { display: none; }
 
-/* In portrait the left-column wrapper disappears via display:contents so
-   its children flow as direct children of the panel's flex column. The
-   landscape media query re-promotes it to a real flex container. */
-.settings-body-left {
+/* In portrait the left-column wrapper and the sensitivity row disappear
+   via display:contents so their children flow as direct children of the
+   panel's flex column, which lets the preview shrink against the panel's
+   max-height (see .settings-preview-wrap). The landscape media query
+   re-promotes both to real flex containers. */
+.settings-body-left,
+#row-sensitivity {
   display: contents;
 }
 
@@ -1192,10 +1187,11 @@ html, body {
   color: var(--btn-primary-text);
 }
 
-/* Slider */
+/* Slider. Margins sit on top of the panel's 16px gap in portrait and the
+   row's 8px gap in landscape. */
 #sensitivity-slider {
-  margin-top: 12px;
-  margin-bottom: 16px;
+  margin-top: 4px;
+  margin-bottom: 8px;
   display: block;
   width: 100%;
   -webkit-appearance: none;
@@ -1256,10 +1252,15 @@ html, body {
   border: none;
 }
 
-/* Wrapper exists only to anchor the corner label over the canvas. */
+/* Wrapper sizes the preview and anchors the corner label over it. On short
+   phones the preview is what gives way (down to its min-height) so the
+   panel fits without scrolling. The canvas fills it absolutely, so the
+   canvas's own buffer size never feeds back into the layout. */
 .settings-preview-wrap {
   position: relative;
   width: 100%;
+  flex: 0 1 140px;
+  min-height: 88px;
 }
 
 /* Faint corner tag naming the preview — reuses the existing "touchpad"
@@ -1286,8 +1287,10 @@ html, body {
    tint come from CSS so the canvas only paints test indicators on top
    (clearRect reveals the background). */
 .settings-preview {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  height: 140px;
+  height: 100%;
   display: block;
   touch-action: none;
   cursor: crosshair;
@@ -1541,6 +1544,8 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   .controller-shell__frame--lobby {
     justify-content: center;
     gap: 14px;
+    /* The top-bar buttons sit in the corners beside the content here. */
+    padding-top: 0;
   }
 
   .controller-shell__frame--lobby .controller-shell__body {
@@ -1743,8 +1748,8 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   }
   /* Flex wrapper keeps music/touch/haptics packed to the top without the
      rowspan-stretch that a shared grid column would introduce. In portrait
-     display:contents hides the wrapper so the rows flow directly in the
-     panel's flex column. */
+     display:contents hides it (and the sensitivity row) so the rows flow
+     directly in the panel's flex column. */
   .settings-body-left {
     grid-area: left;
     align-self: start;
@@ -1757,6 +1762,13 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   #row-sensitivity {
     grid-area: sens;
     align-self: start;
+    display: flex;
+  }
+  /* The row is a real flex box again here (8px gap, not the panel's 16px),
+     so the slider gets its fuller margins back. */
+  #sensitivity-slider {
+    margin-top: 12px;
+    margin-bottom: 16px;
   }
   /* DONE spans both columns and centers under the two-column body. */
   #settings-close {
@@ -1954,4 +1966,41 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
 .keyboard-compact .controller-shell__body {
   margin-top: 0;
   gap: 0;
+}
+
+/* Portrait soft keyboard: the name screen's height is --app-height (the
+   visual viewport, which shrinks when iOS shows the keyboard even though
+   media queries don't see it), so size tiers key on the screen itself.
+   The aspect guard (not orientation) matches the landscape media query's
+   5/4 cut: an iPhone SE with the keyboard up is 375x~330, wider than tall. */
+#name-screen {
+  container-type: size;
+}
+
+/* Keyboard open on most phones: keep the wordmark, drop the rest. */
+@container (max-aspect-ratio: 5/4) and (max-height: 519px) {
+  .controller-shell__frame--name .brand-lockup__mark,
+  .controller-shell__frame--name .legal-links {
+    display: none;
+  }
+
+  .controller-shell__frame--name {
+    padding-bottom: 0;
+  }
+
+  .controller-shell__frame--name .controller-shell__body {
+    margin-top: 16px;
+  }
+}
+
+/* Keyboard open on small phones (iPhone SE leaves ~375px): input and
+   JOIN only. */
+@container (max-aspect-ratio: 5/4) and (max-height: 399px) {
+  .controller-shell__frame--name .controller-shell__brand {
+    display: none;
+  }
+
+  .controller-shell__frame--name .controller-shell__body {
+    margin-top: 0;
+  }
 }

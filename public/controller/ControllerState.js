@@ -149,6 +149,9 @@ function syncViewportLayout() {
     _syncViewportRaf = null;
     var metrics = getViewportMetrics();
     document.documentElement.style.setProperty('--app-height', metrics.height + 'px');
+    // iOS pans the visual viewport to a focused input even though the page
+    // is position:fixed; follow the pan so the app stays on screen.
+    document.documentElement.style.setProperty('--app-offset-top', metrics.offsetTop + 'px');
     if (welcomeBg) {
       // Layout viewport (innerWidth/innerHeight) — stable across iOS
       // keyboard show/hide and only changes once per Android keyboard
