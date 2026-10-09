@@ -173,7 +173,7 @@ function injectVersionLabel(elementId) {
     // Assign first and compare browser-normalized strings — our raw float
     // (e.g. 1.1500000000000001) gets normalized to "1.15" by the slider,
     // so a String(v) === slider.value test would always differ and fire a
-    // redundant 'input' (and accompanying vibrate) on every pointermove.
+    // redundant 'input' (and accompanying haptic) on every pointermove.
     var prev = slider.value;
     slider.value = String(v);
     if (slider.value !== prev) {
@@ -242,32 +242,23 @@ bailToWelcome = function(toastKey /*, keepClientId */) {
 history.pushState = function() {};
 performDisconnect = function() {};
 
-// Route haptics through the AirConsole SDK so the iframe's permissions policy
-// can't silently block vibration. The SDK only accepts a single duration, so
-// array patterns are summed (even indices = on-durations) and routed through
-// `airconsole.vibrate` as the total ms. This loses the rhythm but preserves
-// the total vibration energy — better than falling back to navigator.vibrate
-// which the iframe permissions policy usually blocks outright.
-function _acVibrate(pattern) {
-  // Respect the user's haptic-strength setting (off/light/medium/strong).
-  pattern = ControllerSettings.scaleVibration(pattern);
-  if (pattern === null) return;
-  // AirConsole SDK takes only a single duration. Collapse array patterns
-  // (hard drop's [10, 50, 10]) by summing the on-durations — even indices are
-  // vibrate, odd are pauses — so the total energy survives even though the
-  // rhythm is lost.
-  if (Array.isArray(pattern)) {
-    var total = 0;
-    for (var i = 0; i < pattern.length; i += 2) total += pattern[i];
-    pattern = total;
-  }
-  // After the array-collapse above, `pattern` is always a number (or we
-  // returned early on null). Skip 0 to avoid a no-op SDK call.
-  if (pattern > 0) airconsole.vibrate(pattern);
-}
-// Overrides ControllerState.js#vibrate (global) and the TouchInput prototype.
-vibrate = _acVibrate;
-TouchInput.prototype._haptic = _acVibrate;
+// Route haptics through the AirConsole SDK: the iframe's permissions policy
+// blocks navigator.vibrate, and iOS ignores a plain duration (it plays a fixed
+// ~0.4s buzz per call). Its composition interface plays the effect's own
+// primitive (HAPTIC_EFFECTS names are the SDK's PRIMITIVE keys, lowercased).
+// Overrides ControllerState.js#haptic (global), the one entry point.
+haptic = function (name) {
+  var effect = ControllerSettings.scaleHaptic(HAPTIC_EFFECTS[name]);
+  if (!effect) return;
+  airconsole.vibrate({
+    type: AirConsole.VIBRATE.TYPE.COMPOSITION,
+    value: [{
+      primitive: AirConsole.VIBRATE.PRIMITIVE[effect.primitive.toUpperCase()],
+      scale: effect.scale
+    }]
+  });
+};
+
 // The SDK vibrates even where navigator.vibrate is missing, so undo
 // ControllerState's hide of the haptics setting.
 rowHaptics.hidden = false;

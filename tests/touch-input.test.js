@@ -5,10 +5,7 @@ const assert = require('node:assert/strict');
 const { INPUT } = require('../public/shared/protocol');
 
 global.INPUT = INPUT;
-Object.defineProperty(globalThis, 'navigator', {
-  value: { vibrate() {} },
-  configurable: true
-});
+global.haptic = function () {};
 
 const TouchInput = require('../public/controller/TouchInput.js');
 

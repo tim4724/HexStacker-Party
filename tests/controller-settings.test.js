@@ -46,7 +46,7 @@ describe('ControllerSettings — sensitivity scale', () => {
   });
 });
 
-describe('ControllerSettings — haptic scaleVibration', () => {
+describe('ControllerSettings — haptic scaleHaptic', () => {
   // Tier mutations go through setHapticStrength so each sub-test restores
   // the default afterwards to keep module state predictable across the suite.
   function withTier(tier, fn) {
@@ -54,46 +54,23 @@ describe('ControllerSettings — haptic scaleVibration', () => {
     ControllerSettings.setHapticStrength(tier);
     try { fn(); } finally { ControllerSettings.setHapticStrength(prev); }
   }
+  const tap = { primitive: 'click', scale: 1 };
 
-  test("'off' returns null so callers skip navigator.vibrate entirely", () => {
+  test("'off' returns null so callers skip the platform call entirely", () => {
     withTier('off', () => {
-      assert.equal(ControllerSettings.scaleVibration(15), null);
-      assert.equal(ControllerSettings.scaleVibration([5, 5, 5]), null);
+      assert.equal(ControllerSettings.scaleHaptic(tap), null);
     });
   });
 
-  test('numeric patterns scale by the tier multiplier', () => {
-    withTier('medium', () => {
-      // Medium is 1.0 by convention — raw values pass through (round-tripped).
-      assert.equal(ControllerSettings.scaleVibration(15), 15);
-    });
+  test('scale is the Strong value, multiplied down for Medium and Light', () => {
     withTier('strong', () => {
-      // Strong = 1.8 → 15 × 1.8 = 27
-      assert.equal(ControllerSettings.scaleVibration(15), 27);
+      assert.deepEqual(ControllerSettings.scaleHaptic(tap), { primitive: 'click', scale: 1 });
     });
-    withTier('light', () => {
-      // Light = 0.6 → 15 × 0.6 = 9
-      assert.equal(ControllerSettings.scaleVibration(15), 9);
-    });
-  });
-
-  test('enforces a 3 ms floor on each pulse so light doesn’t dip below hardware threshold', () => {
-    withTier('light', () => {
-      // 1 ms × 0.6 = 0.6 → clamped to 3ms floor (some devices drop sub-3ms pulses)
-      assert.equal(ControllerSettings.scaleVibration(1), 3);
-    });
-  });
-
-  test('array patterns scale their pulses, never their pauses', () => {
     withTier('medium', () => {
-      assert.deepEqual(ControllerSettings.scaleVibration([10, 50, 10]), [10, 50, 10]);
-    });
-    withTier('strong', () => {
-      // 10 × 1.8 = 18 per pulse; the 50 ms pause stays put
-      assert.deepEqual(ControllerSettings.scaleVibration([10, 50, 10]), [18, 50, 18]);
+      assert.deepEqual(ControllerSettings.scaleHaptic(tap), { primitive: 'click', scale: 0.75 });
     });
     withTier('light', () => {
-      assert.deepEqual(ControllerSettings.scaleVibration([10, 50, 10]), [6, 50, 6]);
+      assert.deepEqual(ControllerSettings.scaleHaptic(tap), { primitive: 'click', scale: 0.5 });
     });
   });
 

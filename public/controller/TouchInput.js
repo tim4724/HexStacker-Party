@@ -121,17 +121,6 @@ class TouchInput {
     if (this.onProgress) this.onProgress(null, 0);
   }
 
-  _haptic(pattern) {
-    if (!navigator.vibrate) return;
-    if (typeof ControllerSettings !== 'undefined' && ControllerSettings.scaleVibration) {
-      const scaled = ControllerSettings.scaleVibration(pattern);
-      if (scaled === null) return;
-      navigator.vibrate(scaled);
-      return;
-    }
-    navigator.vibrate(pattern);
-  }
-
   _calcSoftDropSpeed(distY) {
     const range = this.SOFT_DROP_MAX_DIST - this.SOFT_DROP_DEAD_ZONE;
     const t = Math.min(Math.max((distY - this.SOFT_DROP_DEAD_ZONE) / range, 0), 1);
@@ -268,7 +257,7 @@ class TouchInput {
       // in a single event. Emitting each one separately put that burst on the
       // wire as N messages, which is what trips AirConsole's 25 msg/sec cap.
       this.onInput(action, { n: Math.abs(steps) });
-      this._haptic(15);
+      haptic('move');
       this.anchorX += steps * this.RATCHET_THRESHOLD;
       this.hasMovedHorizontally = true;
     }
@@ -283,7 +272,7 @@ class TouchInput {
     if (dyFromStart > this.SOFT_DROP_DEAD_ZONE) {
       if (!this.isSoftDropping && !this.hasMovedHorizontally) {
         this.isSoftDropping = true;
-        this._haptic(23);
+        haptic('softDrop');
         this._startSoftDropInterval();
       }
     } else if (this.isSoftDropping) {
@@ -349,13 +338,13 @@ class TouchInput {
 
     if (isTap) {
       this.onInput(INPUT.ROTATE_CW);
-      this._haptic(15);
+      haptic('rotate');
     } else if (action === INPUT.HARD_DROP) {
       this.onInput(INPUT.HARD_DROP);
-      this._haptic([10, 50, 10]);
+      haptic('drop');
     } else if (action === INPUT.HOLD) {
       this.onInput(INPUT.HOLD);
-      this._haptic(23);
+      haptic('hold');
     }
 
     this._resetState();

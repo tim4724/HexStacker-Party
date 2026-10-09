@@ -129,7 +129,7 @@ function connect() {
     if (type === 'joined') {
       peerIndex = msg.index;
       startPing();
-      if (currentScreen !== 'game') vibrate(15);
+      if (currentScreen !== 'game') haptic('button');
       party.sendTo(0, {
         type: MSG.HELLO,
         name: playerName,

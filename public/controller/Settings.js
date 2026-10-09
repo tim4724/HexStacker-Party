@@ -3,8 +3,8 @@
 // =====================================================================
 // Controller Settings — per-device preferences persisted to localStorage.
 // Applied to ControllerAudio (mute), TouchInput (ratchet threshold), and
-// the global vibrate() helper (haptic strength). Load order: after
-// TouchInput + Audio, before ControllerState so `vibrate()` can consult it.
+// the global haptic() helper (haptic strength). Load order: after
+// TouchInput + Audio, before ControllerState so `haptic()` can consult it.
 // AirConsole mode: window.localStorage is replaced by an AC-backed shim
 // (see AirConsoleStorage.install) so the same code path
 // transparently persists per-UID via the AirConsole SDK. The shim's cache
@@ -20,11 +20,9 @@ var ControllerSettings = (function () {
   var KEY_SENSITIVITY = 'stacker_touch_sensitivity';
 
   var HAPTIC_TIERS = ['off', 'light', 'medium', 'strong'];
-  // Web vibration only exposes duration, not amplitude, so "stronger" means
-  // longer pulses. Medium is 1.0 by convention — raw pattern values at each
-  // call site are therefore the Medium-tier ms. Light and Strong are plain
-  // multipliers around it.
-  var HAPTIC_SCALE = { off: 0, light: 0.6, medium: 1, strong: 1.8 };
+  // Multiplies each haptic effect's scale (HAPTIC_EFFECTS in
+  // ControllerState.js holds the Strong values).
+  var HAPTIC_SCALE = { off: 0, light: 0.5, medium: 0.75, strong: 1 };
 
   // Absolute clamp for persisted values. The UI slider narrows this further
   // to [touchpadWidth * 0.1, touchpadWidth * 0.5] each time Settings opens
@@ -139,24 +137,12 @@ var ControllerSettings = (function () {
     notify();
   }
 
-  // Scale a vibration pattern by the configured haptic strength.
-  // Returns null when the user has picked the 'off' tier. Callers are
-  // expected to guard `navigator.vibrate` existence themselves — feature
-  // detection on this API is unreliable across devices, so we just pass
-  // the pattern through and let the platform decide.
-  // Enforces a 3ms floor so 'light' tier never produces patterns too
-  // short for some hardware to trigger. Only the pulses (even indices) scale:
-  // a pause shrunk under 50ms blurs the pulses together differently on each
-  // phone's motor (the CouchPad launcher's CONTRACT.md §12).
-  function scaleVibration(pattern) {
+  // The haptic effect with its scale multiplied by the tier, or null when
+  // haptics are off.
+  function scaleHaptic(effect) {
     var scale = HAPTIC_SCALE[state.haptic];
     if (scale <= 0) return null;
-    if (Array.isArray(pattern)) {
-      return pattern.map(function (p, i) {
-        return i % 2 ? p : Math.max(3, Math.round(p * scale));
-      });
-    }
-    return Math.max(3, Math.round(pattern * scale));
+    return { primitive: effect.primitive, scale: effect.scale * scale };
   }
 
   function onChange(cb) {
@@ -172,7 +158,7 @@ var ControllerSettings = (function () {
     setHapticStrength: setHapticStrength,
     getSensitivity: function () { return state.sensitivity; },
     setSensitivity: setSensitivity,
-    scaleVibration: scaleVibration,
+    scaleHaptic: scaleHaptic,
     onChange: onChange,
     SENSITIVITY_MIN: SENSITIVITY_MIN,
     SENSITIVITY_MAX: SENSITIVITY_MAX,

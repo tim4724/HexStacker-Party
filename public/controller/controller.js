@@ -141,7 +141,7 @@ function submitName() {
   connect();
 }
 
-bindTap(nameJoinBtn, function () { vibrate(15); submitName(); });
+bindTap(nameJoinBtn, function () { haptic('button'); submitName(); });
 nameInput.addEventListener('keydown', function (e) {
   if (e.key === 'Enter') submitName();
 });
@@ -152,9 +152,10 @@ nameInput.addEventListener('blur', function () {
   setTimeout(syncViewportLayout, 50);
 });
 
-// Prime audio on first interaction
+// Prime audio and (web-only, where AirConsole doesn't route haptics through
+// its SDK) vibration on first interaction
 document.addEventListener('pointerdown', function onFirstPointer() {
-  vibrate(2);
+  if (!window.airconsole && navigator.vibrate) navigator.vibrate(1);
   ControllerAudio.prime();
   document.removeEventListener('pointerdown', onFirstPointer, true);
 }, { capture: true, passive: true });
@@ -279,7 +280,7 @@ window.updateSettingsHostUI = function () {
 };
 
 bindTap(toggleMuteController, function () {
-  vibrate(15);
+  haptic('button');
   ControllerSettings.setMuted(!ControllerSettings.isMuted());
   syncMuteControllerToggle();
   // Preview the move sound when the user turns touch sounds ON so they
@@ -292,7 +293,7 @@ bindTap(toggleMuteController, function () {
 });
 
 bindTap(toggleMuteDisplay, function () {
-  vibrate(15);
+  haptic('button');
   if (!isHost) return;
   displayMuteIntent = !displayMuteIntent;
   syncMuteDisplayToggle();
@@ -304,7 +305,7 @@ bindTap(rowHaptics, function (e) {
   if (!btn) return;
   ControllerSettings.setHapticStrength(btn.dataset.haptic);
   syncHapticButtons();
-  vibrate(18);
+  haptic('button');
 });
 
 // Native step=0.05 snapping means every 'input' event fires on a real
@@ -315,7 +316,7 @@ sensitivitySlider.addEventListener('input', function () {
   sensitivityValueEl.textContent = ratio.toFixed(2);
   syncSensitivityFill();
   drawSensitivityPreview();
-  vibrate(8);
+  haptic('detent');
 });
 
 // Re-sync the settings overlay whenever Settings state changes — covers
@@ -350,7 +351,7 @@ function resizePreviewCanvas() {
 var _cachedPreviewAccent = '';
 
 function openSettings() {
-  vibrate(15);
+  haptic('button');
   _cachedPreviewAccent = getComputedStyle(document.body).getPropertyValue('--player-color').trim()
     || getComputedStyle(document.documentElement).getPropertyValue('--accent-secondary').trim()
     || '#FF8C42';
@@ -387,7 +388,7 @@ function hideSettings() {
 window.closeSettingsOverlay = hideSettings;
 
 bindTap(settingsCloseBtn, function () {
-  vibrate(15);
+  haptic('button');
   // Route Done through history.back() so the browser back button and
   // Done share a single close path (the popstate handler). Fallback for
   // AC mode / legacy openings where no state was pushed.
@@ -592,7 +593,7 @@ if (sensitivityPreview) {
     if (steps !== prevSteps) {
       // Match the real ratchet-step haptic from TouchInput.js so the
       // preview feels identical to an actual left/right move in-game.
-      vibrate(15);
+      haptic('move');
       // Click sound reinforces the ratchet feel, matching the real pad.
       if (!ControllerSettings.isMuted()) ControllerAudio.tick();
       _previewDrag.lastSteps = steps;
@@ -613,7 +614,7 @@ if (sensitivityPreview) {
 // =====================================================================
 
 bindTap(pauseBtn, function () {
-  vibrate(15);
+  haptic('button');
   // Mark the upcoming GAME_PAUSED as self-initiated so onGamePaused can skip
   // the pause-overlay's anti-misclick gate. Timeout guards against a dropped
   // PAUSE_GAME leaving the flag sticky for a later unrelated pause.
@@ -624,17 +625,17 @@ bindTap(pauseBtn, function () {
 });
 
 bindTap(pauseContinueBtn, function () {
-  vibrate(15);
+  haptic('button');
   sendToDisplay(MSG.RESUME_GAME);
 });
 
 bindTap(pauseNewGameBtn, function () {
-  vibrate(15);
+  haptic('button');
   sendToDisplay(MSG.RETURN_TO_LOBBY);
 });
 
 bindTap(reconnectRejoinBtn, function () {
-  vibrate(15);
+  haptic('button');
   reconnectHeading.textContent = t('reconnecting');
   reconnectStatus.textContent = t('connecting');
   reconnectRejoinBtn.classList.add('hidden');
@@ -642,13 +643,13 @@ bindTap(reconnectRejoinBtn, function () {
 });
 
 bindTap(lobbyBackBtn, function () {
-  vibrate(15);
+  haptic('button');
   performDisconnect();
 });
 
 bindTap(startBtn, function () {
   if (startBtn.disabled) return;
-  vibrate(15);
+  haptic('button');
   sendToDisplay(MSG.START_GAME);
 });
 
@@ -658,7 +659,7 @@ bindTap(startBtn, function () {
 // the PREVIOUS level from reverting it (see applyOwnIdentity).
 function stepStartLevel(next) {
   if (next === startLevel) return;
-  vibrate(15);
+  haptic('button');
   startLevel = next;
   pendingLevel = next;
   updateLevelDisplay();
@@ -685,7 +686,7 @@ if (colorPickerEl) {
     if (!btn || btn.classList.contains('taken')) return;
     var idx = parseInt(btn.dataset.idx, 10);
     if (isNaN(idx)) return;
-    vibrate(15);
+    haptic('button');
     // Same userPickedColor + persistence flow as before: applyOwnIdentity
     // persists any confirmed color change, but only when this flag is
     // true so display-driven assignments (initial slot, reconnect default)
@@ -707,7 +708,7 @@ if (colorPickerEl) {
 if (identityTrigger) {
   bindTap(identityTrigger, function () {
     if (currentScreen !== 'lobby') return;
-    vibrate(10);
+    haptic('detent');
     openColorPicker();
   });
 }
@@ -721,7 +722,7 @@ if (colorPickerOverlay) {
   if (closeBtn) {
     bindTap(closeBtn, function (e) {
       e.stopPropagation();
-      vibrate(10);
+      haptic('detent');
       closeColorPicker();
     });
   }
@@ -735,12 +736,12 @@ document.addEventListener('keydown', function (e) {
 });
 
 bindTap(playAgainBtn, function () {
-  vibrate(15);
+  haptic('button');
   sendToDisplay(MSG.PLAY_AGAIN);
 });
 
 bindTap(newGameBtn, function () {
-  vibrate(15);
+  haptic('button');
   sendToDisplay(MSG.RETURN_TO_LOBBY);
 });
 

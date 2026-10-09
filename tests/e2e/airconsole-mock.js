@@ -134,6 +134,10 @@
   AirConsole.SCREEN = 0;
   AirConsole.ORIENTATION_PORTRAIT = 'portrait';
   AirConsole.ORIENTATION_LANDSCAPE = 'landscape';
+  AirConsole.VIBRATE = {
+    TYPE: { COMPOSITION: 'composition' },
+    PRIMITIVE: { CLICK: 'primitiveClick', SPIN: 'primitiveSpin', QUICK_RISE: 'primitiveQuickRise', QUICK_FALL: 'primitiveQuickFall' }
+  };
 
   AirConsole.prototype.getDeviceId = function() {
     return this._deviceId;
