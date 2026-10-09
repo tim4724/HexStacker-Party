@@ -498,10 +498,14 @@ class BoardSurfaceView @JvmOverloads constructor(
         var pulsing = false
         val snap = latestSnapshot
         if (snap == null) {
-            // Pre-game static boards.
+            // Pre-game static boards (the countdown), rejoin QR included: a player who
+            // drops during the 3-2-1 is shown as gone straight away, as on web and tvOS.
             for (i in renderers.indices) {
                 val seat = seats.getOrNull(i) ?: continue
                 pulsing = renderers[i].render(canvas, emptySnapshotFor(i, seat), nowMs) || pulsing
+                disconnects[seat.playerId]?.let { url ->
+                    renderers[i].drawDisconnectedOverlay(canvas, qrCache.get(url))
+                }
             }
         } else {
             val players = snap.players

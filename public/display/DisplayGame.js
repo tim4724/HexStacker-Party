@@ -198,12 +198,8 @@ function startNewGame() {
     setRoomState(ROOM_STATE.PLAYING);
     runGameLocally();
 
-    // Show disconnect QR for any players that disconnected during countdown
-    for (const entry of players) {
-      if (roomCore.isExpired(entry[0], Date.now())) {
-        showDisconnectQR(entry[0]);
-      }
-    }
+    // Anyone who dropped during the countdown already has their rejoin QR up
+    // (the liveness sweep runs then too); the auto-pause waits for PLAYING.
     checkAllPlayersDisconnected();
   });
 }
@@ -259,7 +255,7 @@ function armCountdownDismiss() {
 // Every participant is gone: return to the lobby if the late-joiner grace has
 // elapsed, otherwise auto-pause. Called from the event path and the 1Hz sweep.
 function checkAllPlayersDisconnected() {
-  // Don't auto-pause during COUNTDOWN — let it finish so disconnect QRs become visible.
+  // Don't auto-pause during COUNTDOWN: let it finish (startNewGame re-checks at PLAYING).
   if (roomState !== ROOM_STATE.PLAYING) return;
   if (!roomCore.allParticipantsDisconnected()) return;
 

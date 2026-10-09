@@ -34,10 +34,14 @@ function invalidateRenderSig() {
 // Per-player render inputs as a signature fragment, shared between the
 // whole-frame signature (computeRenderSig) and the per-board tile cache
 // (paintBoardTile) so the two can't drift apart.
+// Rejoin-QR state: 0 = connected, 1 = disconnected (QR still generating),
+// 2 = QR ready; the async QR arrival must trigger a repaint.
+function qrSig(id) {
+  return disconnectedQRs.has(id) ? (disconnectedQRs.get(id) ? 2 : 1) : 0;
+}
+
 function playerRenderSig(p, pInfo) {
-  // 0 = connected, 1 = disconnected (QR still generating), 2 = QR ready;
-  // the async QR arrival must trigger a repaint.
-  var qr = disconnectedQRs.has(p.id) ? (disconnectedQRs.get(p.id) ? 2 : 1) : 0;
+  var qr = qrSig(p.id);
   var sig = p.id + ':' + (p.alive ? 1 : 0) + ':' + p.lines + ':' + p.level
     + ':' + p.pendingGarbage + ':' + p.gridVersion + ':' + (p.holdPiece || '')
     + ':' + qr + ':' + (pInfo ? pInfo.playerName + ':' + pInfo.playerIndex : '');
@@ -49,9 +53,9 @@ function playerRenderSig(p, pInfo) {
   return sig;
 }
 
-// Pre-game variant (lobby scaffold boards): identity plus start level.
+// Pre-game variant: identity, start level and rejoin QR.
 function emptyPlayerSig(id, pInfo) {
-  return id + ':'
+  return id + ':' + qrSig(id) + ':'
     + (pInfo ? pInfo.playerName + ':' + pInfo.playerIndex + ':' + (pInfo.startLevel || 1) : '');
 }
 
@@ -282,9 +286,9 @@ function paintBoardTile(j, playerData, timestamp, shake, sig, animating) {
       }
     }
 
-    // Draw QR overlay for disconnected players (qr state is in the signature;
-    // gameState-gated to match the pre-game branch, which never drew it)
-    if (gameState && disconnectedQRs.has(playerData.id)) {
+    // Draw QR overlay for disconnected players, countdown boards included (qr
+    // state is in both signatures)
+    if (disconnectedQRs.has(playerData.id)) {
       ui.drawDisconnectedOverlay(
         disconnectedQRs.get(playerData.id),
         playerData.playerColor
