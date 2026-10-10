@@ -321,16 +321,19 @@ function bindTap(el, handler) {
 // duration, so there each primitive gets a length at full scale, sized against
 // Android's own fallbacks for its haptic effects (click 20 ms, heavy click
 // 30 ms; frameworks/base config_*VibePattern).
+// Every gameplay action is the same full click: the expressive primitives
+// (spin, quick_rise, quick_fall) ramp over ~100 ms+, which at high gravity
+// smears into the next input's buzz.
 var HAPTIC_EFFECTS = {
-  move: { primitive: 'click', scale: 1 },                    // ratchet step
-  rotate: { primitive: 'spin', scale: 0.8 },
-  hold: { primitive: 'quick_rise', scale: 0.6 },
-  drop: { primitive: 'quick_fall', scale: 0.75 },            // hard drop
-  softDrop: { primitive: 'quick_fall', scale: 0.75 * 0.75 }, // soft-drop start, 3/4 of drop
+  move: { primitive: 'click', scale: 1 },     // ratchet step
+  rotate: { primitive: 'click', scale: 1 },
+  hold: { primitive: 'click', scale: 1 },
+  drop: { primitive: 'click', scale: 1 },     // hard drop
+  softDrop: { primitive: 'click', scale: 1 }, // soft-drop start
   button: { primitive: 'click', scale: 0.7 },
-  detent: { primitive: 'click', scale: 0.5 }                 // slider steps, picker open/close
+  detent: { primitive: 'click', scale: 0.5 }  // slider steps, picker open/close
 };
-var WEB_PRIMITIVE_MS = { click: 20, spin: 35, quick_rise: 50, quick_fall: 50 };
+var WEB_PRIMITIVE_MS = { click: 20 };
 
 function webPlayHaptic(primitive, scale) {
   if (navigator.vibrate) navigator.vibrate(Math.round(WEB_PRIMITIVE_MS[primitive] * scale));
