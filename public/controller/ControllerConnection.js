@@ -370,29 +370,72 @@ function updateLatencyDisplay(ms) {
 // constants so a rename in protocol.js is caught automatically.
 var FASTLANE_TYPES = { [MSG.INPUT]: true, [MSG.SOFT_DROP]: true, [MSG.SOFT_DROP_END]: true };
 
-// AirConsole caps a device's outbound messages at 25/sec, enforced entirely
-// platform-side: the SDK carries no limiter, so overage never blocks or reports
-// back, and surfaces only in the AC developer console (System-Rate-Limiter),
-// after the fact. Nothing here diverges to stay under that, because both senders
-// are bounded at their source and AC mode has no other sustained traffic (its
-// 1 Hz relay PING is dropped, see startPing):
-//   soft drop  TouchInput's held-drop keepalive runs at 10 Hz
-//              (SOFT_DROP_INTERVAL_MS), which is the whole steady-state rate.
-//   left/right a multi-step ratchet crossing ships as ONE counted message
-//              (TouchInput._onPointerMove).
-// Known gap: a finger rubbing the dead-zone boundary re-enters soft drop per
-// pointermove, and each crossing also emits a SOFT_DROP_END, so that burst can
-// exceed the cap. It belongs to the gesture, so the fix would be hysteresis in
-// TouchInput. A send-path limiter is the wrong shape for it, and specifically
-// must never be set at the keepalive interval: one at exactly that value used to
-// live here and silently dropped the ticks setInterval fired a hair early,
-// doubling the worst-case wire gap against SOFT_DROP_TIMEOUT_MS.
-//
+// AirConsole caps a device at 25 msg/sec, enforced platform-side and visible
+// only in its dev console (System-Rate-Limiter). Soft drop is bounded at its
+// source (TouchInput's 10 Hz keepalive) and taps by the finger, but a fast drag
+// is not: the ratchet sends one left/right per frame. So the AC path spends a
+// token bucket sized to keep any one-second window under the cap and, only once
+// it is empty, queues sends in order, merging same-direction steps into n. Soft drop never
+// waits: holding its ticks widens the wire gap against SOFT_DROP_TIMEOUT_MS.
+// Known gap: a finger rubbing the dead-zone edge re-enters soft drop per
+// pointermove; that needs hysteresis in TouchInput.
+var AC_SEND_BURST = 8;
+var AC_SEND_RATE = 15; // tokens per second
+var AC_QUEUE_MAX = 3;
+var acTokens = AC_SEND_BURST;
+var acTokensAt = 0;
+var acQueue = [];
+var acTimer = null;
+
+function acRefill() {
+  var now = performance.now();
+  acTokens = Math.min(AC_SEND_BURST, acTokens + (now - acTokensAt) * AC_SEND_RATE / 1000);
+  acTokensAt = now;
+}
+
+function acSend(msg) {
+  acRefill();
+  acTokens -= 1;
+  party.sendTo(0, msg);
+}
+
+function acDrain() {
+  acTimer = null;
+  if (!party) { acQueue = []; return; }
+  acRefill();
+  while (acQueue.length && acTokens >= 1) acSend(acQueue.shift());
+  if (acQueue.length) acTimer = setTimeout(acDrain, Math.ceil((1 - acTokens) * 1000 / AC_SEND_RATE));
+}
+
+function acSendToDisplay(msg) {
+  if (msg.type === MSG.SOFT_DROP || msg.type === MSG.SOFT_DROP_END) { acSend(msg); return; }
+  var tail = acQueue[acQueue.length - 1];
+  if (tail && tail.type === MSG.INPUT && msg.type === MSG.INPUT && tail.action === msg.action &&
+      (msg.action === INPUT.LEFT || msg.action === INPUT.RIGHT)) {
+    // Steps past INPUT_MAX_REPEAT one way only push into the wall.
+    tail.n = Math.min((tail.n || 1) + (msg.n || 1), GameConstants.INPUT_MAX_REPEAT);
+    return;
+  }
+  acQueue.push(msg);
+  // A queue this deep means input that can't merge (a finger reversing every
+  // frame); arriving late would cost more than the cap does, so send it all,
+  // and forgive the debt so it doesn't stall what follows.
+  if (acQueue.length > AC_QUEUE_MAX) {
+    clearTimeout(acTimer);
+    acTimer = null;
+    while (acQueue.length) acSend(acQueue.shift());
+    acTokens = Math.max(acTokens, 0);
+  } else if (!acTimer) {
+    acDrain();
+  }
+}
+
 // Note: mutates payload by adding .type, so callers must pass a fresh object.
 function sendToDisplay(type, payload) {
   if (!party) return;
   var msg = payload || {};
   msg.type = type;
+  if (window.airconsole) { acSendToDisplay(msg); return; }
   if (fastlane && FASTLANE_TYPES[type] && fastlane.enqueue(0, msg) === 'p2p') return;
   party.sendTo(0, msg);
 }
