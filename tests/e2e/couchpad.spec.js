@@ -198,7 +198,10 @@ test.describe('CouchPad shell contract', () => {
   test('without the host bridge, the normal web bail runs', async ({ context }) => {
     const controller = await context.newPage();
     await fakeRoomNotFound(controller);
+    // Wait on the request, not the URL: the landing page strips ?bail= on
+    // load, which can land before waitForURL attaches under CI timing.
+    const bail = controller.waitForRequest(/\/\?bail=room_not_found$/, { timeout: 10000 });
     await controller.goto('/ZZZZ?test=1');
-    await controller.waitForURL(/\?bail=room_not_found/, { timeout: 10000 });
+    await bail;
   });
 });
