@@ -401,6 +401,8 @@ function sendToDisplay(type, payload) {
 // Disconnect / Error States
 // =====================================================================
 
+// Leave the room for the name screen: the leave buttons and the browser's
+// back gesture. The CouchPad bootstrap replaces it to close the web view.
 function performDisconnect() {
   stopPing();
   if (fastlane) { fastlane.closeAll(); fastlane = null; }
@@ -451,6 +453,7 @@ function performDisconnect() {
   nameJoinBtn.textContent = t('join');
   nameInput.disabled = false;
   reconnectOverlay.classList.add('hidden');
+  // No focus: the field is prefilled, and a focus from the leave tap would
+  // raise the phone keyboard over a screen the player may only be passing.
   showScreen('name');
-  nameInput.focus();
 }

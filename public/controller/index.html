@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="app-version" content="__APP_VERSION__">
   <meta name="theme-color" content="#1E1A2B">
-  <meta name="cp-accent-color" content="#FF6B6B">
+  <meta name="color-scheme" content="dark">
   <title>HexStacker</title>
   <meta name="description" content="Multiplayer hex stacker — phones become controllers, a shared screen shows the action.">
   <meta property="og:title" content="HexStacker Party">
@@ -61,8 +61,8 @@
 
   <!-- Lobby screen -->
   <div id="lobby-screen" class="screen controller-shell hidden">
-    <div id="lobby-top-bar">
-      <button id="lobby-back-btn" class="icon-btn" data-i18n-aria-label="back" aria-label="Back"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4L6 10L14 16"/></svg></button>
+    <div id="lobby-top-bar" class="top-bar">
+      <button id="lobby-leave-btn" class="icon-btn leave-btn" data-i18n-aria-label="back" aria-label="Back"><svg class="leave-btn__back" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4L6 10L14 16"/></svg><svg class="leave-btn__close" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 5l10 10M15 5l-10 10"/></svg></button>
       <button id="lobby-settings-btn" class="icon-btn" data-i18n-aria-label="settings_title" aria-label="Settings"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
     </div>
     <div class="controller-shell__frame controller-shell__frame--lobby">
@@ -72,7 +72,8 @@
       <div class="controller-shell__body">
         <div id="player-identity">
           <div id="player-identity-card" class="player-card">
-            <button type="button" id="identity-trigger" class="identity-trigger player-card__top" aria-haspopup="dialog" aria-expanded="false" data-i18n-aria-label="color_choose_heading" aria-label="Choose your color">
+            <!-- Disabled: only the CouchPad and AirConsole shells offer a rename (enableShellRename). -->
+            <button type="button" id="identity-trigger" class="identity-trigger player-card__top" disabled>
               <span id="player-identity-name" class="identity-name"></span>
             </button>
             <div id="level-selector" class="card-level">
@@ -81,6 +82,7 @@
               <button id="level-plus-btn" class="level-btn" data-i18n-aria-label="level_plus" aria-label="Increase level"><svg width="20" height="20" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><line x1="2" y1="7" x2="12" y2="7"/><line x1="7" y1="2" x2="7" y2="12"/></svg></button>
             </div>
           </div>
+          <button type="button" id="color-btn" class="color-btn" aria-haspopup="dialog" aria-expanded="false"><span class="color-btn__swatch" aria-hidden="true"></span><span data-i18n="color_choose_heading">Choose your color</span></button>
         </div>
 
         <div id="color-picker-overlay" class="game-overlay hidden" role="dialog" aria-labelledby="color-picker-title">
@@ -112,6 +114,7 @@
         <button id="pause-continue-btn" class="btn btn-primary" data-i18n="continue_btn">Continue</button>
         <button id="pause-settings-btn" class="btn btn-secondary" data-i18n="settings_title">Settings</button>
         <button id="pause-newgame-btn" class="btn btn-secondary" data-i18n="new_game">New Game</button>
+        <button id="pause-leave-btn" class="btn btn-secondary" data-i18n="leave_game">Leave Game</button>
       </div>
     </div>
     <div id="gesture-hints" aria-hidden="true">
@@ -140,6 +143,9 @@
        display can vanish while the controller is in the lobby or on results,
        and inside #game-screen the ancestor's .hidden would swallow it. -->
   <div id="reconnect-overlay" class="game-overlay hidden">
+    <div class="top-bar">
+      <button class="icon-btn leave-btn" data-i18n-aria-label="back" aria-label="Back"><svg class="leave-btn__back" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4L6 10L14 16"/></svg><svg class="leave-btn__close" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 5l10 10M15 5l-10 10"/></svg></button>
+    </div>
     <h1 id="reconnect-heading" data-i18n="reconnecting">RECONNECTING</h1>
     <p id="reconnect-status" class="game-overlay__status"></p>
     <button id="reconnect-rejoin-btn" class="btn btn-primary hidden" data-i18n="reconnect">RECONNECT</button>
@@ -195,6 +201,9 @@
 
   <!-- Game over screen -->
   <div id="gameover-screen" class="screen controller-shell hidden">
+    <div class="top-bar">
+      <button class="icon-btn leave-btn" data-i18n-aria-label="back" aria-label="Back"><svg class="leave-btn__back" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4L6 10L14 16"/></svg><svg class="leave-btn__close" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 5l10 10M15 5l-10 10"/></svg></button>
+    </div>
     <div class="controller-shell__frame controller-shell__frame--results">
       <div class="controller-shell__brand">
         <h1 class="controller-shell__title brand-lockup"><img class="brand-lockup__mark" src="/shared/brand-mark.svg" alt=""><span class="brand-lockup__text">HEX STACKER<span class="brand-lockup__sub">party</span></span></h1>

@@ -226,6 +226,11 @@
     if (nickname != null) window.__AC_NICKNAME = nickname;
     if (this.onDeviceProfileChange) this.onDeviceProfileChange(this._deviceId);
   };
+  // The real SDK opens AirConsole's profile editor; tests only count the calls
+  // and drive the outcome with triggerProfileChange.
+  AirConsole.prototype.editProfile = function() {
+    window.__AC_EDIT_PROFILE = (window.__AC_EDIT_PROFILE || 0) + 1;
+  };
 
   window.AirConsole = AirConsole;
 })();

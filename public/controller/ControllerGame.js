@@ -87,17 +87,33 @@ if (document.fonts && document.fonts.ready) {
   document.fonts.ready.then(function() { fitIdentityName(); });
 }
 
-// Shell-driven live rename, shared by the AirConsole profile-change path and
-// the CouchPad setName bridge. SET_NAME is a lightweight rename the display
+// Live rename, shared by the CouchPad name sheet and the AirConsole
+// profile-change path. SET_NAME is a lightweight rename the display
 // accepts in any state (including mid-game). The display relabels the roster
 // and republishes, so the other controllers' "Waiting for <host>" banner
 // updates without this controller re-announcing itself.
-function applyShellRename(name) {
+function applyLiveRename(name) {
   if (!name || name === playerName) return;
   playerName = name;
   playerNameIsAuto = false;
   applyLocalPlayerName();
   sendToDisplay(MSG.SET_NAME, { name: playerName });
+}
+
+// The lobby card's name is a plain label (a disabled button) unless a shell
+// offers a rename: the CouchPad launcher's name sheet or AirConsole's profile
+// editor. Then it becomes the button that opens it; the new name comes back
+// through applyLiveRename.
+function enableShellRename(open) {
+  identityTrigger.disabled = false;
+  identityTrigger.setAttribute('aria-haspopup', 'dialog');
+  identityTrigger.setAttribute('data-i18n-aria-label', 'rename');
+  identityTrigger.setAttribute('aria-label', t('rename'));
+  bindTap(identityTrigger, function () {
+    if (currentScreen !== 'lobby') return;
+    haptic('detent');
+    open();
+  });
 }
 
 function showLobbyUI() {
@@ -287,17 +303,12 @@ function readStoredColorIndex() {
   return idx;
 }
 
-// Keep the CouchPad accent hint (CONTRACT §4) in step with the player's
-// color: the launcher tints its own chrome accents (name-chip icon, join
-// spinner, rename controls) from this <head> meta. It's read only at page-
-// load, so live updates matter for a WebView reload mid-session, where
-// captureSessionColorIndex re-seeds the color from persistence before the
-// page finishes loading. A harmless no-op in plain browsers / AirConsole,
-// where nothing reads the meta.
-function setAccentColorMeta(color) {
-  if (!color) return;
-  var meta = document.querySelector('meta[name="cp-accent-color"]');
-  if (meta) meta.setAttribute('content', color);
+// The page-wide player tint: body --player-color for our own CTAs, and :root
+// accent-color, which the CouchPad launcher reads for its rename sheet's Save
+// button (inert elsewhere: every form control here is custom-styled).
+function applyPlayerColor(color) {
+  document.body.style.setProperty('--player-color', color);
+  document.documentElement.style.accentColor = color;
 }
 
 // Tint the JOIN button before the first snapshot arrives. In AirConsole mode the
@@ -311,8 +322,7 @@ function captureSessionColorIndex() {
   if (playerColorIndex != null) return;
   var idx = readStoredColorIndex();
   if (idx == null) return;
-  document.body.style.setProperty('--player-color', PLAYER_COLORS[idx]);
-  setAccentColorMeta(PLAYER_COLORS[idx]);
+  applyPlayerColor(PLAYER_COLORS[idx]);
 }
 captureSessionColorIndex();
 
@@ -391,7 +401,7 @@ function openColorPicker() {
   // complete before the fade-in transition's first frame.
   colorPickerOverlay.classList.remove('hidden');
   renderColorPicker();
-  if (identityTrigger) identityTrigger.setAttribute('aria-expanded', 'true');
+  if (colorBtn) colorBtn.setAttribute('aria-expanded', 'true');
   // Move focus to the centre cell so keyboard users land somewhere
   // meaningful. Tap-to-open users will never see the focus ring (they're
   // touching), so the visual cost is nil.
@@ -406,7 +416,7 @@ function closeColorPicker() {
   if (!colorPickerOverlay) return;
   if (colorPickerOverlay.classList.contains('hidden')) return;
   colorPickerOverlay.classList.add('hidden');
-  if (identityTrigger) identityTrigger.setAttribute('aria-expanded', 'false');
+  if (colorBtn) colorBtn.setAttribute('aria-expanded', 'false');
   // Drop any pending pick — if the user closes manually before the
   // display has confirmed, treat the request as abandoned. The display
   // will silently no-op the SET_COLOR if it's already too late.
@@ -564,10 +574,9 @@ function applyOwnIdentity(mine) {
   if (typeof mine.color === 'number' && mine.color !== playerColorIndex) {
     playerColorIndex = mine.color;
     playerColor = PLAYER_COLORS[mine.color] || PLAYER_COLORS[0];
-    document.body.style.setProperty('--player-color', playerColor);
+    applyPlayerColor(playerColor);
     playerIdentity.style.setProperty('--player-color', playerColor);
     gameScreen.style.setProperty('--player-color', playerColor);
-    setAccentColorMeta(playerColor);
     // Persist only user-initiated changes (see userPickedColor in
     // ControllerState.js). Display-driven assignments — initial slot,
     // reconnect default, reclaim's own confirmation — must not write here: in

@@ -190,7 +190,6 @@ var nameInput = document.getElementById('name-input');
 var nameJoinBtn = document.getElementById('name-join-btn');
 var nameScreen = document.getElementById('name-screen');
 var lobbyScreen = document.getElementById('lobby-screen');
-var lobbyBackBtn = document.getElementById('lobby-back-btn');
 var waitingActionText = document.getElementById('waiting-action-text');
 var gameScreen = document.getElementById('game-screen');
 var gameoverScreen = document.getElementById('gameover-screen');
@@ -237,6 +236,7 @@ var levelPlusBtn = document.getElementById('level-plus-btn');
 var colorPickerEl = document.getElementById('color-picker');
 var colorPickerOverlay = document.getElementById('color-picker-overlay');
 var identityTrigger = document.getElementById('identity-trigger');
+var colorBtn = document.getElementById('color-btn');
 // Pending color pick (index) — set when the user taps a rose cell, cleared
 // when the display echoes the accepted SET_COLOR back in the room snapshot.
 // While non-null, the picker overlay stays open until the next render

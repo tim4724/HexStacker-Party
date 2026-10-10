@@ -116,13 +116,18 @@ connect = function() {
 // The player can change their AirConsole nickname mid-session (the platform
 // profile editor, or a late-loading profile). The SDK fires
 // onDeviceProfileChange for any device whose nickname/picture changed; we act
-// only on our own. See applyShellRename (ControllerGame.js) for why SET_NAME
+// only on our own. See applyLiveRename (ControllerGame.js) for why SET_NAME
 // is safe in any state. The adapter never wires onDeviceProfileChange, so
 // this assignment is durable.
 airconsole.onDeviceProfileChange = function(device_id) {
   if (device_id !== airconsole.getDeviceId()) return;
-  applyShellRename(airconsole.getNickname(device_id));
+  applyLiveRename(airconsole.getNickname(device_id));
 };
+
+// The name on the lobby card opens that profile editor (nickname, picture);
+// the change comes back through onDeviceProfileChange above. For a guest the
+// SDK frames it as a login, so AirConsole may ask them to sign in first.
+enableShellRename(function () { airconsole.editProfile(); });
 
 injectVersionLabel('settings-version');
 

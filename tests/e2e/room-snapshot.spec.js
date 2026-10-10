@@ -219,7 +219,7 @@ test.describe('Room snapshot as the single source of truth', () => {
     const controller = await joinController(context, roomCode, 'Alice');
     await waitForDisplayPlayers(page, 1);
 
-    await controller.click('#identity-trigger');
+    await controller.click('#color-btn');
     // The rose is deliberately inert for 350ms after opening (anti-misclick,
     // see #color-picker-overlay:not(.hidden) in controller.css). Waiting it out
     // also puts the throttle window past the join's publish, so the pick lands

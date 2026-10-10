@@ -11,6 +11,8 @@
      it lifts the vertically-centered content by ~half this value so it sits
      a touch above dead-center — geometric centering reads as slightly low. */
   --content-lift: clamp(40px, 7vh, 64px);
+  /* Brand accent until a player color is known (applyPlayerColor). */
+  accent-color: var(--accent-primary);
 }
 
 html, body {
@@ -177,7 +179,9 @@ html, body {
   padding-top: 0;
 }
 
-#lobby-top-bar {
+/* Corner buttons over a screen or overlay: the leave X on the left, the
+   lobby's settings on the right. */
+.top-bar {
   position: absolute;
   top: 0;
   left: 0;
@@ -192,12 +196,12 @@ html, body {
   /* Empty middle strip is full-width and z-index:1 so it would otherwise
      swallow clicks aimed at content beneath — most visibly the top of
      the color picker hexes in landscape, where the bar overlaps the
-     picker's first row by ~10px. Children (back + settings buttons)
+     picker's first row by ~10px. Children (leave + settings buttons)
      re-enable pointer-events on themselves. */
   pointer-events: none;
 }
 
-#lobby-top-bar > * {
+.top-bar > * {
   pointer-events: auto;
 }
 
@@ -205,10 +209,16 @@ html, body {
   margin-left: auto;
 }
 
+/* The leave button steps back to the name screen in a browser ("<") and
+   closes the game in the CouchPad launcher (X, body.couchpad below). */
+.leave-btn__close,
+body.couchpad .leave-btn__back { display: none; }
+body.couchpad .leave-btn__close { display: block; }
+
 /* Optical centering: the "<" chevron's two open stroke ends sit on its
    right, so the geometrically centered glyph reads shifted right inside
    the circle — nudge it toward the apex. */
-#lobby-back-btn svg {
+.leave-btn__back {
   transform: translateX(-5%);
 }
 
@@ -239,6 +249,8 @@ html, body {
    a card, matching the socket/pill recess language. */
 #name-input {
   width: 100%;
+  /* As tall as the JOIN button below it (20px padding around one line). */
+  min-height: 68px;
   padding: 14px 20px;
   border-radius: var(--radius-btn);
   border: 1px solid var(--border-strong);
@@ -272,6 +284,7 @@ html, body {
 #pause-continue-btn,
 #pause-settings-btn,
 #pause-newgame-btn,
+#pause-leave-btn,
 #reconnect-rejoin-btn,
 #play-again-btn,
 #new-game-btn {
@@ -305,14 +318,14 @@ html, body {
 /* Identity trigger button — adds button-specific styling on top of the
    shared .player-card__top layout (in theme.css): it fills the card's top
    half, so the :active highlight reads as that half pressing in. The
-   top-only radius follows the card's corners. */
+   top-only radius follows the card's corners. Disabled (plain name) unless a
+   shell offers a rename (enableShellRename). */
 .identity-trigger {
   appearance: none;
   -webkit-appearance: none;
   background: transparent;
   border: 0;
-  /* Receives restored focus when the color picker closes; touch-only UI,
-     so suppress the UA focus ring (same as .rose-cell). */
+  /* Touch-only UI, so suppress the UA focus ring (same as .rose-cell). */
   outline: none;
   border-radius: 20px 20px 0 0;
   color: inherit;
@@ -321,7 +334,11 @@ html, body {
   transition: background var(--transition-fast);
 }
 
-.identity-trigger:active {
+.identity-trigger:disabled {
+  cursor: default;
+}
+
+.identity-trigger:active:not(:disabled) {
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -420,7 +437,46 @@ html, body {
   cursor: default;
 }
 
-/* --- Color picker overlay — opens when the identity-trigger is tapped.
+/* Opens the color picker: a quiet pill under the card, its hex swatch in
+   the current color. Same recess + press language as .icon-btn. */
+.color-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 10px 18px;
+  border: 1px solid rgba(255, 248, 236, 0.12);
+  border-radius: 999px;
+  background: rgba(21, 18, 31, 0.4);
+  color: var(--text-primary);
+  font-family: var(--font-brand);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.color-btn:active {
+  background: rgba(21, 18, 31, 0.7);
+  transform: scale(0.95);
+}
+
+.color-btn:focus-visible {
+  outline: 2px solid var(--accent-secondary);
+  outline-offset: 2px;
+}
+
+.color-btn__swatch {
+  width: 16px;
+  height: 14px;
+  background: var(--player-color);
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+}
+
+/* --- Color picker overlay — opens when the color button is tapped.
    Reuses .game-overlay (theme.css) for the dark backdrop + safe-area
    padding. We override the base class's fadeIn keyframe + display:none
    .hidden behaviour with an opacity transition so the overlay can fade
@@ -1388,40 +1444,39 @@ html, body {
   filter: grayscale(0.7);
 }
 
-/* --- Shell overrides (AirConsole iframe, CouchPad ?cpName) --- */
-/* Both shells own identity and leaving, so name entry and the lobby back
-   button are dead surfaces. See controller-airconsole.js and
-   controller-couchpad.js. */
+/* --- AirConsole owns identity and leaving (controller-airconsole.js) ---
+   Name entry and the leave buttons are dead surfaces there. */
 body.airconsole #name-screen,
-body.couchpad #name-screen { display: none !important; }
-body.airconsole #lobby-back-btn,
-body.couchpad #lobby-back-btn { display: none !important; }
+body.airconsole .leave-btn { display: none !important; }
 
-/* --- CouchPad-only overrides --- */
-/* The CouchPad launcher renders the player's name in its own chrome, so
-   suppress the in-game name on both surfaces (portrait top-bar label and the
-   landscape center-top touch-area overlay) to avoid showing it twice. */
-body.couchpad .game-name-label { display: none !important; }
-body.couchpad #touch-area::after { content: none !important; }
+/* --- CouchPad launcher (controller-couchpad.js) --- */
+/* Leave Game in the pause menu is the launcher's only exit mid-match. A
+   browser has its own (close the tab, or back), so it shows nowhere else. */
+body:not(.couchpad) #pause-leave-btn { display: none; }
+
+/* The launcher owns the name, so the name screen only ever flashes its
+   connecting state: drop the field (hidden, not removed, so the column
+   doesn't shift). */
+body.couchpad #name-form { visibility: hidden; }
 
 /* Arming system back brings Android's navigation bar back on screen, so
-   --cp-safe-bottom grows while armed and shrinks again on disarm (CONTRACT
-   §9). Reserve the gesture pill's height rather than reflow under it. The
-   game screen stops there: its bottom bar is anchored, so every reserved
-   pixel comes off the touch pad. */
+   the bottom inset grows while armed and shrinks again on disarm. Reserve
+   the gesture pill's height rather than reflow under it. The game screen
+   stops there: its bottom bar is anchored, so every reserved pixel comes off
+   the touch pad. */
 body.couchpad {
-  --safe-bottom: max(var(--cp-safe-bottom, 0px), env(safe-area-inset-bottom, 0px), 24px);
+  --safe-bottom: max(env(safe-area-inset-bottom, 0px), 24px);
 }
 
-/* These two are the only surfaces on screen at the moment the arm state
-   flips, so they are the only ones that watch the bar arrive underneath.
-   Everything else is armed for its whole life (lobby, results, the colour
-   picker over an already-armed lobby) or never armed (the in-game reconnect
-   overlay), and keeps the inset it opened with. Both centre their content, so
-   reserving the taller three-button bar costs them nothing. */
+/* These are the only surfaces on screen at the moment the arm state flips,
+   so they are the only ones that watch the bar arrive underneath. Everything
+   else is armed for its whole life (name, lobby, results, the dialogs over
+   the lobby) and keeps the inset it opened with. All centre their content,
+   so reserving the taller three-button bar costs them nothing. */
 body.couchpad #pause-overlay,
-body.couchpad #settings-overlay {
-  --safe-bottom: max(var(--cp-safe-bottom, 0px), env(safe-area-inset-bottom, 0px), 48px);
+body.couchpad #settings-overlay,
+body.couchpad #reconnect-overlay {
+  --safe-bottom: max(env(safe-area-inset-bottom, 0px), 48px);
 }
 
 /* --- AirConsole-only overrides --- */
@@ -1454,16 +1509,16 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
 /* Results portrait: with 8 players the stacked brand + list + actions can
    exceed the frame height. `safe center` keeps the content centered when
    it fits but anchors to the top when it overflows, so the title stays
-   visible below the safe-area inset instead of being clipped above it.
-   The extra brand padding gives the title a little breathing room from
-   the top edge in both cases. */
+   visible below the top bar instead of being clipped above it. The frame
+   clears the top bar the same way the lobby frame does. */
+#gameover-screen.controller-shell {
+  padding-top: 0;
+}
+
 .controller-shell__frame--results {
   justify-content: center; /* fallback for iOS < 16 */
   justify-content: safe center;
-}
-
-.controller-shell__frame--results .controller-shell__brand {
-  padding-top: 16px;
+  padding-top: calc(max(var(--safe-top), 12px) + 52px);
 }
 
 /* Keep "HEX STACKER" on one line on narrow phones rather than wrapping. */

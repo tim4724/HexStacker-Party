@@ -3,57 +3,43 @@
 // =====================================================================
 // CouchPad Controller Bootstrap
 // Loaded after ControllerConnection.js / ControllerGame.js (it wraps their
-// globals at load time) but BEFORE controller.js init. Self-gated on ?cpName,
-// which the launcher is the only thing to send, so this file is inert in
-// plain browsers, gallery iframes, and the AirConsole build (which also
-// strips it). There is no version param: every touchpoint is feature-detected,
-// which is how the launcher adds capabilities without a coordinated release.
+// globals at load time) but BEFORE controller.js init. Self-gated on
+// window.CouchPadHost, which only the launcher defines, so this file is inert
+// in plain browsers and gallery iframes; the AirConsole build strips it.
+// The contract is CONTRACT.md in the Couch-Games-Controller repo.
 //
-// Contract touchpoints:
-//   launcher -> game   ?cpName=<name>                    join URL param
-//   launcher -> game   window.CouchPad.setName(name)     live rename
-//   game -> launcher   window.CouchPadHost.gameEnded(r)  terminal end
-//     r: 'game_ended' | 'room_not_found' | 'game_full' | 'replaced'
-//   game -> launcher   CouchPadHost.enableSystemBack(b)  arm the back gesture
-//   launcher -> game   window.CouchPad.back()            armed back gesture
-//   game -> launcher   CouchPadHost.haptic(p, scale)     play a haptic primitive
-// The launcher is the identity authority: the name screen is skipped (CSS
-// hides it via body.couchpad), the injected name is never persisted as the
-// user's own typed name, and the shell owns leaving.
+// The launcher owns the player's name, so the name screen is skipped and the
+// name on the lobby card opens the launcher's sheet (the only rename there
+// is). Everything else runs as in a browser, with these hooks:
+//   CouchPadHost.name                 the player's name, always current
+//   CouchPadHost.editName()           the launcher's rename sheet → name | null
+//   CouchPadHost.leave()              leaving, instead of navigating
+//   CouchPadHost.gameEnded(reason)    terminal end, instead of navigating
+//     reason: 'game_ended' | 'room_not_found' | 'game_full' | 'replaced'
+//   CouchPadHost.enableSystemBack(b)  arm Android's back gesture
+//   window.CouchPad.back()            an armed back gesture
+//   CouchPadHost.haptic(p, scale)     play a haptic primitive
 // =====================================================================
 
 (function () {
-  var params = new URLSearchParams(location.search);
+  var host = window.CouchPadHost;
+  if (!host) return;
 
-  // The launcher guarantees a non-blank name of at most 16 chars; sanitize
-  // anyway (same trim + length cap the name input's maxlength enforces).
-  function sanitizeName(raw) {
-    return String(raw == null ? '' : raw).trim().slice(0, 16);
-  }
-  // A usable cpName IS the gate: the launcher is the only thing that sends it,
-  // and the shell can't run without the identity it carries.
-  var shellName = sanitizeName(params.get('cpName'));
-  if (!shellName) return;
-
-  // CSS hooks — hides #name-screen and #lobby-back-btn (see the
-  // body.couchpad rules in controller.css).
   document.body.classList.add('couchpad');
 
-  // Take the auto-connect branch in controller.js init.
+  // --- Name ---
+  // Take the auto-connect branch in controller.js init: the name screen shows
+  // only its connecting state.
   skipNameScreen = true;
 
-  // Inject the launcher-provided name right before each (re)connect — the
-  // auto-connect init branch prefills playerName from localStorage first,
-  // and a later reconnect must HELLO with the current shell name (setName
-  // below keeps shellName up to date). The injected name is deliberately
-  // NOT written to stacker_player_name: that key is the user's own typed
-  // name for standalone web sessions. clientId IS persisted (mirroring
-  // submitName, which the skipped name screen never runs) so a WebView
-  // reload mid-session reconnects into the same player slot instead of
-  // joining as a fresh player.
+  // HELLO with the launcher's name on every (re)connect. It is deliberately
+  // NOT written to stacker_player_name: that key is the name typed in a plain
+  // browser. clientId IS persisted (mirroring submitName, which the skipped
+  // name screen never runs) so a WebView reload mid-session reconnects into
+  // the same player slot instead of joining as a fresh player.
   var _originalConnect = connect;
   connect = function () {
-    playerName = shellName;
+    playerName = host.name;
     playerNameIsAuto = false;
     try {
       // A player is only in one room at a time — clean up other rooms' ids.
@@ -68,34 +54,29 @@
     _originalConnect();
   };
 
-  // Live rename, called by the launcher when the user edits their name in
-  // the shell. Shares applyShellRename (ControllerGame.js) with the
-  // AirConsole profile-change path.
-  window.CouchPad = {
-    setName: function (name) {
-      var next = sanitizeName(name);
-      if (!next) return;
-      // Keep shellName current even when the rename itself no-ops, so a
-      // later reconnect HELLOs with the shell's latest name.
-      shellName = next;
-      applyShellRename(next);
-    }
-  };
+  // The name on the lobby card opens the launcher's name sheet, which styles
+  // itself from the page's color-scheme/theme-color metas and :root
+  // accent-color (applyPlayerColor). A null result is a dismissal, which
+  // applyLiveRename ignores; a name is already the launcher's, so only the
+  // display needs it.
+  enableShellRename(function () { host.editName().then(applyLiveRename); });
+
+  // --- Leaving ---
+  // Every exit from the room closes the web view, which ends the relay socket
+  // too, so there is nothing to send or clean up first. (The browser-back
+  // path into performDisconnect never fires here: the launcher owns back.)
+  // The buttons show an X here (body.couchpad) rather than the browser's back
+  // chevron, so relabel them to match.
+  performDisconnect = function () { host.leave(); };
+  document.querySelectorAll('.leave-btn').forEach(function (btn) {
+    btn.setAttribute('data-i18n-aria-label', 'leave_game');
+    btn.setAttribute('aria-label', t('leave_game'));
+  });
 
   // Terminal session end → hand control back to the launcher instead of
-  // location.replace('/?bail=…') — the display root is meaningless inside
-  // the shell's WebView. Feature-detected so the same deployed controller
-  // falls back to normal web behavior when the bridge is absent (plain
-  // browser opening a ?cpName URL). Connection cleanup mirrors the original:
-  // the launcher pops the WebView on gameEnded, but until it does this page
-  // must not keep pinging a room it considers dead.
-  var _originalBailToWelcome = bailToWelcome;
+  // location.replace('/?bail=…'). Until the launcher pops the web view, this
+  // page must not keep pinging a room it considers dead.
   bailToWelcome = function (toastKey, keepClientId) {
-    var host = window.CouchPadHost;
-    if (!host || typeof host.gameEnded !== 'function') {
-      _originalBailToWelcome(toastKey, keepClientId);
-      return;
-    }
     if (gameCancelled) return;
     gameCancelled = true;
     stopPing();
@@ -110,30 +91,15 @@
     host.gameEnded(toastKey || (keepClientId ? 'replaced' : 'game_ended'));
   };
 
-  // Back never runs through history here. Same rationale as the AirConsole
-  // bootstrap: skip the name→lobby history push so a spurious popstate can't
-  // land on an entry that triggers performDisconnect, and no-op
-  // performDisconnect itself as belt-and-suspenders. With no pushed modal
-  // state, the settings Done button takes its direct hideSettings() fallback
-  // instead of history.back(). The system gesture reaches us as back() below.
-  history.pushState = function () {};
-  performDisconnect = function () {};
-
-  // --- Haptics (CONTRACT §13) ---
+  // --- Haptics ---
   // The launcher plays HAPTIC_EFFECTS' primitives natively, at a real
-  // strength, where navigator.vibrate (§12) only varies pulse length. A
-  // launcher predating §13 keeps the web path.
-  var host = window.CouchPadHost;
-  if (host && typeof host.haptic === 'function') {
-    playHaptic = function (primitive, scale) { host.haptic(primitive, scale); };
-  }
+  // strength, where navigator.vibrate only varies pulse length.
+  playHaptic = function (primitive, scale) { host.haptic(primitive, scale); };
 
-  // --- System back (CONTRACT §9) ---
+  // --- System back (Android) ---
   // Arming yields the screen edges to the system, so it is off during a live
-  // game where an edge swipe is a drag input. It is on where back has a
-  // meaning: over an open dialog, which back() closes, and in the lobby and on
-  // the results screen, where nothing is open and an unconsumed gesture leaves
-  // the game the same way the shell's LEAVE bar does.
+  // game where an edge swipe is a drag input. It is on wherever a leave button
+  // or a dialog is showing: back closes the dialog, or leaves like the X.
   function isOpen(el) {
     return !!el && !el.classList.contains('hidden');
   }
@@ -147,20 +113,19 @@
 
   var backArmed = null;
   function syncSystemBack() {
-    var want = isOpen(settingsOverlay) || isOpen(colorPickerOverlay) || pauseOpen()
-      || currentScreen === 'lobby' || currentScreen === 'gameover';
+    var want = isOpen(settingsOverlay) || isOpen(colorPickerOverlay)
+      || pauseOpen() || isOpen(reconnectOverlay) || currentScreen !== 'game';
     if (want === backArmed) return;
     backArmed = want;
-    var host = window.CouchPadHost;
-    if (host && typeof host.enableSystemBack === 'function') host.enableSystemBack(want);
+    host.enableSystemBack(want);
   }
 
   // Dialogs open and close from a dozen places (buttons, room snapshots, the
   // reconnect path, the test harness); the `hidden` class is the one thing
   // every path agrees on, so watch that instead of wrapping each caller.
   var overlayWatch = new MutationObserver(syncSystemBack);
-  [settingsOverlay, colorPickerOverlay, pauseOverlay].forEach(function (el) {
-    if (el) overlayWatch.observe(el, { attributes: true, attributeFilter: ['class'] });
+  [settingsOverlay, colorPickerOverlay, pauseOverlay, reconnectOverlay].forEach(function (el) {
+    overlayWatch.observe(el, { attributes: true, attributeFilter: ['class'] });
   });
   var _originalShowScreen = showScreen;
   showScreen = function (name) {
@@ -170,14 +135,16 @@
   syncSystemBack();
 
   // Called by the launcher once per gesture, only while armed. Anything but a
-  // literal true leaves the game, so the lobby and results answer nothing and
-  // fall through. Settings first: it can sit on top of the pause overlay.
-  // Decided synchronously: a Promise counts as unconsumed. hideSettings is
-  // block-scoped in controller.js, so the window alias is the only handle.
-  window.CouchPad.back = function () {
-    if (isOpen(settingsOverlay)) { window.closeSettingsOverlay(); return true; }
-    if (isOpen(colorPickerOverlay)) { closeColorPicker(); return true; }
-    if (pauseOpen()) { sendToDisplay(MSG.RESUME_GAME); return true; }
-    return false;
+  // literal true leaves the game, so with no dialog open the gesture falls
+  // through and leaves like the X. Settings first: it can sit on top of the
+  // pause overlay. hideSettings is block-scoped in controller.js, so the
+  // window alias is the only handle.
+  window.CouchPad = {
+    back: function () {
+      if (isOpen(settingsOverlay)) { window.closeSettingsOverlay(); return true; }
+      if (isOpen(colorPickerOverlay)) { closeColorPicker(); return true; }
+      if (pauseOpen()) { sendToDisplay(MSG.RESUME_GAME); return true; }
+      return false;
+    }
   };
 })();

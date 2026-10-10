@@ -76,6 +76,34 @@ test.describe('Game Lifecycle', () => {
     expect(controllerErrors).toEqual([]);
   });
 
+  test('the X steps back out of the room to the name screen', async ({ page, context }) => {
+    const { roomCode } = await createRoom(page);
+    const controller = await joinController(context, roomCode, 'Ben');
+    await waitForDisplayPlayers(page, 1);
+
+    // A back chevron in the browser; the CouchPad launcher shows an X instead.
+    await expect(controller.locator('#lobby-leave-btn .leave-btn__back')).toBeVisible();
+    await expect(controller.locator('#lobby-leave-btn .leave-btn__close')).toBeHidden();
+    await expect(controller.locator('#lobby-leave-btn')).toHaveAttribute('aria-label', 'Back');
+    // The pause menu's Leave Game is launcher-only: a browser has the tab.
+    expect(await controller.evaluate(() =>
+      getComputedStyle(document.getElementById('pause-leave-btn')).display)).toBe('none');
+
+    // The name was chosen on the name screen; in a browser the lobby card
+    // shows it but offers no rename (only the CouchPad and AirConsole shells do).
+    await expect(controller.locator('#identity-trigger')).toBeDisabled();
+
+    // Out of the room, back on the name screen with the typed name kept, and
+    // no focus on the field (it would raise the phone keyboard).
+    await controller.click('#lobby-leave-btn');
+    await expect(controller.locator('#name-screen')).toBeVisible();
+    await expect(controller.locator('#name-input')).toHaveValue('Ben');
+    await expect(controller.locator('#name-input')).not.toBeFocused();
+    await expect(page.locator('#player-list .player-card:not(.empty)')).toHaveCount(0);
+    // The name screen is the way in, not a room: it has no X.
+    await expect(controller.locator('#name-screen .leave-btn')).toHaveCount(0);
+  });
+
   test('single player: controller reload during results causes no errors', async ({ page, context }) => {
     const displayErrors = trackConsoleErrors(page);
 

@@ -360,6 +360,16 @@ test.describe('AirConsole Integration', () => {
     }, null, { timeout: 15000 });
 
     expect(await s.ctrlFrame.evaluate(() => party.constructor.name)).toBe('AirConsoleAdapter');
+
+    // AirConsole owns leaving and the name: no leave buttons, and the name on
+    // the lobby card opens AirConsole's profile editor.
+    await expect(s.ctrlFrame.locator('#lobby-leave-btn')).toBeHidden();
+    await expect(s.ctrlFrame.locator('#color-btn')).toBeVisible();
+    expect(await s.ctrlFrame.evaluate(() =>
+      getComputedStyle(document.getElementById('pause-leave-btn')).display)).toBe('none');
+    await expect(s.ctrlFrame.locator('#identity-trigger')).toHaveAttribute('aria-label', 'Change name');
+    await s.ctrlFrame.locator('#identity-trigger').click();
+    expect(await s.ctrlFrame.evaluate(() => window.__AC_EDIT_PROFILE)).toBe(1);
   });
 
   test('two controllers join and host can start game', async ({ page, context }) => {

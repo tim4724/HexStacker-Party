@@ -643,9 +643,11 @@ bindTap(reconnectRejoinBtn, function () {
   connect();
 });
 
-bindTap(lobbyBackBtn, function () {
-  haptic('button');
-  performDisconnect();
+document.querySelectorAll('.leave-btn, #pause-leave-btn').forEach(function (btn) {
+  bindTap(btn, function () {
+    haptic('button');
+    performDisconnect();
+  });
 });
 
 bindTap(startBtn, function () {
@@ -672,8 +674,8 @@ bindTap(levelMinusBtn, function () { stepStartLevel(Math.max(1, startLevel - 1))
 bindTap(levelPlusBtn, function () { stepStartLevel(Math.min(15, startLevel + 1)); });
 
 // Color picker — the rose lives in #color-picker-overlay (a .game-overlay
-// dialog). Two pieces of wiring:
-//   1. The identity-trigger row in the lobby card opens the overlay.
+// dialog). Three pieces of wiring:
+//   1. The color button under the lobby card opens the overlay.
 //   2. Tapping the backdrop or pressing Escape closes it.
 //   3. Tapping a non-taken rose cell sends SET_COLOR; the overlay stays
 //      open until the display echoes the accepted color back via
@@ -706,13 +708,11 @@ if (colorPickerEl) {
   });
 }
 
-if (identityTrigger) {
-  bindTap(identityTrigger, function () {
-    if (currentScreen !== 'lobby') return;
-    haptic('detent');
-    openColorPicker();
-  });
-}
+bindTap(colorBtn, function () {
+  if (currentScreen !== 'lobby') return;
+  haptic('detent');
+  openColorPicker();
+});
 
 if (colorPickerOverlay) {
   bindTap(colorPickerOverlay, function (e) {
