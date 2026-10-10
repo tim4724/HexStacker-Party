@@ -100,7 +100,8 @@ html, body {
   justify-content: center;
   gap: 18px;
   /* Breathing room under the brand title on tall phones; collapses back
-     to the old 24px when vertical space is tight. */
+     to the old 24px when vertical space is tight. The portrait lobby
+     grows it further (see .controller-shell__frame--lobby). */
   margin-top: clamp(24px, 5vh, 44px);
 }
 
@@ -115,7 +116,7 @@ html, body {
 /* Space between the body content (name input / identity card) and the
    primary button below it. Used to come implicitly from a now-removed
    status wrapper inside the actions block; landscape rules override
-   with their own tighter margins. */
+   with their own tighter margins, the portrait lobby with wider ones. */
 .controller-shell__actions--name,
 .controller-shell__actions--lobby {
   margin-top: 16px;
@@ -230,6 +231,23 @@ body.couchpad .leave-btn__close { display: block; }
      buttons) so the column centers in the space below it; otherwise short
      phones push the title up against the buttons with dead space below. */
   padding-top: calc(max(var(--safe-top), 12px) + 52px);
+}
+
+/* Portrait lobby: the gaps between brand, card and START grow with the
+   screen so tall phones don't leave the column bunched in the middle.
+   Landscape packs the lobby tighter (see the landscape block). */
+@media (max-aspect-ratio: 5/4) {
+  .controller-shell__frame--lobby .controller-shell__body {
+    margin-top: clamp(24px, 7vh, 72px);
+  }
+
+  .controller-shell__frame--lobby .color-btn {
+    margin-top: clamp(14px, 2.5vh, 24px);
+  }
+
+  .controller-shell__actions--lobby {
+    margin-top: clamp(16px, 6vh, 56px);
+  }
 }
 
 .hidden {
@@ -769,6 +787,8 @@ body.couchpad .leave-btn__close { display: block; }
   background: var(--bg-primary);
   display: flex;
   justify-content: space-evenly;
+  /* Keeps the labels apart on narrow phones and long locales. */
+  gap: 8px;
 }
 
 /* Hints carry the full player color — they teach the controls, so they
@@ -1471,12 +1491,33 @@ body.couchpad {
 /* These are the only surfaces on screen at the moment the arm state flips,
    so they are the only ones that watch the bar arrive underneath. Everything
    else is armed for its whole life (name, lobby, results, the dialogs over
-   the lobby) and keeps the inset it opened with. All centre their content,
-   so reserving the taller three-button bar costs them nothing. */
+   the lobby) and keeps the inset it opened with. Each balances the reserve
+   at the top so its content stays centred on the screen. */
 body.couchpad #pause-overlay,
 body.couchpad #settings-overlay,
 body.couchpad #reconnect-overlay {
   --safe-bottom: max(env(safe-area-inset-bottom, 0px), 48px);
+}
+
+body.couchpad #pause-overlay,
+body.couchpad #reconnect-overlay {
+  padding-top: max(var(--safe-top), calc(var(--safe-bottom) + 16px));
+}
+
+/* The settings panel fills short phones, so it balances the reserve with a
+   spacer that gives way first (the panel doesn't shrink) instead of padding
+   it can't spare. No overlay gap, or the spacer would add one. */
+body.couchpad #settings-overlay {
+  gap: 0;
+}
+
+body.couchpad #settings-overlay::before {
+  content: '';
+  flex: 0 1 max(0px, var(--safe-bottom) - max(var(--safe-top), 8px));
+}
+
+body.couchpad .settings-panel {
+  flex-shrink: 0;
 }
 
 /* --- AirConsole-only overrides --- */
@@ -1881,7 +1922,9 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    gap: 2px;
+    /* Wider than an item's own icon-to-label gap, so each label reads as
+       belonging to the icon above it, not the one below. */
+    gap: clamp(8px, 3.5vh, 20px);
     width: auto;
     padding: 4px 0 4px 8px;
     flex-shrink: 0;
