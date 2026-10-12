@@ -146,7 +146,7 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
 }
 /* 2:1 cinematic crop — short enough that the whole overlay fits above
    the fold on typical phones while still showing all three player
-   boards. At ≤640h the chips collapse and `max-height` below grows. */
+   boards. When the chips collapse (tier 2 below) `max-height` grows. */
 .device-choice__screenshot {
   display: block;
   width: 100%;
@@ -368,25 +368,33 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
    screenshot shows the product at a glance, while the chips repeat the
    selling points the banner's CTA already implies. */
 
-/* Tight height (~≤640px): trim spacing, hide the chips and the triad
-   mark above the wordmark (the stacked lockup's mark is the first thing
-   to go — the wordmark alone still brands the page). The screenshot +
+/* The thresholds below are measured, not guessed: title, screenshot,
+   chip and banner type all scale with WIDTH, so the height at which the
+   column stops fitting grows with width too. Each tier is therefore a
+   plain height cap OR'd with a taller cap gated on a wider aspect ratio
+   (tablets, laptop windows, phablets), so "Continue" + footer never fall
+   below the fold. */
+
+/* Tier 1 — first thing to go: the triad mark above the wordmark. The
+   wordmark alone still brands the page, and dropping the mark (~75px at
+   full size) is enough on its own across most of the phone range, so
+   the chips survive longer. */
+@media (max-height: 700px), (max-height: 820px) and (min-aspect-ratio: 11/20) {
+  .device-choice__brand .brand-lockup__mark { display: none; }
+}
+
+/* Tier 2 — tight height: trim spacing and hide the chips (the mark is
+   already gone: both queries sit inside tier 1's). The screenshot +
    banner together still communicate what the app is. With chips gone,
-   the screenshot gets more vertical room (up from 28vh → 38vh) so it
-   reads as the hero.
-   The second query catches wider-than-phone-portrait viewports up to
-   820px tall (tablets, laptop windows, phablets): title, screenshot,
-   chip and banner type all scale with width, so at these aspects the
-   full column no longer fits and "Continue" + footer would fall below
-   the fold. */
-@media (max-height: 640px), (max-height: 820px) and (min-aspect-ratio: 9/16) {
+   the screenshot gets more vertical room (up from 28vh → 37vh) so it
+   reads as the hero. */
+@media (max-height: 620px), (max-height: 700px) and (min-aspect-ratio: 5/8) {
   .device-choice {
     gap: clamp(10px, 2vh, 18px);
     padding-top: calc(clamp(12px, 2vh, 24px) + env(safe-area-inset-top));
   }
-  .device-choice__brand .brand-lockup__mark { display: none; }
   .device-choice__chips { display: none; }
-  .device-choice__screenshot { max-height: 38vh; }
+  .device-choice__screenshot { max-height: 37vh; }
   .device-choice__banner { padding: 7px 14px; }
 }
 
