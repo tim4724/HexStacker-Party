@@ -101,12 +101,9 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
   gap: clamp(14px, 4.5vh, 40px);
 }
 
-/* --- Footer: the last in-flow item, so the auto margins above push it
-       to the bottom. It used to be absolutely positioned over a fixed
-       padding reserve, which overlapped the CTA whenever the column was
-       taller than the viewport (e.g. tablet/laptop windows ~700px tall)
-       and clipped longer locales. In flow it can't collide — on overflow
-       it simply scrolls below the CTA. --- */
+/* --- Footer: the last in-flow item, pushed to the bottom by the auto
+       margins above. Kept in flow (not absolute) so it can never sit on
+       top of the CTA: if the column overflows, it scrolls below it. --- */
 .device-choice__legal {
   flex-shrink: 0;
   display: flex;
@@ -360,20 +357,20 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
 }
 .device-choice__toast.hidden { display: none; }
 
-/* Responsive behaviour is driven by viewport HEIGHT, not orientation:
-   the vertical column stays in place regardless of aspect, and
-   non-essential content is dropped in priority order as vertical space
-   shrinks. Banner + Continue link + footer are always preserved — they
+/* Responsive behaviour: the vertical column stays in place at every
+   size, and non-essential content is dropped in priority order as
+   vertical space runs out — mark, then chips, then screenshot, then
+   title. Banner + Continue link + footer are always preserved — they
    carry the interaction. Chips drop before the screenshot because the
    screenshot shows the product at a glance, while the chips repeat the
-   selling points the banner's CTA already implies. */
+   selling points the banner's CTA already implies.
 
-/* The thresholds below are measured, not guessed: title, screenshot,
-   chip and banner type all scale with WIDTH, so the height at which the
-   column stops fitting grows with width too. Each tier is therefore a
+   The thresholds are measured, not guessed. Title, screenshot, chip and
+   banner type all scale with WIDTH, so the height at which the column
+   stops fitting grows with width too: each of the first two tiers is a
    plain height cap OR'd with a taller cap gated on a wider aspect ratio
-   (tablets, laptop windows, phablets), so "Continue" + footer never fall
-   below the fold. */
+   (tablets, laptop windows, phablets). Re-measure when changing sizes
+   in the column — the goal is zero overflow at every viewport. */
 
 /* Tier 1 — first thing to go: the triad mark above the wordmark. The
    wordmark alone still brands the page, and dropping the mark (~75px at
@@ -384,30 +381,30 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
 }
 
 /* Tier 2 — tight height: trim spacing and hide the chips (the mark is
-   already gone: both queries sit inside tier 1's). The screenshot +
-   banner together still communicate what the app is. With chips gone,
-   the screenshot gets more vertical room (up from 28vh → 37vh) so it
-   reads as the hero. */
+   re-hidden here so the order holds even if tier 1 is retuned). The
+   screenshot + banner together still communicate what the app is. With
+   chips gone, the screenshot gets more vertical room (up from 28vh →
+   37vh) so it reads as the hero. */
 @media (max-height: 620px), (max-height: 700px) and (min-aspect-ratio: 5/8) {
   .device-choice {
     gap: clamp(10px, 2vh, 18px);
     padding-top: calc(clamp(12px, 2vh, 24px) + env(safe-area-inset-top));
   }
+  .device-choice__brand .brand-lockup__mark,
   .device-choice__chips { display: none; }
   .device-choice__screenshot { max-height: 37vh; }
   .device-choice__banner { padding: 7px 14px; }
 }
 
-/* Very tight (~≤460px): drop the screenshot too — banner + link + title
-   only. Toast is inline and stays visible at every breakpoint (it used
-   to be absolute-positioned and hidden here). */
+/* Tier 3 — very tight (≤460px): drop the screenshot too — title +
+   banner + link + footer only. The toast stays visible at every tier. */
 @media (max-height: 460px) {
   .device-choice__hero picture { display: none; }
   .device-choice { gap: clamp(8px, 2vh, 14px); }
 }
 
-/* Absolute minimum (~≤320px, e.g. iPhone SE landscape): drop the title
-   too — banner + link + footer only. */
+/* Tier 4 — absolute minimum (≤320px, e.g. iPhone SE landscape): drop
+   the title too — banner + link + footer only. */
 @media (max-height: 320px) {
   .device-choice__brand { display: none; }
 }
