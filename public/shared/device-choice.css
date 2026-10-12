@@ -5,9 +5,9 @@
    "Continue on this device" is an understated link-style fallback.
    Self-contained.
 
-   Structure (visual groups spaced by `space-around` on the outer flex
-   container; toast floats absolute above the CTA block, the legal
-   footer is anchored to the bottom):
+   Structure (visual groups spaced by auto margins on the outer flex
+   column; toast floats absolute above the CTA block, the legal footer
+   is the last in-flow item, pushed to the bottom):
      .device-choice
        .device-choice__intro          — title + hero (tight block)
          .device-choice__brand          — title
@@ -18,7 +18,8 @@
          .device-choice__toast          — bail reason (absolute, above CTA)
          .device-choice__banner         — tappable hexstacker.com + share icon
          .device-choice__continue       — link-style "Continue on this device"
-       .device-choice__legal          — footer (anchored to bottom)
+       .device-choice__legal          — footer (in flow, pushed to bottom)
+         .device-choice__legal-group    — Privacy · Imprint (never split)
    ============================================ */
 
 .device-choice {
@@ -28,15 +29,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* `space-around` distributes leftover vertical space evenly around the
-     two main groups (intro, cta) so each reads as its own block separated
-     by visible whitespace. `gap` stays as a floor so items keep breathing
-     room even when the viewport shrinks and free space collapses.
-     `overflow-y: auto` (below) handles overflow — without it, items
-     could overlap the safe-area edges on tiny viewports. The `safe`
-     space-around keyword is avoided because it falls back to `center`
-     in some browser engines. */
-  justify-content: space-around;
+  /* Leftover vertical space is distributed by auto margins on the intro
+     and cta groups (below), not `justify-content`. `gap` stays as a floor
+     so items keep breathing room even when free space collapses, and
+     `overflow-y: auto` (below) scrolls whatever still doesn't fit. */
   gap: clamp(14px, 2.5vh, 24px);
   /* Fully opaque so the safe-area strips (status bar, home indicator)
      stay a consistent solid color for OS nav-bar sampling. */
@@ -45,7 +41,7 @@
   padding:
     calc(clamp(20px, 4vh, 40px) + env(safe-area-inset-top))
     0.75rem
-    calc(48px + env(safe-area-inset-bottom)); /* reserve space for absolute __legal */
+    calc(8px + env(safe-area-inset-bottom));
   overflow-y: auto;
 }
 
@@ -76,10 +72,14 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
 
 /* Two visual groups — .device-choice__intro (title + screenshot + chips)
    and .device-choice__cta (banner + continue) — sit as flex siblings
-   under .device-choice. The outer `space-around` distributes leftover
-   vertical space evenly around both, giving the rhythm:
+   under .device-choice, followed by the legal footer. Auto margins on
+   both groups split leftover vertical space evenly around them, giving
+   the rhythm:
    space · [title + hero] · SPACE · [banner + continue] · space · footer.
-   Title sits tight with the hero it's introducing, not floating alone. */
+   Title sits tight with the hero it's introducing, not floating alone.
+   Unlike `justify-content: space-around`, auto margins collapse to 0 when
+   the column overflows, so it overflows downward into the scroll area
+   instead of being pushed past the top edge where it can't be reached. */
 .device-choice__intro,
 .device-choice__hero,
 .device-choice__cta {
@@ -89,6 +89,11 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
   gap: clamp(10px, 2vh, 16px);
   width: min(100%, 440px);
 }
+.device-choice__intro,
+.device-choice__cta {
+  margin-block: auto;
+  flex-shrink: 0;
+}
 /* Title↔screenshot gap wider than screenshot↔chips so the title gets
    breathing room on tall viewports without feeling detached; the 14px
    floor keeps short viewports as tight as before. */
@@ -96,28 +101,31 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
   gap: clamp(14px, 4.5vh, 40px);
 }
 
-/* --- Footer: anchored to the overlay's padding-box bottom. The
-       responsive breakpoints below drop content aggressively before the
-       column could actually overflow, so the absolute positioning (rather
-       than sticky) is fine in practice — but on a viewport that DID
-       overflow, the footer would scroll with the content instead of
-       pinning to the visible bottom. --- */
+/* --- Footer: the last in-flow item, so the auto margins above push it
+       to the bottom. It used to be absolutely positioned over a fixed
+       padding reserve, which overlapped the CTA whenever the column was
+       taller than the viewport (e.g. tablet/laptop windows ~700px tall)
+       and clipped longer locales. In flow it can't collide — on overflow
+       it simply scrolls below the CTA. --- */
 .device-choice__legal {
-  position: absolute;
-  bottom: calc(env(safe-area-inset-bottom) + 8px);
-  left: 50%;
-  transform: translateX(-50%);
+  flex-shrink: 0;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
-  gap: 8px;
-  font-size: clamp(0.85rem, 4vw, 1rem);
+  column-gap: 6px;
+  max-width: 100%;
+  font-size: clamp(0.75rem, 3.6vw, 1rem);
   color: var(--text-secondary);
   white-space: nowrap;
-  /* Cap + clip on very narrow viewports with longer locale strings —
-     max-width keeps the footer inside the safe-area, overflow prevents
-     `translateX(-50%)` from pushing anything past that cap. */
-  max-width: calc(100% - 24px);
-  overflow: hidden;
+}
+/* Privacy + Imprint stay together: if a long locale (fr, ru) still can't
+   fit on one line at the font floor, the break falls between the credit
+   and the legal pair, never between the two legal links. */
+.device-choice__legal-group {
+  display: inline-flex;
+  align-items: center;
+  column-gap: 6px;
 }
 .device-choice__legal a {
   color: inherit;
@@ -364,16 +372,21 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
    mark above the wordmark (the stacked lockup's mark is the first thing
    to go — the wordmark alone still brands the page). The screenshot +
    banner together still communicate what the app is. With chips gone,
-   the screenshot gets more vertical room (up from 28vh → 45vh) so it
-   reads as the hero. */
-@media (max-height: 640px) {
+   the screenshot gets more vertical room (up from 28vh → 38vh) so it
+   reads as the hero.
+   The second query catches wider-than-phone-portrait viewports up to
+   820px tall (tablets, laptop windows, phablets): title, screenshot,
+   chip and banner type all scale with width, so at these aspects the
+   full column no longer fits and "Continue" + footer would fall below
+   the fold. */
+@media (max-height: 640px), (max-height: 820px) and (min-aspect-ratio: 9/16) {
   .device-choice {
     gap: clamp(10px, 2vh, 18px);
     padding-top: calc(clamp(12px, 2vh, 24px) + env(safe-area-inset-top));
   }
   .device-choice__brand .brand-lockup__mark { display: none; }
   .device-choice__chips { display: none; }
-  .device-choice__screenshot { max-height: 45vh; }
+  .device-choice__screenshot { max-height: 38vh; }
   .device-choice__banner { padding: 7px 14px; }
 }
 
