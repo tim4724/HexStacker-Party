@@ -223,10 +223,6 @@ class BoardRenderer(
     fun hexCenterX(col: Int, row: Int): Float = boardX + colW * col + hexSize
     fun hexCenterY(col: Int, row: Int): Float = boardY + hexH * (row + 0.5f * (col and 1)) + hexH / 2f
 
-    /** Board outline as an absolute (screen-space) closed path; used by the KO anim. */
-    fun outlineAbsPath(outset: Double): Path =
-        outlinePath(geometry.outlineVertices(outset), boardX, boardY)
-
     /**
      * Absolute screen-space bounds of EVERYTHING [render], [drawGarbageEffects] and
      * [drawDisconnectedOverlay] can touch: the well, the HOLD panel and garbage meter

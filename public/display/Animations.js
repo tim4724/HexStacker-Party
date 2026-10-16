@@ -235,60 +235,6 @@ class Animations {
     });
   }
 
-  addKO(boardX, boardY, boardWidth, boardHeight, cellSize, outlineVerts) {
-    const duration = THEME.timing.ko;
-
-    // Red flash — clipped to the zigzag hex outline so the fill matches the
-    // board shape rather than the rectangular bounding box.
-    this.active.push({
-      type: 'ko',
-      startTime: performance.now(),
-      duration,
-      boardX,
-      boardY,
-      boardWidth,
-      boardHeight,
-      outlineVerts,
-      render(ctx, progress) {
-        var fill, alpha;
-        if (progress < 0.15) {
-          fill = THEME.color.text.primary;
-          alpha = (1 - progress / 0.15) * 0.7;
-        } else if (progress < 0.4) {
-          fill = THEME.color.ko.text;
-          alpha = ((0.4 - progress) / 0.25) * 0.4;
-        } else {
-          return;
-        }
-        ctx.save();
-        if (this.outlineVerts && this.outlineVerts.length) {
-          ctx.beginPath();
-          ctx.moveTo(this.outlineVerts[0][0], this.outlineVerts[0][1]);
-          for (var i = 1; i < this.outlineVerts.length; i++) {
-            ctx.lineTo(this.outlineVerts[i][0], this.outlineVerts[i][1]);
-          }
-          ctx.closePath();
-          ctx.clip();
-        }
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = fill;
-        ctx.fillRect(this.boardX, this.boardY, this.boardWidth, this.boardHeight);
-        ctx.restore();
-      }
-    });
-
-    // Screen-edge red flash particles
-    for (let i = 0; i < 12; i++) {
-      this._addSparkle(
-        boardX + Math.random() * boardWidth,
-        boardY + Math.random() * boardHeight,
-        THEME.color.ko.text,
-        600 + Math.random() * 400,
-        cellSize
-      );
-    }
-  }
-
   /**
    * Update animation state. Pass the RAF timestamp for consistent timing.
    * @param {number} timestamp - DOMHighResTimeStamp from requestAnimationFrame

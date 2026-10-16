@@ -202,8 +202,6 @@ final class BoardScene: SKScene {
             }
         case "garbage_cancelled":
             if let id = event.playerId { boardNodes[id]?.flashGarbageDefence(lines: event.lines ?? 1) }
-        case "player_ko":
-            if let id = event.playerId { boardNodes[id]?.flashKO() }
         default:
             break
         }

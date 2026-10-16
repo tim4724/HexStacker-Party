@@ -38,7 +38,6 @@ class BoardAnimations {
 
     // Reused paints (render thread only).
     private val popupPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val koAnimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
 
     // Effect hex stamps (tvOS parity: sprites off one shared texture): a flat-fill
     // AA hex pre-rendered ONCE per (color, circumradius px) and blitted per particle,
@@ -79,10 +78,9 @@ class BoardAnimations {
         stampCache.clear()
     }
 
-    // Clear/KO flashes speak warm cream (text primary) and the danger token —
-    // never pure white / pure red (web Animations.js A2).
+    // Clear flashes speak warm cream (text primary), never pure white (web
+    // Animations.js A2).
     private val creamInt = Theme.textPrimary.toArgb()
-    private val koFlashInt = TvColors.koText.toArgb()
 
     /** Set the monotonic clock for this frame BEFORE draining events into ingress. */
     fun beginFrame(nowMs: Double) {
@@ -188,20 +186,6 @@ class BoardAnimations {
 
     fun addTextPopup(x: Double, y: Double, text: String, colorInt: Int, hasGlow: Boolean, cellSize: Double) {
         active.add(TextPopup(now, x, y, text, colorInt, hasGlow, cellSize))
-    }
-
-    /** KO one-shot: cream/danger flash clipped to the board outline + 12 edge sparkles. */
-    fun addKO(boardX: Float, boardY: Float, boardW: Float, boardH: Float, cellSize: Double, outline: Path) {
-        active.add(Ko(now, boardX, boardY, boardW, boardH, outline))
-        for (i in 0 until 12) {
-            addSparkle(
-                boardX + Random.nextDouble() * boardW,
-                boardY + Random.nextDouble() * boardH,
-                colorInt(TvColors.koText),
-                600 + Random.nextDouble() * 400,
-                cellSize,
-            )
-        }
     }
 
     // ── Tick + draw (render thread) ───────────────────────────────────────────
@@ -358,37 +342,6 @@ class BoardAnimations {
         }
     }
 
-    private inner class Ko(
-        start: Double,
-        val boardX: Float,
-        val boardY: Float,
-        val boardW: Float,
-        val boardH: Float,
-        val outline: Path,
-    ) : Anim(start, Theme_timing_ko) {
-        override fun render(canvas: Canvas, progress: Double) {
-            val fill: Int
-            val alpha: Double
-            when {
-                progress < 0.15 -> {
-                    fill = creamInt
-                    alpha = (1 - progress / 0.15) * 0.7
-                }
-                progress < 0.4 -> {
-                    fill = koFlashInt
-                    alpha = ((0.4 - progress) / 0.25) * 0.4
-                }
-                else -> return
-            }
-            canvas.save()
-            canvas.clipPath(outline)
-            koAnimPaint.color = fill
-            koAnimPaint.alpha = a255(alpha)
-            canvas.drawRect(boardX, boardY, boardX + boardW, boardY + boardH, koAnimPaint)
-            canvas.restore()
-        }
-    }
-
     // The popup needs the 900-weight face; resolved lazily so BoardAnimations
     // doesn't have to take Fonts in its constructor (kept dependency-free).
     private var fontsBlack = android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, 900, false)
@@ -420,7 +373,6 @@ class BoardAnimations {
         private const val Theme_timing_lineClear = 600.0
         private const val Theme_timing_garbageShake = 180.0
         private const val Theme_timing_textPopup = 1200.0
-        private const val Theme_timing_ko = 1800.0
 
         // ANIMATIONS_CELEBRATION_PIECE_IDS — palette hexes for triple confetti.
         private val CELEBRATION = intArrayOf(1, 2, 3, 4, 5, 6)

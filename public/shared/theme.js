@@ -153,7 +153,6 @@ const THEME = Object.freeze({
     lineClear:    600,
     garbageShake: 180,
     textPopup:    1200,
-    ko:           1800,
   }),
 
   // ---- Font Size Multipliers (× cellSize) with minimum px floors ----

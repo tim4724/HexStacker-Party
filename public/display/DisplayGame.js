@@ -412,7 +412,6 @@ function stepEngine(deltaMs) {
 function renderEngineEvent(event) {
   if (event.type === 'piece_lock') onPieceLock(event);
   else if (event.type === 'line_clear') onLineClear(event);
-  else if (event.type === 'player_ko') onPlayerKO(event);
   else if (event.type === 'garbage_cancelled') onGarbageCancelled(event);
   else if (event.type === 'garbage_sent') onGarbageSent(event);
 }
@@ -574,14 +573,6 @@ function onPieceLock(msg) {
   var br = boardRenderers[idx];
   var pieceColor = PIECE_COLORS[msg.typeId] || '#ffffff';
   animations.addHexLockFlash(br, msg.blocks, pieceColor);
-}
-
-function onPlayerKO(msg) {
-  if (!animations || !boardRenderers.length) return;
-  var idx = playerOrder.indexOf(msg.playerId);
-  if (idx < 0 || !boardRenderers[idx]) return;
-  var br = boardRenderers[idx];
-  animations.addKO(br.x, br.y, br.boardWidth, br.boardHeight, br.cellSize, br._bgOutlineVerts);
 }
 
 function onGameEnd(msg) {
