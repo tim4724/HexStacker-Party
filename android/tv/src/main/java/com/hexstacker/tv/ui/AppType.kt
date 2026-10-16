@@ -80,5 +80,5 @@ object AppType {
     val wordmarkSub = brand(600, 0.35f) // "PARTY"
     val resultName = brand(700, 0.0f) // licenses list row
     val resultRank = hud(900, -0.02f) // result rank ordinal (results.css -0.02em)
-    val resultStats = brand(700, 0.0f) // results late-joiner status (.result-stats)
+    val resultStats = brand(700, 0.0f) // results late-joiner status (.result-new)
 }

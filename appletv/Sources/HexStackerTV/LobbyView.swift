@@ -347,7 +347,19 @@ struct PlayerCardView: View {
                 .minimumScaleFactor(0.6)
                 .frame(maxWidth: w * 0.92)
             Spacer(minLength: 0)
-            QuietPill(label: trUpper("level_heading"), value: seat.level, fontSize: pillFontSize)
+            // Quiet "LEVEL n" pill (web .card-level__pill): recessed dark chip,
+            // heading at 0.2em tracking, value in the HUD voice.
+            HStack(spacing: pillFontSize * 0.5) {
+                Text(trUpper("level_heading"))
+                    .styled(font: AppFont.brandBold, size: pillFontSize,
+                            color: UITheme.textSecondary, tracking: 0.2)
+                Text(verbatim: "\(seat.level)")
+                    .styled(font: AppFont.name, size: pillFontSize,
+                            color: UITheme.textPrimary(), tracking: 0)
+            }
+            .padding(.horizontal, pillFontSize)
+            .frame(height: pillFontSize * 2.3)
+            .background(Capsule().fill(UITheme.socket(0.35)))
             Spacer(minLength: 0)
         }
         .frame(width: w, height: h)
@@ -386,31 +398,6 @@ struct PlayerCardView: View {
                     breatheDim = true
                 }
             }
-    }
-}
-
-/// Quiet "LABEL n" pill (web .card-level__pill / .result-pill): recessed dark
-/// chip, label at 0.2em tracking, value in the HUD voice. The lobby card's
-/// LEVEL pill and the results rows' LINES / LEVEL pills.
-struct QuietPill: View {
-    let label: String
-    let value: Int
-    let fontSize: CGFloat
-    var minWidth: CGFloat = 0
-
-    var body: some View {
-        HStack(spacing: fontSize * 0.5) {
-            Text(label)
-                .styled(font: AppFont.brandBold, size: fontSize,
-                        color: UITheme.textSecondary, tracking: 0.2)
-            Text(verbatim: "\(value)")
-                .styled(font: AppFont.name, size: fontSize,
-                        color: UITheme.textPrimary(), tracking: 0)
-        }
-        .padding(.horizontal, fontSize)
-        .frame(minWidth: minWidth)
-        .frame(height: fontSize * 2.3)
-        .background(Capsule().fill(UITheme.socket(0.35)))
     }
 }
 

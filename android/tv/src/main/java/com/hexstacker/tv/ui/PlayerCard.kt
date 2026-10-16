@@ -12,7 +12,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,7 +41,6 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import com.hexstacker.tv.R
 import com.hexstacker.tv.render.addRoundedHex
@@ -164,47 +162,25 @@ fun PlayerCard(
                 textAlign = TextAlign.Center,
             )
         }
-        // Quiet "LEVEL n" pill under the colored name.
-        StatPill(
-            label = stringResource(R.string.level_heading),
-            value = player.level,
-            fontSize = levelSize,
-            padding = PaddingValues(horizontal = vp.vminDp(10.35f, 1.6f, 15.15f), vertical = vp.vminDp(3f, 0.45f, 4.5f)),
-            gap = vp.vminDp(5.25f, 0.8f, 7.5f),
-        )
-    }
-}
-
-/**
- * Quiet stat pill (web `.card-level__pill`): a recessed dark chip so the stat reads
- * as metadata — uppercase brand label, HUD value. The lobby card's LEVEL pill, and
- * the results rows' LINES / LEVEL pair. Content centers within a [modifier] min width.
- */
-@Composable
-fun StatPill(
-    label: String,
-    value: Int,
-    fontSize: TextUnit,
-    padding: PaddingValues,
-    gap: Dp,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier
-            .clip(CircleShape)
-            .background(Tokens.socketPill, CircleShape)
-            .padding(padding),
-        horizontalArrangement = Arrangement.spacedBy(gap, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = label.uppercase(), // .card-level__heading text-transform uppercase
-            style = AppType.cardLevelHeading.copy(fontSize = fontSize, color = Tokens.textSecondary),
-        )
-        Text(
-            text = value.toString(),
-            style = AppType.cardLevelValue.copy(fontSize = fontSize, color = Tokens.textPrimary),
-        )
+        // Quiet "LEVEL n" pill — recessed dark chip so the level reads as
+        // metadata under the colored name (web .card-level__pill).
+        Row(
+            Modifier
+                .clip(CircleShape)
+                .background(Tokens.socketPill, CircleShape)
+                .padding(horizontal = vp.vminDp(10.35f, 1.6f, 15.15f), vertical = vp.vminDp(3f, 0.45f, 4.5f)),
+            horizontalArrangement = Arrangement.spacedBy(vp.vminDp(5.25f, 0.8f, 7.5f)),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.level_heading).uppercase(), // .card-level__heading text-transform uppercase
+                style = AppType.cardLevelHeading.copy(fontSize = levelSize, color = Tokens.textSecondary),
+            )
+            Text(
+                text = player.level.toString(),
+                style = AppType.cardLevelValue.copy(fontSize = levelSize, color = Tokens.textPrimary),
+            )
+        }
     }
 }
 

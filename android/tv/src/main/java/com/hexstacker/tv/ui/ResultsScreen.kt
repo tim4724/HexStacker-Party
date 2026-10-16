@@ -85,11 +85,14 @@ fun ResultsScreen(
 
     BoxWithConstraints(modifier.fillMaxSize().drawBehind { drawGlow(glow) }) {
         val vp = Vp(maxWidth.value, maxHeight.value)
-        // #results-list: rows share the ~57vh the title and buttons leave, capped at
-        // 13.3vh / 11.3vw so 1-4 players don't balloon; gap 1.9vh, 1.1vh at 5+ rows.
+        // #results-table: rows share the ~53vh the title, header and buttons leave,
+        // capped at 13.3vh / 11.3vw so 1-4 players don't balloon; gap 1.9vh, 1.1vh
+        // at 5+ rows. Stat columns are statW wide, statGap apart and inset.
         val n = maxOf(1, sorted.size)
         val gap = vp.hDp * if (n > 4) 0.011f else 0.019f
-        val rowH = minOf(vp.hDp * 0.133f, vp.wDp * 0.113f, (vp.hDp * 0.57f - (n - 1) * gap) / n)
+        val rowH = minOf(vp.hDp * 0.133f, vp.wDp * 0.113f, (vp.hDp * 0.53f - (n - 1) * gap) / n)
+        val statW = maxOf(vp.hDp * 0.11f, rowH * 1.4f)
+        val statGap = rowH * 0.2f
         Column(
             Modifier
                 .fillMaxSize()
@@ -101,13 +104,16 @@ fun ResultsScreen(
 
             Column(
                 Modifier.width(minOf(vp.wDp * 0.9f, vp.hDp * 1.05f).dp), // min(90vw, 105vh)
-                verticalArrangement = Arrangement.spacedBy(gap.dp),
+                verticalArrangement = Arrangement.spacedBy((vp.hDp * 0.012f).dp),
             ) {
-                sorted.forEachIndexed { i, res ->
-                    // Keyed like LobbyScreen's PlayerGrid: late joiners append to `sorted` at
-                    // runtime, and the key keeps each row's entrance Animatable with its player.
-                    key(res.playerId) {
-                        ResultRow(res = res, index = i, solo = solo, rowH = rowH, vp = vp)
+                ResultsHead(statW, statGap, font = maxOf(vp.px(12f).value, vp.hDp * 0.0167f, rowH * 0.19f)) // max(0.75rem, 1.67vh, row-h*0.19)
+                Column(verticalArrangement = Arrangement.spacedBy(gap.dp)) {
+                    sorted.forEachIndexed { i, res ->
+                        // Keyed like LobbyScreen's PlayerGrid: late joiners append to `sorted` at
+                        // runtime, and the key keeps each row's entrance Animatable with its player.
+                        key(res.playerId) {
+                            ResultRow(res = res, index = i, solo = solo, rowH = rowH, statW = statW, statGap = statGap, vp = vp)
+                        }
                     }
                 }
             }
@@ -163,18 +169,41 @@ fun ResultsScreen(
 }
 
 /**
+ * The LINES / LEVEL header (web `.results-head`): labels centred over the row values,
+ * which sit in [statW]-wide columns [statGap] apart and [statGap] in from the row's
+ * right edge (web `--stat-w` / `--stat-gap`).
+ */
+@Composable
+private fun ResultsHead(statW: Float, statGap: Float, font: Float) {
+    Row(
+        Modifier.fillMaxWidth().padding(end = statGap.dp),
+        horizontalArrangement = Arrangement.spacedBy(statGap.dp, Alignment.End),
+    ) {
+        listOf(R.string.lines, R.string.level_heading).forEach { id ->
+            Text(
+                text = stringResource(id).uppercase(),
+                style = AppType.cardLevelHeading.copy(fontSize = font.sp, color = Tokens.textSecondary),
+                textAlign = TextAlign.Center,
+                // The 0.2em start padding balances the trailing letter-spacing so the label centres optically.
+                modifier = Modifier.width(statW.dp).padding(start = (font * 0.2f).dp),
+            )
+        }
+    }
+}
+
+/**
  * One standings row: the lobby player card's tonal fill (no shadow), with
  * everything sized off the row height [rowH] (web `--row-h`).
  */
 @Composable
-private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, rowH: Float, vp: Vp) {
+private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, rowH: Float, statW: Float, statGap: Float, vp: Vp) {
     val shape = RoundedCornerShape(Tokens.radiusCard) // .result-row 20px (A2)
     // Hoisted so they can be used inside non-composable lambdas / branches below.
     val lateJoinerRank = stringResource(R.string.late_joiner_rank) // DisplayUI '–' rank
     val playerFallback = stringResource(R.string.player)
     val playerCol = res.colorIndex?.let { playerColor(it) }
     val font = maxOf(vp.px(16f).value, vp.hDp * 0.025f, rowH * 0.36f) // max(1rem, 2.5vh, row-h*0.36)
-    val statsFont = maxOf(vp.px(12f).value, vp.hDp * 0.0167f, rowH * 0.19f) // max(0.75rem, 1.67vh, row-h*0.19)
+    val statsFont = font * 0.85f // .result-stats 0.85em
 
     // Stagger entrance: fade + slide up, delay 0.2 + i*0.08 s. Reduce Motion
     // renders the row settled (decorative entrance).
@@ -207,7 +236,7 @@ private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, rowH: Float, v
     }
 
     Row(
-        card.padding(start = (rowH * 0.25f).dp, end = (rowH * 0.2f).dp),
+        card.padding(start = (rowH * 0.25f).dp, end = statGap.dp),
         horizontalArrangement = Arrangement.spacedBy((rowH * 0.2f).dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -232,31 +261,33 @@ private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, rowH: Float, v
             modifier = Modifier.weight(1f),
         )
         if (res.newPlayer) {
+            // .result-new: spans both stat columns.
             Text(
                 text = stringResource(R.string.new_player),
-                style = AppType.resultStats.copy(fontSize = statsFont.sp, color = Tokens.textSecondary),
+                style = AppType.resultStats.copy(fontSize = (statsFont * 0.7f).sp, color = Tokens.textSecondary),
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.width((2 * statW + statGap).dp),
             )
         } else {
-            Row(horizontalArrangement = Arrangement.spacedBy((statsFont * 0.6f).dp)) {
-                ResultPill(stringResource(R.string.lines), res.lines ?: 0, statsFont, minWidthEm = 8.8f)
-                ResultPill(stringResource(R.string.level_heading), res.level ?: 1, statsFont, minWidthEm = 8f)
+            Row(horizontalArrangement = Arrangement.spacedBy(statGap.dp)) {
+                listOf(res.lines ?: 0, res.level ?: 1).forEach { value ->
+                    Text(
+                        text = value.toString(),
+                        style = AppType.cardLevelValue.copy(
+                            fontSize = statsFont.sp,
+                            color = Tokens.textPrimary,
+                            fontFeatureSettings = "tnum",
+                        ),
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        modifier = Modifier.width(statW.dp),
+                    )
+                }
             }
         }
     }
-}
-
-/** The lobby card's LEVEL pill at row scale (web `.result-pill`); the min widths
- *  fit 1-3 digit values so the pills line up across rows. */
-@Composable
-private fun ResultPill(label: String, value: Int, font: Float, minWidthEm: Float) {
-    StatPill(
-        label = label,
-        value = value,
-        fontSize = font.sp,
-        padding = PaddingValues(start = font.dp, end = font.dp, top = (font * 0.3f).dp, bottom = (font * 0.24f).dp),
-        gap = (font * 0.5f).dp,
-        modifier = Modifier.widthIn(min = (font * minWidthEm).dp),
-    )
 }
 
 @Preview(widthDp = 960, heightDp = 540)

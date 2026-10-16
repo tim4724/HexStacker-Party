@@ -5,7 +5,7 @@ import HexStackerKit
 /// Results screen (web `renderResults` / `#results-screen`, Android
 /// `ResultsScreen`). Three bands centred on the falling-piece backdrop (the
 /// BoardScene shows it over the frozen boards on results, so this view paints
-/// no scrim): the brand lockup, the ranked rows, PLAY AGAIN + NEW GAME. The
+/// no scrim): the brand lockup, the standings table, PLAY AGAIN + NEW GAME. The
 /// triad badge sits in the corner like the lobby's, and a soft radial glow in
 /// the winner's colour tints the backdrop. The PLAY AGAIN primary CTA is
 /// host-tinted (web `applyHostTint`). No anti-misclick gate on the TV (a couch
@@ -71,12 +71,17 @@ struct ResultsView: View {
         let W = vp.w, H = vp.h
         let margin = H * 0.05   // the lobby's edge margin, for the corner badge
 
-        // #results-list: rows share the ~57vh the title and buttons leave, capped
-        // at 13.3vh (and 11.3vw) so 1-4 players don't balloon; tighter gap for 5+.
+        // #results-table: rows share the ~53vh the title, header and buttons
+        // leave, capped at 13.3vh (and 11.3vw) so 1-4 players don't balloon;
+        // tighter gap for 5+. The LINES / LEVEL columns (statW wide, statGap
+        // apart and inset from the right edge) line the header up with the values.
         let n = CGFloat(max(sorted.count, 1))
         let rowGap = H * (sorted.count > 4 ? 0.011 : 0.019)
-        let rowH = min(H * 0.133, W * 0.113, (H * 0.57 - (n - 1) * rowGap) / n)
+        let rowH = min(H * 0.133, W * 0.113, (H * 0.53 - (n - 1) * rowGap) / n)
         let rowW = min(W * 0.9, H * 1.05)
+        let statW = max(H * 0.11, rowH * 1.4)
+        let statGap = rowH * 0.2
+        let headSize = max(12, H * 0.0167, rowH * 0.19)
         // #results-screen gap clamp(1.5rem, 7.8vh, 5.5rem) between the bands.
         let bandGap = vp.vh(24, 7.8, 88)
         // The lobby's wordmark, at the web h1 clamp(1.6rem, 6vmin, 4.4rem).
@@ -116,13 +121,29 @@ struct ResultsView: View {
                     // like the web h1.
                     .padding(.vertical, -titleSize * 0.3)
 
-                VStack(spacing: rowGap) {
-                    ForEach(Array(sorted.enumerated()), id: \.element.playerId) { i, res in
-                        // Keyed by playerId like the lobby grid: late joiners append
-                        // at runtime, and the id keeps each row's entrance with its
-                        // player rather than restaging the whole list.
-                        ResultRow(res: res, index: i, solo: solo,
-                                  rowW: rowW, rowH: rowH, vp: vp)
+                VStack(spacing: H * 0.012) {
+                    // .results-head: the column labels, each centred over its
+                    // values (the 0.2em lead balances the trailing tracking).
+                    HStack(spacing: statGap) {
+                        ForEach(["lines", "level_heading"], id: \.self) { key in
+                            Text(trUpper(key))
+                                .styled(font: AppFont.brandBold, size: headSize,
+                                        color: UITheme.textSecondary, tracking: 0.2)
+                                .padding(.leading, headSize * 0.2)
+                                .frame(width: statW)
+                        }
+                    }
+                    .padding(.trailing, statGap)
+                    .frame(width: rowW, alignment: .trailing)
+
+                    VStack(spacing: rowGap) {
+                        ForEach(Array(sorted.enumerated()), id: \.element.playerId) { i, res in
+                            // Keyed by playerId like the lobby grid: late joiners append
+                            // at runtime, and the id keeps each row's entrance with its
+                            // player rather than restaging the whole list.
+                            ResultRow(res: res, index: i, solo: solo, rowW: rowW, rowH: rowH,
+                                      statW: statW, statGap: statGap, vp: vp)
+                        }
                     }
                 }
 
@@ -162,17 +183,19 @@ struct ResultsView: View {
     }
 }
 
-/// One ranked row (web `.result-row`): rank | name | LINES + LEVEL pills on the
+/// One ranked row (web `.result-row`): rank | name | lines + level values on the
 /// lobby player card's tonal fill, flat (no shadow). Everything scales off the
 /// row height. Late joiners get the recessed socket treatment (web
 /// `.result-row--joining`: socket fill, faint hairline, dimmed) and a "New
-/// player" line in place of the pills.
+/// player" line across both columns.
 private struct ResultRow: View {
     let res: MatchResult
     let index: Int
     let solo: Bool
     let rowW: CGFloat
     let rowH: CGFloat
+    let statW: CGFloat
+    let statGap: CGFloat
     let vp: Vp
 
     /// Stagger entrance: fade + 10pt upward drift, delay 0.2 + 0.08*index s.
@@ -184,12 +207,11 @@ private struct ResultRow: View {
     private var baseOpacity: CGFloat { res.newPlayer ? 0.75 : 1 }   // .result-row--joining dim
 
     var body: some View {
-        // web .result-row font-size max(1rem, 2.5vh, 0.36 row), .result-stats
-        // max(0.75rem, 1.67vh, 0.19 row).
+        // web .result-row font-size max(1rem, 2.5vh, 0.36 row), .result-stats 0.85em.
         let fontSize = max(16, vp.h * 0.025, rowH * 0.36)
-        let statsSize = max(12, vp.h * 0.0167, rowH * 0.19)
+        let statsSize = fontSize * 0.85
 
-        HStack(spacing: rowH * 0.2) {
+        HStack(spacing: statGap) {
             if !solo {
                 // Heavy Orbitron in a min 1.1em centred column, player-colored.
                 Text(res.newPlayer ? "–" : "\(res.rank ?? 0)")
@@ -206,7 +228,7 @@ private struct ResultRow: View {
             stats(size: statsSize)
         }
         .padding(.leading, rowH * 0.25)
-        .padding(.trailing, rowH * 0.2)
+        .padding(.trailing, statGap)
         .frame(width: rowW, height: rowH)
         .background(card)
         .opacity(reduceMotion || shown ? baseOpacity : 0)
@@ -216,20 +238,27 @@ private struct ResultRow: View {
         }
     }
 
-    // The lobby card's quiet pill, once for lines and once for level; the min
-    // widths (8.8em / 8em) line the pills up across rows.
+    // Plain values centred in the header's columns (web .result-stat); a late
+    // joiner's "New player" spans both (web .result-new, 0.7em).
     @ViewBuilder private func stats(size: CGFloat) -> some View {
         if res.newPlayer {
             Text(tr("new_player"))
-                .styled(font: AppFont.brandBold, size: size, color: UITheme.textSecondary)
+                .styled(font: AppFont.brandBold, size: size * 0.7, color: UITheme.textSecondary)
+                .lineLimit(1)
+                .frame(width: 2 * statW + statGap)
         } else {
-            HStack(spacing: size * 0.6) {
-                QuietPill(label: trUpper("lines"), value: res.lines ?? 0,
-                          fontSize: size, minWidth: size * 8.8)
-                QuietPill(label: trUpper("level_heading"), value: res.level ?? 1,
-                          fontSize: size, minWidth: size * 8)
+            HStack(spacing: statGap) {
+                stat(res.lines ?? 0, size: size)
+                stat(res.level ?? 1, size: size)
             }
         }
+    }
+
+    private func stat(_ value: Int, size: CGFloat) -> some View {
+        Text(verbatim: "\(value)")
+            .styled(font: AppFont.name, size: size, color: UITheme.textPrimary())
+            .monospacedDigit()
+            .frame(width: statW)
     }
 
     @ViewBuilder private var card: some View {
