@@ -105,40 +105,45 @@ jobs:
           # Resolve the freshest usable run for a platform, then record where its
           # shots came from in <dest>/.source so the gallery can label a reused
           # column. Resolution order, most- to least-specific:
-          #   1. a run for THIS commit  (wait for it if it's still in flight)
-          #   2. latest completed run on THIS branch
+          #   1. a run for THIS commit
+          #   2. latest run on THIS branch
           #   3. latest completed run on main
+          # Steps 1-2 wait for the run if it's still in flight: step 2's run is
+          # often an earlier push's, still going when this push skipped the TV
+          # workflow (settling for main there showed the pre-branch render).
           # Steps 2-3 are correct, not stale: the TV workflows' path filters mean
           # a run is absent for this commit/branch only when native sources didn't
           # change, so the last-known-good render is byte-identical to what this
           # ref would produce. This keeps the native columns populated on a
           # brand-new web-only branch instead of showing empty gaps.
           lookup () { # $1 workflow file, $2 artifact name, $3 dest dir
-            local run_id status sha scope
+            local run_id status sha scope filter
             run_id=""; scope=""
-            while :; do
-              status=""; sha=""
-              read -r run_id status sha < <(gh api -X GET "repos/${{ github.repository }}/actions/workflows/$1/runs" \
-                -f head_sha="$HEAD_SHA" -f per_page=1 \
-                --jq '.workflow_runs[0] // empty | "\(.id) \(.status) \(.head_sha)"') || true
-              [ -z "$run_id" ] && break                      # never triggered for this SHA
-              [ "$status" = "completed" ] && scope="this commit" && break
-              if [ $SECONDS -ge $WAIT_DEADLINE ]; then
-                echo "timed out waiting for $1 (run $run_id still $status)"
-                run_id=""
-                break
-              fi
-              echo "waiting for $1 run $run_id ($status)..."
-              # Poll fast only while the run is actually executing; a queued
-              # run can sit for minutes and 30s keeps the gh api budget low.
-              [ "$status" = "in_progress" ] && sleep 10 || sleep 30
+            for filter in head_sha="$HEAD_SHA" branch="$HEAD_BRANCH"; do
+              while :; do
+                status=""; sha=""
+                read -r run_id status sha < <(gh api -X GET "repos/${{ github.repository }}/actions/workflows/$1/runs" \
+                  -f "$filter" -f per_page=1 \
+                  --jq '.workflow_runs[0] // empty | "\(.id) \(.status) \(.head_sha)"') || true
+                [ -z "$run_id" ] && break                    # never triggered for this filter
+                [ "$status" = "completed" ] && break
+                if [ $SECONDS -ge $WAIT_DEADLINE ]; then
+                  echo "timed out waiting for $1 (run $run_id still $status)"
+                  run_id=""
+                  break
+                fi
+                echo "waiting for $1 run $run_id ($status)..."
+                # Poll fast only while the run is actually executing; a queued
+                # run can sit for minutes and 30s keeps the gh api budget low.
+                [ "$status" = "in_progress" ] && sleep 10 || sleep 30
+              done
+              [ -n "$run_id" ] && break
             done
-            if [ -z "$run_id" ]; then
-              read -r run_id sha < <(gh api -X GET "repos/${{ github.repository }}/actions/workflows/$1/runs" \
-                -f branch="$HEAD_BRANCH" -f status=completed -f per_page=1 \
-                --jq '.workflow_runs[0] // empty | "\(.id) \(.head_sha)"') || true
-              [ -n "$run_id" ] && scope="latest on $HEAD_BRANCH @ ${sha:0:7}" \
-                && echo "no completed $1 run for $HEAD_SHA; using $scope (run $run_id)"
+            if [ "$sha" = "$HEAD_SHA" ]; then
+              scope="this commit"
+            elif [ -n "$run_id" ]; then
+              scope="latest on $HEAD_BRANCH @ ${sha:0:7}"
+              echo "no $1 run for $HEAD_SHA; using $scope (run $run_id)"
             fi
             if [ -z "$run_id" ] && [ "$HEAD_BRANCH" != "main" ]; then
               read -r run_id sha < <(gh api -X GET "repos/${{ github.repository }}/actions/workflows/$1/runs" \
