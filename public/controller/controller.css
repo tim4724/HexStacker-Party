@@ -755,8 +755,7 @@ body.couchpad .leave-btn__close { display: block; }
    it does on the lobby card (.identity-name), the results row (.result-name)
    and the display's name above each board (UIRenderer's _fontName); only the
    HUD numbers stay Orbitron. Weight, tracking and the line-box trim come from
-   .identity-name, the size from .result-name, so one name reads at one size
-   from game to results. The line box stays under the 52px pause button that
+   .identity-name. The line box stays under the 52px pause button that
    sets the top bar's height, so the row doesn't grow with it. */
 .game-name-label,
 #touch-area::after {
@@ -953,6 +952,26 @@ body.couchpad .leave-btn__close { display: block; }
   animation: fadeIn 0.4s ease-out both;
 }
 
+/* Header and rows share the stat-column geometry (shared results.css) and
+   the same 14px right inset, so the values sit under LINES / LEVEL. */
+#gameover-screen {
+  --stat-w: 3.2rem;
+  --stat-gap: 6px;
+}
+
+.controller-shell__body--results {
+  gap: 2px;
+}
+
+/* Spans the rows' centred max-width (320px) inside the list's 4px scroll
+   padding: width 100% of the body minus 8px. */
+.results-head {
+  width: calc(100% - 8px);
+  max-width: 320px;
+  padding: 0 14px;
+  font-size: 0.68rem;
+}
+
 #results-list {
   display: flex;
   flex-direction: column;
@@ -965,15 +984,23 @@ body.couchpad .leave-btn__close { display: block; }
   align-self: center;
   width: 100%;
   max-width: 320px;
-  gap: 18px;
-  padding: 14px 16px;
+  gap: 14px;
+  padding: 12px 14px;
 }
 
-/* Rank spans the full two-line height of name + stats, so it reads as
-   an integrated ordinal rather than a small tag above the name. */
 .result-rank {
-  font-size: clamp(1.5rem, 7vw, 2.1rem);
+  font-size: clamp(1.3rem, 6vw, 1.7rem);
   line-height: 1;
+}
+
+/* 5+ players: compact rows so all 8 fit without scrolling on small phones. */
+#results-list:has(.result-row:nth-child(5)) {
+  gap: 6px;
+}
+
+#results-list:has(.result-row:nth-child(5)) .result-row {
+  padding-top: 6px;
+  padding-bottom: 6px;
 }
 
 /* "This is you" highlight — every row is already tonal in its player's
@@ -982,40 +1009,25 @@ body.couchpad .leave-btn__close { display: block; }
   box-shadow: inset 0 0 0 2px var(--player-color);
 }
 
-.result-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  /* Name and lines/level read as one unit — the name's line box supplies
-     the separation on its own. */
-  gap: 0;
-  min-width: 0;
-}
-
 .result-name {
-  font-size: clamp(1.35rem, 6.5vw, 1.8rem);
+  flex: 1;
+  min-width: 0;
+  font-size: clamp(1.15rem, 5.4vw, 1.45rem);
   font-weight: 900;
   letter-spacing: 0.03em;
-  /* Tight line box so the stats line tucks right under the name (Baloo's
-     default line boxes are tall — same trim as .brand-lockup). */
-  line-height: 1.1;
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-  width: 100%;
+  /* Baloo's default line boxes are tall (same trim as .brand-lockup). */
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Lines/level pills (shared results.css) under the name; wraps only on the
-   narrowest phones. */
 .result-stats {
-  display: flex;
-  gap: 4px 0.5em;
-  flex-wrap: wrap;
-  margin-top: 4px;
-  font-size: clamp(0.7rem, 3.3vw, 0.85rem);
-  color: var(--text-secondary);
-  width: 100%;
+  font-size: clamp(0.95rem, 4.4vw, 1.1rem);
+}
+
+.result-new {
+  font-size: 0.72em;
 }
 
 #gameover-actions {
@@ -1691,6 +1703,10 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
     gap: 8px;
   }
 
+  .results-head {
+    padding: 0 12px;
+  }
+
   .result-row {
     gap: 10px;
     padding: 6px 12px;
@@ -1699,20 +1715,12 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
     border-radius: 14px;
   }
 
-  /* Pack name + stats close together so all rows fit on short
-     landscape phones (e.g. iPhone SE 568×320). */
-  .result-info {
-    gap: 0;
-  }
-
   .result-name {
-    font-size: clamp(1.15rem, 5vw, 1.45rem);
-    line-height: 1.15;
+    font-size: clamp(1rem, 3.4vw, 1.3rem);
   }
 
   .result-stats {
-    font-size: clamp(0.65rem, 2.2vw, 0.8rem);
-    margin-top: 2px;
+    font-size: clamp(0.85rem, 2.6vw, 1rem);
   }
 
   #gameover-actions {
@@ -1725,67 +1733,26 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
     align-self: start;
   }
 
-  /* 5+ players: widen the list column to hold two sub-columns of ranks, and
-     widen the frame so the three visible columns (ranks A + ranks B + actions)
-     fit packed together in the center (override the half-split from the 2-col
-     case). */
+  /* 5+ players: tighter rows so all 8 fit one column on short landscape
+     phones (e.g. iPhone SE 568×320). The list then runs nearly full height,
+     so the frame clears the 52px back button on the left, and the list takes
+     the larger share so names keep room beside the stat columns. */
   .controller-shell__frame--results:has(.result-row:nth-child(5)) {
-    width: min(100%, 920px);
-    grid-template-columns: minmax(0, 640px) minmax(0, 220px);
-    justify-content: center;
-  }
-
-  /* 5+ players: right column narrows to 220px — match the title to that
-     button width so it doesn't brush the column gap or screen edge. */
-  .controller-shell__frame--results:has(.result-row:nth-child(5)) .controller-shell__brand {
-    max-width: 220px;
-  }
-
-  .controller-shell__frame--results:has(.result-row:nth-child(5)) .controller-shell__title {
-    font-size: clamp(0.85rem, 2.6vw, 1.05rem);
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    padding-left: 64px;
   }
 
   #results-list:has(.result-row:nth-child(5)) {
-    display: grid;
-    grid-auto-flow: column;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: repeat(4, auto); /* 4 = MAX_PLAYERS(8) / 2 columns */
-    column-gap: 8px;
-    row-gap: 6px;
-    align-content: start;
+    gap: 4px;
   }
 
-  /* 5+ players on narrow landscape: each sub-column is ~130px, so stats
-     must stay on one line or the row doubles in height. Shrink rank,
-     tighten gaps, and clip rather than wrap. */
   #results-list:has(.result-row:nth-child(5)) .result-row {
-    gap: 6px;
-    padding: 5px 8px;
+    padding-top: 3px;
+    padding-bottom: 3px;
   }
 
   #results-list:has(.result-row:nth-child(5)) .result-rank {
-    font-size: clamp(0.75rem, 3.2vw, 1rem);
-  }
-
-  #results-list:has(.result-row:nth-child(5)) .result-name {
-    font-size: clamp(0.85rem, 3.6vw, 1rem);
-  }
-
-  #results-list:has(.result-row:nth-child(5)) .result-stats {
-    font-size: clamp(0.7rem, 2.8vw, 0.85rem);
-    gap: 0.4rem;
-    flex-wrap: nowrap;
-    overflow: hidden;
-  }
-
-  #results-list:has(.result-row:nth-child(5)) .result-stats > span {
-    white-space: nowrap;
-  }
-
-  /* ~130px sub-columns: pills shrink to their content. */
-  #results-list:has(.result-row:nth-child(5)) .result-pill {
-    min-width: 0;
-    padding: 0.15em 0.6em;
+    font-size: clamp(1rem, 3.4vw, 1.3rem);
   }
 
   /* Game screen: 3-column grid — left column grows for long translations,

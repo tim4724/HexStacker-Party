@@ -798,7 +798,7 @@ function renderGameResults(results) {
     if (isNew) row.className += ' result-row--joining';
     row.style.setProperty('--row-delay', (0.2 + i * 0.08) + 's');
     row.style.setProperty('--player-color', pColor);
-    if (r.playerId === peerIndex || r.playerId === clientId) row.classList.add('is-me');
+    if (!solo && (r.playerId === peerIndex || r.playerId === clientId)) row.classList.add('is-me');
 
     if (!solo) {
       var rankEl = document.createElement('span');
@@ -807,9 +807,6 @@ function renderGameResults(results) {
       rankEl.style.color = pColor;
       row.appendChild(rankEl);
     }
-
-    var info = document.createElement('div');
-    info.className = 'result-info';
 
     var nameEl = document.createElement('span');
     nameEl.className = 'result-name';
@@ -820,33 +817,26 @@ function renderGameResults(results) {
     stats.className = 'result-stats';
     if (isNew) {
       var statusSpan = document.createElement('span');
+      statusSpan.className = 'result-new';
       statusSpan.textContent = t('new_player');
       stats.appendChild(statusSpan);
     } else {
-      stats.appendChild(resultPill(t('lines'), r.lines || 0));
-      stats.appendChild(resultPill(t('level_heading'), r.level || 1));
+      stats.appendChild(resultStat(r.lines || 0));
+      stats.appendChild(resultStat(r.level || 1));
     }
 
-    info.appendChild(nameEl);
-    info.appendChild(stats);
-    row.appendChild(info);
+    row.appendChild(nameEl);
+    row.appendChild(stats);
     resultsList.appendChild(row);
   }
 }
 
-// Same markup as the display's results pills (/shared/results.css).
-function resultPill(label, value) {
-  var pill = document.createElement('span');
-  pill.className = 'result-pill';
-  var labelEl = document.createElement('span');
-  labelEl.className = 'result-pill__label';
-  labelEl.textContent = label;
-  var valueEl = document.createElement('span');
-  valueEl.className = 'result-pill__value';
-  valueEl.textContent = String(value);
-  pill.appendChild(labelEl);
-  pill.appendChild(valueEl);
-  return pill;
+// Same markup as the display's stat columns (/shared/results.css).
+function resultStat(value) {
+  var el = document.createElement('span');
+  el.className = 'result-stat';
+  el.textContent = String(value);
+  return el;
 }
 
 // =====================================================================

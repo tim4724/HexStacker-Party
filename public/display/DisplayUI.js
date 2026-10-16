@@ -494,8 +494,8 @@ function renderResults(results) {
   // waiting joiner is intentionally not "solo": the rank column appears.
   var solo = sorted.length === 1;
   // Row height is shared out in CSS from the row count.
-  resultsList.style.setProperty('--n', sorted.length);
-  resultsList.classList.toggle('dense', sorted.length > 4);
+  resultsScreen.style.setProperty('--n', sorted.length);
+  resultsScreen.classList.toggle('dense', sorted.length > 4);
 
   for (var i = 0; i < sorted.length; i++) {
     var res = sorted[i];
@@ -524,11 +524,12 @@ function renderResults(results) {
     stats.className = 'result-stats';
     if (isNew) {
       var statusSpan = document.createElement('span');
+      statusSpan.className = 'result-new';
       statusSpan.textContent = t('new_player');
       stats.appendChild(statusSpan);
     } else {
-      stats.appendChild(resultPill(t('lines'), res.lines || 0));
-      stats.appendChild(resultPill(t('level_heading'), res.level || 1));
+      stats.appendChild(resultStat(res.lines || 0));
+      stats.appendChild(resultStat(res.level || 1));
     }
 
     row.appendChild(nameEl);
@@ -537,18 +538,11 @@ function renderResults(results) {
   }
 }
 
-function resultPill(label, value) {
-  var pill = document.createElement('span');
-  pill.className = 'result-pill';
-  var labelEl = document.createElement('span');
-  labelEl.className = 'result-pill__label';
-  labelEl.textContent = label;
-  var valueEl = document.createElement('span');
-  valueEl.className = 'result-pill__value';
-  valueEl.textContent = String(value);
-  pill.appendChild(labelEl);
-  pill.appendChild(valueEl);
-  return pill;
+function resultStat(value) {
+  var el = document.createElement('span');
+  el.className = 'result-stat';
+  el.textContent = String(value);
+  return el;
 }
 
 // --- Timer Rendering ---
