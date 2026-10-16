@@ -494,8 +494,8 @@ function renderResults(results) {
   // waiting joiner is intentionally not "solo": the rank column appears.
   var solo = sorted.length === 1;
   // Row height is shared out in CSS from the row count.
-  resultsScreen.style.setProperty('--n', sorted.length);
-  resultsScreen.classList.toggle('dense', sorted.length > 4);
+  resultsList.style.setProperty('--n', sorted.length);
+  resultsList.classList.toggle('dense', sorted.length > 4);
 
   for (var i = 0; i < sorted.length; i++) {
     var res = sorted[i];
@@ -516,6 +516,10 @@ function renderResults(results) {
       row.appendChild(rank);
     }
 
+    // Name over its lines/level line, as on the phone's results.
+    var info = document.createElement('div');
+    info.className = 'result-info';
+
     var nameEl = document.createElement('span');
     nameEl.className = 'result-name';
     nameEl.textContent = res.playerName || pInfo?.playerName || t('player');
@@ -524,25 +528,22 @@ function renderResults(results) {
     stats.className = 'result-stats';
     if (isNew) {
       var statusSpan = document.createElement('span');
-      statusSpan.className = 'result-new';
       statusSpan.textContent = t('new_player');
       stats.appendChild(statusSpan);
     } else {
-      stats.appendChild(resultStat(res.lines || 0));
-      stats.appendChild(resultStat(res.level || 1));
+      var linesSpan = document.createElement('span');
+      linesSpan.textContent = t('n_lines', { count: res.lines || 0 });
+      var levelSpan = document.createElement('span');
+      levelSpan.textContent = t('level_n', { level: res.level || 1 });
+      stats.appendChild(linesSpan);
+      stats.appendChild(levelSpan);
     }
 
-    row.appendChild(nameEl);
-    row.appendChild(stats);
+    info.appendChild(nameEl);
+    info.appendChild(stats);
+    row.appendChild(info);
     resultsList.appendChild(row);
   }
-}
-
-function resultStat(value) {
-  var el = document.createElement('span');
-  el.className = 'result-stat';
-  el.textContent = String(value);
-  return el;
 }
 
 // --- Timer Rendering ---

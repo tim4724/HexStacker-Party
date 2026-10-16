@@ -787,8 +787,6 @@ function renderGameResults(results) {
   // waiting joiner is intentionally not "solo": the rank column appears (the
   // player gets "1", the joiner "–").
   var solo = sorted.length === 1;
-  // Row height is shared out in CSS from the row count.
-  gameoverScreen.style.setProperty('--n', sorted.length);
   for (var i = 0; i < sorted.length; i++) {
     var r = sorted[i];
     var isNew = !!r.newPlayer;
@@ -810,6 +808,9 @@ function renderGameResults(results) {
       row.appendChild(rankEl);
     }
 
+    var info = document.createElement('div');
+    info.className = 'result-info';
+
     var nameEl = document.createElement('span');
     nameEl.className = 'result-name';
     nameEl.textContent = r.playerName || t('player');
@@ -819,26 +820,22 @@ function renderGameResults(results) {
     stats.className = 'result-stats';
     if (isNew) {
       var statusSpan = document.createElement('span');
-      statusSpan.className = 'result-new';
       statusSpan.textContent = t('new_player');
       stats.appendChild(statusSpan);
     } else {
-      stats.appendChild(resultStat(r.lines || 0));
-      stats.appendChild(resultStat(r.level || 1));
+      var linesSpan = document.createElement('span');
+      linesSpan.textContent = t('n_lines', { count: r.lines || 0 });
+      var levelSpan = document.createElement('span');
+      levelSpan.textContent = t('level_n', { level: r.level || 1 });
+      stats.appendChild(linesSpan);
+      stats.appendChild(levelSpan);
     }
 
-    row.appendChild(nameEl);
-    row.appendChild(stats);
+    info.appendChild(nameEl);
+    info.appendChild(stats);
+    row.appendChild(info);
     resultsList.appendChild(row);
   }
-}
-
-// Same markup as the display's stat columns (/shared/results.css).
-function resultStat(value) {
-  var el = document.createElement('span');
-  el.className = 'result-stat';
-  el.textContent = String(value);
-  return el;
 }
 
 // =====================================================================
