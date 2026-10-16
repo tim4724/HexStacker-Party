@@ -215,7 +215,8 @@
       break;
 
     case 'results-winner': {
-      var countW = Math.max(2, parseInt(params.get('players'), 10) || 3);
+      // 1 is the solo result (the lone player is always the host).
+      var countW = Math.max(1, parseInt(params.get('players'), 10) || 3);
       applyIdentity({ isHost: true, playerCount: countW });
       var resultsW = buildFakeResults(1, countW);
       lastGameResults = resultsW;
