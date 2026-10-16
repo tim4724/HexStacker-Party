@@ -967,13 +967,15 @@ body.airconsole #qr-container,
   filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.4));
 }
 
-/* Rows share the height the title and buttons leave (~57vh), capped so 1-4
-   players don't balloon; the 11.3vw cap keeps the row-to-width ratio on
+/* Rows share the height the title and buttons leave (--list-h), capped so
+   1-4 players don't balloon; the 11.3vw cap keeps the row-to-width ratio on
    portrait screens. Everything inside a row scales off --row-h. JS sets
-   --n (row count) and .dense (5+ rows). Scrolls only as a last resort. */
+   --n (row count) and .dense on the screen (5+ rows), which drops the title
+   so the rows get its height. Scrolls only as a last resort. */
 #results-list {
   --gap: 1.9vh;
-  --row-h: min(13.3vh, 11.3vw, calc((57vh - (var(--n, 1) - 1) * var(--gap)) / var(--n, 1)));
+  --list-h: 57vh;
+  --row-h: min(13.3vh, 11.3vw, calc((var(--list-h) - (var(--n, 1) - 1) * var(--gap)) / var(--n, 1)));
   display: flex;
   flex-direction: column;
   gap: var(--gap);
@@ -983,8 +985,13 @@ body.airconsole #qr-container,
   scrollbar-width: none;
 }
 
-#results-list.dense {
+#results-screen.dense #results-list {
   --gap: 1.1vh;
+  --list-h: 72vh;
+}
+
+#results-screen.dense h1 {
+  display: none;
 }
 
 #results-list::-webkit-scrollbar {

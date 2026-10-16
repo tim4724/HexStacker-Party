@@ -495,7 +495,7 @@ function renderResults(results) {
   var solo = sorted.length === 1;
   // Row height is shared out in CSS from the row count.
   resultsList.style.setProperty('--n', sorted.length);
-  resultsList.classList.toggle('dense', sorted.length > 4);
+  resultsScreen.classList.toggle('dense', sorted.length > 4);
 
   for (var i = 0; i < sorted.length; i++) {
     var res = sorted[i];
