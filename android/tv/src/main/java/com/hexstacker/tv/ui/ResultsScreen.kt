@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,6 +32,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -85,14 +88,11 @@ fun ResultsScreen(
 
     BoxWithConstraints(modifier.fillMaxSize().drawBehind { drawGlow(glow) }) {
         val vp = Vp(maxWidth.value, maxHeight.value)
-        // #results-table: rows share the ~53vh the title, header and buttons leave,
-        // capped at 13.3vh / 11.3vw so 1-4 players don't balloon; gap 1.9vh, 1.1vh
-        // at 5+ rows. Stat columns are statW wide, statGap apart and inset.
+        // #results-list: rows share the ~57vh the title and buttons leave, capped at
+        // 13.3vh / 11.3vw so 1-4 players don't balloon; gap 1.9vh, 1.1vh at 5+ rows.
         val n = maxOf(1, sorted.size)
         val gap = vp.hDp * if (n > 4) 0.011f else 0.019f
-        val rowH = minOf(vp.hDp * 0.133f, vp.wDp * 0.113f, (vp.hDp * 0.53f - (n - 1) * gap) / n)
-        val statW = maxOf(vp.hDp * 0.11f, rowH * 1.4f)
-        val statGap = rowH * 0.2f
+        val rowH = minOf(vp.hDp * 0.133f, vp.wDp * 0.113f, (vp.hDp * 0.57f - (n - 1) * gap) / n)
         Column(
             Modifier
                 .fillMaxSize()
@@ -104,16 +104,13 @@ fun ResultsScreen(
 
             Column(
                 Modifier.width(minOf(vp.wDp * 0.9f, vp.hDp * 1.05f).dp), // min(90vw, 105vh)
-                verticalArrangement = Arrangement.spacedBy((vp.hDp * 0.012f).dp),
+                verticalArrangement = Arrangement.spacedBy(gap.dp),
             ) {
-                ResultsHead(statW, statGap, font = maxOf(vp.px(12f).value, vp.hDp * 0.0167f, rowH * 0.19f)) // max(0.75rem, 1.67vh, row-h*0.19)
-                Column(verticalArrangement = Arrangement.spacedBy(gap.dp)) {
-                    sorted.forEachIndexed { i, res ->
-                        // Keyed like LobbyScreen's PlayerGrid: late joiners append to `sorted` at
-                        // runtime, and the key keeps each row's entrance Animatable with its player.
-                        key(res.playerId) {
-                            ResultRow(res = res, index = i, solo = solo, rowH = rowH, statW = statW, statGap = statGap, vp = vp)
-                        }
+                sorted.forEachIndexed { i, res ->
+                    // Keyed like LobbyScreen's PlayerGrid: late joiners append to `sorted` at
+                    // runtime, and the key keeps each row's entrance Animatable with its player.
+                    key(res.playerId) {
+                        ResultRow(res = res, index = i, solo = solo, rowH = rowH, vp = vp)
                     }
                 }
             }
@@ -169,41 +166,18 @@ fun ResultsScreen(
 }
 
 /**
- * The LINES / LEVEL header (web `.results-head`): labels centred over the row values,
- * which sit in [statW]-wide columns [statGap] apart and [statGap] in from the row's
- * right edge (web `--stat-w` / `--stat-gap`).
- */
-@Composable
-private fun ResultsHead(statW: Float, statGap: Float, font: Float) {
-    Row(
-        Modifier.fillMaxWidth().padding(end = statGap.dp),
-        horizontalArrangement = Arrangement.spacedBy(statGap.dp, Alignment.End),
-    ) {
-        listOf(R.string.lines, R.string.level_heading).forEach { id ->
-            Text(
-                text = stringResource(id).uppercase(),
-                style = AppType.cardLevelHeading.copy(fontSize = font.sp, color = Tokens.textSecondary),
-                textAlign = TextAlign.Center,
-                // The 0.2em start padding balances the trailing letter-spacing so the label centres optically.
-                modifier = Modifier.width(statW.dp).padding(start = (font * 0.2f).dp),
-            )
-        }
-    }
-}
-
-/**
  * One standings row: the lobby player card's tonal fill (no shadow), with
  * everything sized off the row height [rowH] (web `--row-h`).
  */
 @Composable
-private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, rowH: Float, statW: Float, statGap: Float, vp: Vp) {
+private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, rowH: Float, vp: Vp) {
     val shape = RoundedCornerShape(Tokens.radiusCard) // .result-row 20px (A2)
     // Hoisted so they can be used inside non-composable lambdas / branches below.
     val lateJoinerRank = stringResource(R.string.late_joiner_rank) // DisplayUI '–' rank
     val playerFallback = stringResource(R.string.player)
     val playerCol = res.colorIndex?.let { playerColor(it) }
-    val font = maxOf(vp.px(16f).value, vp.hDp * 0.025f, rowH * 0.36f) // max(1rem, 2.5vh, row-h*0.36)
-    val statsFont = font * 0.85f // .result-stats 0.85em
+    val font = maxOf(vp.px(16f).value, vp.hDp * 0.025f, rowH * 0.3f) // max(1rem, 2.5vh, row-h*0.3)
+    val statsFont = font * 0.62f // .result-stats 0.62em
 
     // Stagger entrance: fade + slide up, delay 0.2 + i*0.08 s. Reduce Motion
     // renders the row settled (decorative entrance).
@@ -236,53 +210,58 @@ private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, rowH: Float, s
     }
 
     Row(
-        card.padding(start = (rowH * 0.25f).dp, end = statGap.dp),
-        horizontalArrangement = Arrangement.spacedBy((rowH * 0.2f).dp),
+        card.padding(horizontal = (rowH * 0.25f).dp),
+        horizontalArrangement = Arrangement.spacedBy((rowH * 0.22f).dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (!solo) {
+            val rankFont = font * 1.2f // .result-rank 1.2em: spans the name + stats height
             Text(
                 text = if (res.newPlayer) lateJoinerRank else res.rank?.toString().orEmpty(),
                 style = AppType.resultRank.copy(
-                    fontSize = font.sp,
+                    fontSize = rankFont.sp,
                     color = playerCol ?: Tokens.textSecondary,
                     fontFeatureSettings = "tnum",
                 ),
                 textAlign = TextAlign.Center,
-                modifier = Modifier.widthIn(min = (font * 1.1f).dp),
+                modifier = Modifier.widthIn(min = (rankFont * 1.1f).dp),
             )
         }
-        Text(
-            text = res.name.ifEmpty { playerFallback },
-            // .result-name: the lobby card's identity-name recipe
-            style = AppType.cardName.copy(fontSize = font.sp, color = playerCol ?: Tokens.textPrimary),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        if (res.newPlayer) {
-            // .result-new: spans both stat columns.
-            Text(
-                text = stringResource(R.string.new_player),
-                style = AppType.resultStats.copy(fontSize = (statsFont * 0.7f).sp, color = Tokens.textSecondary),
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                softWrap = false,
-                modifier = Modifier.width((2 * statW + statGap).dp),
-            )
-        } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(statGap.dp)) {
-                listOf(res.lines ?: 0, res.level ?: 1).forEach { value ->
+        // .result-info: name over its lines/level line.
+        Column(Modifier.weight(1f)) {
+            // .result-name line-height 1.1: Compose never shrinks a line box below
+            // Baloo's natural ~1.6em, so cap the box and let the glyphs overflow
+            // centred (same crop as CSS half-leading; see Wordmark).
+            Box(Modifier.height((font * 1.1f).dp), contentAlignment = Alignment.CenterStart) {
+                Text(
+                    text = res.name.ifEmpty { playerFallback },
+                    // .result-name: the lobby card's identity-name recipe
+                    style = AppType.cardName.copy(fontSize = font.sp, color = playerCol ?: Tokens.textPrimary),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.wrapContentHeight(unbounded = true),
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(statsFont.dp)) { // gap 1em
+                val stats = if (res.newPlayer) {
+                    listOf(stringResource(R.string.new_player))
+                } else {
+                    val lines = res.lines ?: 0
+                    listOf(
+                        pluralStringResource(R.plurals.n_lines, lines, lines),
+                        stringResource(R.string.level_n, res.level ?: 1),
+                    )
+                }
+                stats.forEach {
                     Text(
-                        text = value.toString(),
-                        style = AppType.cardLevelValue.copy(
+                        text = it,
+                        style = AppType.resultStats.copy(
                             fontSize = statsFont.sp,
-                            color = Tokens.textPrimary,
+                            color = Tokens.textSecondary,
                             fontFeatureSettings = "tnum",
                         ),
-                        textAlign = TextAlign.Center,
                         maxLines = 1,
-                        modifier = Modifier.width(statW.dp),
+                        softWrap = false,
                     )
                 }
             }
