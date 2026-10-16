@@ -953,16 +953,17 @@ body.couchpad .leave-btn__close { display: block; }
 }
 
 /* Same sizing model as the display's results: rows share the height the
-   body gets between title and actions (100cqh, less the header line and
-   the list's 4px scroll padding), capped at --row-max so 1-4 players don't
-   balloon, and everything in a row scales off --row-h. Header and rows
-   share the stat-column geometry (shared results.css) and the --stat-gap
-   right inset, so the values sit under LINES / LEVEL. JS sets --n (row
-   count). */
+   body gets between title and actions (100cqh, less --head-h: the header
+   line and the list's 4px scroll padding), capped at --row-max so 1-4
+   players don't balloon, and everything in a row scales off --row-h.
+   Header and rows share the stat-column geometry (shared results.css) and
+   the --stat-gap right inset, so the values sit under LINES / LEVEL. JS
+   sets --n (row count). */
 #gameover-screen {
   --gap: 10px;
   --row-max: 96px;
-  --row-h: min(var(--row-max), calc((100cqh - 1.6rem - 8px - (var(--n, 1) - 1) * var(--gap)) / var(--n, 1)));
+  --head-h: calc(1.6rem + 8px);
+  --row-h: min(var(--row-max), calc((100cqh - var(--head-h) - (var(--n, 1) - 1) * var(--gap)) / var(--n, 1)));
   --stat-w: max(3.2rem, calc(var(--row-h) * 0.7));
   --stat-gap: max(8px, calc(var(--row-h) * 0.15));
 }
@@ -971,9 +972,11 @@ body.couchpad .leave-btn__close { display: block; }
   --gap: 6px;
 }
 
-/* Takes the frame's leftover height, which the rows share (cqh above). */
+/* Asks for the height full-size rows need and shrinks into what the frame
+   has left, so title, list and actions stay together when there's room.
+   The rows share whatever height it ends up with (cqh above). */
 .controller-shell__body--results {
-  flex: 1 1 0;
+  flex: 0 1 calc(var(--head-h) + var(--n, 1) * var(--row-max) + (var(--n, 1) - 1) * var(--gap));
   min-height: 0;
   container-type: size;
   gap: 6px;
