@@ -777,10 +777,6 @@ function renderGameResults(results) {
   }
   gameoverScreen.style.setProperty('--winner-glow', winnerColor);
 
-  if (playerColor) {
-    gameoverScreen.style.setProperty('--me-color', playerColor);
-  }
-
   if (!results || !results.length) return;
 
   // Non-participants (late joiners who sat out this round) arrive in `results`
@@ -801,6 +797,7 @@ function renderGameResults(results) {
     if (!solo && !isNew) row.className += ' rank-' + r.rank;
     if (isNew) row.className += ' result-row--joining';
     row.style.setProperty('--row-delay', (0.2 + i * 0.08) + 's');
+    row.style.setProperty('--player-color', pColor);
     if (r.playerId === peerIndex || r.playerId === clientId) row.classList.add('is-me');
 
     if (!solo) {
@@ -826,12 +823,8 @@ function renderGameResults(results) {
       statusSpan.textContent = t('new_player');
       stats.appendChild(statusSpan);
     } else {
-      var linesSpan = document.createElement('span');
-      linesSpan.textContent = t('n_lines', { count: r.lines || 0 });
-      var levelSpan = document.createElement('span');
-      levelSpan.textContent = t('level_n', { level: r.level || 1 });
-      stats.appendChild(linesSpan);
-      stats.appendChild(levelSpan);
+      stats.appendChild(resultPill(t('lines'), r.lines || 0));
+      stats.appendChild(resultPill(t('level_heading'), r.level || 1));
     }
 
     info.appendChild(nameEl);
@@ -839,6 +832,21 @@ function renderGameResults(results) {
     row.appendChild(info);
     resultsList.appendChild(row);
   }
+}
+
+// Same markup as the display's results pills (/shared/results.css).
+function resultPill(label, value) {
+  var pill = document.createElement('span');
+  pill.className = 'result-pill';
+  var labelEl = document.createElement('span');
+  labelEl.className = 'result-pill__label';
+  labelEl.textContent = label;
+  var valueEl = document.createElement('span');
+  valueEl.className = 'result-pill__value';
+  valueEl.textContent = String(value);
+  pill.appendChild(labelEl);
+  pill.appendChild(valueEl);
+  return pill;
 }
 
 // =====================================================================

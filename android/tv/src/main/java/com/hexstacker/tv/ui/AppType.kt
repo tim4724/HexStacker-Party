@@ -15,7 +15,7 @@ import com.hexstacker.tv.R
  *  - Baloo 2 (`--font-brand`, weights 400–800) — identity voice: wordmark,
  *    buttons, lobby cards, overlay headings, menu/settings text.
  *  - Orbitron (`--font-hud`, weights 500–900) — scoreboard voice: countdown,
- *    join-url host/code (unambiguous 0/O), result rank/stats. The Canvas
+ *    join-url host/code (unambiguous 0/O), result rank + stat values. The Canvas
  *    board renderer (render/Fonts.kt) draws HUD labels in Orbitron too.
  *
  * CSS `letter-spacing` is em; Compose `TextStyle.letterSpacing` accepts `.em`,
@@ -78,7 +78,7 @@ object AppType {
     val connStatus = brand(700, 0.08f) // "Attempt N of M"
     val wordmarkMain = brand(800, 0.06f) // "HEX STACKER" (.brand-lockup)
     val wordmarkSub = brand(600, 0.35f) // "PARTY"
-    val resultName = brand(700, 0.0f) // result row name
+    val resultName = brand(700, 0.0f) // licenses list row
     val resultRank = hud(900, -0.02f) // result rank ordinal (results.css -0.02em)
-    val resultStats = hud(700, 0.0f) // result stats
+    val resultStats = brand(700, 0.0f) // results late-joiner status (.result-stats)
 }

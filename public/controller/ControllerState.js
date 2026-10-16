@@ -261,7 +261,7 @@ function showScreen(name) {
   }
 
   if (welcomeBg) {
-    if (name === 'name' || name === 'lobby') {
+    if (name === 'name' || name === 'lobby' || name === 'gameover') {
       bgCanvas.classList.remove('hidden');
       welcomeBg.start();
     } else {

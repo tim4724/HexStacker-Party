@@ -173,8 +173,9 @@ public extension DisplayCoordinator {
         output?.renderSnapshot(snap)
     }
 
-    /// The results overlay over the frozen (blurred) boards, exactly as a live
-    /// end-of-match: `count` lv1-equivalent boards behind, ranked by results(count).
+    /// The results screen exactly as a live end-of-match: `count` lv1-equivalent
+    /// boards frozen beneath the ambient backdrop (frozen to the shared fixture,
+    /// like the lobby shots), ranked by results(count).
     private func showGalleryResults(count: Int) {
         guard let fx = galleryFixtures() else { return }
         if let snap = try? fx.gallerySnapshot(players: count, level: 1) {
@@ -188,6 +189,9 @@ public extension DisplayCoordinator {
                         rank: r.rank, lines: r.lines, level: r.level)
         }
         output?.showResults(out)
+        if let ambient = try? fx.galleryAmbient() {
+            output?.setLobbyAmbient(ambient)
+        }
         output?.showScreen(.results)
     }
 

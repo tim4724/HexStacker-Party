@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -36,7 +37,7 @@ private val SQRT3 = sqrt(3f)
 
 /**
  * Falling-piece welcome background (port of `WelcomeBackground.js`). Translucent
- * hex piece silhouettes raining down behind the lobby content. Drives a
+ * hex piece silhouettes raining down behind the lobby and results content. Drives a
  * `withFrameNanos` loop only while [active] (mirror tvOS `if !lobbyLayer.isHidden`);
  * the loop cancels when [active] flips false or the composable leaves.
  *
@@ -95,10 +96,10 @@ fun LobbyBackground(
         }
     }
 
-    val glow = remember { GlowCache() }
+    val glow = remember { GlowCache(Tokens.accentPrimary.copy(alpha = 0.06f), stop = 0.55f) }
 
     Box(modifier) {
-        Canvas(Modifier.fillMaxSize()) { drawLobbyGlow(glow) }
+        Canvas(Modifier.fillMaxSize()) { drawGlow(glow) }
         Canvas(
             Modifier
                 .fillMaxSize()
@@ -114,10 +115,10 @@ fun LobbyBackground(
  *  (matches the web/tvOS 1920x1080 space); scaled to the canvas at draw time. */
 private const val REF_W = 1920f
 
-/** Accent-red radial glow baked behind the falling pieces (web `display.js`:
- *  cx 0.5, cy 0.3, alpha 0.06, stop end 0.55), painted over the parent's
- *  bgPrimary fill — blitted from [GlowCache] rather than shaded per frame. */
-private fun DrawScope.drawLobbyGlow(cache: GlowCache) {
+/** A radial glow blitted from [GlowCache] rather than shaded per frame: the lobby's
+ *  accent-red one behind the falling pieces (web `display.js`: cx 0.5, cy 0.3, alpha
+ *  0.06, stop end 0.55), and the results screen's winner glow above them. */
+internal fun DrawScope.drawGlow(cache: GlowCache) {
     val w = size.width.roundToInt()
     val h = size.height.roundToInt()
     val glow = cache.get(w, h) ?: return
@@ -125,7 +126,9 @@ private fun DrawScope.drawLobbyGlow(cache: GlowCache) {
 }
 
 /**
- * The accent vignette, rasterised ONCE per surface size instead of once per frame.
+ * A [color] radial vignette centred at (0.5w, 0.3h), fading out at [stop] of the
+ * farthest-corner distance (CSS `radial-gradient` defaults), rasterised ONCE per
+ * surface size instead of once per frame.
  *
  * It used to be a full-screen `drawRect` with a `Brush.radialGradient`. The gradient
  * only depends on the canvas size, but the falling-piece Canvas above it invalidates
@@ -141,10 +144,9 @@ private fun DrawScope.drawLobbyGlow(cache: GlowCache) {
  * band, but it cannot: the interpolation happens on the way into an 8-bit destination,
  * so the result re-quantises to the same levels. It measured as ~1-level steps 30-50px
  * wide — wide, smooth-edged bands, the most visible kind. Dithering has to be applied
- * at destination resolution to do anything, which is the same reason the results
- * backdrop bakes its noise 1:1.
+ * at destination resolution to do anything.
  */
-private class GlowCache {
+internal class GlowCache(private val color: Color, private val stop: Float) {
     private var cached: ImageBitmap? = null
     private var cachedW = 0
     private var cachedH = 0
@@ -170,11 +172,11 @@ private class GlowCache {
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         paint.isDither = true // the whole point: break the 8-bit steps at 1:1
         paint.shader = RadialGradient(
-            cx, cy, 0.55f * maxCornerDistance,
+            cx, cy, stop * maxCornerDistance,
             // Transparent BLACK as the end stop, exactly what `Color.Transparent`
             // gave the Compose brush — Skia interpolates gradient stops unpremultiplied,
             // so an end stop of a different hue would tint the falloff.
-            Tokens.accentPrimary.copy(alpha = 0.06f).toArgb(), 0x00000000,
+            color.toArgb(), 0x00000000,
             Shader.TileMode.CLAMP,
         )
         canvas.drawRect(0f, 0f, sw.toFloat(), sh.toFloat(), paint)

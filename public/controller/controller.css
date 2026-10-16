@@ -947,9 +947,9 @@ body.couchpad .leave-btn__close { display: block; }
   z-index: 2;
 }
 
-/* Game over screen */
+/* Game over screen — transparent over the falling-piece backdrop, like the
+   display's results (the body carries the plum when the backdrop is off). */
 #gameover-screen {
-  background: var(--bg-primary);
   animation: fadeIn 0.4s ease-out both;
 }
 
@@ -976,12 +976,10 @@ body.couchpad .leave-btn__close { display: block; }
   line-height: 1;
 }
 
-/* "This is you" highlight — tonal row in your own color, same recipe as
-   the lobby's tonal player cards (replaces the old outline highlight).
-   Two-declaration fallback for engines without color-mix. */
+/* "This is you" highlight — every row is already tonal in its player's
+   colour (shared results.css), so yours gets a ring in that colour. */
 .result-row.is-me {
-  background: var(--bg-card-soft);
-  background: color-mix(in oklab, var(--me-color, var(--bg-card-soft)) 20%, var(--bg-card));
+  box-shadow: inset 0 0 0 2px var(--player-color);
 }
 
 .result-info {
@@ -1008,14 +1006,15 @@ body.couchpad .leave-btn__close { display: block; }
   width: 100%;
 }
 
+/* Lines/level pills (shared results.css) under the name; wraps only on the
+   narrowest phones. */
 .result-stats {
   display: flex;
-  gap: clamp(0.5rem, 2.5vw, 1rem);
+  gap: 4px 0.5em;
   flex-wrap: wrap;
-  font-size: clamp(0.85rem, 4vw, 1.2rem);
-  font-variant-numeric: tabular-nums;
+  margin-top: 4px;
+  font-size: clamp(0.7rem, 3.3vw, 0.85rem);
   color: var(--text-secondary);
-  letter-spacing: 0.02em;
   width: 100%;
 }
 
@@ -1712,9 +1711,8 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   }
 
   .result-stats {
-    font-size: clamp(0.78rem, 3.2vw, 0.95rem);
-    gap: 0.6rem;
-    line-height: 1.2;
+    font-size: clamp(0.65rem, 2.2vw, 0.8rem);
+    margin-top: 2px;
   }
 
   #gameover-actions {
@@ -1782,6 +1780,12 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
 
   #results-list:has(.result-row:nth-child(5)) .result-stats > span {
     white-space: nowrap;
+  }
+
+  /* ~130px sub-columns: pills shrink to their content. */
+  #results-list:has(.result-row:nth-child(5)) .result-pill {
+    min-width: 0;
+    padding: 0.15em 0.6em;
   }
 
   /* Game screen: 3-column grid — left column grows for long translations,

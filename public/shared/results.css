@@ -33,16 +33,16 @@
   }
 }
 
-/* --- Result rows — borderless card treatment matching the lobby's tonal
-   cards; rank color is set via inline style from the player's palette in
-   JS (no medal podium). --- */
+/* --- Result rows — the lobby's tonal player card (--player-color, set
+   inline from JS, mixed into the card surface), flat: no shadow. Two-
+   declaration fallback for engines without color-mix() (no medal podium). --- */
 
 .result-row {
   display: flex;
   align-items: center;
   border-radius: 20px;
   background: var(--bg-card);
-  box-shadow: var(--shadow-sm);
+  background: color-mix(in oklab, var(--player-color, var(--bg-card-soft)) 20%, var(--bg-card));
   animation: resultRowIn 0.4s ease-out both;
   animation-delay: var(--row-delay, 0.2s);
 }
@@ -78,4 +78,38 @@
 
 .result-name {
   font-family: var(--font-brand);
+}
+
+/* --- Lines / level pills — the lobby card's quiet LEVEL pill, once for
+   lines and once for level. Each surface sets the size on .result-stats. --- */
+
+.result-pill {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.5em;
+  /* Wide enough for 1-3 digit values, so the pills line up across rows. */
+  min-width: 8.8em;
+  padding: 0.3em 1em 0.24em;
+  border-radius: var(--radius-pill);
+  background: rgba(21, 18, 31, 0.35);
+}
+
+.result-pill + .result-pill {
+  min-width: 8em;
+}
+
+.result-pill__label {
+  font-family: var(--font-brand);
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.result-pill__value {
+  font-family: var(--font-hud);
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }

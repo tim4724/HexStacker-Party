@@ -15,8 +15,8 @@ final class BoardScene: SKScene {
     var rosterLookup: ((Int) -> (colorSlot: Int, name: String)?)?
 
     // Lobby ambient = the animated falling pieces (web lobby background). The
-    // accent vignette above them is SwiftUI (LobbyView), not a scene node.
-    // Shown in LOBBY; hidden behind the boards otherwise.
+    // accent vignette above them is SwiftUI (AmbientVignette), not a scene node.
+    // Shown in LOBBY and RESULTS; hidden behind the boards in GAME.
     private let lobbyBg = LobbyBackgroundNode()
 
     private let gameLayer = SKNode()
@@ -101,9 +101,9 @@ final class BoardScene: SKScene {
         // already visible, and scheduled no fadeIn, so forcing hidden here
         // stranded it hidden forever and every game shot came out empty.
         // Alpha follows: fadeIn animates from the current alpha.
-        let lobbyMode = requestedScreen == .lobby
-        gameLayer.isHidden = lobbyMode
-        gameLayer.alpha = lobbyMode ? 0 : 1
+        let ambientMode = requestedScreen != .game
+        gameLayer.isHidden = ambientMode
+        gameLayer.alpha = ambientMode ? 0 : 1
         timerNode.zPosition = 20
         timerNode.isHidden = true
         gameLayer.addChild(timerNode)
@@ -142,12 +142,13 @@ final class BoardScene: SKScene {
         PerfProbe.shared?.frame(deltaMs: deltaMs, frameStart: workStart, scene: self)
     }
 
-    /// Screen change: LOBBY shows the ambient background, GAME/RESULTS the
-    /// boards. The scene cross-fades its OWN layers (web parity: the game
-    /// screen fades in WITH its boards over 0.3s, and the ambient drift sinks
-    /// under the cross-fade instead of popping off) — as plain SKActions the
-    /// swap is never a one-frame pop, regardless of how the SwiftUI chrome
-    /// transaction above lands against the SKView's render loop.
+    /// Screen change: LOBBY and RESULTS show the ambient background, GAME the
+    /// boards (web: the drift covers the frozen boards on results, opaque, and
+    /// fades out with it on PLAY AGAIN). The scene cross-fades its OWN layers
+    /// (web parity: the game screen fades in WITH its boards over 0.3s, and the
+    /// ambient drift sinks under the cross-fade instead of popping off) — as
+    /// plain SKActions the swap is never a one-frame pop, regardless of how the
+    /// SwiftUI chrome transaction above lands against the SKView's render loop.
     /// Entering GAME starts a fresh match, so force a board rebuild even if
     /// the new roster happens to match the previous one's id set.
     func showScreen(_ screen: DisplayScreen) {
@@ -155,7 +156,7 @@ final class BoardScene: SKScene {
         lobbyBg.removeAllActions()
         gameLayer.removeAllActions()
         let d = DisplayModel.fadeDuration
-        if screen == .lobby {
+        if screen != .game {
             if lobbyBg.isHidden { lobbyBg.alpha = 0; lobbyBg.isHidden = false }
             lobbyBg.run(.fadeIn(withDuration: d))
             gameLayer.run(.sequence([.fadeOut(withDuration: d), .hide()]))

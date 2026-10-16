@@ -942,6 +942,7 @@ function initScenario(opts) {
       results.results[i].playerId = 'debug' + results.results[i].playerId;
     }
     window.__TEST__.injectResults(results);
+    _freezeWelcomeBg();
     return;
   }
   // 'playing' is the default — already handled by injectGameState above.

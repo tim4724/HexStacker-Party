@@ -442,17 +442,24 @@ function showScreen(name) {
   }
   if (welcomeBg) {
     var bgCanvasEl = document.getElementById('bg-canvas');
-    if (name === SCREEN.WELCOME || name === SCREEN.LOBBY) {
-      if (bgCanvasEl) bgCanvasEl.classList.remove('hidden');
+    if (name === SCREEN.WELCOME || name === SCREEN.LOBBY || name === SCREEN.RESULTS) {
+      cancelFadeHide(bgCanvasEl);
+      bgCanvasEl.classList.remove('hidden');
+      // Results sit over the frozen boards: lift the drift above the game
+      // screen (display.css .over-game) so it backs the standings there.
+      bgCanvasEl.classList.toggle('over-game', name === SCREEN.RESULTS);
       welcomeBg.start();
+    } else if (prev === SCREEN.RESULTS) {
+      // PLAY AGAIN: the lifted drift fades out with the results layer.
+      fadeHide(bgCanvasEl, 300, function() { welcomeBg.stop(); });
     } else if (bgCanvasEl && !bgCanvasEl.classList.contains('hidden')) {
       // Deferred past the exit + entrance fades so the hex drift stays
       // beneath the cross-fading screens instead of popping off on frame
       // one. Re-checked at fire time: a quick return to welcome/lobby must
       // keep its restarted canvas. Hiding the canvas also drops the
-      // full-viewport layer from the GPU during gameplay/results.
+      // full-viewport layer from the GPU during gameplay.
       setTimeout(function() {
-        if (currentScreen !== SCREEN.GAME && currentScreen !== SCREEN.RESULTS) return;
+        if (currentScreen !== SCREEN.GAME) return;
         welcomeBg.stop();
         bgCanvasEl.classList.add('hidden');
       }, SCREEN_EXIT_MS + 320);

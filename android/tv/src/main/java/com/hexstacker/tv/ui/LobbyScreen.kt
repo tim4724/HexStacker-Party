@@ -418,7 +418,7 @@ private fun JoinPop(play: Boolean, content: @Composable () -> Unit) {
 /** Plain fade-in for the corner brand badge (web .brand-badge: fadeIn 0.6s 0.3s).
  *  Reduce Motion renders it settled (decorative entrance). */
 @Composable
-private fun BadgeFadeIn(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+fun BadgeFadeIn(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val reduce = LocalReduceMotion.current
     val anim = remember { Animatable(if (reduce) 1f else 0f) }
     if (!reduce) LaunchedEffect(Unit) {

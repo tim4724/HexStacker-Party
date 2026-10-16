@@ -493,6 +493,9 @@ function renderResults(results) {
   // A late joiner counts toward the row total, so a 1-player game with one
   // waiting joiner is intentionally not "solo": the rank column appears.
   var solo = sorted.length === 1;
+  // Row height is shared out in CSS from the row count.
+  resultsList.style.setProperty('--n', sorted.length);
+  resultsList.classList.toggle('dense', sorted.length > 4);
 
   for (var i = 0; i < sorted.length; i++) {
     var res = sorted[i];
@@ -504,23 +507,18 @@ function renderResults(results) {
     row.style.setProperty('--row-delay', (0.2 + i * 0.08) + 's');
 
     var pInfo = players.get(res.playerId);
-    var pColor = pInfo ? PLAYER_COLORS[pInfo.playerIndex] : null;
+    if (pInfo) row.style.setProperty('--player-color', PLAYER_COLORS[pInfo.playerIndex]);
 
     if (!solo) {
       var rank = document.createElement('span');
       rank.className = 'result-rank';
       rank.textContent = isNew ? '–' : String(res.rank);
-      if (pColor) rank.style.color = pColor;
       row.appendChild(rank);
     }
-
-    var info = document.createElement('div');
-    info.className = 'result-info';
 
     var nameEl = document.createElement('span');
     nameEl.className = 'result-name';
     nameEl.textContent = res.playerName || pInfo?.playerName || t('player');
-    if (pColor) nameEl.style.color = pColor;
 
     var stats = document.createElement('div');
     stats.className = 'result-stats';
@@ -529,19 +527,28 @@ function renderResults(results) {
       statusSpan.textContent = t('new_player');
       stats.appendChild(statusSpan);
     } else {
-      var linesSpan = document.createElement('span');
-      linesSpan.textContent = t('n_lines', { count: res.lines || 0 });
-      var levelSpan = document.createElement('span');
-      levelSpan.textContent = t('level_n', { level: res.level || 1 });
-      stats.appendChild(linesSpan);
-      stats.appendChild(levelSpan);
+      stats.appendChild(resultPill(t('lines'), res.lines || 0));
+      stats.appendChild(resultPill(t('level_heading'), res.level || 1));
     }
 
-    info.appendChild(nameEl);
-    info.appendChild(stats);
-    row.appendChild(info);
+    row.appendChild(nameEl);
+    row.appendChild(stats);
     resultsList.appendChild(row);
   }
+}
+
+function resultPill(label, value) {
+  var pill = document.createElement('span');
+  pill.className = 'result-pill';
+  var labelEl = document.createElement('span');
+  labelEl.className = 'result-pill__label';
+  labelEl.textContent = label;
+  var valueEl = document.createElement('span');
+  valueEl.className = 'result-pill__value';
+  valueEl.textContent = String(value);
+  pill.appendChild(labelEl);
+  pill.appendChild(valueEl);
+  return pill;
 }
 
 // --- Timer Rendering ---
