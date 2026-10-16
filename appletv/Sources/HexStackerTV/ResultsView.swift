@@ -71,12 +71,15 @@ struct ResultsView: View {
         let W = vp.w, H = vp.h
         let margin = H * 0.05   // the lobby's edge margin, for the corner badge
 
-        // #results-list: rows share the ~57vh the title and buttons leave,
-        // capped at 13.3vh (and 11.3vw) so 1-4 players don't balloon; tighter
-        // gap for 5+.
+        // #results-list: rows share the height the title and buttons leave
+        // (~57vh), capped at 13.3vh (and 11.3vw) so 1-4 players don't balloon.
+        // 5+ rows (web #results-screen.dense) drop the title for a ~72vh list
+        // with a tighter gap; the corner badge still brands the screen.
+        let dense = sorted.count > 4
         let n = CGFloat(max(sorted.count, 1))
-        let rowGap = H * (sorted.count > 4 ? 0.011 : 0.019)
-        let rowH = min(H * 0.133, W * 0.113, (H * 0.57 - (n - 1) * rowGap) / n)
+        let rowGap = H * (dense ? 0.011 : 0.019)
+        let listH = H * (dense ? 0.72 : 0.57)
+        let rowH = min(H * 0.133, W * 0.113, (listH - (n - 1) * rowGap) / n)
         let rowW = min(W * 0.9, H * 1.05)
         // #results-screen gap clamp(1.5rem, 7.8vh, 5.5rem) between the bands.
         let bandGap = vp.vh(24, 7.8, 88)
@@ -111,11 +114,13 @@ struct ResultsView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: bandGap) {
-                Image(uiImage: titleImage)
-                    // Cancel TitleTexture's baked glyph headroom (0.3em a side)
-                    // so the band gap measures from the lockup's line boxes,
-                    // like the web h1.
-                    .padding(.vertical, -titleSize * 0.3)
+                if !dense {
+                    Image(uiImage: titleImage)
+                        // Cancel TitleTexture's baked glyph headroom (0.3em a
+                        // side) so the band gap measures from the lockup's line
+                        // boxes, like the web h1.
+                        .padding(.vertical, -titleSize * 0.3)
+                }
 
                 VStack(spacing: rowGap) {
                     ForEach(Array(sorted.enumerated()), id: \.element.playerId) { i, res in
