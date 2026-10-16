@@ -516,7 +516,6 @@ function renderResults(results) {
       row.appendChild(rank);
     }
 
-    // Name over its lines/level line, as on the phone's results.
     var info = document.createElement('div');
     info.className = 'result-info';
 

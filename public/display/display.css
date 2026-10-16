@@ -997,25 +997,28 @@ body.airconsole #qr-container,
   height: var(--row-h);
   gap: calc(var(--row-h) * 0.22);
   padding: 0 calc(var(--row-h) * 0.25);
-  font-size: max(1rem, 2.5vh, calc(var(--row-h) * 0.3));
+  font-size: max(1rem, 2.5vh, calc(var(--row-h) * 0.36));
 }
 
-/* Rank spans the two-line height of name + stats. */
 .result-rank {
-  font-size: 1.2em;
+  font-size: 1em;
   min-width: 1.1em;
   color: var(--player-color, var(--text-secondary));
 }
 
-/* Name over its lines/level line. */
+/* One line: the name takes the room, lines/level sit at the right end
+   (the phone stacks them in portrait, where the width runs out). */
 .result-info {
   flex: 1;
   display: flex;
-  flex-direction: column;
+  align-items: baseline;
+  gap: 1.2em;
   min-width: 0;
 }
 
 .result-name {
+  flex: 1;
+  min-width: 0;
   font-weight: 800;
   letter-spacing: 0.04em;
   line-height: 1.1;
@@ -1027,10 +1030,11 @@ body.airconsole #qr-container,
 
 .result-stats {
   display: flex;
-  gap: 1em;
+  gap: 1.5em;
+  flex-shrink: 0;
   font-family: var(--font-hud);
   font-weight: 700;
-  font-size: 0.62em;
+  font-size: 0.72em;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
