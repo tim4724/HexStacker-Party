@@ -787,6 +787,8 @@ function renderGameResults(results) {
   // waiting joiner is intentionally not "solo": the rank column appears (the
   // player gets "1", the joiner "–").
   var solo = sorted.length === 1;
+  // Row height is shared out in CSS from the row count.
+  gameoverScreen.style.setProperty('--n', sorted.length);
   for (var i = 0; i < sorted.length; i++) {
     var r = sorted[i];
     var isNew = !!r.newPlayer;
