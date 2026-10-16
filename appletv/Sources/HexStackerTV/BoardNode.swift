@@ -210,28 +210,6 @@ final class BoardNode: SKNode {
         }
     }
 
-    /// KO flash: a brief cream pop, then a danger-red flash, plus a 12-particle
-    /// red sparkle burst (web addKO). The persistent dim + KO label live in showKO.
-    func flashKO() {
-        let w = CGFloat(geo.boardWidth), h = CGFloat(geo.boardHeight)
-        // Clip the flashes to the board's zigzag outline (web addKO), so they don't
-        // bleed into the rectangular corners outside the well.
-        let flash = SKShapeNode(path: outlinePathFlipped(outset: 0))
-        flash.fillColor = SKTheme.textPrimary(0.7); flash.strokeColor = .clear; flash.zPosition = 8
-        effectsLayer.addChild(flash)
-        flash.run(.sequence([.fadeOut(withDuration: 0.18), .removeFromParent()]))
-
-        let red = SKShapeNode(path: outlinePathFlipped(outset: 0))
-        red.fillColor = SKTheme.danger.withAlphaComponent(0.4); red.strokeColor = .clear; red.zPosition = 8
-        effectsLayer.addChild(red)
-        red.run(.sequence([.fadeOut(withDuration: 0.5), .removeFromParent()]))
-
-        let koColor = UIColor(red: 0.8, green: 0.13, blue: 0.13, alpha: 1)
-        for _ in 0..<12 {
-            sparkle(at: CGPoint(x: CGFloat.random(in: 0...w), y: CGFloat.random(in: 0...h)), color: koColor)
-        }
-    }
-
     /// Incoming-garbage telegraph: a brief attacker-colored flash over the bottom
     /// `lines` meter cells, fading over ~1s (web drawGarbageIndicatorEffects).
     func flashGarbageIncoming(lines: Int, color: UIColor) {

@@ -19,7 +19,7 @@ internal object TvColors {
     /** THEME.color.bg.card — the tonal-panel mix base (A2). */
     val bgCard: Rgb = Rgb.fromHex("#2A2540")!!
 
-    /** THEME.color.ko.text / danger — KO label + KO-event flash/sparkle color. */
+    /** THEME.color.ko.text / danger — KO label color. */
     val koText: Rgb = Rgb.fromHex("#ff4444")!!
 
     /** THEME.color.triple — honey, the triple-clear popup color (== pieceColors[3]). */

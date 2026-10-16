@@ -83,10 +83,6 @@ if (urlParams.get('test') === '1' || debugCount > 0 || _adclipMode) {
       showPauseOverlay();
     },
 
-    injectKO: function(playerId) {
-      onPlayerKO({ playerId: playerId });
-    },
-
     injectGarbageSent: function(data) {
       onGarbageSent(data);
     },
@@ -814,7 +810,6 @@ function initScenario(opts) {
   if (scenario === 'ko') {
     // KO every player — grand-finale visual.
     for (var kI = 0; kI < debugPlayers.length; kI++) {
-      window.__TEST__.injectKO(debugPlayers[kI].id);
       state.players[kI].alive = false;
     }
     return;
@@ -902,10 +897,7 @@ function initScenario(opts) {
           state.players[2].pendingGarbage = 1;
         }
 
-        if (nP > 3) {
-          window.__TEST__.injectKO(debugPlayers[3].id);
-          state.players[3].alive = false;
-        }
+        if (nP > 3) state.players[3].alive = false;
       });
     }
     seedBoards();

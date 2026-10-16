@@ -732,10 +732,8 @@ class BoardSurfaceView @JvmOverloads constructor(
                     }
                 }
             }
-            EventType.PLAYER_KO -> {
-                val r = rendererFor(e.playerId) ?: return
-                animations.addKO(r.boardX, r.boardY, r.boardWidth, r.boardHeight, r.cellSize.toDouble(), r.outlineAbsPath(0.0))
-            }
+            // No board effect: the snapshot's alive=false draws the dim + KO label.
+            EventType.PLAYER_KO -> Unit
         }
     }
 

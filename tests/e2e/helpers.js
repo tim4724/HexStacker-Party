@@ -33,13 +33,6 @@ async function injectPause(page) {
   });
 }
 
-async function injectKO(page, playerIndex) {
-  const playerId = 'player' + (playerIndex + 1);
-  await page.evaluate((id) => {
-    window.__TEST__.injectKO(id);
-  }, playerId);
-}
-
 async function injectGarbageSent(page, fromIndex, toIndex, lines) {
   await page.evaluate(({ senderId, toId, lineCount }) => {
     window.__TEST__.injectGarbageSent({ senderId, toId, lines: lineCount });
@@ -175,7 +168,6 @@ module.exports = {
   createRoom,
   gotoDisplayTest,
   injectGarbageSent,
-  injectKO,
   injectPause,
   joinController,
   stabilizeControllerUI,
