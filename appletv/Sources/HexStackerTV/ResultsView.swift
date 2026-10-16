@@ -162,11 +162,11 @@ struct ResultsView: View {
     }
 }
 
-/// One ranked row (web `.result-row`): rank | name over its lines/level line,
-/// on the lobby player card's tonal fill, flat (no shadow). Everything scales
-/// off the row height. Late joiners get the recessed socket treatment (web
-/// `.result-row--joining`: socket fill, faint hairline, dimmed) and a "New
-/// player" stats line.
+/// One ranked row (web `.result-row`): rank | name | lines + level at the
+/// right end, on the lobby player card's tonal fill, flat (no shadow).
+/// Everything scales off the row height. Late joiners get the recessed socket
+/// treatment (web `.result-row--joining`: socket fill, faint hairline, dimmed)
+/// and "New player" in place of the stats.
 private struct ResultRow: View {
     let res: MatchResult
     let index: Int
@@ -184,9 +184,9 @@ private struct ResultRow: View {
     private var baseOpacity: CGFloat { res.newPlayer ? 0.75 : 1 }   // .result-row--joining dim
 
     var body: some View {
-        // web .result-row font-size max(1rem, 2.5vh, 0.3 row), .result-stats 0.62em.
-        let fontSize = max(16, vp.h * 0.025, rowH * 0.3)
-        let statsSize = fontSize * 0.62
+        // web .result-row font-size max(1rem, 2.5vh, 0.36 row), .result-stats 0.72em.
+        let fontSize = max(16, vp.h * 0.025, rowH * 0.36)
+        let statsSize = fontSize * 0.72
         // .result-name line-height 1.1: trim Baloo's taller natural line box
         // (glyphs stay centred, like CSS half-leading).
         let nameFont = UIFont(name: AppFont.brandExtraBold, size: fontSize)
@@ -194,22 +194,24 @@ private struct ResultRow: View {
 
         HStack(spacing: rowH * 0.22) {
             if !solo {
-                // Heavy Orbitron at 1.2em in a min 1.1em centred column, player-colored.
+                // Heavy Orbitron in a min 1.1em centred column, player-colored.
                 Text(res.newPlayer ? "–" : "\(res.rank ?? 0)")
-                    .styled(font: AppFont.black, size: fontSize * 1.2,
+                    .styled(font: AppFont.black, size: fontSize,
                             color: playerColor ?? UITheme.textSecondary, tracking: -0.02)
-                    .frame(minWidth: fontSize * 1.32)
+                    .frame(minWidth: fontSize * 1.1)
             }
-            VStack(alignment: .leading, spacing: 0) {
+            // .result-info: the name takes the room, the fixed-size stats sit
+            // at the right end on its baseline.
+            HStack(alignment: .firstTextBaseline, spacing: fontSize * 1.2) {
                 Text(res.playerName ?? tr("player"))   // web fallback for unnamed players
                     .styled(font: AppFont.brandExtraBold, size: fontSize,
                             color: playerColor ?? UITheme.textPrimary(), tracking: 0.04)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .padding(.vertical, -nameTrim)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 stats(size: statsSize)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, rowH * 0.25)
         .frame(width: rowW, height: rowH)
@@ -221,10 +223,10 @@ private struct ResultRow: View {
         }
     }
 
-    // web .result-stats: "30 lines" and "Level 4" 1em apart; a late joiner's
+    // web .result-stats: "30 lines" and "Level 4" 1.5em apart; a late joiner's
     // "New player" in their place.
     private func stats(size: CGFloat) -> some View {
-        HStack(spacing: size) {
+        HStack(spacing: size * 1.5) {
             if res.newPlayer {
                 statText(tr("new_player"), size: size)
             } else {
