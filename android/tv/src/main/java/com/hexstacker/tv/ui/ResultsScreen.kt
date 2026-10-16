@@ -87,10 +87,14 @@ fun ResultsScreen(
     BoxWithConstraints(modifier.fillMaxSize().drawBehind { drawGlow(glow) }) {
         val vp = Vp(maxWidth.value, maxHeight.value)
         // #results-list: rows share the ~57vh the title and buttons leave, capped at
-        // 13.3vh / 11.3vw so 1-4 players don't balloon; gap 1.9vh, 1.1vh at 5+ rows.
+        // 13.3vh / 11.3vw so 1-4 players don't balloon; gap 1.9vh. At 5+ rows
+        // (web #results-screen.dense) the title is dropped and its height goes to
+        // the list: 72vh, gap 1.1vh. The corner badge still brands the screen.
         val n = maxOf(1, sorted.size)
-        val gap = vp.hDp * if (n > 4) 0.011f else 0.019f
-        val rowH = minOf(vp.hDp * 0.133f, vp.wDp * 0.113f, (vp.hDp * 0.57f - (n - 1) * gap) / n)
+        val dense = n > 4
+        val gap = vp.hDp * if (dense) 0.011f else 0.019f
+        val listH = vp.hDp * if (dense) 0.72f else 0.57f
+        val rowH = minOf(vp.hDp * 0.133f, vp.wDp * 0.113f, (listH - (n - 1) * gap) / n)
         Column(
             Modifier
                 .fillMaxSize()
@@ -98,7 +102,7 @@ fun ResultsScreen(
             verticalArrangement = Arrangement.spacedBy(vp.vhDp(24f, 7.8f, 88f), Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Wordmark(mainSize = vp.vminSp(25.6f, 6f, 70.4f)) // #results-screen h1 clamp(1.6rem,6vmin,4.4rem)
+            if (!dense) Wordmark(mainSize = vp.vminSp(25.6f, 6f, 70.4f)) // #results-screen h1 clamp(1.6rem,6vmin,4.4rem)
 
             Column(
                 Modifier.width(minOf(vp.wDp * 0.9f, vp.hDp * 1.05f).dp), // min(90vw, 105vh)
