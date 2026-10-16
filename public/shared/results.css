@@ -33,16 +33,16 @@
   }
 }
 
-/* --- Result rows — borderless card treatment matching the lobby's tonal
-   cards; rank color is set via inline style from the player's palette in
-   JS (no medal podium). --- */
+/* --- Result rows — the lobby's tonal player card (--player-color, set
+   inline from JS, mixed into the card surface), flat: no shadow. Two-
+   declaration fallback for engines without color-mix() (no medal podium). --- */
 
 .result-row {
   display: flex;
   align-items: center;
   border-radius: 20px;
   background: var(--bg-card);
-  box-shadow: var(--shadow-sm);
+  background: color-mix(in oklab, var(--player-color, var(--bg-card-soft)) 20%, var(--bg-card));
   animation: resultRowIn 0.4s ease-out both;
   animation-delay: var(--row-delay, 0.2s);
 }

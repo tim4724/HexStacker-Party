@@ -114,7 +114,7 @@ class ComposeScreenshotTest {
                 }
             },
             // Freeze the lobby ambient to the shared cross-platform fixture, exactly
-            // like LobbyBackdrop below. Only the LOBBY branch of the chrome paints it,
+            // like LobbyBackdrop below. Only the LOBBY and RESULTS screens paint it,
             // but it costs nothing on the others and keeps every chromeShot capture
             // reproducible run-to-run.
             ambientPieces = GalleryFixtures.ambientPieces(),
@@ -232,10 +232,10 @@ class ComposeScreenshotTest {
     }
 
     // Results/connection shots keep the board VISIBLE the way production does:
-    // MainActivity holds BoardSurfaceView visible for every screen except the lobby,
-    // and these overlays draw the translucent (0.88) overlayBg scrim so the frozen
-    // boards show through faintly — matching web/tvOS's frosted-glass backdrop (minus
-    // their blur, which a SurfaceView can't get).
+    // MainActivity holds BoardSurfaceView visible for every screen except the lobby.
+    // Results cover it with the opaque lobby backdrop (web #bg-canvas.over-game); the
+    // connection overlay draws the translucent (0.88) overlayBg scrim so the frozen
+    // boards show through faintly.
     @Test
     fun results() = chromeShot(
         "results",

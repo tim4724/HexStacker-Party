@@ -49,7 +49,7 @@ struct DisplayChromeView: View {
                 // is filled by the scene's own opaque background anyway.
                 SpriteView(scene: model.boardScene,
                            // Idle frame pacing (web ~4fps throttle parity):
-                           // low rate while paused/results once the
+                           // low rate while paused once the
                            // cross-fade settles, full rate everywhere else.
                            preferredFramesPerSecond: model.idleThrottled
                                ? DisplayModel.idleFramesPerSecond

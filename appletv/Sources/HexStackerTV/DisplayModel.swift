@@ -232,25 +232,26 @@ final class DisplayModel: ObservableObject {
 
     // MARK: - Idle frame pacing
 
-    /// The throttled rate while idle (web parity: DisplayRender drops to ~4fps
-    /// on the pause overlay / results screen; SpriteKit otherwise re-composites
-    /// every vsync). 10fps keeps the paused sim's tick cadence comfortable.
+    /// The throttled rate while paused (web parity: DisplayRender drops to
+    /// ~4fps under the pause overlay; SpriteKit otherwise re-composites every
+    /// vsync). 10fps keeps the paused sim's tick cadence comfortable. Results
+    /// stay at full rate: the falling-piece backdrop drifts there (the web runs
+    /// it on its own full-rate loop).
     static let idleFramesPerSecond = 10
 
     private var idlePacingWork: DispatchWorkItem?
 
     /// Recompute the pacing flag on every paused/screen edge. The scene's
     /// update() is also the engine tick pump, so the low rate slows the
-    /// simulation too, acceptable in exactly the states the web throttles
-    /// (paused sims are frozen, results runs none). Engaging waits out the
-    /// 0.3s cross-fade so the scene's SKAction layer fades stay smooth;
-    /// restoring is immediate so the first interaction (resume, play again)
-    /// isn't laggy. Harness modes stay at full rate (relayStarted is false
+    /// simulation too, acceptable while paused (the sim is frozen). Engaging
+    /// waits out the 0.3s cross-fade so the scene's SKAction layer fades stay
+    /// smooth; restoring is immediate so the first interaction (resume) isn't
+    /// laggy. Harness modes stay at full rate (relayStarted is false
     /// there, and HEXTOUR records transition video that must not drop frames).
     private func updateFramePacing() {
         idlePacingWork?.cancel()
         idlePacingWork = nil
-        if relayStarted && (state.paused || state.screen == .results) {
+        if relayStarted && state.paused {
             let work = DispatchWorkItem { [weak self] in self?.idleThrottled = true }
             idlePacingWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + Self.fadeDuration, execute: work)

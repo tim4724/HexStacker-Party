@@ -32,8 +32,9 @@ import org.junit.runner.RunWith
  * resource, so a per-pixel gradient plus a separable blend mode is the worst shape to
  * repeat 60 times a second).
  *
- * `radial` is the lobby recipe, `radial+noise` the results one (which adds a tiled noise
- * shader at BlendMode.OVERLAY to break up 8-bit banding). The two `cached blit` rows are
+ * `radial` is the lobby recipe; `radial+noise` adds a tiled noise shader at
+ * BlendMode.OVERLAY against 8-bit banding (results use a dithered `GlowCache` radial
+ * instead, like the lobby). The two `cached blit` rows are
  * what each screen pays instead: eighth-scale-and-upsampled for the lobby vignette, and
  * 1:1 for the results backdrop, whose noise only dithers while it stays one texel per
  * pixel.

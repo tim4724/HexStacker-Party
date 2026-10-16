@@ -493,6 +493,9 @@ function renderResults(results) {
   // A late joiner counts toward the row total, so a 1-player game with one
   // waiting joiner is intentionally not "solo": the rank column appears.
   var solo = sorted.length === 1;
+  // Row height is shared out in CSS from the row count.
+  resultsList.style.setProperty('--n', sorted.length);
+  resultsScreen.classList.toggle('dense', sorted.length > 4);
 
   for (var i = 0; i < sorted.length; i++) {
     var res = sorted[i];
@@ -504,13 +507,12 @@ function renderResults(results) {
     row.style.setProperty('--row-delay', (0.2 + i * 0.08) + 's');
 
     var pInfo = players.get(res.playerId);
-    var pColor = pInfo ? PLAYER_COLORS[pInfo.playerIndex] : null;
+    if (pInfo) row.style.setProperty('--player-color', PLAYER_COLORS[pInfo.playerIndex]);
 
     if (!solo) {
       var rank = document.createElement('span');
       rank.className = 'result-rank';
       rank.textContent = isNew ? '–' : String(res.rank);
-      if (pColor) rank.style.color = pColor;
       row.appendChild(rank);
     }
 
@@ -520,7 +522,6 @@ function renderResults(results) {
     var nameEl = document.createElement('span');
     nameEl.className = 'result-name';
     nameEl.textContent = res.playerName || pInfo?.playerName || t('player');
-    if (pColor) nameEl.style.color = pColor;
 
     var stats = document.createElement('div');
     stats.className = 'result-stats';

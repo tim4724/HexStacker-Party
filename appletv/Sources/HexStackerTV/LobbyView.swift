@@ -38,7 +38,7 @@ struct LobbyView: View {
     private static let qrPendingAlpha: CGFloat = 0.4
 
     var body: some View {
-        let W = vp.w, H = vp.h
+        let H = vp.h
         let margin = H * 0.05
 
         // Title sized to ~7.5% of the play height to match the web wordmark
@@ -48,14 +48,7 @@ struct LobbyView: View {
                              playerCount: data.players.count)
 
         ZStack(alignment: .top) {
-            // Soft accent-red radial vignette over the falling pieces (web
-            // display.js draws a radial-gradient tint at 50% / 30% from the
-            // top; diameter 1.15x the long screen edge).
-            RadialGradient(colors: [UITheme.accentPrimary.opacity(0.06), .clear],
-                           center: UnitPoint(x: 0.5, y: 0.3),
-                           startRadius: 0,
-                           endRadius: max(W, H) * 0.575)
-                .ignoresSafeArea()
+            AmbientVignette(vp: vp)
 
             VStack(spacing: 0) {
                 Image(uiImage: titleImage)
@@ -260,6 +253,24 @@ struct Entrance: ViewModifier {
                     withAnimation(.easeOut(duration: duration).delay(delay)) { shown = true }
                 }
         }
+    }
+}
+
+// MARK: - Ambient vignette
+
+/// Soft accent-red radial vignette over the falling pieces (web
+/// WelcomeBackground bakes a radial tint at 50% / 30% from the top into the
+/// backdrop canvas; diameter 1.15x the long screen edge). Lobby and results,
+/// wherever the backdrop shows.
+struct AmbientVignette: View {
+    let vp: Vp
+
+    var body: some View {
+        RadialGradient(colors: [UITheme.accentPrimary.opacity(0.06), .clear],
+                       center: UnitPoint(x: 0.5, y: 0.3),
+                       startRadius: 0,
+                       endRadius: max(vp.w, vp.h) * 0.575)
+            .ignoresSafeArea()
     }
 }
 

@@ -777,10 +777,6 @@ function renderGameResults(results) {
   }
   gameoverScreen.style.setProperty('--winner-glow', winnerColor);
 
-  if (playerColor) {
-    gameoverScreen.style.setProperty('--me-color', playerColor);
-  }
-
   if (!results || !results.length) return;
 
   // Non-participants (late joiners who sat out this round) arrive in `results`
@@ -801,7 +797,8 @@ function renderGameResults(results) {
     if (!solo && !isNew) row.className += ' rank-' + r.rank;
     if (isNew) row.className += ' result-row--joining';
     row.style.setProperty('--row-delay', (0.2 + i * 0.08) + 's');
-    if (r.playerId === peerIndex || r.playerId === clientId) row.classList.add('is-me');
+    row.style.setProperty('--player-color', pColor);
+    if (!solo && (r.playerId === peerIndex || r.playerId === clientId)) row.classList.add('is-me');
 
     if (!solo) {
       var rankEl = document.createElement('span');

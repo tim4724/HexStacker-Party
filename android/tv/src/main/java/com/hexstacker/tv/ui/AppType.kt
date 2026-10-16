@@ -78,7 +78,7 @@ object AppType {
     val connStatus = brand(700, 0.08f) // "Attempt N of M"
     val wordmarkMain = brand(800, 0.06f) // "HEX STACKER" (.brand-lockup)
     val wordmarkSub = brand(600, 0.35f) // "PARTY"
-    val resultName = brand(700, 0.0f) // result row name
+    val licenseRow = brand(700, 0.0f) // licenses list row
     val resultRank = hud(900, -0.02f) // result rank ordinal (results.css -0.02em)
-    val resultStats = hud(700, 0.0f) // result stats
+    val resultStats = hud(700, 0.0f) // results lines/level line (.result-stats)
 }

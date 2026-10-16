@@ -947,9 +947,9 @@ body.couchpad .leave-btn__close { display: block; }
   z-index: 2;
 }
 
-/* Game over screen */
+/* Game over screen — transparent over the falling-piece backdrop, like the
+   display's results (the body carries the plum when the backdrop is off). */
 #gameover-screen {
-  background: var(--bg-primary);
   animation: fadeIn 0.4s ease-out both;
 }
 
@@ -976,12 +976,10 @@ body.couchpad .leave-btn__close { display: block; }
   line-height: 1;
 }
 
-/* "This is you" highlight — tonal row in your own color, same recipe as
-   the lobby's tonal player cards (replaces the old outline highlight).
-   Two-declaration fallback for engines without color-mix. */
+/* "This is you" highlight — every row is already tonal in its player's
+   colour (shared results.css), so yours gets a ring in that colour. */
 .result-row.is-me {
-  background: var(--bg-card-soft);
-  background: color-mix(in oklab, var(--me-color, var(--bg-card-soft)) 20%, var(--bg-card));
+  box-shadow: inset 0 0 0 2px var(--player-color);
 }
 
 .result-info {

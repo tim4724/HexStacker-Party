@@ -1076,6 +1076,7 @@ import Foundation
         #expect(res?.first?.playerName == "Emma")
         #expect(res?.first?.rank == 1)
         #expect(res?.first?.lines == 30, "canonical ranking from results(4)")
+        #expect(fo.lobbyAmbient?.count == 16, "the backdrop over the boards is frozen too")
     }
 
     @Test func soloResultsShotHasSingleRow() {

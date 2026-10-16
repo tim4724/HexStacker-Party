@@ -936,9 +936,9 @@ private fun HexStackerApp(
 /**
  * The display's full visual tree for a given [UiModel], in z-order: the board
  * layer, the countdown scrim directly above it (beneath the screens, so screen
- * fades reveal already-dimmed boards), the active screen (lobby / results —
- * GAME shows only the board), and the additive overlays (pause and the
- * relay-link connection overlay) on top.
+ * fades reveal already-dimmed boards), the lobby backdrop (lobby + results), the
+ * active screen (lobby / results — GAME shows only the board), and the additive
+ * overlays (pause and the relay-link connection overlay) on top.
  *
  * This is the SINGLE SOURCE OF TRUTH for "what's on screen for this state", shared by:
  *  - the live app ([HexStackerApp]), which passes the real [BoardSurfaceView] as
@@ -1005,6 +1005,23 @@ internal fun DisplayChrome(
         val connectionVisible = model.connection == RelayTransport.ConnectionState.RECONNECTING ||
             model.connection == RelayTransport.ConnectionState.CLOSED
 
+        // The lobby backdrop (brand fill + falling-piece ambient with the accent
+        // vignette), shared by LOBBY and RESULTS (web #bg-canvas.over-game): opaque
+        // over the frozen boards, it fades out with the results on PLAY AGAIN and
+        // carries on unbroken into the lobby on NEW GAME. It sits BENEATH the screen
+        // and lobby-page cross-fades, so those fade only their content over a
+        // continuous background (tvOS parity), and above the countdown, which the
+        // outgoing screen fades through to.
+        AnimatedVisibility(
+            visible = model.screen != DisplayScreen.GAME,
+            enter = fadeIn(tween(FADE_MS)),
+            exit = fadeOut(tween(FADE_MS)),
+        ) {
+            Box(Modifier.fillMaxSize().background(Tokens.bgPrimary)) {
+                LobbyBackground(Modifier.fillMaxSize(), active = true, fixedPieces = ambientPieces)
+            }
+        }
+
         // One dissolve for every screen/page swap: LOBBY / GAME / RESULTS and the
         // window background all share the plum backdrop, so a uniform cross-fade
         // reads clean everywhere (the web's per-screen timings are not mirrored).
@@ -1021,35 +1038,30 @@ internal fun DisplayChrome(
             when (screen) {
                 // About / Licenses / license text each replace the lobby chrome (rather
                 // than layering over it) so D-pad focus can't escape back to the buttons
-                // underneath. The backdrop (brand fill + falling-piece ambient with the
-                // accent vignette) sits BENEATH the page cross-fade, so page swaps fade
-                // only their content over a continuous background (tvOS parity).
-                DisplayScreen.LOBBY -> Box(Modifier.fillMaxSize().background(Tokens.bgPrimary)) {
-                    LobbyBackground(Modifier.fillMaxSize(), active = true, fixedPieces = ambientPieces)
-                    AnimatedContent(
-                        targetState = page,
-                        modifier = Modifier.fillMaxSize(),
-                        transitionSpec = { screenCrossfade() },
-                        label = "lobbyPage",
-                    ) { p ->
-                        when (p) {
-                            is LobbyPage.LicenseText ->
-                                LicenseTextScreen(entries = rememberLicenseEntries(), index = p.index)
-                            LobbyPage.Licenses ->
-                                LicensesScreen(entries = rememberLicenseEntries(), onOpenLicense = onOpenLicense)
-                            LobbyPage.About -> AboutScreen(onOpenLicenses = onOpenLicenses)
-                            LobbyPage.Lobby ->
-                                // Render the lobby scaffold even before the room exists (model.lobby
-                                // still null): a waiting lobby with a blank QR, so the create-failure
-                                // overlay sits on top of the lobby (web / tvOS parity) instead of a
-                                // bare screen. roomReady swaps in the real room + QR.
-                                LobbyScreen(
-                                    data = model.lobby ?: WAITING_LOBBY,
-                                    onStart = onStart,
-                                    qrPending = model.qrPending,
-                                    onOpenAbout = onOpenAbout,
-                                )
-                        }
+                // underneath.
+                DisplayScreen.LOBBY -> AnimatedContent(
+                    targetState = page,
+                    modifier = Modifier.fillMaxSize(),
+                    transitionSpec = { screenCrossfade() },
+                    label = "lobbyPage",
+                ) { p ->
+                    when (p) {
+                        is LobbyPage.LicenseText ->
+                            LicenseTextScreen(entries = rememberLicenseEntries(), index = p.index)
+                        LobbyPage.Licenses ->
+                            LicensesScreen(entries = rememberLicenseEntries(), onOpenLicense = onOpenLicense)
+                        LobbyPage.About -> AboutScreen(onOpenLicenses = onOpenLicenses)
+                        LobbyPage.Lobby ->
+                            // Render the lobby scaffold even before the room exists (model.lobby
+                            // still null): a waiting lobby with a blank QR, so the create-failure
+                            // overlay sits on top of the lobby (web / tvOS parity) instead of a
+                            // bare screen. roomReady swaps in the real room + QR.
+                            LobbyScreen(
+                                data = model.lobby ?: WAITING_LOBBY,
+                                onStart = onStart,
+                                qrPending = model.qrPending,
+                                onOpenAbout = onOpenAbout,
+                            )
                     }
                 }
                 DisplayScreen.RESULTS -> ResultsScreen(

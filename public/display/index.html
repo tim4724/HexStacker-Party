@@ -33,7 +33,7 @@
   <!--DISPLAY_STYLES-->
 </head>
 <body>
-  <!-- Shared falling piece background (visible on welcome + lobby) -->
+  <!-- Shared falling piece background (welcome, lobby, results) -->
   <canvas id="bg-canvas"></canvas>
 
   <!-- Device choice: shown on mobile devices visiting the display URL.
@@ -209,6 +209,8 @@
 
   <!-- Results overlay (shown on top of game screen) -->
   <div id="results-screen" class="screen hidden">
+    <img class="brand-badge" src="/shared/brand-mark.svg" alt="">
+    <h1 class="brand-lockup"><span class="brand-lockup__text">HEX STACKER<span class="brand-lockup__sub">party</span></span></h1>
     <div id="results-list"></div>
     <div id="results-buttons">
       <button id="play-again-btn" class="btn btn-primary" data-i18n="play_again">Play Again</button>

@@ -226,7 +226,7 @@ private fun LicenseRow(
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.5.dp)) {
             Text(
                 text = entry.name,
-                style = AppType.resultName.copy(fontSize = 13.5.sp, color = Tokens.textPrimary),
+                style = AppType.licenseRow.copy(fontSize = 13.5.sp, color = Tokens.textPrimary),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
