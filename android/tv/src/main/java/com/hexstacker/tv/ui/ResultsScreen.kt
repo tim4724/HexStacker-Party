@@ -5,7 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -176,8 +174,8 @@ private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, rowH: Float, v
     val lateJoinerRank = stringResource(R.string.late_joiner_rank) // DisplayUI '–' rank
     val playerFallback = stringResource(R.string.player)
     val playerCol = res.colorIndex?.let { playerColor(it) }
-    val font = maxOf(vp.px(16f).value, vp.hDp * 0.025f, rowH * 0.3f) // max(1rem, 2.5vh, row-h*0.3)
-    val statsFont = font * 0.62f // .result-stats 0.62em
+    val font = maxOf(vp.px(16f).value, vp.hDp * 0.025f, rowH * 0.36f) // max(1rem, 2.5vh, row-h*0.36)
+    val statsFont = font * 0.72f // .result-stats 0.72em
 
     // Stagger entrance: fade + slide up, delay 0.2 + i*0.08 s. Reduce Motion
     // renders the row settled (decorative entrance).
@@ -215,55 +213,51 @@ private fun ResultRow(res: ResultCard, index: Int, solo: Boolean, rowH: Float, v
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (!solo) {
-            val rankFont = font * 1.2f // .result-rank 1.2em: spans the name + stats height
             Text(
                 text = if (res.newPlayer) lateJoinerRank else res.rank?.toString().orEmpty(),
                 style = AppType.resultRank.copy(
-                    fontSize = rankFont.sp,
+                    fontSize = font.sp,
                     color = playerCol ?: Tokens.textSecondary,
                     fontFeatureSettings = "tnum",
                 ),
                 textAlign = TextAlign.Center,
-                modifier = Modifier.widthIn(min = (rankFont * 1.1f).dp),
+                modifier = Modifier.widthIn(min = (font * 1.1f).dp),
             )
         }
-        // .result-info: name over its lines/level line.
-        Column(Modifier.weight(1f)) {
-            // .result-name line-height 1.1: Compose never shrinks a line box below
-            // Baloo's natural ~1.6em, so cap the box and let the glyphs overflow
-            // centred (same crop as CSS half-leading; see Wordmark).
-            Box(Modifier.height((font * 1.1f).dp), contentAlignment = Alignment.CenterStart) {
-                Text(
-                    text = res.name.ifEmpty { playerFallback },
-                    // .result-name: the lobby card's identity-name recipe
-                    style = AppType.cardName.copy(fontSize = font.sp, color = playerCol ?: Tokens.textPrimary),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.wrapContentHeight(unbounded = true),
+        // .result-info: one baseline-aligned line, the name takes the room and
+        // lines/level sit at the right end (gap 1.2em, 1.5em between the stats).
+        Row(Modifier.weight(1f)) {
+            Text(
+                text = res.name.ifEmpty { playerFallback },
+                // .result-name: the lobby card's identity-name recipe
+                style = AppType.cardName.copy(fontSize = font.sp, color = playerCol ?: Tokens.textPrimary),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f).alignByBaseline(),
+            )
+            val stats = if (res.newPlayer) {
+                listOf(stringResource(R.string.new_player))
+            } else {
+                val lines = res.lines ?: 0
+                listOf(
+                    pluralStringResource(R.plurals.n_lines, lines, lines),
+                    stringResource(R.string.level_n, res.level ?: 1),
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(statsFont.dp)) { // gap 1em
-                val stats = if (res.newPlayer) {
-                    listOf(stringResource(R.string.new_player))
-                } else {
-                    val lines = res.lines ?: 0
-                    listOf(
-                        pluralStringResource(R.plurals.n_lines, lines, lines),
-                        stringResource(R.string.level_n, res.level ?: 1),
-                    )
-                }
-                stats.forEach {
-                    Text(
-                        text = it,
-                        style = AppType.resultStats.copy(
-                            fontSize = statsFont.sp,
-                            color = Tokens.textSecondary,
-                            fontFeatureSettings = "tnum",
-                        ),
-                        maxLines = 1,
-                        softWrap = false,
-                    )
-                }
+            stats.forEachIndexed { i, text ->
+                Text(
+                    text = text,
+                    style = AppType.resultStats.copy(
+                        fontSize = statsFont.sp,
+                        color = Tokens.textSecondary,
+                        fontFeatureSettings = "tnum",
+                    ),
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier
+                        .alignByBaseline()
+                        .padding(start = if (i == 0) (font * 1.2f).dp else (statsFont * 1.5f).dp),
+                )
             }
         }
     }
