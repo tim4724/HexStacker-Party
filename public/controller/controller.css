@@ -953,23 +953,21 @@ body.couchpad .leave-btn__close { display: block; }
 }
 
 /* Header and rows share the stat-column geometry (shared results.css) and
-   the same 14px right inset, so the values sit under LINES / LEVEL. */
+   the same 18px right inset, so the values sit under LINES / LEVEL. */
 #gameover-screen {
-  --stat-w: 3.2rem;
-  --stat-gap: 6px;
+  --stat-w: 3.8rem;
+  --stat-gap: 8px;
 }
 
 .controller-shell__body--results {
-  gap: 2px;
+  gap: 4px;
 }
 
-/* Spans the rows' centred max-width (320px) inside the list's 4px scroll
-   padding: width 100% of the body minus 8px. */
+/* Spans the rows' width inside the list's 4px scroll padding. */
 .results-head {
   width: calc(100% - 8px);
-  max-width: 320px;
-  padding: 0 14px;
-  font-size: 0.68rem;
+  padding: 0 18px;
+  font-size: 0.75rem;
 }
 
 #results-list {
@@ -983,13 +981,12 @@ body.couchpad .leave-btn__close { display: block; }
 .result-row {
   align-self: center;
   width: 100%;
-  max-width: 320px;
   gap: 14px;
-  padding: 12px 14px;
+  padding: 16px 18px;
 }
 
 .result-rank {
-  font-size: clamp(1.3rem, 6vw, 1.7rem);
+  font-size: clamp(1.5rem, 7vw, 2.1rem);
   line-height: 1;
 }
 
@@ -1012,7 +1009,7 @@ body.couchpad .leave-btn__close { display: block; }
 .result-name {
   flex: 1;
   min-width: 0;
-  font-size: clamp(1.15rem, 5.4vw, 1.45rem);
+  font-size: clamp(1.35rem, 6.5vw, 1.8rem);
   font-weight: 900;
   letter-spacing: 0.03em;
   /* Baloo's default line boxes are tall (same trim as .brand-lockup). */
@@ -1023,7 +1020,7 @@ body.couchpad .leave-btn__close { display: block; }
 }
 
 .result-stats {
-  font-size: clamp(0.95rem, 4.4vw, 1.1rem);
+  font-size: clamp(1.1rem, 5.2vw, 1.4rem);
 }
 
 .result-new {
@@ -1704,23 +1701,24 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
   }
 
   .results-head {
-    padding: 0 12px;
+    padding: 0 14px;
   }
 
   .result-row {
-    gap: 10px;
-    padding: 6px 12px;
+    gap: 12px;
+    padding: 10px 14px;
     /* The compact landscape rows are much shorter than portrait's — the
        full 20px radius reads as a pill here, so scale it down with them. */
     border-radius: 14px;
   }
 
+  .result-rank,
   .result-name {
-    font-size: clamp(1rem, 3.4vw, 1.3rem);
+    font-size: clamp(1.15rem, 3.8vw, 1.5rem);
   }
 
   .result-stats {
-    font-size: clamp(0.85rem, 2.6vw, 1rem);
+    font-size: clamp(1rem, 3vw, 1.2rem);
   }
 
   #gameover-actions {
@@ -1751,8 +1749,13 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
     padding-bottom: 3px;
   }
 
-  #results-list:has(.result-row:nth-child(5)) .result-rank {
+  #results-list:has(.result-row:nth-child(5)) .result-rank,
+  #results-list:has(.result-row:nth-child(5)) .result-name {
     font-size: clamp(1rem, 3.4vw, 1.3rem);
+  }
+
+  #results-list:has(.result-row:nth-child(5)) .result-stats {
+    font-size: clamp(0.85rem, 2.6vw, 1rem);
   }
 
   /* Game screen: 3-column grid — left column grows for long translations,
