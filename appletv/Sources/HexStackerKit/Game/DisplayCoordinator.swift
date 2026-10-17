@@ -524,21 +524,19 @@ public final class DisplayCoordinator {
         // again. The room-gone path re-confirms via onCreated instead.
         let url = joinURL(room: room, instance: instance)
         output?.roomReady(room: room, joinURL: url, qrText: url)
-        // Re-stamp the still-present peers and clear any rejoin overlay; collect the
-        // ones the relay no longer lists, then route each through the SAME
-        // state-aware onPeerLeft the web delegates to (lobby → remove the slot;
-        // countdown/playing → keep the slot AND raise the per-board rejoin QR;
-        // results → trim the order + maybe return to the lobby). Marking them
-        // disconnected inline instead would strand the board with no rejoin QR and,
-        // because expiredPeers skips already-disconnected peers, never self-heal.
+        // Re-stamp the still-present peers; collect the ones the relay no longer lists,
+        // then route each through the SAME state-aware onPeerLeft the web delegates to
+        // (lobby → remove the slot; countdown/playing → keep the slot AND raise the
+        // per-board rejoin QR; results → trim the order + maybe return to the lobby).
+        // Marking them disconnected inline instead would strand the board with no
+        // rejoin QR and, because expiredPeers skips already-disconnected peers, never
+        // self-heal. A survivor already flagged disconnected stays flagged until its
+        // next message: that is the one return path, and the one that lifts an
+        // all-disconnected auto-pause (web onDisplayRejoined / Android handleJoined).
         var goneIds: [Int] = []
         for p in roster() {
             guard peers.contains(p.peerIndex) else { goneIds.append(p.peerIndex); continue }
             seenSinceTick.insert(p.peerIndex)
-            if !p.connected {
-                roomDo("markReconnected", [p.peerIndex])
-                clearRejoinQR(p.peerIndex)
-            }
         }
         // The whole reconciliation is ONE change: however many peers went missing, plus
         // the resume, collapse into a single publish at the end. Per-departure publishes

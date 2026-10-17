@@ -940,6 +940,40 @@ class DisplayCoordinatorTest {
     }
 
     @Test
+    fun rejoinAfterAllExpiredResumesOnTheNextControllerMessage() = runBlocking {
+        // The display's Wi-Fi stalls: liveness expires every controller (3 s) before the
+        // link drops (6 s), so the freeze is AUTO and the link-drop pause is refused on
+        // top of it. The rejoin must leave the expired controllers flagged, so their next
+        // message is a return that lifts the AUTO freeze. Twin of the tvOS
+        // DisplayCoordinatorTests#rejoinAfterAllExpiredResumesOnTheNextControllerMessage.
+        val bridge = EngineBridge.create(bundle())
+        try {
+            var now = 0.0
+            val t = FakeTransport(); val out = FakeOutput()
+            val coord = DisplayCoordinator(t, out, provider(bridge), seedProvider = { 0xBADCAFEL })
+            coord.clock = { now }
+            coord.start()
+            toPlaying(coord, t, listOf(1, 2))
+            t.deliver(1, simple(Msg.PING)); t.deliver(2, simple(Msg.PING)); coord.awaitIdle()
+            coord.tick(1100.0)
+
+            now = 10_000.0
+            coord.tick(1100.0)
+            assertTrue(coord.roomCore.allParticipantsDisconnected())
+
+            coord.onLinkStateChanged(RelayTransport.ConnectionState.RECONNECTING); coord.awaitIdle()
+            coord.onLinkStateChanged(RelayTransport.ConnectionState.OPEN); coord.awaitIdle()
+            t.joined("R", listOf(1, 2)); coord.awaitIdle()
+            assertTrue(coord.roomCore.isDisconnected(1), "a survivor stays flagged until it speaks")
+
+            val resumesBefore = out.musicResumes
+            t.deliver(1, simple(Msg.PING)); coord.awaitIdle()
+            assertTrue(out.musicResumes > resumesBefore, "the returning controller resumes the game")
+            coord.stop()
+        } finally { bridge.close() }
+    }
+
+    @Test
     fun returnToLobbyKeepsASilentButConnectedController() = runBlocking {
         // Membership is the relay's call. A controller that has gone silent past the
         // liveness window is NOT gone — a locked phone freezes its 1 Hz PING timer

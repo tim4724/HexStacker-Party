@@ -678,6 +678,35 @@ import Foundation
         #expect(fo.renderCount > frozen, "rejoin resumes the simulation")
     }
 
+    /// The display's Wi-Fi stalls: the liveness sweep expires every controller (3 s)
+    /// before the self-heartbeat drops the link (6 s), so the freeze is AUTO and the
+    /// link-drop pause is refused on top of it. The rejoin must leave the expired
+    /// controllers flagged, so their next message is a return that lifts the AUTO
+    /// freeze. Un-flagging them inline (without that lift) left the boards frozen for
+    /// good: every controller read as connected, so no later message counted as a
+    /// return. (Reported from a live Wi-Fi drop.)
+    @Test func rejoinAfterAllExpiredResumesOnTheNextControllerMessage() {
+        let clock = Clock()
+        let (coord, ft, fo) = makeLobby(players: 2, clock: clock)
+        coord.remoteStartMatch(); runCountdown(coord)
+        #expect(coord.state == .playing)
+
+        clock.ms = 10_000
+        coord.tick(deltaMs: 16)
+        #expect(coord.allParticipantsDisconnected)
+
+        coord.setRelayConnected(false)
+        coord.setRelayConnected(true)
+        ft.onJoined?("ROOM42", [1, 2])
+        #expect(coord.isDisconnected(1), "a survivor stays flagged until it speaks")
+
+        ft.onMessage?(1, ["type": "ping", "t": 1])
+        #expect(!coord.isDisconnected(1))
+        let frozen = fo.renderCount
+        coord.tick(deltaMs: 16); coord.tick(deltaMs: 16)
+        #expect(fo.renderCount > frozen, "the returning controller resumes the simulation")
+    }
+
     /// A rejoin reconciliation is ONE change, however many peers went missing while we
     /// were away. Publishing per departure put N-1 half-reconciled rosters on the wire
     /// ahead of the real one — and, since the resume comes last, a paused=true snapshot
