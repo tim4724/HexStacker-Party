@@ -250,6 +250,13 @@ class ComposeScreenshotTest {
         board = boardLayer("solo"),
     )
 
+    @Test
+    fun results8p() = chromeShot(
+        "results_8p",
+        UiModel(screen = DisplayScreen.RESULTS, results = GalleryFixtures.results(8).cards(), lobby = hostLobby(0)),
+        board = boardLayer("8p"),
+    )
+
     // ── Countdown / pause (through DisplayChrome, over the real board layer) ───────
 
     /** Pre-game (empty) boards for the countdown seats, or a live variant snapshot. */

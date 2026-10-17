@@ -155,6 +155,13 @@
       "android": { "file": "results_solo" }
     },
     {
+      "key": "results-8p",
+      "title": "Results (8 players)",
+      "web": { "scenario": "results", "players": 8, "params": { "host": 0 } },
+      "tvos": { "shot": "results", "players": 8 },
+      "android": { "file": "results_8p" }
+    },
+    {
       "key": "about",
       "title": "About (Privacy / Imprint)",
       "tvos": { "shot": "about", "players": 0 },

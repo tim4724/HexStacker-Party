@@ -435,6 +435,7 @@ final class DisplayModel: ObservableObject {
         ("disconnected-display", "disconnected-display", 4),
         ("results", "results", 4),
         ("results-solo", "results-solo", 1),
+        ("results-8p", "results", 8),
         ("about", "about", 0),
         ("licenses", "licenses", 0),
     ]
