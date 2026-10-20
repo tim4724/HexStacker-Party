@@ -1,31 +1,31 @@
 'use strict';
 
 // =====================================================================
-// CouchPad Controller Bootstrap
+// Paper Balloon Controller Bootstrap
 // Loaded after ControllerConnection.js / ControllerGame.js (it wraps their
 // globals at load time) but BEFORE controller.js init. Self-gated on
-// window.CouchPadHost, which only the launcher defines, so this file is inert
+// window.PaperBalloonHost, which only the launcher defines, so this file is inert
 // in plain browsers and gallery iframes; the AirConsole build strips it.
-// The contract is CONTRACT.md in the Couch-Games-Controller repo.
+// The contract is CONTRACT.md in the PaperBalloon-Controller repo.
 //
 // The launcher owns the player's name, so the name screen is skipped and the
 // name on the lobby card opens the launcher's sheet (the only rename there
 // is). Everything else runs as in a browser, with these hooks:
-//   CouchPadHost.name                 the player's name, always current
-//   CouchPadHost.editName()           the launcher's rename sheet → name | null
-//   CouchPadHost.leave()              leaving, instead of navigating
-//   CouchPadHost.gameEnded(reason)    terminal end, instead of navigating
+//   PaperBalloonHost.name                 the player's name, always current
+//   PaperBalloonHost.editName()           the launcher's rename sheet → name | null
+//   PaperBalloonHost.leave()              leaving, instead of navigating
+//   PaperBalloonHost.gameEnded(reason)    terminal end, instead of navigating
 //     reason: 'game_ended' | 'room_not_found' | 'game_full' | 'replaced'
-//   CouchPadHost.enableSystemBack(b)  arm Android's back gesture
-//   window.CouchPad.back()            an armed back gesture
-//   CouchPadHost.haptic(p, scale)     play a haptic primitive
+//   PaperBalloonHost.enableSystemBack(b)  arm Android's back gesture
+//   window.PaperBalloon.back()            an armed back gesture
+//   PaperBalloonHost.haptic(p, scale)     play a haptic primitive
 // =====================================================================
 
 (function () {
-  var host = window.CouchPadHost;
+  var host = window.PaperBalloonHost;
   if (!host) return;
 
-  document.body.classList.add('couchpad');
+  document.body.classList.add('paperballoon');
 
   // --- Name ---
   // Take the auto-connect branch in controller.js init: the name screen shows
@@ -65,7 +65,7 @@
   // Every exit from the room closes the web view, which ends the relay socket
   // too, so there is nothing to send or clean up first. (The browser-back
   // path into performDisconnect never fires here: the launcher owns back.)
-  // The buttons show an X here (body.couchpad) rather than the browser's back
+  // The buttons show an X here (body.paperballoon) rather than the browser's back
   // chevron, so relabel them to match.
   performDisconnect = function () { host.leave(); };
   document.querySelectorAll('.leave-btn').forEach(function (btn) {
@@ -139,7 +139,7 @@
   // through and leaves like the X. Settings first: it can sit on top of the
   // pause overlay. hideSettings is block-scoped in controller.js, so the
   // window alias is the only handle.
-  window.CouchPad = {
+  window.PaperBalloon = {
     back: function () {
       if (isOpen(settingsOverlay)) { window.closeSettingsOverlay(); return true; }
       if (isOpen(colorPickerOverlay)) { closeColorPicker(); return true; }

@@ -73,7 +73,7 @@ struct AboutView: View {
     /// mirroring the website's own footer routing.
     private static func legalURL(_ page: String) -> String {
         let prefix = resolvedLocale == "de" ? "" : "en/"
-        return "https://couchpad.games/\(prefix)\(page)"
+        return "https://paperballoon.games/\(prefix)\(page)"
     }
 
     /// The marketing version from the bundle Info.plist (CFBundleShortVersionString),

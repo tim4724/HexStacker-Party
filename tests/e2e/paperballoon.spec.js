@@ -10,33 +10,33 @@ const {
 } = require('./helpers');
 
 /**
- * CouchPad Controller Contract against a stubbed launcher bridge
- * (window.CouchPadHost is the shell gate): the launcher's name replaces the
+ * Paper Balloon Controller Contract against a stubbed launcher bridge
+ * (window.PaperBalloonHost is the shell gate): the launcher's name replaces the
  * name screen, the lobby rename opens the launcher's sheet (editName), the X
  * buttons leave through leave(), and terminal session ends surface through
  * gameEnded(reason) instead of a navigation to the display root.
  */
 
-// window.__cp.renameTo is what the next editName() resolves to (null = the
+// window.__pb.renameTo is what the next editName() resolves to (null = the
 // player dismissed the sheet).
 function hostStub(name) {
-  window.__cp = { renameTo: null, edits: [], left: 0, ended: [], back: [], haptics: [] };
-  window.CouchPadHost = {
+  window.__pb = { renameTo: null, edits: [], left: 0, ended: [], back: [], haptics: [] };
+  window.PaperBalloonHost = {
     name,
     editName: () => {
-      window.__cp.edits.push(getComputedStyle(document.documentElement).accentColor);
-      const next = window.__cp.renameTo;
-      if (next) window.CouchPadHost.name = next;
+      window.__pb.edits.push(getComputedStyle(document.documentElement).accentColor);
+      const next = window.__pb.renameTo;
+      if (next) window.PaperBalloonHost.name = next;
       return Promise.resolve(next);
     },
-    leave: () => { window.__cp.left++; },
-    gameEnded: (reason) => window.__cp.ended.push(reason),
-    enableSystemBack: (on) => window.__cp.back.push(on),
-    haptic: (primitive, scale) => window.__cp.haptics.push([primitive, scale]),
+    leave: () => { window.__pb.left++; },
+    gameEnded: (reason) => window.__pb.ended.push(reason),
+    enableSystemBack: (on) => window.__pb.back.push(on),
+    haptic: (primitive, scale) => window.__pb.haptics.push([primitive, scale]),
   };
 }
 
-async function joinCouchPadController(context, roomCode, name) {
+async function joinPaperBalloonController(context, roomCode, name) {
   const page = await context.newPage();
   await page.addInitScript((rc) => localStorage.removeItem('clientId_' + rc), roomCode);
   await page.addInitScript(hostStub, name);
@@ -46,7 +46,7 @@ async function joinCouchPadController(context, roomCode, name) {
   return page;
 }
 
-const cp = (page) => page.evaluate(() => window.__cp);
+const pb = (page) => page.evaluate(() => window.__pb);
 
 // Fabricate the relay's answer for a room that must not exist, so the test
 // doesn't depend on production-relay state for the negative path: the HTTP
@@ -60,10 +60,10 @@ async function fakeRoomNotFound(page) {
   });
 }
 
-test.describe('CouchPad shell contract', () => {
-  test('joins as CouchPadHost.name, renames through editName, the X leaves', async ({ page, context }) => {
+test.describe('Paper Balloon shell contract', () => {
+  test('joins as PaperBalloonHost.name, renames through editName, the X leaves', async ({ page, context }) => {
     const { roomCode } = await createRoom(page);
-    const controller = await joinCouchPadController(context, roomCode, 'Zoë');
+    const controller = await joinPaperBalloonController(context, roomCode, 'Zoë');
 
     // Name screen skipped: the launcher's name lands in the lobby directly.
     await expect(controller.locator('#player-identity-name')).toHaveText('Zoë');
@@ -79,7 +79,7 @@ test.describe('CouchPad shell contract', () => {
     // nothing.
     await expect(controller.locator('#identity-trigger')).toHaveAttribute('aria-label', 'Change name');
     await controller.click('#identity-trigger');
-    await expect.poll(async () => (await cp(controller)).edits.length).toBe(1);
+    await expect.poll(async () => (await pb(controller)).edits.length).toBe(1);
     await expect(controller.locator('#player-identity-name')).toHaveText('Zoë');
 
     // The sheet's Save button takes the player's color from :root accent-color.
@@ -91,10 +91,10 @@ test.describe('CouchPad shell contract', () => {
       probe.remove();
       return rgb;
     });
-    expect((await cp(controller)).edits[0]).toBe(playerRgb);
+    expect((await pb(controller)).edits[0]).toBe(playerRgb);
 
     // A saved name reaches the display live.
-    await controller.evaluate(() => { window.__cp.renameTo = 'Maxi'; });
+    await controller.evaluate(() => { window.__pb.renameTo = 'Maxi'; });
     await controller.click('#identity-trigger');
     await expect(controller.locator('#player-identity-name')).toHaveText('Maxi');
     await expect(page.locator('#player-list')).toContainText('Maxi');
@@ -108,31 +108,31 @@ test.describe('CouchPad shell contract', () => {
     // (click 0.7) at the default Medium tier (x0.75). The X closes the web
     // view through the launcher and does nothing else.
     await controller.click('#lobby-leave-btn');
-    expect((await cp(controller)).left).toBe(1);
-    expect((await cp(controller)).haptics.at(-1)).toEqual(['click', 0.7 * 0.75]);
+    expect((await pb(controller)).left).toBe(1);
+    expect((await pb(controller)).haptics.at(-1)).toEqual(['click', 0.7 * 0.75]);
     expect(controller.url()).toContain(`/${roomCode}`);
   });
 
   test('display close → gameEnded', async ({ page, context }) => {
     const { roomCode } = await createRoom(page);
-    const controller = await joinCouchPadController(context, roomCode, 'Iris');
+    const controller = await joinPaperBalloonController(context, roomCode, 'Iris');
 
     // Display navigating away tears the room down (close_room): the 4001
     // close is the controller's terminal end and goes to the launcher
     // bridge, with no navigation off the controller page.
     await page.goto('about:blank');
-    await controller.waitForFunction(() => window.__cp.ended.length > 0, null, { timeout: 10000 });
-    expect((await cp(controller)).ended).toEqual(['game_ended']);
+    await controller.waitForFunction(() => window.__pb.ended.length > 0, null, { timeout: 10000 });
+    expect((await pb(controller)).ended).toEqual(['game_ended']);
     expect(controller.url()).toContain(`/${roomCode}`);
   });
 
   test('system back arms per screen and consumes dialog dismissals', async ({ page, context }) => {
     test.setTimeout(90000);
     const { roomCode } = await createRoom(page);
-    const controller = await joinCouchPadController(context, roomCode, 'Nils');
+    const controller = await joinPaperBalloonController(context, roomCode, 'Nils');
 
-    const armed = () => controller.evaluate(() => window.__cp.back[window.__cp.back.length - 1]);
-    const back = () => controller.evaluate(() => window.CouchPad.back());
+    const armed = () => controller.evaluate(() => window.__pb.back[window.__pb.back.length - 1]);
+    const back = () => controller.evaluate(() => window.PaperBalloon.back());
 
     // Lobby: armed with nothing to close, so the gesture falls through to the
     // launcher and leaves the game, the same exit as the X.
@@ -181,7 +181,7 @@ test.describe('CouchPad shell contract', () => {
     // Arming costs the game its screen edges, so the launcher hears about it
     // only when the state actually flips, not on every snapshot that repaints
     // a screen. Consecutive duplicates would mean the sync is chattering.
-    const calls = (await cp(controller)).back;
+    const calls = (await pb(controller)).back;
     expect(calls.filter((on, i) => i > 0 && on === calls[i - 1])).toEqual([]);
   });
 
@@ -190,8 +190,8 @@ test.describe('CouchPad shell contract', () => {
     await controller.addInitScript(hostStub, 'Ada');
     await fakeRoomNotFound(controller);
     await controller.goto('/ZZZZ?test=1');
-    await controller.waitForFunction(() => window.__cp.ended.length > 0, null, { timeout: 10000 });
-    expect((await cp(controller)).ended).toEqual(['room_not_found']);
+    await controller.waitForFunction(() => window.__pb.ended.length > 0, null, { timeout: 10000 });
+    expect((await pb(controller)).ended).toEqual(['room_not_found']);
     expect(controller.url()).toContain('/ZZZZ');
   });
 

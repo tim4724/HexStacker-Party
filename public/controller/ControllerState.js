@@ -317,7 +317,7 @@ function bindTap(el, handler) {
 // Haptic effects by role, at the Strong tier (Medium and Light scale them
 // down): an AirConsole/Android composition primitive at a scale of 0-1. Where
 // the platform plays primitives natively they're used as such (the AirConsole
-// and CouchPad bootstraps replace playHaptic); the web Vibration API only has
+// and Paper Balloon bootstraps replace playHaptic); the web Vibration API only has
 // duration, so there each primitive gets a length at full scale, sized against
 // Android's own fallbacks for its haptic effects (click 20 ms, heavy click
 // 30 ms; frameworks/base config_*VibePattern).

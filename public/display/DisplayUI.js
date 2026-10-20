@@ -415,7 +415,7 @@ function buildRelayReportMailto() {
     '',
     'Notes (optional): '
   ];
-  return 'mailto:info@couchpad.games'
+  return 'mailto:info@paperballoon.games'
     + '?subject=' + encodeURIComponent(subject)
     + '&body=' + encodeURIComponent(bodyLines.join('\n'));
 }

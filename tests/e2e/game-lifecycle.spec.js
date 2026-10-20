@@ -59,7 +59,7 @@ test.describe('Game Lifecycle', () => {
     await waitForDisplayGame(page);
     await waitForControllerGame(controller);
 
-    // Counterpart to couchpad.spec.js's "name is hidden": outside the launcher
+    // Counterpart to paperballoon.spec.js's "name is hidden": outside the launcher
     // BOTH in-game name surfaces must carry it, the portrait top-bar label and
     // the landscape touch-area overlay. Text, not visibility: this project's
     // viewport is landscape, where CSS hides the label by design.
@@ -81,7 +81,7 @@ test.describe('Game Lifecycle', () => {
     const controller = await joinController(context, roomCode, 'Ben');
     await waitForDisplayPlayers(page, 1);
 
-    // A back chevron in the browser; the CouchPad launcher shows an X instead.
+    // A back chevron in the browser; the Paper Balloon launcher shows an X instead.
     await expect(controller.locator('#lobby-leave-btn .leave-btn__back')).toBeVisible();
     await expect(controller.locator('#lobby-leave-btn .leave-btn__close')).toBeHidden();
     await expect(controller.locator('#lobby-leave-btn')).toHaveAttribute('aria-label', 'Back');
@@ -90,7 +90,7 @@ test.describe('Game Lifecycle', () => {
       getComputedStyle(document.getElementById('pause-leave-btn')).display)).toBe('none');
 
     // The name was chosen on the name screen; in a browser the lobby card
-    // shows it but offers no rename (only the CouchPad and AirConsole shells do).
+    // shows it but offers no rename (only the Paper Balloon and AirConsole shells do).
     await expect(controller.locator('#identity-trigger')).toBeDisabled();
 
     // Out of the room, back on the name screen with the typed name kept, and

@@ -680,7 +680,7 @@ class TvDisplayOutput(
     }
 
     /**
-     * Offer the room to CouchPad launchers on the LAN, for exactly as long as it is
+     * Offer the room to Paper Balloon launchers on the LAN, for exactly as long as it is
      * joinable (contract §8). A full room is withdrawn and republished when a slot frees:
      * the launcher does hide a full room when it resolves the code, but it only re-resolves
      * when a record appears, so going quiet is what takes the stale card down. Mirrors

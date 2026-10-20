@@ -587,7 +587,7 @@ extension DisplayModel: DisplayOutput {
     /// The room is gone (see DisplayOutput.roomClosed). Same reset the empty-lobby
     /// background path takes, and for the same reason: a code nobody can join has no
     /// business on screen, dimmed or otherwise. syncAdvertisement with no room in hand
-    /// withdraws the CouchPad record too.
+    /// withdraws the Paper Balloon record too.
     func roomClosed() {
         room = nil
         joinURL = nil
@@ -607,7 +607,7 @@ extension DisplayModel: DisplayOutput {
         syncAdvertisement(playerCount: players.count)
     }
 
-    /// Offer the room to CouchPad launchers on the LAN, for exactly as long as it
+    /// Offer the room to Paper Balloon launchers on the LAN, for exactly as long as it
     /// is joinable (contract §8). Gated on relayStarted so the harness modes, whose
     /// rooms are fixtures, never publish one; a recreated room replaces the record.
     ///

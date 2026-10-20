@@ -131,8 +131,8 @@ test('the controller-URL template registered on create mirrors the web shape', (
   // The web display derives the template from its origin at runtime
   // (controllerUrlTemplate in DisplayConnection.js); the native mirror defaults
   // to the prod origin. Both must register the same
-  // <base>/{room}?cpp=<platform>#{instance} shape or a code-only join resolves to
-  // different pages depending on which display hosts the room. Only the `cpp`
+  // <base>/{room}?pbp=<platform>#{instance} shape or a code-only join resolves to
+  // different pages depending on which display hosts the room. Only the `pbp`
   // value differs per platform: that IS the point of the query, naming the box to
   // a launcher that resolved a typed room code. The vocabulary is fixed and the
   // launcher owns the wording, so no display ships a free-text label.
@@ -142,14 +142,14 @@ test('the controller-URL template registered on create mirrors the web shape', (
   // and a code-only join resolve to the same origin.
   assert.match(
     KOTLIN.protocol,
-    /get\(\) = "\$controllerBaseUrl\/\{room\}\?cpp=androidtv#\{instance\}"/,
-    'Kotlin controllerUrlTemplate no longer derives <base>/{room}?cpp=androidtv#{instance} from controllerBaseUrl',
+    /get\(\) = "\$controllerBaseUrl\/\{room\}\?pbp=androidtv#\{instance\}"/,
+    'Kotlin controllerUrlTemplate no longer derives <base>/{room}?pbp=androidtv#{instance} from controllerBaseUrl',
   );
   assert.strictEqual(kotlinConst(KOTLIN.protocol, 'DEFAULT_CONTROLLER_BASE_URL'), 'https://hexstacker.com');
   const web = read('public/display/DisplayConnection.js');
   assert.ok(
-    web.includes("'/{room}?cpp=web#{instance}'"),
-    'web display no longer builds the /{room}?cpp=web#{instance} template',
+    web.includes("'/{room}?pbp=web#{instance}'"),
+    'web display no longer builds the /{room}?pbp=web#{instance} template',
   );
 });
 
