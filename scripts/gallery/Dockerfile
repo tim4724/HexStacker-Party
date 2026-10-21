@@ -6,7 +6,7 @@
 # capture/assembly — the shots come from platform toolchains (Simulator,
 # Robolectric) that can't run at app-image build time, which is why this is
 # its own tiny image instead of riding the app image.
-FROM nginx:alpine
+FROM nginxinc/nginx-unprivileged:1.30-alpine
 # Clean-URL resolution (/gallery -> gallery.html), matching the app server.
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 # The static cross-platform comparison, under its /gallery-tv prefix.
