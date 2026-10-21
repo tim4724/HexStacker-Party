@@ -212,10 +212,10 @@ html, body {
 }
 
 /* The leave button steps back to the name screen in a browser ("<") and
-   closes the game in the CouchPad launcher (X, body.couchpad below). */
+   closes the game in the Paper Balloon launcher (X, body.paperballoon below). */
 .leave-btn__close,
-body.couchpad .leave-btn__back { display: none; }
-body.couchpad .leave-btn__close { display: block; }
+body.paperballoon .leave-btn__back { display: none; }
+body.paperballoon .leave-btn__close { display: block; }
 
 /* Optical centering: the "<" chevron's two open stroke ends sit on its
    right, so the geometrically centered glyph reads shifted right inside
@@ -1472,22 +1472,22 @@ body.couchpad .leave-btn__close { display: block; }
 body.airconsole #name-screen,
 body.airconsole .leave-btn { display: none !important; }
 
-/* --- CouchPad launcher (controller-couchpad.js) --- */
+/* --- Paper Balloon launcher (controller-paperballoon.js) --- */
 /* Leave Game in the pause menu is the launcher's only exit mid-match. A
    browser has its own (close the tab, or back), so it shows nowhere else. */
-body:not(.couchpad) #pause-leave-btn { display: none; }
+body:not(.paperballoon) #pause-leave-btn { display: none; }
 
 /* The launcher owns the name, so the name screen only ever flashes its
    connecting state: drop the field (hidden, not removed, so the column
    doesn't shift). */
-body.couchpad #name-form { visibility: hidden; }
+body.paperballoon #name-form { visibility: hidden; }
 
 /* Arming system back brings Android's navigation bar back on screen, so
    the bottom inset grows while armed and shrinks again on disarm. Reserve
    the gesture pill's height rather than reflow under it. The game screen
    stops there: its bottom bar is anchored, so every reserved pixel comes off
    the touch pad. */
-body.couchpad {
+body.paperballoon {
   --safe-bottom: max(env(safe-area-inset-bottom, 0px), 24px);
 }
 
@@ -1496,30 +1496,30 @@ body.couchpad {
    else is armed for its whole life (name, lobby, results, the dialogs over
    the lobby) and keeps the inset it opened with. Each balances the reserve
    at the top so its content stays centred on the screen. */
-body.couchpad #pause-overlay,
-body.couchpad #settings-overlay,
-body.couchpad #reconnect-overlay {
+body.paperballoon #pause-overlay,
+body.paperballoon #settings-overlay,
+body.paperballoon #reconnect-overlay {
   --safe-bottom: max(env(safe-area-inset-bottom, 0px), 48px);
 }
 
-body.couchpad #pause-overlay,
-body.couchpad #reconnect-overlay {
+body.paperballoon #pause-overlay,
+body.paperballoon #reconnect-overlay {
   padding-top: max(var(--safe-top), calc(var(--safe-bottom) + 16px));
 }
 
 /* The settings panel fills short phones, so it balances the reserve with a
    spacer that gives way first (the panel doesn't shrink) instead of padding
    it can't spare. No overlay gap, or the spacer would add one. */
-body.couchpad #settings-overlay {
+body.paperballoon #settings-overlay {
   gap: 0;
 }
 
-body.couchpad #settings-overlay::before {
+body.paperballoon #settings-overlay::before {
   content: '';
   flex: 0 1 max(0px, var(--safe-bottom) - max(var(--safe-top), 8px));
 }
 
-body.couchpad .settings-panel {
+body.paperballoon .settings-panel {
   flex-shrink: 0;
 }
 

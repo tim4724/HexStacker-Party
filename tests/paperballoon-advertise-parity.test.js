@@ -1,8 +1,8 @@
 'use strict';
 
-// tvOS <-> Android TV room-advertisement lockstep guard (CouchPad contract §8).
+// tvOS <-> Android TV room-advertisement lockstep guard (Paper Balloon contract §8).
 //
-// Both native displays publish the open room over DNS-SD for the CouchPad
+// Both native displays publish the open room over DNS-SD for the Paper Balloon
 // launcher to find. Nothing else in the system reads these two strings, so a
 // drift is invisible everywhere a test normally looks: the app still builds, the
 // room still works, discovery just silently stops finding that platform. It has
@@ -29,8 +29,8 @@ function read(p) {
 test('both native displays advertise the same DNS-SD service type', () => {
   // NsdManager's convention carries the trailing dot, Network.framework's does
   // not; the wire protocol is identical either way.
-  assert.match(SWIFT, /serviceType = "_couchpad\._tcp"/, 'tvOS service type drifted');
-  assert.match(KOTLIN, /SERVICE_TYPE = "_couchpad\._tcp\."/, 'Android TV service type drifted');
+  assert.match(SWIFT, /serviceType = "_paperballoon\._tcp"/, 'tvOS service type drifted');
+  assert.match(KOTLIN, /SERVICE_TYPE = "_paperballoon\._tcp\."/, 'Android TV service type drifted');
 });
 
 test('both native displays put the room code in TXT `c`', () => {
@@ -44,6 +44,6 @@ test('the advertisement carries nothing but the room code', () => {
   // an advertisement can name a room but never propose an origin. Re-adding a
   // URL or a platform key here would hand the LAN a say in where a phone
   // navigates, which is precisely what the contract removed.
-  assert.doesNotMatch(SWIFT, /NWTXTRecord\(\[[^\]]*(?:"u"|"cpv"|"cpp")/, 'tvOS TXT record grew a key beyond the code');
-  assert.doesNotMatch(KOTLIN, /setAttribute\("(?:u|cpv|cpp)"/, 'Android TV TXT record grew a key beyond the code');
+  assert.doesNotMatch(SWIFT, /NWTXTRecord\(\[[^\]]*(?:"u"|"pbv"|"pbp")/, 'tvOS TXT record grew a key beyond the code');
+  assert.doesNotMatch(KOTLIN, /setAttribute\("(?:u|pbv|pbp)"/, 'Android TV TXT record grew a key beyond the code');
 });

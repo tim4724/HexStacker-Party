@@ -33,10 +33,10 @@ const MUSIC_PATH = path.resolve(__dirname, '..', '..', 'public', 'shared', 'musi
 // public/ copy is re-encoded at PUBLISH_CRF delivery quality so clients
 // don't download master-grade bytes.
 //
-// The CouchPad apps play this file from couchpad.games/games-manifest.json and
+// The Paper Balloon apps play this file from paperballoon.games/games-manifest.json and
 // never revalidate it, keyed on the full URL, so after a re-render is deployed
-// here, bump the `?v=N` on the manifest's `video` in Couch-Games and its
-// bundled copies in Couch-Games-Controller. Bumping before the deploy caches
+// here, bump the `?v=N` on the manifest's `video` in PaperBalloon and its
+// bundled copies in PaperBalloon-Controller. Bumping before the deploy caches
 // the old bytes under the new URL.
 const PUBLISH_VARIANT = 'clean';
 const PUBLISH_ASPECT = '16x9';

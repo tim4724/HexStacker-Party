@@ -280,7 +280,7 @@ const server = http.createServer((req, res) => {
   }
 
   // Apple Universal Links: an iOS Camera scan of https://hexstacker.com/<room>
-  // opens the installed CouchPad app instead of Safari. Apple's CDN fetches
+  // opens the installed Paper Balloon app instead of Safari. Apple's CDN fetches
   // this over HTTPS as application/json with no redirect; the app ships the
   // matching applinks:hexstacker.com entitlement. Served inline (not from disk)
   // so it can't fall into the generic static path — the file would have no
@@ -293,7 +293,7 @@ const server = http.createServer((req, res) => {
       applinks: {
         details: [
           {
-            appIDs: ['5ZH48MPAM3.games.couchpad.controller'],
+            appIDs: ['5ZH48MPAM3.games.paperballoon.controller'],
             components: [
               { '/': '/??????', comment: '6-char room code opens the app' },
             ],
@@ -303,13 +303,13 @@ const server = http.createServer((req, res) => {
       // The launcher's App Clip: a room link opens the controller without an
       // install. App Clip domains can't be wildcards, so each game's own host
       // lists it.
-      appclips: { apps: ['5ZH48MPAM3.games.couchpad.controller.Clip'] },
+      appclips: { apps: ['5ZH48MPAM3.games.paperballoon.controller.Clip'] },
     });
     return;
   }
 
   // Android App Links: the Digital Asset Links statement lets a system QR scan /
-  // tapped hexstacker.com/<room> open the CouchPad app instead of Chrome, the
+  // tapped hexstacker.com/<room> open the Paper Balloon app instead of Chrome, the
   // counterpart to the AASA above. Fingerprints: the release/upload key, the
   // debug key (for testing a locally-built install), and the Play App Signing
   // keys (Play Console → App integrity) — without those, verified App Links
@@ -320,7 +320,7 @@ const server = http.createServer((req, res) => {
         relation: ['delegate_permission/common.handle_all_urls'],
         target: {
           namespace: 'android_app',
-          package_name: 'games.couchpad.controller',
+          package_name: 'games.paperballoon.controller',
           sha256_cert_fingerprints: [
             'CF:3C:FF:CD:9E:68:1C:37:F0:35:24:9A:7B:F0:10:14:3D:EC:AE:0D:DD:18:D7:57:F0:6E:8F:7A:0C:52:A0:38',
             '17:56:F5:01:B4:93:67:B9:7D:A7:C9:97:10:42:D7:88:E0:B0:0E:45:A6:55:D9:24:A5:53:BD:D2:D8:55:13:7F',

@@ -154,7 +154,7 @@ nameInput.addEventListener('blur', function () {
 
 // Prime audio and, on the Vibration API path, vibration on first interaction.
 // Not where a bootstrap plays haptics natively: there it buys nothing, and the
-// CouchPad iOS vibrate polyfill would play the prime as a full-strength tap.
+// Paper Balloon iOS vibrate polyfill would play the prime as a full-strength tap.
 document.addEventListener('pointerdown', function onFirstPointer() {
   if (playHaptic === webPlayHaptic && navigator.vibrate) navigator.vibrate(1);
   ControllerAudio.prime();

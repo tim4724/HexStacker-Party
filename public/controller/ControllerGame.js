@@ -87,7 +87,7 @@ if (document.fonts && document.fonts.ready) {
   document.fonts.ready.then(function() { fitIdentityName(); });
 }
 
-// Live rename, shared by the CouchPad name sheet and the AirConsole
+// Live rename, shared by the Paper Balloon name sheet and the AirConsole
 // profile-change path. SET_NAME is a lightweight rename the display
 // accepts in any state (including mid-game). The display relabels the roster
 // and republishes, so the other controllers' "Waiting for <host>" banner
@@ -101,7 +101,7 @@ function applyLiveRename(name) {
 }
 
 // The lobby card's name is a plain label (a disabled button) unless a shell
-// offers a rename: the CouchPad launcher's name sheet or AirConsole's profile
+// offers a rename: the Paper Balloon launcher's name sheet or AirConsole's profile
 // editor. Then it becomes the button that opens it; the new name comes back
 // through applyLiveRename.
 function enableShellRename(open) {
@@ -304,7 +304,7 @@ function readStoredColorIndex() {
 }
 
 // The page-wide player tint: body --player-color for our own CTAs, and :root
-// accent-color, which the CouchPad launcher reads for its rename sheet's Save
+// accent-color, which the Paper Balloon launcher reads for its rename sheet's Save
 // button (inert elsewhere: every form control here is custom-styled).
 function applyPlayerColor(color) {
   document.body.style.setProperty('--player-color', color);

@@ -50,12 +50,12 @@ const CONTROLLER_SCRIPTS = [
   // ControllerGame.js and precede controller.js, whose dispatcher calls it.
   // Removal steps are in the file header.
   '/controller/ControllerLegacyDisplay.js',
-  // CouchPad shell bootstrap (Android/iOS launcher WebView). Self-gated on
-  // window.CouchPadHost so it's inert everywhere else. Must follow
+  // Paper Balloon shell bootstrap (Android/iOS launcher WebView). Self-gated on
+  // window.PaperBalloonHost so it's inert everywhere else. Must follow
   // ControllerConnection/ControllerGame (wraps connect/bailToWelcome at load
   // time) and precede controller.js (whose init reads skipNameScreen). The
   // AirConsole generator strips it from the AC entry.
-  '/controller/controller-couchpad.js',
+  '/controller/controller-paperballoon.js',
   '/controller/controller.js',
   // Gallery/test harness, kept last (as it was a separate tag). Self-gated on
   // ?scenario= so it's inert for real players; folded in for one atomic bundle.
@@ -129,8 +129,8 @@ const AC_DEAD = [
   // bootstrap stubs buildQRMatrix to return null, so the encoder is never
   // called. Dropping it also keeps third-party (MIT) code out of the AC ZIP.
   '/shared/qrcode-generator.js',
-  // CouchPad shell bootstrap, self-gated on window.CouchPadHost, never set in AC.
-  '/controller/controller-couchpad.js',
+  // Paper Balloon shell bootstrap, self-gated on window.PaperBalloonHost, never set in AC.
+  '/controller/controller-paperballoon.js',
   // An AC display ships in the same ZIP as its controller, so it can never be
   // older than it: there is no version skew for the legacy shim to cover.
   '/controller/ControllerLegacyDisplay.js',
@@ -141,8 +141,7 @@ const AC_DEAD = [
 
 // AC_DEAD only ever FILTERS, so a path that matches nothing fails silently: rename
 // a file without updating this list and it stops excluding anything, shipping the
-// module into the AC bundles and the ZIP with no error anywhere. The CouchPad
-// rename (controller-couchgames.js -> controller-couchpad.js) was that near-miss.
+// module into the AC bundles and the ZIP with no error anywhere.
 // Checked at load rather than in a test so no build can produce a bundle from a
 // stale list; the suite gets it too, through the modules that import this one. An
 // entry lives in one list or the other, so being in neither is the failure.

@@ -4,8 +4,8 @@ import os
 
 private let advertiseLog = Logger(subsystem: "com.hexstacker.tv", category: "advertise")
 
-/// CouchPad room advertisement (contract §8): publishes the open room over
-/// DNS-SD so the CouchPad launcher on a phone in the same house can offer a
+/// Paper Balloon room advertisement (contract §8): publishes the open room over
+/// DNS-SD so the Paper Balloon launcher on a phone in the same house can offer a
 /// one-tap join with no QR scan and no typed room code.
 ///
 /// The room code is the entire payload. The launcher resolves it against the
@@ -14,7 +14,7 @@ private let advertiseLog = Logger(subsystem: "com.hexstacker.tv", category: "adv
 /// So an advertisement can name a room but cannot propose an origin, and this
 /// display declares itself in exactly one place: the controller-URL template it
 /// registers at create (Protocol.controllerURLTemplate). There is no version key
-/// either: `_couchpad._tcp` plus a code some relay knows is the whole gate.
+/// either: `_paperballoon._tcp` plus a code some relay knows is the whole gate.
 ///
 /// The launcher never dials the SRV port, so the TCP listener here exists only
 /// because DNS-SD registration needs a port to publish; anything that does
@@ -32,7 +32,7 @@ private let advertiseLog = Logger(subsystem: "com.hexstacker.tv", category: "adv
 /// logged and swallowed. The QR and room code stay the universal path.
 final class RoomAdvertiser {
 
-    static let serviceType = "_couchpad._tcp"
+    static let serviceType = "_paperballoon._tcp"
 
     /// TXT key for the room code (§8).
     private static let codeKey = "c"

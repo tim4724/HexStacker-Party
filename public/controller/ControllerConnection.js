@@ -445,7 +445,7 @@ function sendToDisplay(type, payload) {
 // =====================================================================
 
 // Leave the room for the name screen: the leave buttons and the browser's
-// back gesture. The CouchPad bootstrap replaces it to close the web view.
+// back gesture. The Paper Balloon bootstrap replaces it to close the web view.
 function performDisconnect() {
   stopPing();
   if (fastlane) { fastlane.closeAll(); fastlane = null; }

@@ -5,7 +5,7 @@
    ========================================================== */
 
 :root {
-  /* Safe area. The CouchPad launcher reports its status bar, cutout and
+  /* Safe area. The Paper Balloon launcher reports its status bar, cutout and
      navigation bar through the same env() insets a browser does. */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);

@@ -9,8 +9,8 @@ import android.util.Log
 import java.net.ServerSocket
 
 /**
- * CouchPad room advertisement (contract §8): publishes the open room over DNS-SD so the
- * CouchPad launcher on a phone in the same house can offer a one-tap join with no QR scan
+ * Paper Balloon room advertisement (contract §8): publishes the open room over DNS-SD so the
+ * Paper Balloon launcher on a phone in the same house can offer a one-tap join with no QR scan
  * and no typed room code. Mirrors appletv RoomAdvertiser.swift.
  *
  * The room code is the entire payload. The launcher resolves it against the relay (the
@@ -18,7 +18,7 @@ import java.net.ServerSocket
  * platform tag and whether the room is still open. So an advertisement can name a room but
  * cannot propose an origin, and this app declares itself in exactly one place: the
  * controller-URL template it registers at create (RelayConfig.controllerUrlTemplate). There
- * is no version key either: `_couchpad._tcp` plus a code some relay knows is the whole gate.
+ * is no version key either: `_paperballoon._tcp` plus a code some relay knows is the whole gate.
  *
  * The service instance name is the TV's own name ("Living Room"), which the launcher shows
  * verbatim so a player with two TVs can tell the rooms apart. It never leaves the LAN: the
@@ -116,7 +116,7 @@ class RoomAdvertiser(private val context: Context) {
         const val TAG = "RoomAdvertiser"
 
         /** NsdManager's convention includes the trailing dot, iOS omits it; same wire protocol. */
-        const val SERVICE_TYPE = "_couchpad._tcp."
+        const val SERVICE_TYPE = "_paperballoon._tcp."
 
         /** TXT key for the room code (§8). */
         const val CODE_KEY = "c"
