@@ -59,7 +59,7 @@ jobs:
           echo "Deploying ${TAG} to production"
           # Single patch = single rollout; separate `set image` + `set env`
           # calls each trigger their own pod replacement.
-          kubectl patch deployment/couch-games -n default --patch "
+          kubectl patch deployment/couch-games -n hexstacker-prod --patch "
           spec:
             template:
               spec:
@@ -72,7 +72,7 @@ jobs:
                       - name: GIT_SHA
                         value: '${GIT_SHA}'
           "
-          kubectl rollout status deployment/couch-games -n default --timeout=180s
+          kubectl rollout status deployment/couch-games -n hexstacker-prod --timeout=180s
 
           {
             echo "### Production Deploy ${TAG}"
