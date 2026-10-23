@@ -1,5 +1,5 @@
 [versions]
-aboutlibraries = "15.2.0"
+aboutlibraries = "15.3.0"
 androidGradlePlugin = "9.4.1"
 androidxCore = "1.19.1"
 androidxLifecycle = "2.11.0"
@@ -14,17 +14,17 @@ uiautomator = "2.4.0"
 coroutines = "1.11.0"
 junit = "4.13.2"
 kotlin = "2.4.21"
-kotlinxSerialization = "1.11.0"
+kotlinxSerialization = "1.12.0"
 media3 = "1.11.1"
-okhttp = "5.5.0"
+okhttp = "5.5.1"
 profileinstaller = "1.4.1"
 # QuickJS binding. Zipline rather than quickjs-kt: SAME engine, but a synchronous JNI call
 # instead of a suspend/Promise wrapper that cost ~776us per call on TV hardware against
 # ~78us. See EngineBridge for the locale guard this requires — it is not optional.
 zipline = "1.28.0"
 robolectric = "4.17"
-roborazzi = "1.76.0"
-webrtc = "150.7871.01"
+roborazzi = "1.77.0"
+webrtc = "150.7871.04"
 zxing = "3.5.4"
 
 [libraries]
