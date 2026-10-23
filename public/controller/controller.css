@@ -1473,9 +1473,11 @@ body.airconsole #name-screen,
 body.airconsole .leave-btn { display: none !important; }
 
 /* --- Paper Balloon launcher (controller-paperballoon.js) --- */
-/* Leave Game in the pause menu is the launcher's only exit mid-match. A
-   browser has its own (close the tab, or back), so it shows nowhere else. */
-body:not(.paperballoon) #pause-leave-btn { display: none; }
+/* Leave Game in the pause menu is the launcher's only exit mid-match, and
+   the name screen's X its only exit while a display never answers. A
+   browser has its own (close the tab, or back), so they show nowhere else. */
+body:not(.paperballoon) #pause-leave-btn,
+body:not(.paperballoon) #name-leave-btn { display: none; }
 
 /* The launcher owns the name, so the name screen only ever flashes its
    connecting state: drop the field (hidden, not removed, so the column

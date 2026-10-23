@@ -185,6 +185,29 @@ test.describe('Paper Balloon shell contract', () => {
     expect(calls.filter((on, i) => i > 0 && on === calls[i - 1])).toEqual([]);
   });
 
+  test('a display that never answers still leaves an X on the connecting screen', async ({ context }) => {
+    const controller = await context.newPage();
+    await controller.addInitScript(hostStub, 'Ada');
+    // The relay accepts the socket and swallows HELLO: no snapshot, no error.
+    await controller.routeWebSocket(/ws\.hexstacker\.com/, () => {});
+    await controller.goto('/ZZZZ?test=1');
+
+    await expect(controller.locator('#name-join-btn')).toHaveText('CONNECTING');
+    await expect(controller.locator('#name-leave-btn .leave-btn__close')).toBeVisible();
+    await expect(controller.locator('#name-leave-btn')).toHaveAttribute('aria-label', 'Leave Game');
+    await controller.click('#name-leave-btn');
+    expect((await pb(controller)).left).toBe(1);
+  });
+
+  test('without the host bridge, the name screen has no X', async ({ context }) => {
+    const controller = await context.newPage();
+    // Hold the browser's room probe so the name screen stays up.
+    await controller.route(/\/room\/ZZZZ/, () => {});
+    await controller.goto('/ZZZZ?test=1');
+    await expect(controller.locator('#name-screen')).toBeVisible();
+    await expect(controller.locator('#name-leave-btn')).toBeHidden();
+  });
+
   test('unknown room surfaces room_not_found through gameEnded', async ({ context }) => {
     const controller = await context.newPage();
     await controller.addInitScript(hostStub, 'Ada');
