@@ -200,6 +200,38 @@ test.describe('Paper Balloon shell contract', () => {
     expect((await pb(controller)).left).toBe(1);
   });
 
+  // An old Android WebView's bridge has no name/editName, and a launcher may
+  // drop or not yet have any other hook: each is feature-detected, so a
+  // missing one falls back to the browser's behavior instead of throwing.
+  test('a launcher with only leave() still joins, plays and leaves', async ({ page, context }) => {
+    test.setTimeout(90000);
+    const { roomCode } = await createRoom(page);
+    const controller = await context.newPage();
+    const errors = [];
+    controller.on('pageerror', (e) => errors.push(e.message));
+    await controller.addInitScript(() => {
+      window.__pb = { left: 0 };
+      window.PaperBalloonHost = { leave: () => { window.__pb.left++; } };
+    });
+    await controller.goto(`/${roomCode}?test=1`);
+    await waitForFont(controller);
+
+    // No launcher name: the display auto-names the player, and the card is a
+    // plain label since there is no sheet to open.
+    await controller.waitForSelector('#player-identity:not(.hidden)', { timeout: 10000 });
+    await waitForDisplayPlayers(page, 1);
+    await expect(controller.locator('#identity-trigger')).toBeDisabled();
+
+    await controller.click('#start-btn');
+    await waitForDisplayGame(page);
+    await waitForControllerGame(controller);
+
+    await controller.click('#pause-btn');
+    await controller.click('#pause-leave-btn');
+    expect((await pb(controller)).left).toBe(1);
+    expect(errors).toEqual([]);
+  });
+
   test('without the host bridge, the name screen has no X', async ({ context }) => {
     const controller = await context.newPage();
     // Hold the browser's room probe so the name screen stays up.

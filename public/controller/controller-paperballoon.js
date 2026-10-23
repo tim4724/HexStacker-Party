@@ -10,7 +10,11 @@
 //
 // The launcher owns the player's name, so the name screen is skipped and the
 // name on the lobby card opens the launcher's sheet (the only rename there
-// is). Everything else runs as in a browser, with these hooks:
+// is). Everything else runs as in a browser, with these hooks. Each one is
+// feature-detected on its own, falling back to the browser behavior it would
+// replace: a launcher older or newer than this file may lack any of them (an
+// old Android WebView has no name/editName), and calling a missing one would
+// throw mid-flow — e.g. out of every showScreen().
 //   PaperBalloonHost.name                 the player's name, always current
 //   PaperBalloonHost.editName()           the launcher's rename sheet → name | null
 //   PaperBalloonHost.leave()              leaving, instead of navigating
@@ -38,10 +42,14 @@
   // browser. clientId IS persisted (mirroring submitName, which the skipped
   // name screen never runs) so a WebView reload mid-session reconnects into
   // the same player slot instead of joining as a fresh player.
+  // Without a name the display auto-names the player, as for a browser
+  // rejoin with nothing stored.
   var _originalConnect = connect;
   connect = function () {
-    playerName = host.name;
-    playerNameIsAuto = false;
+    if (host.name) {
+      playerName = host.name;
+      playerNameIsAuto = false;
+    }
     try {
       // A player is only in one room at a time — clean up other rooms' ids.
       for (var i = localStorage.length - 1; i >= 0; i--) {
@@ -60,7 +68,7 @@
   // accent-color (applyPlayerColor). A null result is a dismissal, which
   // applyLiveRename ignores; a name is already the launcher's, so only the
   // display needs it.
-  enableShellRename(function () { host.editName().then(applyLiveRename); });
+  if (host.editName) enableShellRename(function () { host.editName().then(applyLiveRename); });
 
   // --- Leaving ---
   // Every exit from the room closes the web view, which ends the relay socket
@@ -68,7 +76,7 @@
   // path into performDisconnect never fires here: the launcher owns back.)
   // The buttons show an X here (body.paperballoon) rather than the browser's back
   // chevron, so relabel them to match.
-  performDisconnect = function () { host.leave(); };
+  if (host.leave) performDisconnect = function () { host.leave(); };
   document.querySelectorAll('.leave-btn').forEach(function (btn) {
     btn.setAttribute('data-i18n-aria-label', 'leave_game');
     btn.setAttribute('aria-label', t('leave_game'));
@@ -77,7 +85,7 @@
   // Terminal session end → hand control back to the launcher instead of
   // location.replace('/?bail=…'). Until the launcher pops the web view, this
   // page must not keep pinging a room it considers dead.
-  bailToWelcome = function (toastKey, keepClientId) {
+  if (host.gameEnded) bailToWelcome = function (toastKey, keepClientId) {
     if (gameCancelled) return;
     gameCancelled = true;
     stopPing();
@@ -95,7 +103,7 @@
   // --- Haptics ---
   // The launcher plays HAPTIC_EFFECTS' primitives natively, at a real
   // strength, where navigator.vibrate only varies pulse length.
-  playHaptic = function (primitive, scale) { host.haptic(primitive, scale); };
+  if (host.haptic) playHaptic = function (primitive, scale) { host.haptic(primitive, scale); };
 
   // --- System back ---
   // Back yields the screen edges to the system, so it is 'off' during a live
@@ -103,6 +111,8 @@
   // (back closes the dialog; Android only, iOS never steps back inside the
   // page); wherever a leave button is the way out it is 'leave', exiting like
   // the X.
+  if (!host.setBackMode) return;
+
   function isOpen(el) {
     return !!el && !el.classList.contains('hidden');
   }
@@ -142,12 +152,11 @@
   // a literal true leaves the game. Settings first: it can sit on top of the
   // pause overlay. hideSettings is block-scoped in controller.js, so the
   // window alias is the only handle.
-  window.PaperBalloon = {
-    back: function () {
-      if (isOpen(settingsOverlay)) { window.closeSettingsOverlay(); return true; }
-      if (isOpen(colorPickerOverlay)) { closeColorPicker(); return true; }
-      if (pauseOpen()) { sendToDisplay(MSG.RESUME_GAME); return true; }
-      return false;
-    }
+  window.PaperBalloon = window.PaperBalloon || {};
+  window.PaperBalloon.back = function () {
+    if (isOpen(settingsOverlay)) { window.closeSettingsOverlay(); return true; }
+    if (isOpen(colorPickerOverlay)) { closeColorPicker(); return true; }
+    if (pauseOpen()) { sendToDisplay(MSG.RESUME_GAME); return true; }
+    return false;
   };
 })();
