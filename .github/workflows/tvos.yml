@@ -38,7 +38,7 @@ concurrency:
 jobs:
   # Parallel to the screenshot job: separate build dirs, no shared artifacts.
   kit-tests:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 20
     permissions:
       contents: read
@@ -55,7 +55,7 @@ jobs:
         run: swift test
 
   build-test-screenshots:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 40
     permissions:
       contents: read

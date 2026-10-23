@@ -164,7 +164,7 @@ jobs:
           status: completed
 
   tvos:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
