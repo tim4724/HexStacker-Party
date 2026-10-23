@@ -100,8 +100,8 @@ test.describe('Game Lifecycle', () => {
     await expect(controller.locator('#name-input')).toHaveValue('Ben');
     await expect(controller.locator('#name-input')).not.toBeFocused();
     await expect(page.locator('#player-list .player-card:not(.empty)')).toHaveCount(0);
-    // The name screen is the way in, not a room: it has no X.
-    await expect(controller.locator('#name-screen .leave-btn')).toHaveCount(0);
+    // The name screen is the way in, not a room: in a browser it has no X.
+    await expect(controller.locator('#name-leave-btn')).toBeHidden();
   });
 
   test('single player: controller reload during results causes no errors', async ({ page, context }) => {
