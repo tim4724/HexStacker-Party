@@ -31,7 +31,7 @@ function hostStub(name) {
     },
     leave: () => { window.__pb.left++; },
     gameEnded: (reason) => window.__pb.ended.push(reason),
-    enableSystemBack: (on) => window.__pb.back.push(on),
+    setBackMode: (mode) => window.__pb.back.push(mode),
     haptic: (primitive, scale) => window.__pb.haptics.push([primitive, scale]),
   };
 }
@@ -126,33 +126,35 @@ test.describe('Paper Balloon shell contract', () => {
     expect(controller.url()).toContain(`/${roomCode}`);
   });
 
-  test('system back arms per screen and consumes dialog dismissals', async ({ page, context }) => {
+  test('system back mode follows the screen and dialogs consume it', async ({ page, context }) => {
     test.setTimeout(90000);
     const { roomCode } = await createRoom(page);
     const controller = await joinPaperBalloonController(context, roomCode, 'Nils');
 
-    const armed = () => controller.evaluate(() => window.__pb.back[window.__pb.back.length - 1]);
+    const mode = () => controller.evaluate(() => window.__pb.back[window.__pb.back.length - 1]);
     const back = () => controller.evaluate(() => window.PaperBalloon.back());
 
-    // Lobby: armed with nothing to close, so the gesture falls through to the
-    // launcher and leaves the game, the same exit as the X.
-    await expect.poll(armed).toBe(true);
-    expect(await back()).toBe(false);
+    // Lobby: the launcher leaves the game itself, the same exit as the X.
+    await expect.poll(mode).toBe('leave');
 
     // Dialogs answer the gesture themselves and the player stays in the room.
     await controller.click('#lobby-settings-btn');
     await expect(controller.locator('#settings-overlay')).toBeVisible();
+    await expect.poll(mode).toBe('page');
     expect(await back()).toBe(true);
     await expect(controller.locator('#settings-overlay')).toBeHidden();
+    await expect.poll(mode).toBe('leave');
 
     // The colour picker fades out rather than unmounting (it keeps
     // `display: flex` while hidden), so its class is what "closed" means.
     await controller.click('#color-btn');
     await controller.waitForSelector('#color-picker-overlay:not(.hidden)');
+    await expect.poll(mode).toBe('page');
     expect(await back()).toBe(true);
     await controller.waitForSelector('#color-picker-overlay.hidden');
+    await expect.poll(mode).toBe('leave');
 
-    // Live game: disarmed, so the screen edges stay drag input. Level 15 tops
+    // Live game: off, so the screen edges stay drag input. Level 15 tops
     // the solo player out quickly, which carries us to the results screen.
     await controller.evaluate(() => {
       const plus = document.getElementById('level-plus-btn');
@@ -162,27 +164,26 @@ test.describe('Paper Balloon shell contract', () => {
     await controller.click('#start-btn');
     await waitForDisplayGame(page);
     await waitForControllerGame(controller);
-    await expect.poll(armed).toBe(false);
+    await expect.poll(mode).toBe('off');
 
-    // Pause overlay: armed again, and back resumes the game like Continue.
+    // Pause overlay: a dialog again, and back resumes the game like Continue.
     await controller.click('#pause-btn');
     await expect(controller.locator('#pause-overlay')).toBeVisible();
     await expect(controller.locator('#pause-leave-btn')).toBeVisible();
-    await expect.poll(armed).toBe(true);
+    await expect.poll(mode).toBe('page');
     expect(await back()).toBe(true);
     await expect(controller.locator('#pause-overlay')).toBeHidden();
-    await expect.poll(armed).toBe(false);
+    await expect.poll(mode).toBe('off');
 
-    // Results: armed with nothing to close, like the lobby.
+    // Results: leaves, like the lobby.
     await waitForControllerResults(controller);
-    await expect.poll(armed).toBe(true);
-    expect(await back()).toBe(false);
+    await expect.poll(mode).toBe('leave');
 
-    // Arming costs the game its screen edges, so the launcher hears about it
-    // only when the state actually flips, not on every snapshot that repaints
+    // Back costs the game its screen edges, so the launcher hears about it
+    // only when the mode actually changes, not on every snapshot that repaints
     // a screen. Consecutive duplicates would mean the sync is chattering.
     const calls = (await pb(controller)).back;
-    expect(calls.filter((on, i) => i > 0 && on === calls[i - 1])).toEqual([]);
+    expect(calls.filter((m, i) => i > 0 && m === calls[i - 1])).toEqual([]);
   });
 
   test('a display that never answers still leaves an X on the connecting screen', async ({ context }) => {

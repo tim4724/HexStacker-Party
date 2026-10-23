@@ -16,8 +16,9 @@
 //   PaperBalloonHost.leave()              leaving, instead of navigating
 //   PaperBalloonHost.gameEnded(reason)    terminal end, instead of navigating
 //     reason: 'game_ended' | 'room_not_found' | 'game_full' | 'replaced'
-//   PaperBalloonHost.enableSystemBack(b)  arm Android's back gesture
-//   window.PaperBalloon.back()            an armed back gesture
+//   PaperBalloonHost.setBackMode(m)       where a system back goes
+//     m: 'off' | 'page' | 'leave'
+//   window.PaperBalloon.back()            a back gesture in 'page' mode
 //   PaperBalloonHost.haptic(p, scale)     play a haptic primitive
 // =====================================================================
 
@@ -96,10 +97,12 @@
   // strength, where navigator.vibrate only varies pulse length.
   playHaptic = function (primitive, scale) { host.haptic(primitive, scale); };
 
-  // --- System back (Android) ---
-  // Arming yields the screen edges to the system, so it is off during a live
-  // game where an edge swipe is a drag input. It is on wherever a leave button
-  // or a dialog is showing: back closes the dialog, or leaves like the X.
+  // --- System back ---
+  // Back yields the screen edges to the system, so it is 'off' during a live
+  // game where an edge swipe is a drag input. A dialog takes it as 'page'
+  // (back closes the dialog; Android only, iOS never steps back inside the
+  // page); wherever a leave button is the way out it is 'leave', exiting like
+  // the X.
   function isOpen(el) {
     return !!el && !el.classList.contains('hidden');
   }
@@ -111,13 +114,14 @@
     return currentScreen === 'game' && isOpen(pauseOverlay);
   }
 
-  var backArmed = null;
+  var backMode = null;
   function syncSystemBack() {
-    var want = isOpen(settingsOverlay) || isOpen(colorPickerOverlay)
-      || pauseOpen() || isOpen(reconnectOverlay) || currentScreen !== 'game';
-    if (want === backArmed) return;
-    backArmed = want;
-    host.enableSystemBack(want);
+    var want = 'off';
+    if (isOpen(settingsOverlay) || isOpen(colorPickerOverlay) || pauseOpen()) want = 'page';
+    else if (isOpen(reconnectOverlay) || currentScreen !== 'game') want = 'leave';
+    if (want === backMode) return;
+    backMode = want;
+    host.setBackMode(want);
   }
 
   // Dialogs open and close from a dozen places (buttons, room snapshots, the
@@ -134,9 +138,8 @@
   };
   syncSystemBack();
 
-  // Called by the launcher once per gesture, only while armed. Anything but a
-  // literal true leaves the game, so with no dialog open the gesture falls
-  // through and leaves like the X. Settings first: it can sit on top of the
+  // Called by the launcher once per gesture, only in 'page' mode. Anything but
+  // a literal true leaves the game. Settings first: it can sit on top of the
   // pause overlay. hideSettings is block-scoped in controller.js, so the
   // window alias is the only handle.
   window.PaperBalloon = {

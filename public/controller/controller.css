@@ -1484,8 +1484,8 @@ body:not(.paperballoon) #name-leave-btn { display: none; }
    doesn't shift). */
 body.paperballoon #name-form { visibility: hidden; }
 
-/* Arming system back brings Android's navigation bar back on screen, so
-   the bottom inset grows while armed and shrinks again on disarm. Reserve
+/* Any back mode but 'off' brings Android's navigation bar back on screen,
+   so the bottom inset grows while back is on and shrinks again at 'off'. Reserve
    the gesture pill's height rather than reflow under it. The game screen
    stops there: its bottom bar is anchored, so every reserved pixel comes off
    the touch pad. */
@@ -1493,9 +1493,9 @@ body.paperballoon {
   --safe-bottom: max(env(safe-area-inset-bottom, 0px), 24px);
 }
 
-/* These are the only surfaces on screen at the moment the arm state flips,
+/* These are the only surfaces on screen at the moment back turns on or off,
    so they are the only ones that watch the bar arrive underneath. Everything
-   else is armed for its whole life (name, lobby, results, the dialogs over
+   else has back on for its whole life (name, lobby, results, the dialogs over
    the lobby) and keeps the inset it opened with. Each balances the reserve
    at the top so its content stays centred on the screen. */
 body.paperballoon #pause-overlay,
