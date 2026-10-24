@@ -18,17 +18,73 @@ function buildCardLevelLabel() {
   return lvl;
 }
 
-// Faint hex opening shown inside empty-slot sockets. Static rounded
-// flat-top hex path (precomputed); CSS shows it only on .empty cards and
-// sizes it for 10-foot viewing.
+// Static rounded flat-top hex path (precomputed): the socket opening, and
+// the hex that drops into it on join.
+var SOCKET_HEX_PATH = 'M16.4,-2.77 Q18,0 16.4,2.77 L10.6,12.82 Q9,15.59 5.8,15.59 L-5.8,15.59 Q-9,15.59 -10.6,12.82 '
+  + 'L-16.4,2.77 Q-18,0 -16.4,-2.77 L-10.6,-12.82 Q-9,-15.59 -5.8,-15.59 L5.8,-15.59 Q9,-15.59 10.6,-12.82 Z';
+
+function socketHexSvg(inner) {
+  return '<svg viewBox="-20 -17.32 40 34.64" width="40" height="34.64" aria-hidden="true">' + inner + '</svg>';
+}
+
+// Faint hex opening shown inside empty-slot sockets. CSS shows it only on
+// .empty cards and sizes it for 10-foot viewing.
 function buildSocketOpening() {
   var opening = document.createElement('span');
   opening.className = 'player-card__opening';
-  opening.innerHTML = '<svg viewBox="-20 -17.32 40 34.64" width="40" height="34.64" aria-hidden="true">'
-    + '<path d="M16.4,-2.77 Q18,0 16.4,2.77 L10.6,12.82 Q9,15.59 5.8,15.59 L-5.8,15.59 Q-9,15.59 -10.6,12.82 '
-    + 'L-16.4,2.77 Q-18,0 -16.4,-2.77 L-10.6,-12.82 Q-9,-15.59 -5.8,-15.59 L5.8,-15.59 Q9,-15.59 10.6,-12.82 Z" '
-    + 'fill="rgba(255,248,236,0.03)" stroke="rgba(247,241,232,0.45)" stroke-width="2"/></svg>';
+  opening.innerHTML = socketHexSvg('<path d="' + SOCKET_HEX_PATH + '" '
+    + 'fill="rgba(255,248,236,0.03)" stroke="rgba(247,241,232,0.45)" stroke-width="2"/>');
   return opening;
+}
+
+// Join drop: a hex in the player's colour falls into the empty socket's
+// opening (4 hex heights, accelerating), a ring leaves the landing spot, and
+// onLand fills the card (join-pop). The TV ports mirror this
+// (LobbyView.swift / LobbyScreen.kt); keep them in sync. A hidden socket
+// (lobby not shown yet, AirConsole) or Reduce Motion lands immediately.
+// Landing runs on a timer, not animation events, so a lobby hidden mid-drop
+// still fills the card. Returns a cancel function, or null if it landed.
+var JOIN_DROP_MS = 200;
+var JOIN_LAND_MS = 220;
+var JOIN_RING_MS = 480;
+
+function dropIntoSocket(card, color, onLand) {
+  var o = card.querySelector('.player-card__opening svg').getBoundingClientRect();
+  if (!o.width || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    onLand();
+    return null;
+  }
+  var s = lobbyScreen.getBoundingClientRect();
+  var box = 'left:' + (o.left - s.left) + 'px;top:' + (o.top - s.top) + 'px;width:' + o.width + 'px;height:' + o.height + 'px';
+  var drop = document.createElement('div');
+  drop.className = 'join-drop';
+  drop.style.cssText = box;
+  // Shading matches the pieces: lit top, darker lower half. Concurrent drops
+  // repeat the gradient id; the definitions are identical, so any match works.
+  drop.innerHTML = socketHexSvg('<defs><linearGradient id="join-drop-shade" x1="0" y1="0" x2="0" y2="1">'
+    + '<stop offset="0" stop-color="#fff" stop-opacity="0.3"/><stop offset="0.5" stop-color="#fff" stop-opacity="0"/>'
+    + '<stop offset="0.5" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.18"/>'
+    + '</linearGradient></defs><path d="' + SOCKET_HEX_PATH + '" fill="' + color + '"/>'
+    + '<path d="' + SOCKET_HEX_PATH + '" fill="url(#join-drop-shade)"/>');
+  lobbyScreen.appendChild(drop);
+  drop.animate([{ transform: 'translateY(-400%)' }, { transform: 'none' }],
+    { duration: JOIN_DROP_MS, easing: 'cubic-bezier(0.55, 0, 1, 0.45)' });
+  var timer = setTimeout(function() {
+    // The hex swells and fades while the card pops in around it.
+    drop.animate([{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(1.6)', opacity: 0 }],
+      { duration: JOIN_LAND_MS, easing: 'ease-out', fill: 'forwards' })
+      .onfinish = function() { drop.remove(); };
+    var ring = document.createElement('div');
+    ring.className = 'join-drop';
+    ring.style.cssText = box;
+    ring.innerHTML = socketHexSvg('<path d="' + SOCKET_HEX_PATH + '" fill="none" stroke="' + color + '" stroke-width="2.4"/>');
+    lobbyScreen.appendChild(ring);
+    ring.animate([{ transform: 'scale(1)', opacity: 0.9 }, { transform: 'scale(3.2)', opacity: 0 }],
+      { duration: JOIN_RING_MS, easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)', fill: 'forwards' })
+      .onfinish = function() { ring.remove(); };
+    onLand();
+  }, JOIN_DROP_MS);
+  return function() { clearTimeout(timer); drop.remove(); };
 }
 
 // --- Layout Calculation ---
@@ -218,16 +274,27 @@ function updatePlayerList() {
       var lvl = info.startLevel || 1;
       card.style.setProperty('--player-color', color);
       nameEl.textContent = info.playerName || PLAYER_NAMES[info.playerIndex] || t('player');
-      card.classList.remove('empty');
       card.dataset.playerId = playerId;
       slot.dataset.playerId = playerId;
-      if (wasEmpty) {
-        card.classList.remove('join-pop');
-        void card.offsetWidth;
-        card.classList.add('join-pop');
+      // The socket stays empty until the hex lands; a re-render mid-drop
+      // only refreshes the text above.
+      if (wasEmpty && !card._cancelDrop) {
+        card._cancelDrop = dropIntoSocket(card, color, function(c) {
+          return function() {
+            c._cancelDrop = null;
+            c.classList.remove('empty', 'join-pop');
+            void c.offsetWidth;
+            c.classList.add('join-pop');
+            fitPlayerNames();
+          };
+        }(card));
       }
       levelValueEl.textContent = lvl;
     } else {
+      if (card._cancelDrop) {
+        card._cancelDrop();
+        card._cancelDrop = null;
+      }
       card.style.removeProperty('--player-color');
       // Sockets carry no text — the hex opening is the only content.
       // Clear rather than leave stale name/level from a departed player.

@@ -3,14 +3,17 @@ package com.hexstacker.tv.ui
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -36,7 +39,13 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.asComposePath
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -46,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import com.hexstacker.core.model.EngineConstants
 import com.hexstacker.core.render.Theme
 import com.hexstacker.tv.R
+import com.hexstacker.tv.render.addRoundedHex
 import kotlinx.coroutines.launch
 import kotlin.math.ceil
 import kotlin.math.max
@@ -349,10 +359,12 @@ private fun InfoButton(
 private fun PlayerGrid(players: List<LobbyPlayer>, vp: Vp, visibleSlots: Int, cols: Int, cardW: Dp, gap: Dp) {
     val rows = ceil(visibleSlots / cols.toFloat()).toInt()
 
-    // Seen peerIndexes. Pruned to the live roster first, so a departed player's
-    // index pops again if it is ever reassigned. Mutating a remembered set during
-    // composition is safe here: both operations are idempotent per roster state.
-    val knownPlayers = remember { mutableSetOf<Int>() }
+    // Seen peerIndexes, seeded with the entry roster so returning to the lobby
+    // (About, results) doesn't re-drop every seat (tvOS seenPeers parity).
+    // Pruned to the live roster first, so a departed player's index pops again
+    // if it is ever reassigned. Mutating a remembered set during composition is
+    // safe here: both operations are idempotent per roster state.
+    val knownPlayers = remember { players.mapTo(mutableSetOf()) { it.peerIndex } }
     knownPlayers.retainAll(players.mapTo(mutableSetOf()) { it.peerIndex })
 
     Column(verticalArrangement = Arrangement.spacedBy(gap)) {
@@ -369,12 +381,80 @@ private fun PlayerGrid(players: List<LobbyPlayer>, vp: Vp, visibleSlots: Int, co
                                     // add() is true only the first time this player is
                                     // composed; a reflowed (re-created) card skips the pop.
                                     val isNew = remember(player.peerIndex) { knownPlayers.add(player.peerIndex) }
-                                    JoinPop(play = isNew) { PlayerCard(player, vp, cardW) }
+                                    JoinDrop(play = isNew, player = player, vp = vp, cardW = cardW)
                                 } else {
                                     PlayerCard(null, vp, cardW)
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private val JoinFallEasing = CubicBezierEasing(0.55f, 0f, 1f, 0.45f)
+private val JoinLandEasing = CubicBezierEasing(0f, 0f, 0.58f, 1f)
+private val JoinRingEasing = CubicBezierEasing(0.2f, 0.7f, 0.3f, 1f)
+private const val JOIN_FALL_MS = 200
+private const val JOIN_LAND_MS = 220
+private const val JOIN_RING_MS = 480
+
+/** Join drop (web dropIntoSocket, keep in sync with DisplayUI.js): the seat
+ *  stays an empty socket while a hex in the player's colour falls 4 hex
+ *  heights into its opening (200ms, accelerating). On landing the card pops
+ *  ([JoinPop]) while the hex swells to 1.6x and fades (220ms ease-out) and a
+ *  ring grows to 3.2x and fades (480ms). The hex sits in a Box around the
+ *  card, not inside it: the socket clips its content. [play] = false (or
+ *  Reduce Motion) seats the card settled. */
+@Composable
+private fun JoinDrop(play: Boolean, player: LobbyPlayer, vp: Vp, cardW: Dp) {
+    val animate = play && !LocalReduceMotion.current
+    // Offset in hex heights; read only in the draw phase, so the fall redraws
+    // the Canvas without recomposing the card.
+    val drop = remember { Animatable(-4f) }
+    val landT = remember { Animatable(0f) }
+    var landed by remember { mutableStateOf(!animate) }
+    var done by remember { mutableStateOf(!animate) }
+    if (animate) LaunchedEffect(Unit) {
+        drop.animateTo(0f, tween(JOIN_FALL_MS, easing = JoinFallEasing))
+        landed = true
+        landT.animateTo(1f, tween(JOIN_RING_MS, easing = LinearEasing))
+        done = true
+    }
+    Box(contentAlignment = Alignment.Center) {
+        if (landed) JoinPop(play = play) { PlayerCard(player, vp, cardW) }
+        else PlayerCard(null, vp, cardW)
+        if (!done) {
+            val color = playerColor(player.colorIndex)
+            // Same box and path as the socket opening (PlayerCard.SocketOpening).
+            Canvas(Modifier.size(vp.vminDp(28f, 5.5f, 56f)).aspectRatio(2f / 1.732f)) {
+                val r = size.width / 2f
+                val path = android.graphics.Path().apply {
+                    addRoundedHex(size.width / 2f, size.height / 2f, r * 0.9f, r * 0.12f)
+                }.asComposePath()
+                // Shaded like the pieces: lit top half, darker lower half.
+                val shade = Brush.verticalGradient(
+                    0f to Color.White.copy(alpha = 0.3f), 0.5f to Color.White.copy(alpha = 0f),
+                    0.5f to Color.Black.copy(alpha = 0f), 1f to Color.Black.copy(alpha = 0.18f),
+                    startY = 0f, endY = size.height,
+                )
+                // landT spans the ring; the hex swell (u) is its first JOIN_LAND_MS.
+                val t = landT.value
+                val u = if (landed) JoinLandEasing.transform((t * JOIN_RING_MS / JOIN_LAND_MS).coerceAtMost(1f)) else 0f
+                if (u < 1f) {
+                    translate(top = drop.value * size.height) {
+                        scale(1f + 0.6f * u) {
+                            drawPath(path, color, alpha = 1f - u)
+                            drawPath(path, shade, alpha = 1f - u)
+                        }
+                    }
+                }
+                if (landed) {
+                    val e = JoinRingEasing.transform(t)
+                    scale(1f + 2.2f * e) {
+                        drawPath(path, color, alpha = 0.9f * (1f - e), style = Stroke(width = size.width * 0.06f))
                     }
                 }
             }

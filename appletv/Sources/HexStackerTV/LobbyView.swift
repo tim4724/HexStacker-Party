@@ -292,6 +292,14 @@ struct PlayerCardView: View {
     // Seeded here, the card's first frame is small + clear regardless of
     // that recompose, and onAppear plays the pop.
     @State private var popped: Bool
+    // Join drop (web dropIntoSocket, keep in sync with DisplayUI.js): the
+    // card stays an empty socket until the dropped hex lands, then pops.
+    // Latched at identity creation like `popped`. Landing fires from the
+    // fall's completion, not a timer: the fall can start a few frames late
+    // (the join's first render), and a timer then popped the card mid-fall.
+    @State private var fallen = false
+    @State private var landed: Bool
+    @State private var dropping: Bool
 
     init(seat: LobbySeat?, w: CGFloat, h: CGFloat, vp: Vp, pop: Bool) {
         self.seat = seat
@@ -301,12 +309,20 @@ struct PlayerCardView: View {
         // UIAccessibility, not the environment: init runs before environment
         // installation, and the seeded value must already be settled so the
         // card never renders a small/clear first frame under Reduce Motion.
-        _popped = State(initialValue: !pop || UIAccessibility.isReduceMotionEnabled)
+        let animate = pop && !UIAccessibility.isReduceMotionEnabled
+        _popped = State(initialValue: !animate)
+        _landed = State(initialValue: !animate)
+        _dropping = State(initialValue: animate)
     }
 
+    /// Socket opening width (web .player-card__opening svg clamp(28px, 5.5vmin, 56px)).
+    private var openW: CGFloat { max(28, min(vp.vmin * 0.055, 56)) }
+
     var body: some View {
-        Group {
-            if let seat {
+        // ZStack, not Group: Group hands its modifiers to each child, so the
+        // drop overlay would restart when the socket swaps for the card.
+        ZStack {
+            if let seat, landed {
                 filled(seat)
                     // Join pop (web slotPopIn, keep in sync with display.css):
                     // scale 0.6→1 + fade in one back-out overshoot (peaks ~1.07
@@ -323,7 +339,22 @@ struct PlayerCardView: View {
                 empty
             }
         }
+        .overlay {
+            if dropping, let seat {
+                JoinDrop(color: UITheme.player(slot: seat.colorSlot), size: openW,
+                         fallen: fallen, landed: landed)
+            }
+        }
         .frame(width: w, height: h)
+        .onAppear {
+            guard dropping else { return }
+            withAnimation(.timingCurve(0.55, 0, 1, 0.45, duration: JoinDrop.fall)) {
+                fallen = true
+            } completion: {
+                landed = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + JoinDrop.ring) { dropping = false }
+            }
+        }
     }
 
     /// Tonal card, borderless; the player color is mixed into the surface and
@@ -380,7 +411,6 @@ struct PlayerCardView: View {
     /// value (web: the breathe keyframes are the one animation theme.css
     /// gates behind prefers-reduced-motion).
     private var empty: some View {
-        let openW = max(28, min(vp.vmin * 0.055, 56))
         let radius = w * 0.057   // scales with the card, see filled()
         return RoundedRectangle(cornerRadius: radius)
             .fill(UITheme.socket(0.55))
@@ -398,6 +428,50 @@ struct PlayerCardView: View {
                     breatheDim = true
                 }
             }
+    }
+}
+
+/// The hex that drops into a socket on join (web dropIntoSocket, keep in sync
+/// with DisplayUI.js): falls 4 hex heights into the opening in `fall`
+/// (accelerating; the parent animates `fallen`), then on `landed` swells to
+/// 1.6x and fades while a ring in the player's colour grows to 3.2x and fades
+/// over `ring`. The parent removes it after that, so the end state never shows.
+private struct JoinDrop: View {
+    static let fall = 0.2
+    static let land = 0.22
+    static let ring = 0.48
+
+    let color: Color
+    let size: CGFloat
+    let fallen: Bool
+    let landed: Bool
+
+    var body: some View {
+        let shape = RoundedHex(cornerR: size * 0.06)
+        ZStack {
+            // Shaded like the pieces: lit top half, darker lower half.
+            shape.fill(color)
+                .overlay(shape.fill(LinearGradient(stops: [
+                    .init(color: .white.opacity(0.3), location: 0),
+                    .init(color: .white.opacity(0), location: 0.5),
+                    .init(color: .black.opacity(0), location: 0.5),
+                    .init(color: .black.opacity(0.18), location: 1),
+                ], startPoint: .top, endPoint: .bottom)))
+                .frame(width: size, height: size)
+                .scaleEffect(landed ? 1.6 : 1)
+                .opacity(landed ? 0 : 1)
+                .animation(.easeOut(duration: Self.land), value: landed)
+                // web .join-drop svg is the opening's height, so 4 hex heights.
+                .offset(y: fallen ? 0 : -4 * size * 0.866)
+            shape.stroke(color, lineWidth: size * 0.06)
+                .frame(width: size, height: size)
+                .scaleEffect(landed ? 3.2 : 1)
+                .opacity(landed ? 0 : 0.9)
+                .animation(.timingCurve(0.2, 0.7, 0.3, 1, duration: Self.ring), value: landed)
+                // Hidden until landing; this outer flip is outside the scoped
+                // animation, so the ring appears at 0.9 and fades from there.
+                .opacity(landed ? 1 : 0)
+        }
     }
 }
 
