@@ -416,6 +416,26 @@ if (bgCanvas && (urlParams.get('test') !== '1' || urlParams.get('bg') === '1')) 
   });
   welcomeBg.resize(window.innerWidth, window.innerHeight);
   welcomeBg.start();
+
+  // Mouse-only toy on welcome and lobby: pieces near the cursor drift aside
+  // and a click on empty space drops a new one. Touch and TV remotes never
+  // send mouse pointer events, so they never see it.
+  var bgToyScreen = function() {
+    return currentScreen === SCREEN.WELCOME || currentScreen === SCREEN.LOBBY;
+  };
+  document.addEventListener('pointermove', function(e) {
+    if (e.pointerType !== 'mouse') return;
+    if (bgToyScreen()) welcomeBg.setPointer(e.clientX, e.clientY);
+    else welcomeBg.setPointer(null);
+  });
+  document.documentElement.addEventListener('mouseleave', function() {
+    welcomeBg.setPointer(null);
+  });
+  document.addEventListener('pointerdown', function(e) {
+    if (e.pointerType !== 'mouse' || e.button !== 0 || !bgToyScreen()) return;
+    if (e.target.closest('button, a, input, select, video, #join-url, #trailer-modal, #device-choice')) return;
+    welcomeBg.spawnAt(e.clientX, e.clientY);
+  });
 }
 
 // --- Debug or normal init ---

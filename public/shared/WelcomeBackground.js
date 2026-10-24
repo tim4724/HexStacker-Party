@@ -28,6 +28,18 @@ class WelcomeBackground {
   static SHAPE_COLOR_INDEX = null;
   static _synced = false;
 
+  // Pointer toy (display welcome/lobby, wired in display.js): pieces within
+  // NUDGE_REACH × canvas width of the pointer get pushed sideways, up to
+  // NUDGE_PUSH px/s² at the pointer, and the push decays at NUDGE_DECAY /s.
+  // Clicks add up to MAX_EXTRAS one-shot pieces on top of the pool; a new
+  // one ignores the pointer for SPAWN_CALM_MS, or the click that dropped it
+  // would shove it straight away.
+  static NUDGE_REACH = 0.05;
+  static NUDGE_PUSH = 800;
+  static NUDGE_DECAY = 2.5;
+  static MAX_EXTRAS = 12;
+  static SPAWN_CALM_MS = 2000;
+
   // 8×8 Bayer matrix (values 0–63). Finer than 4×4, less visible structure.
   // Used to dither the baked gradient at the 8-bit quantization step.
   static BAYER8 = [
@@ -107,6 +119,8 @@ class WelcomeBackground {
     this.h = 0;
     this.rafId = null;
     this.lastTime = null;
+    this.pointer = null;
+    this.extras = 0;
 
     if (!WelcomeBackground._synced) {
       WelcomeBackground._syncFromEngine();
@@ -170,6 +184,25 @@ class WelcomeBackground {
       this.rafId = null;
     }
     this.lastTime = null;
+  }
+
+  // Canvas coordinates of the pointer, or null to stop nudging.
+  setPointer(x, y) {
+    this.pointer = x == null ? null : { x, y };
+  }
+
+  // Drop an extra piece at (x, y). Extras fall once and leave the pool at
+  // the bottom instead of recycling.
+  spawnAt(x, y) {
+    if (this.extras >= WelcomeBackground.MAX_EXTRAS) return;
+    const shape = this._makeShape();
+    shape.x = x;
+    shape.y = y;
+    shape.extra = true;
+    // rAF timestamps share performance.now()'s timebase.
+    shape.calmUntil = performance.now() + WelcomeBackground.SPAWN_CALM_MS;
+    this.pool.push(shape);
+    this.extras++;
   }
 
   // Freeze the animation and render one deterministic frame from GalleryFixtures
@@ -366,15 +399,28 @@ class WelcomeBackground {
     }
 
     const maxY = this.h + 200;
+    const ptr = this.pointer;
+    const reach = this.w * WelcomeBackground.NUDGE_REACH;
 
     for (let i = 0; i < this.pool.length; i++) {
       const p = this.pool[i];
+      if (ptr && !(p.calmUntil > timestamp)) {
+        const dx = p.x - ptr.x;
+        const d = Math.hypot(dx, p.y - ptr.y);
+        if (d < reach) p.drift += (dx >= 0 ? 1 : -1) * WelcomeBackground.NUDGE_PUSH * (1 - d / reach) * dt;
+      }
       p.y += p.speed * dt;
       p.x += p.drift * dt;
+      p.drift *= Math.exp(-WelcomeBackground.NUDGE_DECAY * dt);
 
       // Recycle off-screen shapes
       if (p.y > maxY) {
-        this.pool[i] = this._recycleShape();
+        if (p.extra) {
+          this.pool.splice(i--, 1);
+          this.extras--;
+        } else {
+          this.pool[i] = this._recycleShape();
+        }
         continue;
       }
 
