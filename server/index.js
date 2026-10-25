@@ -176,6 +176,59 @@ function sendJson(res, statusCode, payload) {
 // sibling probe.
 const HASHED_BUNDLE = /\.[0-9a-f]{10}\.(?:js|css)$/;
 
+// Text assets outside the hashed bundles that the pages fetch on every first
+// visit — the font CSS, the SVG marks, the favicon — and that compress well.
+// They carry no build-time siblings, so the first request compresses each one
+// (off the event loop) and the result is kept for as long as the file's ETag
+// holds. Smaller files aren't worth a Vary split.
+const COMPRESSIBLE_EXT = new Set(['.css', '.svg', '.ico', '.json']);
+const MIN_COMPRESS_BYTES = 1024;
+const MAX_COMPRESS_BYTES = 1024 * 1024;
+const compressedStatic = new Map(); // filePath -> { etag, variants: Promise }
+
+// Weak validator from size + mtime: no read or hash needed to answer a
+// revalidation. The image's files share one mtime per build, so every replica
+// agrees, and a deploy that touches a file changes it.
+function staticEtag(stat) {
+  return 'W/"' + stat.size.toString(36) + '-' + Math.floor(stat.mtimeMs).toString(36) + '"';
+}
+
+// RFC 9110 If-None-Match: weak comparison against a comma-separated list or `*`.
+function etagMatches(ifNoneMatch, etag) {
+  if (!ifNoneMatch) return false;
+  const bare = etag.replace(/^W\//, '');
+  return String(ifNoneMatch).split(',').some((tag) => {
+    const t = tag.trim();
+    return t === '*' || t.replace(/^W\//, '') === bare;
+  });
+}
+
+// identity + whichever encodings come out smaller, at max quality (once per
+// file version, so brotli 11 is free).
+function compressStatic(filePath, etag) {
+  const cached = compressedStatic.get(filePath);
+  if (cached && cached.etag === etag) return cached.variants;
+  const variants = fs.promises.readFile(filePath).then((buf) => Promise.all([
+    new Promise((resolve, reject) => zlib.brotliCompress(buf, {
+      params: {
+        [zlib.constants.BROTLI_PARAM_QUALITY]: 11,
+        [zlib.constants.BROTLI_PARAM_SIZE_HINT]: buf.length,
+      },
+    }, (err, out) => (err ? reject(err) : resolve(out)))),
+    new Promise((resolve, reject) => zlib.gzip(buf, { level: 9 }, (err, out) => (err ? reject(err) : resolve(out)))),
+  ]).then(([br, gzip]) => ({
+    identity: buf,
+    br: br.length < buf.length ? br : null,
+    gzip: gzip.length < buf.length ? gzip : null,
+  })));
+  compressedStatic.set(filePath, { etag, variants });
+  // A failed read must not stick: drop it so the next request retries.
+  variants.catch(() => {
+    if (compressedStatic.get(filePath)?.variants === variants) compressedStatic.delete(filePath);
+  });
+  return variants;
+}
+
 // Pick the best encoding we ship a pre-compressed sibling for (brotli first),
 // or null if the client accepts neither. Parses q-values so an explicit refusal
 // (`br;q=0`) is honored per RFC 9110, and the `*` wildcard sets the default for
@@ -469,13 +522,33 @@ const server = http.createServer((req, res) => {
   // Content-Encoding: content-hashed bundles (from disk siblings the build
   // emits) and boot-cached HTML (from in-memory variants). Everything else skips
   // the probe — the dev-only runtime-rewritten source HTML has no sibling, and
-  // other static assets aren't compressed.
+  // the small static text files compress in memory (compressStatic, below).
   const negotiable = preRendered || HASHED_BUNDLE.test(filePath);
   const encoding = negotiable ? pickEncoding(req.headers['accept-encoding']) : null;
 
-  const deliver = (data, usedEncoding) => {
+  // Non-production: never cache — file edits take effect on the next
+  // request with no hard-reload needed. Production: HTML + JS are
+  // already uncached to avoid stale-version mismatches (see commit
+  // b08563d); other static files (CSS, images, fonts) keep a 24h cache
+  // for bandwidth. The /engine/ route sends its own no-store header
+  // above, so its dev/prod behavior matches what we set here.
+  //
+  // Exception: content-hashed bundles (foo.<10-hex>.js/.css from
+  // scripts/build.js) and the JS sidecar .js.map are immutable — the hash
+  // changes when the bytes change, so a new build gets a new URL and a stale
+  // copy is never served. This is what lets the bundled JS and CSS escape
+  // no-store / the 24h cache and be cached for a year.
+  var isHashedBundle = /\.[0-9a-f]{10}\.(?:js|css)(\.map)?$/.test(filePath);
+  var isNonProd = APP_ENV !== 'production';
+  var noCache = isNonProd || ext === '.html' || (ext === '.js' && !isHashedBundle);
+  const cacheControl = isHashedBundle
+    ? 'public, max-age=31536000, immutable'
+    : (noCache ? 'no-store' : 'public, max-age=86400');
+
+  // `extra`: validator / Vary headers from the generic static path below.
+  const deliver = (data, usedEncoding, extra) => {
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-    const headers = { 'Content-Type': contentType };
+    const headers = Object.assign({ 'Content-Type': contentType }, extra);
 
     // Dev path (and the no-build fallback): expand the placeholders at request
     // time — version into the <meta name="app-version"> tag (the atomic "what
@@ -489,24 +562,7 @@ const server = http.createServer((req, res) => {
       data = Buffer.from(renderPage(data.toString('utf8')));
     }
 
-    // Non-production: never cache — file edits take effect on the next
-    // request with no hard-reload needed. Production: HTML + JS are
-    // already uncached to avoid stale-version mismatches (see commit
-    // b08563d); other static files (CSS, images, fonts) keep a 24h cache
-    // for bandwidth. The /engine/ route sends its own no-store header
-    // above, so its dev/prod behavior matches what we set here.
-    //
-    // Exception: content-hashed bundles (foo.<10-hex>.js/.css from
-    // scripts/build.js) and the JS sidecar .js.map are immutable — the hash
-    // changes when the bytes change, so a new build gets a new URL and a stale
-    // copy is never served. This is what lets the bundled JS and CSS escape
-    // no-store / the 24h cache and be cached for a year.
-    var isHashedBundle = /\.[0-9a-f]{10}\.(?:js|css)(\.map)?$/.test(filePath);
-    var isNonProd = APP_ENV !== 'production';
-    var noCache = isNonProd || ext === '.html' || (ext === '.js' && !isHashedBundle);
-    headers['Cache-Control'] = isHashedBundle
-      ? 'public, max-age=31536000, immutable'
-      : (noCache ? 'no-store' : 'public, max-age=86400');
+    headers['Cache-Control'] = cacheControl;
 
     if (ext === '.html') {
       const isAirConsole = urlPath === '/display/screen.html' || urlPath === '/controller/controller.html';
@@ -572,9 +628,33 @@ const server = http.createServer((req, res) => {
       });
     });
   } else {
-    fs.readFile(filePath, (err, data) => {
-      if (err) { res.writeHead(404); res.end('Not Found'); return; }
-      deliver(data, null);
+    fs.stat(filePath, (statErr, stat) => {
+      if (statErr || !stat.isFile()) { res.writeHead(404); res.end('Not Found'); return; }
+      // Day-cached assets (fonts, images, icons, CSS) get a validator, so a
+      // visit after the 24h expiry costs a 304 instead of the full file.
+      // no-store and immutable responses never revalidate, so they skip it.
+      const extra = {};
+      if (cacheControl === 'public, max-age=86400') extra['ETag'] = staticEtag(stat);
+      const compressible = !negotiable && COMPRESSIBLE_EXT.has(ext) &&
+        stat.size >= MIN_COMPRESS_BYTES && stat.size <= MAX_COMPRESS_BYTES;
+      if (compressible) extra['Vary'] = 'Accept-Encoding';
+      if (extra['ETag'] && etagMatches(req.headers['if-none-match'], extra['ETag'])) {
+        res.writeHead(304, Object.assign({ 'Cache-Control': cacheControl }, extra));
+        res.end();
+        return;
+      }
+      if (compressible) {
+        const enc = pickEncoding(req.headers['accept-encoding']);
+        compressStatic(filePath, staticEtag(stat)).then((variants) => {
+          if (enc && variants[enc.name]) deliver(variants[enc.name], enc.name, extra);
+          else deliver(variants.identity, null, extra);
+        }, () => { res.writeHead(404); res.end('Not Found'); });
+        return;
+      }
+      fs.readFile(filePath, (err, data) => {
+        if (err) { res.writeHead(404); res.end('Not Found'); return; }
+        deliver(data, null, extra);
+      });
     });
   }
 });
@@ -614,4 +694,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { pickEncoding, HASHED_BUNDLE, server };
+module.exports = { pickEncoding, HASHED_BUNDLE, etagMatches, server };

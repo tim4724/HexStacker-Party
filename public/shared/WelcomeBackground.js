@@ -118,6 +118,7 @@ class WelcomeBackground {
     this.w = 0;
     this.h = 0;
     this.rafId = null;
+    this._fullRedraw = true;
     this.running = false;
     this.occluded = false;
     this.lastTime = null;
@@ -159,6 +160,7 @@ class WelcomeBackground {
     this._prevW = w;
     this._prevH = h;
     this._prevDpr = dpr;
+    this._fullRedraw = true;
     if (this.gradient) {
       this._bakeGradient();
       // Blit synchronously so the main canvas is valid before the first RAF
@@ -178,6 +180,7 @@ class WelcomeBackground {
     this.running = true;
     if (this.rafId || this.occluded) return;
     this.lastTime = null;
+    this._fullRedraw = true;
     this.rafId = requestAnimationFrame(this._loop);
   }
 
@@ -405,20 +408,12 @@ class WelcomeBackground {
     const dt = Math.min((timestamp - this.lastTime) / 1000, 0.05);
     this.lastTime = timestamp;
 
-    const ctx = this.ctx;
-    if (this.gradientBitmap) {
-      // Nearest-neighbor blit — any bilinear filtering smears the 1px Bayer
-      // pattern back into visible bands.
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(this.gradientBitmap, 0, 0, this.w, this.h);
-      ctx.imageSmoothingEnabled = true;
-    } else {
-      ctx.clearRect(0, 0, this.w, this.h);
-    }
-
     const maxY = this.h + 200;
     const ptr = this.pointer;
     const reach = this.w * WelcomeBackground.NUDGE_REACH;
+    // Device-pixel rects to repaint: each live piece's last drawn box unioned
+    // with its new one, plus the last box of any piece leaving the pool.
+    const dirty = [];
 
     for (let i = 0; i < this.pool.length; i++) {
       const p = this.pool[i];
@@ -433,6 +428,7 @@ class WelcomeBackground {
 
       // Recycle off-screen shapes
       if (p.y > maxY) {
+        if (p.box) dirty.push(p.box);
         if (p.extra) {
           this.pool.splice(i--, 1);
           this.extras--;
@@ -442,11 +438,91 @@ class WelcomeBackground {
         continue;
       }
 
+      const box = this._pieceBox(p);
+      dirty.push(p.box ? [Math.min(box[0], p.box[0]), Math.min(box[1], p.box[1]),
+        Math.max(box[2], p.box[2]), Math.max(box[3], p.box[3])] : box);
+      p.box = box;
+    }
+
+    this._paint(this._fullRedraw ? null : dirty);
+    this._fullRedraw = false;
+  };
+
+  // Repaint the backdrop and every piece, limited to `rects` (device-pixel
+  // [x0, y0, x1, y1]) or the whole canvas when null. Pieces drift well under
+  // a pixel per frame and cover a few percent of the viewport, so repainting
+  // only their boxes skips almost all of the full-canvas clear/blit that
+  // dominated each frame's cost. The clip makes a partial repaint
+  // pixel-identical to a full one: inside it the backdrop and every
+  // overlapping piece are redrawn in order, outside it nothing changed.
+  _paint(rects) {
+    const ctx = this.ctx;
+    const cw = this.canvas.width, ch = this.canvas.height;
+    const bmp = this.gradientBitmap;
+    ctx.save();
+    // Backdrop and clip in device pixels: the clip keeps its device-space
+    // shape when the CSS-pixel transform is restored for the pieces.
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    // Nearest-neighbor blit — any bilinear filtering smears the 1px Bayer
+    // pattern back into visible bands.
+    ctx.imageSmoothingEnabled = false;
+    if (rects) {
+      ctx.beginPath();
+      for (let i = 0; i < rects.length; i++) {
+        const x0 = Math.max(0, rects[i][0]), y0 = Math.max(0, rects[i][1]);
+        const x1 = Math.min(cw, rects[i][2]), y1 = Math.min(ch, rects[i][3]);
+        if (x1 <= x0 || y1 <= y0) continue;
+        ctx.rect(x0, y0, x1 - x0, y1 - y0);
+        if (bmp) ctx.drawImage(bmp, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+        else ctx.clearRect(x0, y0, x1 - x0, y1 - y0);
+      }
+      ctx.clip();
+    } else if (bmp) {
+      ctx.drawImage(bmp, 0, 0, cw, ch);
+    } else {
+      ctx.clearRect(0, 0, cw, ch);
+    }
+    ctx.imageSmoothingEnabled = true;
+    ctx.setTransform(this._prevDpr, 0, 0, this._prevDpr, 0, 0);
+    for (let i = 0; i < this.pool.length; i++) {
+      const p = this.pool[i];
+      if (!p.box) continue; // recycled this frame: first drawn next frame
       ctx.globalAlpha = p.opacity;
       this._drawPiece(ctx, p);
-      ctx.globalAlpha = 1;
     }
-  };
+    ctx.restore();
+  }
+
+  // Device-pixel bounds of everything _drawPiece paints for `p`, padded by a
+  // pixel for antialiasing and snapped outward so a clip on it never splits a
+  // pixel. The cell offsets and half-extents are fixed per piece, so they're
+  // computed once.
+  _pieceBox(p) {
+    if (!p.ext) {
+      const size = p.blockSize;
+      const sCell = size * 0.94;
+      let hw = sCell, hh = sCell;
+      if (typeof getHexStamp === 'function') {
+        const stamp = getHexStamp(STYLE_TIERS.PILLOW, p.color, _SQRT3 * sCell);
+        hw = stamp.cssW / 2;
+        hh = stamp.cssH / 2;
+      }
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (let i = 0; i < p.cells.length; i++) {
+        const q = p.cells[i][0], r = p.cells[i][1];
+        const cx = size * 1.5 * q;
+        const cy = size * _SQRT3 * (r + q / 2);
+        x0 = Math.min(x0, cx - hw); x1 = Math.max(x1, cx + hw);
+        y0 = Math.min(y0, cy - hh); y1 = Math.max(y1, cy + hh);
+      }
+      p.ext = [x0 - 1, y0 - 1, x1 + 1, y1 + 1];
+    }
+    const dpr = this._prevDpr;
+    return [
+      Math.floor((p.x + p.ext[0]) * dpr), Math.floor((p.y + p.ext[1]) * dpr),
+      Math.ceil((p.x + p.ext[2]) * dpr), Math.ceil((p.y + p.ext[3]) * dpr),
+    ];
+  }
 
   _drawPiece(ctx, p) {
     const size = p.blockSize;
