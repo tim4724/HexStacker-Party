@@ -165,6 +165,7 @@ function openTrailer() {
   if (!trailerModal.classList.contains('hidden')) return;
   trailerModal.classList.remove('hidden');
   trailerModal.removeAttribute('inert');
+  if (!trailerVideo.poster && trailerVideo.dataset.poster) trailerVideo.poster = trailerVideo.dataset.poster;
   // play() may reject if the browser blocks autoplay without user gesture;
   // the click itself counts as a gesture so this normally succeeds.
   var p = trailerVideo.play();
@@ -416,6 +417,18 @@ if (bgCanvas && (urlParams.get('test') !== '1' || urlParams.get('bg') === '1')) 
   });
   welcomeBg.resize(window.innerWidth, window.innerHeight);
   welcomeBg.start();
+
+  // On phones the opaque device-choice overlay (z-index 100) is the first
+  // screen and covers the canvas entirely, yet the drift kept repainting the
+  // full viewport every frame behind it (~25% of the main thread). Its
+  // visibility comes from a media query plus two root classes, so watch the
+  // box itself: display:none reports a zero-size rect.
+  if (deviceChoice && typeof ResizeObserver === 'function') {
+    new ResizeObserver(function(entries) {
+      var r = entries[entries.length - 1].contentRect;
+      welcomeBg.setOccluded(r.width > 0 && r.height > 0);
+    }).observe(deviceChoice);
+  }
 
   // Mouse-only toy on welcome and lobby: pieces near the cursor drift aside
   // and a click on empty space drops a new one. Touch and TV remotes never

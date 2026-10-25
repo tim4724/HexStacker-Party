@@ -118,6 +118,8 @@ class WelcomeBackground {
     this.w = 0;
     this.h = 0;
     this.rafId = null;
+    this.running = false;
+    this.occluded = false;
     this.lastTime = null;
     this.pointer = null;
     this.extras = 0;
@@ -173,17 +175,25 @@ class WelcomeBackground {
   }
 
   start() {
-    if (this.rafId) return;
+    this.running = true;
+    if (this.rafId || this.occluded) return;
     this.lastTime = null;
     this.rafId = requestAnimationFrame(this._loop);
   }
 
   stop() {
-    if (this.rafId) {
-      cancelAnimationFrame(this.rafId);
-      this.rafId = null;
-    }
-    this.lastTime = null;
+    this.running = false;
+    this._halt();
+  }
+
+  // Something opaque covers the whole canvas (the display's device-choice
+  // overlay on phones): skip the per-frame full-viewport redraw nobody can
+  // see. start()/stop() calls made while occluded are remembered, so
+  // uncovering resumes only if the loop is still wanted.
+  setOccluded(occluded) {
+    this.occluded = !!occluded;
+    if (this.occluded) this._halt();
+    else if (this.running) this.start();
   }
 
   // Canvas coordinates of the pointer, or null to stop nudging.
@@ -237,6 +247,14 @@ class WelcomeBackground {
   }
 
   // --- Internals ---
+
+  _halt() {
+    if (this.rafId) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+    this.lastTime = null;
+  }
 
   _initPool() {
     // Distribute pieces across a grid with jitter for blue-noise-like spacing.

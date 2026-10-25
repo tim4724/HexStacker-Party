@@ -53,7 +53,10 @@
       </div>
       <div class="device-choice__hero">
         <picture>
-          <source type="image/webp" srcset="/artwork/gameplay-2x1.webp">
+          <!-- The hero never renders wider than 440px (device-choice.css), so
+               phones take the 1280w file; the 2560w one stays for the trailer
+               poster and any rare >2.9x-DPR case. -->
+          <source type="image/webp" srcset="/artwork/gameplay-2x1-1280.webp 1280w, /artwork/gameplay-2x1.webp 2560w" sizes="min(100vw, 440px)">
           <img src="/artwork/gameplay-2x1.jpg" alt="" class="device-choice__screenshot" width="2560" height="1280">
         </picture>
         <ul class="device-choice__chips">
@@ -119,7 +122,10 @@
   </div>
 
   <!-- Trailer modal: click-to-play, no preload. Sibling of #welcome-screen so
-       it sits above the falling-piece background and welcome content. -->
+       it sits above the falling-piece background and welcome content. The
+       poster is data-poster, applied by openTrailer(): a `poster` attribute
+       is fetched at parse time even with the modal hidden, which cost every
+       visitor (phones included) the 129KB 2560w hero. -->
   <!-- role="dialog" without aria-modal — see comment on #device-choice for
        the rationale. No focus trap implemented, and aria-modal without a
        trap creates inconsistent SR vs. keyboard behaviour. `inert` on the
@@ -129,7 +135,7 @@
     <button id="trailer-close-btn" class="trailer-modal__close" type="button" data-i18n-aria-label="close" aria-label="Close">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
-    <video id="trailer-video" class="trailer-modal__video" playsinline controls preload="none" poster="/artwork/gameplay-2x1.webp">
+    <video id="trailer-video" class="trailer-modal__video" playsinline controls preload="none" data-poster="/artwork/gameplay-2x1.webp">
       <source src="/artwork/trailer.mp4" type="video/mp4">
     </video>
   </div>
