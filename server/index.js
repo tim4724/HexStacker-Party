@@ -187,8 +187,9 @@ const MAX_COMPRESS_BYTES = 1024 * 1024;
 const compressedStatic = new Map(); // filePath -> { etag, variants: Promise }
 
 // Weak validator from size + mtime: no read or hash needed to answer a
-// revalidation. The image's files share one mtime per build, so every replica
-// agrees, and a deploy that touches a file changes it.
+// revalidation. Docker COPY keeps the build checkout's mtimes, so every
+// replica of one image agrees; a new image re-stamps them, which costs one
+// full re-download per deploy, never a stale 304.
 function staticEtag(stat) {
   return 'W/"' + stat.size.toString(36) + '-' + Math.floor(stat.mtimeMs).toString(36) + '"';
 }
