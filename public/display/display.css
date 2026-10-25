@@ -1092,6 +1092,8 @@ body.airconsole #qr-container,
    the welcome screen (lobby/game/results). Resizing during active play
    must not resurface the overlay on top of the board — the user has
    already committed to this device. */
+/* display/index.html repeats this query on the hero <picture> sources and its
+   preload so the screenshot only downloads where the overlay can show. */
 @media (max-width: 950px), (max-height: 500px) {
   html:not(.device-choice-dismissed):not(.in-session) #device-choice { display: flex; }
 }

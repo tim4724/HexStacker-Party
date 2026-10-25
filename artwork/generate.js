@@ -413,11 +413,13 @@ async function generate() {
     try {
       execFileSync('cwebp', ['-q', '82', '-m', '6', '-quiet', srcPng, '-o', webpPath]);
       console.log(`  ${webpPath} (${(fs.statSync(webpPath).size / 1024).toFixed(0)}KB, src ${srcKB}KB png)`);
-      // Half-width srcset variant: the hero renders at most 440 CSS px wide,
-      // so phones (DPR <= ~2.9) never need the 2560w file.
-      const halfPath = path.resolve(publicDir, `${base}-1280.webp`);
-      execFileSync('cwebp', ['-q', '82', '-m', '6', '-quiet', '-resize', '1280', '0', srcPng, '-o', halfPath]);
-      console.log(`  ${halfPath} (${(fs.statSync(halfPath).size / 1024).toFixed(0)}KB)`);
+      // Smaller srcset variants: the hero renders at most 440 CSS px wide, so
+      // phones pick one of these by pixel density and never need the 2560w.
+      for (const w of [640, 960, 1280]) {
+        const outPath = path.resolve(publicDir, `${base}-${w}.webp`);
+        execFileSync('cwebp', ['-q', '82', '-m', '6', '-quiet', '-resize', String(w), '0', srcPng, '-o', outPath]);
+        console.log(`  ${outPath} (${(fs.statSync(outPath).size / 1024).toFixed(0)}KB)`);
+      }
     } catch (err) {
       console.warn(`  cwebp failed for ${base} — ${err.message}. Install libwebp.`);
     }

@@ -10,7 +10,7 @@ const { test, expect } = require('@playwright/test');
  * up pixel-identical after nudging, a click-spawned extra and recycling.
  *
  * Also pins the phone landing page: the opaque device-choice overlay covers
- * the canvas, so the loop must not run under it.
+ * the canvas, so neither the loop nor the gradient bake may run under it.
  */
 
 // Runs in the page: steps both copies 600 frames and returns the diff.
@@ -84,19 +84,22 @@ test.describe('Welcome background', () => {
       expect(r.diff).toBe(0);
     });
 
-    test('display: the loop pauses under the device-choice overlay and resumes on continue', async ({ page }) => {
+    test('display: the loop and gradient bake wait under the device-choice overlay', async ({ page }) => {
       await page.goto('/');
       await expect(page.locator('#device-choice')).toBeVisible();
-      const state = () => page.evaluate(() => ({ running: welcomeBg.running, ticking: !!welcomeBg.rafId }));
-      await expect.poll(state).toEqual({ running: true, ticking: false });
+      const state = () => page.evaluate(() => ({
+        running: welcomeBg.running, ticking: !!welcomeBg.rafId, baked: !!welcomeBg.gradientBitmap,
+      }));
+      // Covered from the start: neither the frames nor the gradient bake run.
+      await expect.poll(state).toEqual({ running: true, ticking: false, baked: false });
 
       await page.locator('#device-choice-continue').click();
       await expect(page.locator('#device-choice')).toBeHidden();
-      await expect.poll(state).toEqual({ running: true, ticking: true });
+      await expect.poll(state).toEqual({ running: true, ticking: true, baked: true });
 
       await page.goBack();
       await expect(page.locator('#device-choice')).toBeVisible();
-      await expect.poll(state).toEqual({ running: true, ticking: false });
+      await expect.poll(state).toEqual({ running: true, ticking: false, baked: true });
     });
   });
 });

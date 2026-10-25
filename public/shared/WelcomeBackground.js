@@ -162,17 +162,11 @@ class WelcomeBackground {
     this._prevDpr = dpr;
     this._fullRedraw = true;
     if (this.gradient) {
-      this._bakeGradient();
-      // Blit synchronously so the main canvas is valid before the first RAF
-      // — otherwise the alpha:false opaque-black default paints over the
-      // body's bg for ~16ms after each resize (visible flash in the gallery
-      // where iframes load the page fresh). Guard for the zero-size case
-      // where _bakeGradient bails out without setting gradientBitmap.
-      if (this.gradientBitmap) {
-        this.ctx.imageSmoothingEnabled = false;
-        this.ctx.drawImage(this.gradientBitmap, 0, 0, this.w, this.h);
-        this.ctx.imageSmoothingEnabled = true;
-      }
+      this._gradientStale = true;
+      // Covered, the bake (a per-pixel pass over the whole backing store,
+      // the bulk of the phone landing page's startup script) waits until
+      // the canvas can be seen; setOccluded(false) runs it.
+      if (!this.occluded) this._ensureGradient();
     }
   }
 
@@ -195,8 +189,9 @@ class WelcomeBackground {
   // uncovering resumes only if the loop is still wanted.
   setOccluded(occluded) {
     this.occluded = !!occluded;
-    if (this.occluded) this._halt();
-    else if (this.running) this.start();
+    if (this.occluded) { this._halt(); return; }
+    this._ensureGradient();
+    if (this.running) this.start();
   }
 
   // Canvas coordinates of the pointer, or null to stop nudging.
@@ -225,6 +220,7 @@ class WelcomeBackground {
   // keeps the live loop.
   renderStatic(placements) {
     this.stop();
+    this._ensureGradient();
     const ctx = this.ctx;
     if (this.gradientBitmap) {
       ctx.imageSmoothingEnabled = false;
@@ -250,6 +246,22 @@ class WelcomeBackground {
   }
 
   // --- Internals ---
+
+  // Bake the gradient if a resize left it stale, and blit it synchronously so
+  // the main canvas is valid before the first RAF — otherwise the alpha:false
+  // opaque-black default paints over the body's bg for ~16ms (visible flash in
+  // the gallery where iframes load the page fresh). Guard for the zero-size
+  // case where _bakeGradient bails out without setting gradientBitmap.
+  _ensureGradient() {
+    if (!this._gradientStale) return;
+    this._gradientStale = false;
+    this._bakeGradient();
+    if (this.gradientBitmap) {
+      this.ctx.imageSmoothingEnabled = false;
+      this.ctx.drawImage(this.gradientBitmap, 0, 0, this.w, this.h);
+      this.ctx.imageSmoothingEnabled = true;
+    }
+  }
 
   _halt() {
     if (this.rafId) {

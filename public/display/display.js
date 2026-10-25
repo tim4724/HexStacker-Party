@@ -415,14 +415,19 @@ if (bgCanvas && (urlParams.get('test') !== '1' || urlParams.get('bg') === '1')) 
     alpha: adclipMode ? 0 : 0.06,
     stopEnd: 0.55,
   });
-  welcomeBg.resize(window.innerWidth, window.innerHeight);
-  welcomeBg.start();
-
   // On phones the opaque device-choice overlay (z-index 100) is the first
   // screen and covers the canvas entirely, yet the drift kept repainting the
   // full viewport every frame behind it (~25% of the main thread). Its
   // visibility comes from a media query plus two root classes, so watch the
-  // box itself: display:none reports a zero-size rect.
+  // box itself: display:none reports a zero-size rect. The first answer is
+  // read up front (a style lookup, no layout) so the gradient bake in
+  // resize() is skipped too, not just the frames after it.
+  if (deviceChoice && typeof ResizeObserver === 'function') {
+    welcomeBg.setOccluded(getComputedStyle(deviceChoice).display !== 'none');
+  }
+  welcomeBg.resize(window.innerWidth, window.innerHeight);
+  welcomeBg.start();
+
   if (deviceChoice && typeof ResizeObserver === 'function') {
     new ResizeObserver(function(entries) {
       var r = entries[entries.length - 1].contentRect;

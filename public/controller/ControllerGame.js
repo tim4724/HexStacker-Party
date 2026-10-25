@@ -400,6 +400,7 @@ function openColorPicker() {
   // the cells with the current alternatives. Synchronous canvas paints
   // complete before the fade-in transition's first frame.
   colorPickerOverlay.classList.remove('hidden');
+  colorPickerOverlay.removeAttribute('inert');
   renderColorPicker();
   if (colorBtn) colorBtn.setAttribute('aria-expanded', 'true');
   // Move focus to the centre cell so keyboard users land somewhere
@@ -416,6 +417,10 @@ function closeColorPicker() {
   if (!colorPickerOverlay) return;
   if (colorPickerOverlay.classList.contains('hidden')) return;
   colorPickerOverlay.classList.add('hidden');
+  // Closed, the overlay only fades to opacity 0 (it stays laid out so the
+  // fade can run), which would leave its unlabeled cells in the tab order
+  // and the accessibility tree. inert takes them out, like the trailer modal.
+  colorPickerOverlay.setAttribute('inert', '');
   if (colorBtn) colorBtn.setAttribute('aria-expanded', 'false');
   // Drop any pending pick — if the user closes manually before the
   // display has confirmed, treat the request as abandoned. The display

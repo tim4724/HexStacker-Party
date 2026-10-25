@@ -560,7 +560,11 @@ function initScenario(opts) {
   if (bailScenarios[scenario]) {
     var key = bailScenarios[scenario];
     var deviceChoiceEl = document.getElementById('device-choice');
-    if (deviceChoiceEl) deviceChoiceEl.classList.remove('hidden');
+    if (deviceChoiceEl) {
+      deviceChoiceEl.classList.remove('hidden');
+      // The hero sources are gated on the same media query; lift it too.
+      deviceChoiceEl.querySelectorAll('picture source').forEach(function(src) { src.removeAttribute('media'); });
+    }
     showScreen(SCREEN.WELCOME);
     showBailToast(key);
     window.__TEST__.replay = function() { showBailToast(key); };

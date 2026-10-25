@@ -25,6 +25,11 @@
        trigger it. -->
   <link rel="preload" href="/shared/fonts/Orbitron.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/shared/fonts/Baloo2-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <!-- Phones open on the device-choice overlay, whose hero screenshot is the
+       LCP element: start it with the HTML instead of after the CSS. Same
+       media / srcset / sizes as the <picture> sources, so the preload is
+       reused and desktop (overlay hidden) never fetches it. -->
+  <link rel="preload" as="image" type="image/webp" fetchpriority="high" media="(max-width: 950px), (max-height: 500px)" imagesrcset="/artwork/gameplay-2x1-640.webp 640w, /artwork/gameplay-2x1-960.webp 960w, /artwork/gameplay-2x1-1280.webp 1280w, /artwork/gameplay-2x1.webp 2560w" imagesizes="min(100vw, 440px)">
   <link rel="stylesheet" href="/shared/fonts/orbitron.css?v=__APP_V__">
   <link rel="stylesheet" href="/shared/fonts/baloo2.css?v=__APP_V__">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -49,15 +54,19 @@
   <div class="device-choice hidden" id="device-choice" role="dialog" aria-labelledby="device-choice-title">
     <div class="device-choice__intro">
       <div class="device-choice__brand">
-        <h1 id="device-choice-title" class="brand-lockup"><img class="brand-lockup__mark" src="/shared/brand-mark.svg" alt=""><span class="brand-lockup__text">HEX STACKER<span class="brand-lockup__sub">party</span></span></h1>
+        <h1 id="device-choice-title" class="brand-lockup"><img class="brand-lockup__mark" src="/shared/brand-mark.svg" alt="" width="37" height="35"><span class="brand-lockup__text">HEX STACKER<span class="brand-lockup__sub">party</span></span></h1>
       </div>
       <div class="device-choice__hero">
         <picture>
           <!-- The hero never renders wider than 440px (device-choice.css), so
-               phones take the 1280w file; the 2560w one stays for the trailer
-               poster and any rare >2.9x-DPR case. -->
-          <source type="image/webp" srcset="/artwork/gameplay-2x1-1280.webp 1280w, /artwork/gameplay-2x1.webp 2560w" sizes="min(100vw, 440px)">
-          <img src="/artwork/gameplay-2x1.jpg" alt="" class="device-choice__screenshot" width="2560" height="1280">
+               phones pick 640-1280w by density; the 2560w file stays for the
+               trailer poster and any rare >2.9x-DPR case. Both sources carry
+               the overlay's own media query (display.css, mirrored by the
+               preload in <head>): outside it the overlay is display:none, the
+               blank fallback matches, and desktop downloads no hero at all. -->
+          <source media="(max-width: 950px), (max-height: 500px)" type="image/webp" srcset="/artwork/gameplay-2x1-640.webp 640w, /artwork/gameplay-2x1-960.webp 960w, /artwork/gameplay-2x1-1280.webp 1280w, /artwork/gameplay-2x1.webp 2560w" sizes="min(100vw, 440px)">
+          <source media="(max-width: 950px), (max-height: 500px)" srcset="/artwork/gameplay-2x1.jpg">
+          <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="" class="device-choice__screenshot" width="2560" height="1280" fetchpriority="high">
         </picture>
         <ul class="device-choice__chips">
           <li><strong data-i18n="chip_players">1&ndash;8</strong><span data-i18n="chip_players_sub">Players</span></li>
@@ -69,7 +78,7 @@
     </div>
     <div class="device-choice__cta">
       <p id="device-choice-toast" class="device-choice__toast hidden" role="status" aria-live="polite"></p>
-      <button id="device-choice-share" type="button" class="device-choice__banner" data-i18n-aria-label="share_aria" aria-label="Share hexstacker.com">
+      <button id="device-choice-share" type="button" class="device-choice__banner" aria-describedby="device-choice-share-desc">
         <span class="device-choice__banner-row">
           <span class="device-choice__banner-url"><span class="device-choice__banner-host">hexstacker</span><span class="device-choice__banner-tld">.com</span></span>
           <svg class="device-choice__banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -79,6 +88,10 @@
           </svg>
         </span>
         <span class="device-choice__banner-sub" data-i18n="banner_open_large">Open on a large screen</span>
+        <!-- The visible text is the accessible name (WCAG 2.5.3: a voice user
+             says what they see); the share action rides along as the
+             description. -->
+        <span id="device-choice-share-desc" hidden data-i18n="share_aria">Share hexstacker.com</span>
       </button>
       <button id="device-choice-continue" type="button" class="device-choice__continue" data-i18n="device_choice_continue">Continue on this device</button>
     </div>
@@ -96,7 +109,7 @@
   <!-- Welcome screen: unlocks audio via user gesture -->
   <div id="welcome-screen" class="screen">
     <span id="welcome-version-label"></span>
-    <h1 class="brand-lockup"><img class="brand-lockup__mark" src="/shared/brand-mark.svg" alt=""><span class="brand-lockup__text">HEX STACKER<span class="brand-lockup__sub">party</span></span></h1>
+    <h1 class="brand-lockup"><img class="brand-lockup__mark" src="/shared/brand-mark.svg" alt="" width="37" height="35"><span class="brand-lockup__text">HEX STACKER<span class="brand-lockup__sub">party</span></span></h1>
     <div id="welcome-actions">
       <button id="new-game-btn" class="btn btn-primary" data-i18n="start_new_game">START NEW GAME</button>
       <button id="watch-trailer-btn" type="button" class="watch-trailer-btn" data-i18n-aria-label="watch_trailer" aria-label="Watch trailer">
@@ -144,7 +157,7 @@
        lives as a corner badge here; the h1 is the pure wordmark so it
        centers exactly. -->
   <div id="lobby-screen" class="screen hidden">
-    <img class="brand-badge" src="/shared/brand-mark.svg" alt="">
+    <img class="brand-badge" src="/shared/brand-mark.svg" alt="" width="37" height="35">
     <span id="lobby-version-label"></span>
     <h1 class="brand-lockup"><span class="brand-lockup__text">HEX STACKER<span class="brand-lockup__sub">party</span></span></h1>
     <div id="lobby-body">
@@ -215,7 +228,7 @@
 
   <!-- Results overlay (shown on top of game screen) -->
   <div id="results-screen" class="screen hidden">
-    <img class="brand-badge" src="/shared/brand-mark.svg" alt="">
+    <img class="brand-badge" src="/shared/brand-mark.svg" alt="" width="37" height="35">
     <h1 class="brand-lockup"><span class="brand-lockup__text">HEX STACKER<span class="brand-lockup__sub">party</span></span></h1>
     <div id="results-list"></div>
     <div id="results-buttons">
