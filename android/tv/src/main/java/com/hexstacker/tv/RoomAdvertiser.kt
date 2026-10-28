@@ -20,9 +20,9 @@ import java.net.ServerSocket
  * controller-URL template it registers at create (RelayConfig.controllerUrlTemplate). There
  * is no version key either: `_paperballoon._tcp` plus a code some relay knows is the whole gate.
  *
- * The service instance name is the TV's own name ("Living Room"), which the launcher shows
- * verbatim so a player with two TVs can tell the rooms apart. It never leaves the LAN: the
- * relay is told the platform and nothing else. NsdManager needs a port to register, and the
+ * The service instance name is the TV's own name ("Living Room") plus [LABEL_SUFFIX]. The
+ * launcher drops the suffix and shows the name, so a player with two TVs can tell the rooms
+ * apart. It never leaves the LAN: the relay is told the platform and nothing else. NsdManager needs a port to register, and the
  * launcher never dials it, so a throwaway [ServerSocket] supplies one that nothing serves.
  *
  * Everything here is an accelerator, never the only route in. mDNS is blocked on
@@ -104,12 +104,20 @@ class RoomAdvertiser(private val context: Context) {
         advertisedRoom = null
     }
 
-    /** The TV's own name, as the owner set it; the model is the fallback on a box that has none. */
+    /**
+     * The TV's own name, as the owner set it (the model on a box that has none), plus
+     * [LABEL_SUFFIX]. DNS-SD caps the instance name at 63 UTF-8 bytes, so the name gives way,
+     * never the suffix.
+     */
     private fun deviceLabel(): String {
         val name = runCatching {
             Settings.Global.getString(context.contentResolver, Settings.Global.DEVICE_NAME)
         }.getOrNull()
-        return name?.trim()?.takeIf { it.isNotEmpty() } ?: Build.MODEL
+        var label = name?.trim()?.takeIf { it.isNotEmpty() } ?: Build.MODEL
+        while ((label + LABEL_SUFFIX).toByteArray().size > 63) {
+            label = label.substring(0, label.offsetByCodePoints(label.length, -1))
+        }
+        return label + LABEL_SUFFIX
     }
 
     private companion object {
@@ -120,5 +128,12 @@ class RoomAdvertiser(private val context: Context) {
 
         /** TXT key for the room code (§8). */
         const val CODE_KEY = "c"
+
+        /**
+         * §8: the launcher drops this before showing the name. The bare device name won't
+         * register on some Android TV builds, which refuse an instance name the device's own
+         * services already use, even under another service type.
+         */
+        const val LABEL_SUFFIX = " · Paper Balloon"
     }
 }

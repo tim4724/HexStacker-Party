@@ -47,3 +47,13 @@ test('the advertisement carries nothing but the room code', () => {
   assert.doesNotMatch(SWIFT, /NWTXTRecord\(\[[^\]]*(?:"u"|"pbv"|"pbp")/, 'tvOS TXT record grew a key beyond the code');
   assert.doesNotMatch(KOTLIN, /setAttribute\("(?:u|pbv|pbp)"/, 'Android TV TXT record grew a key beyond the code');
 });
+
+test('Android TV suffixes the instance name; tvOS leaves it to Bonjour', () => {
+  // §8: the launcher drops exactly this suffix. Without it, some Android TV builds
+  // refuse the registration outright, since the device's own services already use
+  // the bare device name. tvOS can't read its own name to suffix it, and doesn't
+  // need to.
+  assert.match(KOTLIN, /LABEL_SUFFIX = " · Paper Balloon"/, 'Android TV instance-name suffix drifted');
+  assert.match(KOTLIN, /return label \+ LABEL_SUFFIX/, 'Android TV no longer appends the suffix');
+  assert.doesNotMatch(SWIFT, /Paper Balloon"/, 'tvOS names the record itself now; §8 then asks for the suffix');
+});

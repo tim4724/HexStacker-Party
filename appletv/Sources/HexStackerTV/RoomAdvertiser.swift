@@ -24,7 +24,9 @@ private let advertiseLog = Logger(subsystem: "com.hexstacker.tv", category: "adv
 /// the device's own name ("Spielzimmer"). That name is what the launcher shows
 /// verbatim, so a player with two Apple TVs can tell the rooms apart.
 /// UIDevice.name cannot serve here: since tvOS 16 it is a synonym for the model
-/// and reads "Apple TV" on every box.
+/// and reads "Apple TV" on every box. That is also why this record goes without
+/// the ` · Paper Balloon` suffix the Android TV twin appends: §8 asks it only of a
+/// display that names the record itself.
 ///
 /// Everything about this is an accelerator, never the only route in. mDNS is
 /// blocked on AP-isolated and guest networks, and the local-network permission
