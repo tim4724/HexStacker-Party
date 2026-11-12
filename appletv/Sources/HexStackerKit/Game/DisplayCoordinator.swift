@@ -442,6 +442,8 @@ public final class DisplayCoordinator {
     /// Gallery scenarios and the HEXLOBBY/HEXDEMO harnesses need a deterministic,
     /// possibly non-contiguous roster that a real join sequence would never produce;
     /// real joins go through peerJoined / hello, where the allocation policy lives.
+    /// addPlayer returns no publish hint, so repaint the display's own lobby here:
+    /// the boards read their names and colours from it.
     func seedPlayer(peerIndex: Int, playerName: String, colorSlot: Int, startLevel: Int = 1) {
         roomDo("addPlayer", [peerIndex, [
             "playerName": playerName,
@@ -449,6 +451,7 @@ public final class DisplayCoordinator {
             "startLevel": startLevel,
             "helloSeen": true,
         ]])
+        refreshDisplayLobby()
     }
 
     /// Lowest free colour slot, for the fixture path above.
