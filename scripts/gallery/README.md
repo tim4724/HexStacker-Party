@@ -44,6 +44,7 @@ node scripts/gallery/collect-shots.mjs android
 bash scripts/gallery/capture-tvos.sh
 #    reuse an existing build with: HEX_SKIP_BUILD=1
 #    pick a sim with:              HEX_SIM=<udid>
+#    another app language with:    HEX_LANG=de  (-> shots/tvos-de/, for artwork/store/)
 
 # assemble the page
 node scripts/gallery/gen-gallery.mjs

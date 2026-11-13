@@ -1,0 +1,156 @@
+[
+  {
+    "app": "en",
+    "asc": "en-US",
+    "play": "en-US",
+    "captions": [
+      "Your phone is the controller",
+      "Scan the code and you're in",
+      "Clear lines, send garbage",
+      "Nobody stays safe for long",
+      "Up to 8 players on one screen",
+      "How high can you go?",
+      "Last one standing wins"
+    ]
+  },
+  {
+    "app": "de",
+    "asc": "de-DE",
+    "play": "de-DE",
+    "captions": [
+      "Dein Handy ist der Controller",
+      "Scann den Code und spiel mit",
+      "Abräumen und zurückschlagen",
+      "Niemand ist lange sicher",
+      "Bis zu 8 Spieler auf einem Bildschirm",
+      "Wie hoch kommst du?",
+      "Wer übrig bleibt, gewinnt"
+    ]
+  },
+  {
+    "app": "fr",
+    "asc": "fr-FR",
+    "play": "fr-FR",
+    "captions": [
+      "Ton téléphone est la manette",
+      "Scanne le code, c'est parti",
+      "Efface des lignes, envoie des pénalités",
+      "Personne n'est à l'abri longtemps",
+      "Jusqu'à 8 joueurs sur un seul écran",
+      "Jusqu'où iras-tu ?",
+      "Le dernier en lice gagne"
+    ]
+  },
+  {
+    "app": "es",
+    "asc": "es-ES",
+    "play": "es-ES",
+    "captions": [
+      "Tu móvil es el mando",
+      "Escanea el código y a jugar",
+      "Borra líneas, envía basura",
+      "Nadie está a salvo mucho tiempo",
+      "Hasta 8 jugadores en una sola pantalla",
+      "¿Hasta dónde llegarás?",
+      "Gana el último en pie"
+    ]
+  },
+  {
+    "app": "it",
+    "asc": "it",
+    "play": "it-IT",
+    "captions": [
+      "Il tuo telefono è il controller",
+      "Scansiona il codice e sei in partita",
+      "Elimina righe, manda spazzatura",
+      "Nessuno resta al sicuro a lungo",
+      "Fino a 8 giocatori su un solo schermo",
+      "Fin dove arriverai?",
+      "Vince l'ultimo in gioco"
+    ]
+  },
+  {
+    "app": "pt",
+    "asc": "pt-BR",
+    "play": "pt-BR",
+    "captions": [
+      "Seu celular é o controle",
+      "Escaneie o código e pronto",
+      "Limpe linhas, mande lixo",
+      "Ninguém fica seguro por muito tempo",
+      "Até 8 jogadores em uma só tela",
+      "Até onde você chega?",
+      "Vence quem sobrar"
+    ]
+  },
+  {
+    "app": "ja",
+    "asc": "ja",
+    "play": "ja-JP",
+    "captions": [
+      "スマホがコントローラー",
+      "コードをスキャンして参加",
+      "ラインを消して、おじゃまを送ろう",
+      "トップでも油断は禁物",
+      "最大8人がひとつの画面で",
+      "どこまで上がれる？",
+      "最後まで残った人の勝ち"
+    ]
+  },
+  {
+    "app": "ko",
+    "asc": "ko",
+    "play": "ko-KR",
+    "captions": [
+      "휴대폰이 컨트롤러야",
+      "코드를 스캔하면 바로 참가",
+      "줄을 지우고 방해 줄을 보내",
+      "1등도 안심할 수 없어",
+      "최대 8명이 한 화면에서",
+      "어디까지 올라갈 수 있어?",
+      "마지막까지 남는 사람이 승리"
+    ]
+  },
+  {
+    "app": "zh",
+    "asc": "zh-Hans",
+    "play": "zh-CN",
+    "captions": [
+      "手机就是手柄",
+      "扫码即可加入",
+      "消行，送出垃圾行",
+      "谁都别想一直安全",
+      "最多 8 人同屏",
+      "你能冲到几级？",
+      "坚持到最后就是赢家"
+    ]
+  },
+  {
+    "app": "ru",
+    "asc": "ru",
+    "play": "ru-RU",
+    "captions": [
+      "Твой телефон и есть контроллер",
+      "Сканируй код и играй",
+      "Убирай линии, отправляй мусор",
+      "Расслабиться не выйдет",
+      "До 8 игроков на одном экране",
+      "Как высоко поднимешься?",
+      "Побеждает последний выживший"
+    ]
+  },
+  {
+    "app": "tr",
+    "asc": "tr",
+    "play": "tr-TR",
+    "captions": [
+      "Telefonun kontrolcün olur",
+      "Kodu tara ve katıl",
+      "Satır temizle, çöp gönder",
+      "Kimse uzun süre güvende kalmaz",
+      "Tek ekranda 8 oyuncuya kadar",
+      "Ne kadar yükseğe çıkabilirsin?",
+      "Son ayakta kalan kazanır"
+    ]
+  }
+]

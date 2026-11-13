@@ -11,6 +11,8 @@
 #   HEX_DD         derivedData path (default: $TMPDIR/hexdd)
 #   HEX_SKIP_BUILD =1 to reuse an existing build
 #   HEX_WAIT       seconds to let a state settle before the shot (default 3.5)
+#   HEX_LANG       app language (default en); any other language lands in
+#                  shots/tvos-<lang>/, the input for artwork/store/screenshots.js
 set -euo pipefail
 
 DEV="${HEX_SIM:-BBB6AE86-6F9B-4D20-8966-3E9CDBF38632}"
@@ -18,7 +20,9 @@ BUNDLE="com.hexstacker.tv"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 APPLETV="$ROOT/appletv"
+APPLANG="${HEX_LANG:-en}"
 OUT="$HERE/shots/tvos"
+[ "$APPLANG" = en ] || OUT="$HERE/shots/tvos-$APPLANG"
 DD="${HEX_DD:-$TMPDIR/hexdd}"
 WAIT="${HEX_WAIT:-3.5}"
 mkdir -p "$OUT"
@@ -49,10 +53,12 @@ xcrun simctl install "$DEV" "$APP"
 for entry in "${SHOTS[@]}"; do
   IFS=: read -r out shot players <<< "$entry"
   xcrun simctl terminate "$DEV" "$BUNDLE" >/dev/null 2>&1 || true
-  # Pin the app to English so the column is comparable with the web reference
-  # (captured with lang=en) and with CI shots regardless of the host Mac's locale.
+  # Pin the app language (English unless HEX_LANG says otherwise) so the column
+  # is comparable with the web reference (captured with lang=en) and with CI
+  # shots regardless of the host Mac's locale.
+  LOCALE="$APPLANG"; [ "$APPLANG" = en ] && LOCALE=en_US
   SIMCTL_CHILD_HEXSHOT="$shot" SIMCTL_CHILD_HEXPLAYERS="$players" \
-    xcrun simctl launch "$DEV" "$BUNDLE" -AppleLanguages "(en)" -AppleLocale en_US >/dev/null
+    xcrun simctl launch "$DEV" "$BUNDLE" -AppleLanguages "($APPLANG)" -AppleLocale "$LOCALE" >/dev/null
   sleep "$WAIT"
   xcrun simctl io "$DEV" screenshot "$OUT/$out.png" >/dev/null
   echo "  captured $out"
