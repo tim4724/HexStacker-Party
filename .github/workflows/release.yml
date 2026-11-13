@@ -153,7 +153,9 @@ jobs:
       # gate has to come back. mapping.txt goes with it or every crash report
       # from an R8 build is unreadable.
       - name: Publish to Play (Android TV closed testing)
+        id: play
         if: github.ref_type == 'tag'
+        continue-on-error: true
         uses: r0adkll/upload-google-play@v1.1.5
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
@@ -162,6 +164,21 @@ jobs:
           mappingFile: android/tv/build/outputs/mapping/release/mapping.txt
           track: tv:Alpha
           status: completed
+
+      # While the app has an open rejection, Play refuses an edit that sends
+      # itself for review. The release still lands, held until someone presses
+      # "Send for review" in Play Console (same fallback as upload-play.js).
+      - name: Publish to Play, held for review in the console
+        if: steps.play.outcome == 'failure'
+        uses: r0adkll/upload-google-play@v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.couchgames.stacker
+          releaseFiles: android/tv/build/outputs/bundle/release/tv-release.aab
+          mappingFile: android/tv/build/outputs/mapping/release/mapping.txt
+          track: tv:Alpha
+          status: completed
+          changesNotSentForReview: true
 
   tvos:
     runs-on: macos-26
