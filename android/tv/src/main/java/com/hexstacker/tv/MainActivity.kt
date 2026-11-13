@@ -417,9 +417,8 @@ class MainActivity : ComponentActivity() {
      *   adb shell settings put global hexstacker_perf 1   # 0 (or delete) turns it off
      *
      * `Settings.Global` rather than a system property: an app can read it with no
-     * permission and no hidden API (RoomAdvertiser already reads DEVICE_NAME the same
-     * way), whereas reaching a `debug.*` prop means either the @hide SystemProperties
-     * class or shelling out to `getprop` — one is a platform-version gamble, the other
+     * permission and no hidden API, whereas reaching a `debug.*` prop means either the
+     * @hide SystemProperties class or shelling out to `getprop` — one is a platform-version gamble, the other
      * spawns a process from an app SELinux keeps on a short leash.
      *
      * Deliberately NOT the `hexHost` launch extra used above: that one is debuggable-only

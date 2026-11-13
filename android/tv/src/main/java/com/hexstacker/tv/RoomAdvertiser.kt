@@ -4,7 +4,6 @@ import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.os.Build
-import android.provider.Settings
 import android.util.Log
 import java.net.ServerSocket
 
@@ -20,10 +19,14 @@ import java.net.ServerSocket
  * controller-URL template it registers at create (RelayConfig.controllerUrlTemplate). There
  * is no version key either: `_paperballoon._tcp` plus a code some relay knows is the whole gate.
  *
- * The service instance name is the TV's own name ("Living Room") plus [LABEL_SUFFIX]. The
- * launcher drops the suffix and shows the name, so a player with two TVs can tell the rooms
- * apart. It never leaves the LAN: the relay is told the platform and nothing else. NsdManager needs a port to register, and the
- * launcher never dials it, so a throwaway [ServerSocket] supplies one that nothing serves.
+ * The service instance name is the hardware model ("Chromecast") plus [LABEL_SUFFIX]; the
+ * launcher drops the suffix and shows the model. NOT the owner-set device name: that is user
+ * data broadcast off the device, and Play's automated Data safety check flagged it as an
+ * undeclared email address (4.10.19, the first release where this registration succeeded on
+ * Android TV), presumably because test devices are named after their account. Two TVs of one
+ * model still differ by room code and NsdManager's clash rename. NsdManager needs a port to
+ * register, and the launcher never dials it, so a throwaway [ServerSocket] supplies one that
+ * nothing serves.
  *
  * Everything here is an accelerator, never the only route in. mDNS is blocked on
  * AP-isolated and guest networks, so failures are logged and swallowed and the on-screen QR
@@ -105,15 +108,11 @@ class RoomAdvertiser(private val context: Context) {
     }
 
     /**
-     * The TV's own name, as the owner set it (the model on a box that has none), plus
-     * [LABEL_SUFFIX]. DNS-SD caps the instance name at 63 UTF-8 bytes, so the name gives way,
-     * never the suffix.
+     * The hardware model plus [LABEL_SUFFIX]. DNS-SD caps the instance name at 63 UTF-8 bytes,
+     * so the model gives way, never the suffix.
      */
     private fun deviceLabel(): String {
-        val name = runCatching {
-            Settings.Global.getString(context.contentResolver, Settings.Global.DEVICE_NAME)
-        }.getOrNull()
-        var label = name?.trim()?.takeIf { it.isNotEmpty() } ?: Build.MODEL
+        var label = Build.MODEL
         while ((label + LABEL_SUFFIX).toByteArray().size > 63) {
             label = label.substring(0, label.offsetByCodePoints(label.length, -1))
         }
@@ -130,9 +129,9 @@ class RoomAdvertiser(private val context: Context) {
         const val CODE_KEY = "c"
 
         /**
-         * §8: the launcher drops this before showing the name. The bare device name won't
-         * register on some Android TV builds, which refuse an instance name the device's own
-         * services already use, even under another service type.
+         * §8: the launcher drops this before showing the name. A bare name won't register on
+         * some Android TV builds, which refuse an instance name the device's own services
+         * already use, even under another service type.
          */
         const val LABEL_SUFFIX = " · Paper Balloon"
     }
