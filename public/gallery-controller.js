@@ -17,6 +17,8 @@ var CONTROLLER_CARDS = [
   { key: 'bail-room-not-found', title: 'Bail · Room not found',    isDisplayPage: true, replayable: true },
   { key: 'bail-game-full',      title: 'Bail · Room full',         isDisplayPage: true, replayable: true },
   { key: 'bail-game-ended',     title: 'Bail · Game ended',        isDisplayPage: true, replayable: true },
+  { key: 'app-offer',        title: 'App offer · iPhone',  extra: { os: 'ios' } },
+  { key: 'app-offer',        title: 'App offer · Android', extra: { os: 'android' } },
   { key: 'name',             title: 'Name input' },
   { key: 'name-connecting',  title: 'Connecting…', perColor: true },
   { key: 'lobby-host',                title: 'Lobby (host)',           perColor: true },

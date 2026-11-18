@@ -56,6 +56,7 @@ const CONTROLLER_SCRIPTS = [
   // time) and precede controller.js (whose init reads skipNameScreen). The
   // AirConsole generator strips it from the AC entry.
   '/controller/controller-paperballoon.js',
+  '/controller/AppOffer.js',
   '/controller/controller.js',
   // Gallery/test harness, kept last (as it was a separate tag). Self-gated on
   // ?scenario= so it's inert for real players; folded in for one atomic bundle.
@@ -131,6 +132,8 @@ const AC_DEAD = [
   '/shared/qrcode-generator.js',
   // Paper Balloon shell bootstrap, self-gated on window.PaperBalloonHost, never set in AC.
   '/controller/controller-paperballoon.js',
+  // The browser app offer: AC sets skipNameScreen, so the offer never shows.
+  '/controller/AppOffer.js',
   // An AC display ships in the same ZIP as its controller, so it can never be
   // older than it: there is no version skew for the legacy shim to cover.
   '/controller/ControllerLegacyDisplay.js',

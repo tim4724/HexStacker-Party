@@ -162,6 +162,7 @@ describe('i18n', function () {
       'settings_sensitivity',
       'fullscreen', 'pause', 'copy_url', 'share_text',
       'level_minus', 'level_plus',
+      'app_offer_title', 'app_offer_open', 'app_offer_get', 'app_offer_browser',
     ];
 
     for (var locale of Object.keys(LOCALES)) {
