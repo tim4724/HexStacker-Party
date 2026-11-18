@@ -111,6 +111,7 @@
   // --- Dispatch by scenario ---
   switch (scenario) {
     case 'name':
+    case 'app-offer':
       // Gallery iframes share localStorage; if a prior scenario stored a
       // clientId_<roomCode>, controller.js init takes the "reconnect"
       // branch and leaves the JOIN button disabled with "CONNECTING…".
@@ -119,6 +120,8 @@
       nameInput.disabled = false;
       nameJoinBtn.disabled = false;
       nameJoinBtn.textContent = t('join');
+      // ?os=android|ios picks the platform's offer, whatever the browser.
+      if (scenario === 'app-offer') showAppOffer(params.get('os') === 'android' ? 'android' : 'ios');
       break;
 
     case 'name-connecting':

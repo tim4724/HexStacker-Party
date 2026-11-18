@@ -67,6 +67,26 @@ function handleMessage(data) {
 }
 
 // =====================================================================
+// App Offer
+// =====================================================================
+
+// A fresh join in a phone browser leads with the Paper Balloon app (see
+// AppOffer.js): the offer stands in for the name form until the player
+// picks the browser. currentScreen stays 'name', so the relay probe below
+// still bails from it on a dead or full room.
+function showAppOffer(os) {
+  nameScreen.dataset.os = os;
+  nameScreen.classList.add('name-screen--offer');
+  document.getElementById('app-offer-link').href = AppOffer.link(os, navigator.userAgent, location.href);
+}
+
+bindTap(document.getElementById('app-offer-browser-btn'), function () {
+  haptic('button');
+  nameScreen.classList.remove('name-screen--offer');
+  nameInput.focus();
+});
+
+// =====================================================================
 // Room Code & Client ID
 // =====================================================================
 
@@ -815,7 +835,9 @@ if (hadStoredId || rejoinToken || legacyRejoinId || skipNameScreen) {
 } else {
   nameInput.value = savedName;
   showScreen('name');
-  nameInput.focus();
+  var offerOs = !isScenario && AppOffer.platform(navigator.userAgent);
+  if (offerOs) showAppOffer(offerOs);
+  else nameInput.focus();
 }
 
 syncViewportLayout();

@@ -60,6 +60,22 @@
         <a href="https://paperballoon.games/imprint" target="_blank" rel="noopener" data-i18n="imprint">Imprint</a>
       </div>
     </div>
+    <!-- App offer: a sheet over the name screen while it has
+         .name-screen--offer (showAppOffer in controller.js); its data-os
+         picks the button's [data-os-only] label. -->
+    <div id="app-offer">
+      <div class="app-offer__app">
+        <img class="app-offer__icon" src="/shared/paperballoon-controller.png" alt="" width="76" height="76" loading="lazy">
+        <div>
+          <h2 class="app-offer__name">Paper Balloon Controller</h2>
+          <p class="app-offer__line"><span data-os-only="ios" data-i18n="app_offer_title">Plays best in the app</span><span data-os-only="android" data-i18n="app_offer_size">Only 2 MB</span></p>
+        </div>
+      </div>
+      <div class="app-offer__actions">
+        <a id="app-offer-link" class="btn btn-primary"><span data-os-only="ios" data-i18n="app_offer_open">Play in the app</span><span data-os-only="android" data-i18n="app_offer_get">Get the app</span></a>
+        <button id="app-offer-browser-btn" type="button" class="app-offer__browser" data-i18n="app_offer_browser">Play in the browser</button>
+      </div>
+    </div>
   </div>
 
   <!-- Lobby screen -->

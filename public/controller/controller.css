@@ -295,9 +295,152 @@ body.paperballoon .leave-btn__close { display: block; }
   border-color: var(--accent-secondary);
 }
 
+/* --- App offer (showAppOffer in controller.js) ---
+   While #name-screen has .name-screen--offer the name screen keeps only
+   its lockup and the app comes up as a sheet from the bottom edge;
+   #name-screen[data-os] picks the button's label. */
+#app-offer,
+.name-screen--offer #name-form,
+.name-screen--offer .controller-shell__actions--name,
+.name-screen--offer .legal-links,
+#name-screen:not([data-os="ios"]) [data-os-only="ios"],
+#name-screen:not([data-os="android"]) [data-os-only="android"] {
+  display: none;
+}
+
+/* The sheet runs edge to edge, so the screen's side and bottom insets
+   move into it and the lockup centres in what is left above. */
+#name-screen.name-screen--offer {
+  padding: max(var(--safe-top), 8px) 0 0;
+}
+
+.name-screen--offer .controller-shell__frame--name {
+  flex: 1 1 0;
+  height: auto;
+  padding-bottom: 0;
+}
+
+.name-screen--offer .controller-shell__body {
+  margin-top: 0;
+}
+
+.name-screen--offer #app-offer {
+  align-self: stretch;
+  display: grid;
+  gap: 20px;
+  --offer-pad: max(22px, calc((100% - 380px) / 2));
+  padding:
+    22px
+    max(var(--safe-right), var(--offer-pad))
+    calc(var(--safe-bottom) + 20px)
+    max(var(--safe-left), var(--offer-pad));
+  border-radius: 30px 30px 0 0;
+  background: var(--bg-card);
+  box-shadow: inset 0 1px 0 var(--border-strong), 0 -24px 48px -20px rgba(var(--bg-primary-rgb), 0.9);
+  animation: appOfferRise 0.42s cubic-bezier(0.3, 0.7, 0.2, 1) both;
+}
+
+@keyframes appOfferRise {
+  from { transform: translateY(100%); }
+}
+
+.app-offer__app {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.app-offer__icon {
+  flex: none;
+  width: 76px;
+  height: 76px;
+  border-radius: 23%;
+}
+
+.app-offer__name {
+  font-family: var(--font-brand);
+  /* One line down to a 360px phone. */
+  font-size: clamp(1.1rem, 5.3vw, 1.3rem);
+  font-weight: 800;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+.app-offer__line {
+  margin-top: 5px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-secondary);
+}
+
+.app-offer__actions {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+
+/* Outranks the unified button sizing below: the sheet's button spans it. */
+#app-offer #app-offer-link {
+  display: block;
+  max-width: none;
+  text-decoration: none;
+}
+
+/* Link-style fallback, as the display's "Continue on this device". */
+.app-offer__browser {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 10px 16px;
+  font-family: var(--font-brand);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-decoration-color: var(--text-faint);
+  text-underline-offset: 4px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--transition-fast);
+}
+
+.app-offer__browser:active,
+.app-offer__browser:focus-visible {
+  color: var(--accent-secondary);
+}
+
+/* Landscape phones: the app and its buttons share one row, which leaves
+   the lockup its room above. */
+@container (min-aspect-ratio: 5/4) and (max-height: 499px) {
+  .name-screen--offer #app-offer {
+    --offer-pad: max(22px, calc((100% - 680px) / 2));
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    padding-top: 14px;
+    padding-bottom: calc(var(--safe-bottom) + 6px);
+  }
+
+  .app-offer__icon {
+    width: 60px;
+    height: 60px;
+  }
+
+  #app-offer #app-offer-link {
+    padding-block: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .name-screen--offer #app-offer {
+    animation: none;
+  }
+}
+
 /* Unified sizing for every primary action button on the controller —
    one shell geometry so lobby/pause/reconnect/results all match.
    Per-button rules below handle colors, animations, and disabled state. */
+#app-offer-link,
 #name-join-btn,
 #start-btn,
 #pause-continue-btn,
