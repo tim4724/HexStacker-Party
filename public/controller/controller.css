@@ -358,19 +358,20 @@ body.paperballoon .leave-btn__close { display: block; }
 }
 
 .app-offer__name {
-  margin-bottom: 5px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  line-height: 1.2;
-  color: var(--text-secondary);
-}
-
-.app-offer__title {
   font-family: var(--font-brand);
-  font-size: 1.6rem;
+  /* One line down to a 360px phone. */
+  font-size: clamp(1.1rem, 5.3vw, 1.3rem);
   font-weight: 800;
   line-height: 1.1;
   text-wrap: balance;
+}
+
+.app-offer__line {
+  margin-top: 5px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-secondary);
 }
 
 .app-offer__actions {
@@ -423,10 +424,6 @@ body.paperballoon .leave-btn__close { display: block; }
   .app-offer__icon {
     width: 60px;
     height: 60px;
-  }
-
-  .app-offer__title {
-    font-size: 1.35rem;
   }
 
   #app-offer #app-offer-link {
