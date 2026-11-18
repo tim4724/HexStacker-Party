@@ -1,6 +1,6 @@
 {
   "name": "hexstacker-party",
-  "version": "4.10.23",
+  "version": "4.10.24",
   "description": "Browser-based multiplayer hex stacker with phone controllers",
   "main": "server/index.js",
   "scripts": {
