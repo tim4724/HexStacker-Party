@@ -9,14 +9,19 @@
 // Auto-reopen the fastlane after a watchdog teardown or any other
 // channel-closed event while the WS is still alive. Without this, a
 // transient WiFi blip that kills the fastlane silently leaves inputs on
-// the WS for the rest of the session. Backs off exponentially up to 30 s;
-// onPeerReady resets the delay so a clean reconnect doesn't carry stale
-// backoff into the next failure.
+// the WS for the rest of the session. Backs off exponentially up to 30 s.
+// The delay resets only once a channel has STAYED up for FASTLANE_STABLE_MS:
+// resetting on open let a channel that opens and is then killed by the
+// watchdog restart every cycle at 2 s, renegotiating at the floor forever.
+var FASTLANE_STABLE_MS = 10000;
 var _fastlaneRetryTimer = null;
 var _fastlaneRetryDelay = 0;
+var _fastlaneStableTimer = null;
 
 function scheduleFastlaneReopen() {
   if (gameCancelled) return;
+  clearTimeout(_fastlaneStableTimer);   // it died before it proved stable
+  _fastlaneStableTimer = null;
   if (_fastlaneRetryTimer) return;
   _fastlaneRetryDelay = _fastlaneRetryDelay ? Math.min(_fastlaneRetryDelay * 2, 30000) : 2000;
   _fastlaneRetryTimer = setTimeout(function () {
@@ -34,7 +39,21 @@ function cancelFastlaneReopen() {
     clearTimeout(_fastlaneRetryTimer);
     _fastlaneRetryTimer = null;
   }
+  clearTimeout(_fastlaneStableTimer);
+  _fastlaneStableTimer = null;
   _fastlaneRetryDelay = 0;
+}
+
+// The channel opened: stop any pending retry, but hold the delay until the
+// channel has proved itself.
+function noteFastlaneOpen() {
+  clearTimeout(_fastlaneRetryTimer);
+  _fastlaneRetryTimer = null;
+  clearTimeout(_fastlaneStableTimer);
+  _fastlaneStableTimer = setTimeout(function () {
+    _fastlaneStableTimer = null;
+    _fastlaneRetryDelay = 0;
+  }, FASTLANE_STABLE_MS);
 }
 
 // Send the user to the display root on any unrecoverable end state.
@@ -102,9 +121,8 @@ function connect() {
         lastFastlaneRttAt = Date.now();
         updateLatencyDisplay(Math.round(rttHalf));
       },
-      // Clean reconnect → reset backoff so the next failure starts fresh.
       onPeerReady: function (peerIdx) {
-        if (peerIdx === 0) cancelFastlaneReopen();
+        if (peerIdx === 0) noteFastlaneOpen();
       },
       // Watchdog teardown / connection failure → schedule a reopen with
       // exponential backoff. WS path takes over for inputs in the meantime.
