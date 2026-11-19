@@ -655,12 +655,19 @@ bindTap(pauseNewGameBtn, function () {
   sendToDisplay(MSG.RETURN_TO_LOBBY);
 });
 
-bindTap(reconnectRejoinBtn, function () {
-  haptic('button');
+// Dial a fresh connection from the reconnect overlay: the Reconnect button, and
+// the network coming back.
+function redial() {
+  clearTimeout(disconnectedTimer);   // a give-up landing late must not re-show the button
   reconnectHeading.textContent = t('reconnecting');
   reconnectStatus.textContent = t('connecting');
   reconnectRejoinBtn.classList.add('hidden');
   connect();
+}
+
+bindTap(reconnectRejoinBtn, function () {
+  haptic('button');
+  redial();
 });
 
 document.querySelectorAll('.leave-btn, #pause-leave-btn').forEach(function (btn) {
@@ -793,6 +800,15 @@ document.addEventListener('visibilitychange', function () {
   } else {
     connect();
   }
+});
+
+// The network came back (Wi-Fi rejoined, airplane mode off): redial a dropped
+// link now, rather than waiting out PartyConnection's backoff or, once it has
+// given up, for a tap on Reconnect. A dial already in flight is replaced: it
+// began on the old network. AirConsole's SDK owns its own link.
+window.addEventListener('online', function () {
+  if (window.airconsole || gameCancelled || !party || party.connected) return;
+  redial();
 });
 
 window.addEventListener('popstate', function (e) {

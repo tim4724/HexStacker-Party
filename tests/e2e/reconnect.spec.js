@@ -559,4 +559,38 @@ test.describe('Reconnection', () => {
       await freshContext.close();
     }
   });
+
+  test('controller whose link gave up redials the moment the network comes back', async ({ page, browser }) => {
+    // Once PartyConnection's budget is spent nothing redials on its own: the
+    // overlay sits on DISCONNECTED until a tap. The browser's `online` event is
+    // the one signal that the network is worth trying again.
+    const { roomCode } = await createRoom(page);
+    // Its own context, so going offline cannot touch the display's socket.
+    const phone = await browser.newContext();
+    try {
+      const controller = await joinController(phone, roomCode, 'Alice');
+      await waitForDisplayPlayers(page, 1);
+      await controller.click('#start-btn');
+      await waitForDisplayGame(page);
+      await controller.waitForSelector('#game-screen:not(.hidden)');
+      const seat = await controller.evaluate(() => peerIndex);
+
+      // The relay goes unreachable from this phone: every new dial is refused.
+      let relayUp = false;
+      await controller.routeWebSocket(/ws\.hexstacker\.com/, (ws) => {
+        if (relayUp) ws.connectToServer(); else ws.close();
+      });
+      // A one-dial budget reaches the give-up in a second instead of the full ladder.
+      await controller.evaluate(() => { party.maxReconnectAttempts = 1; party.ws.close(); });
+      await expect(controller.locator('#reconnect-rejoin-btn')).toBeVisible({ timeout: 10000 });
+
+      relayUp = true;
+      await phone.setOffline(true);
+      await phone.setOffline(false);   // the browser fires `online`
+      await expect(controller.locator('#reconnect-overlay')).toBeHidden({ timeout: 10000 });
+      expect(await controller.evaluate(() => peerIndex)).toBe(seat);
+    } finally {
+      await phone.close();
+    }
+  });
 });
