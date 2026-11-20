@@ -31,6 +31,9 @@ jobs:
   deploy:
     runs-on: [self-hosted, k8s]
     needs: build
+    # Renovate's branches build (their PR's check) but never deploy: their
+    # runs get the repo secrets.
+    if: ${{ !startsWith(github.ref_name, 'renovate/') }}
     environment: preview
     timeout-minutes: 15
     permissions:

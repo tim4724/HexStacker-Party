@@ -233,6 +233,8 @@ jobs:
   deploy:
     runs-on: [self-hosted, k8s]
     needs: assemble
+    # Renovate's branches get the repo secrets and no preview (preview.yml).
+    if: ${{ !startsWith(github.ref_name, 'renovate/') }}
     environment: preview
     timeout-minutes: 10
     permissions:
