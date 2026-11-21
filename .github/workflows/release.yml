@@ -162,7 +162,7 @@ jobs:
           packageName: com.couchgames.stacker
           releaseFiles: android/tv/build/outputs/bundle/release/tv-release.aab
           mappingFile: android/tv/build/outputs/mapping/release/mapping.txt
-          track: tv:Alpha
+          tracks: tv:Alpha
           status: completed
 
       # While the app has an open rejection, Play refuses an edit that sends
@@ -176,7 +176,7 @@ jobs:
           packageName: com.couchgames.stacker
           releaseFiles: android/tv/build/outputs/bundle/release/tv-release.aab
           mappingFile: android/tv/build/outputs/mapping/release/mapping.txt
-          track: tv:Alpha
+          tracks: tv:Alpha
           status: completed
           changesNotSentForReview: true
 
