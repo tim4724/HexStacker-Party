@@ -18,15 +18,14 @@ async function openPhone(browser, baseURL, roomCode, userAgent) {
 }
 
 test.describe('App offer', () => {
-  test('an iPhone is offered the App Clip, then joins in the browser', async ({ page, browser }, testInfo) => {
+  test('an iPhone is offered the App Store, then joins in the browser', async ({ page, browser }, testInfo) => {
     const { roomCode } = await createRoom(page);
     const { context, phone } = await openPhone(browser, testInfo.project.use.baseURL, roomCode, IPHONE);
 
     await expect(phone.locator('#app-offer')).toBeVisible();
     await expect(phone.locator('#name-input')).toBeHidden();
     const link = new URL(await phone.locator('#app-offer-link').getAttribute('href') || '');
-    expect(link.host).toBe('appclip.apple.com');
-    expect(link.searchParams.get('url')).toBe(phone.url());
+    expect(link.host).toBe('apps.apple.com');
 
     await phone.tap('#app-offer-browser-btn');
     await expect(phone.locator('#app-offer')).toBeHidden();

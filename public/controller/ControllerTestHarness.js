@@ -120,8 +120,8 @@
       nameInput.disabled = false;
       nameJoinBtn.disabled = false;
       nameJoinBtn.textContent = t('join');
-      // ?os=android|ios picks the platform's offer, whatever the browser.
-      if (scenario === 'app-offer') showAppOffer(params.get('os') === 'android' ? 'android' : 'ios');
+      // The sheet looks the same on both platforms; only its link differs.
+      if (scenario === 'app-offer') showAppOffer('ios');
       break;
 
     case 'name-connecting':

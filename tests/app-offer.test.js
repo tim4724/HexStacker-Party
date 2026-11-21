@@ -1,7 +1,8 @@
 'use strict';
 
 // The links behind the controller's app offer (public/controller/AppOffer.js).
-// Each must hand the launcher the join URL intact: it joins whatever arrives.
+// Each Android link must hand the launcher the join URL intact: it joins
+// whatever arrives.
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -29,11 +30,8 @@ test('only iPhones and Android phones get an offer', () => {
   assert.equal(AppOffer.platform(UA.desktop), null);
 });
 
-test('iPhone: the default App Clip link carries the join URL in `url`', () => {
-  const link = new URL(AppOffer.link('ios', UA.iphone, JOIN));
-  assert.equal(link.origin + link.pathname, 'https://appclip.apple.com/id');
-  assert.equal(link.searchParams.get('p'), 'games.paperballoon.controller.Clip');
-  assert.equal(link.searchParams.get('url'), JOIN);
+test('iPhone: the App Store page', () => {
+  assert.equal(AppOffer.link('ios', UA.iphone, JOIN), 'https://apps.apple.com/app/id6825072879');
 });
 
 test('Chromium on Android: an intent link that falls back to the Play referrer link', () => {

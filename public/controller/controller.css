@@ -297,14 +297,11 @@ body.paperballoon .leave-btn__close { display: block; }
 
 /* --- App offer (showAppOffer in controller.js) ---
    While #name-screen has .name-screen--offer the name screen keeps only
-   its lockup and the app comes up as a sheet from the bottom edge;
-   #name-screen[data-os] picks the button's label. */
+   its lockup and the app comes up as a sheet from the bottom edge. */
 #app-offer,
 .name-screen--offer #name-form,
 .name-screen--offer .controller-shell__actions--name,
-.name-screen--offer .legal-links,
-#name-screen:not([data-os="ios"]) [data-os-only="ios"],
-#name-screen:not([data-os="android"]) [data-os-only="android"] {
+.name-screen--offer .legal-links {
   display: none;
 }
 
@@ -372,6 +369,23 @@ body.paperballoon .leave-btn__close { display: block; }
   font-weight: 600;
   line-height: 1.2;
   color: var(--text-secondary);
+}
+
+/* A fact under the pitch: smaller, not fainter (--text-faint misses 4.5:1
+   on --bg-card at this size). */
+.app-offer__size {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-secondary);
+}
+
+.app-offer__size svg {
+  flex: none;
 }
 
 .app-offer__actions {

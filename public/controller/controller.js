@@ -75,7 +75,6 @@ function handleMessage(data) {
 // picks the browser. currentScreen stays 'name', so the relay probe below
 // still bails from it on a dead or full room.
 function showAppOffer(os) {
-  nameScreen.dataset.os = os;
   nameScreen.classList.add('name-screen--offer');
   document.getElementById('app-offer-link').href = AppOffer.link(os, navigator.userAgent, location.href);
 }
