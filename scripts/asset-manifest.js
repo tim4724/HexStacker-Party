@@ -188,16 +188,13 @@ const DISPLAY_STYLES = [
   '/display/display.css',
 ];
 
-// Every HTML page the server renders + caches at boot in PROD (server/index.js
-// HTML_CACHE). Single-sourced here so the set is defined once. Each is fully
-// build-deterministic EXCEPT the version label (per-deployment: same image runs
-// prod and preview with different APP_ENV/GIT_SHA), which is why these are
-// finalized at boot rather than baked at build time.
+// Every page scripts/build-site.js renders into site/ (the server renders the
+// same pages per request in dev and e2e).
 //
-// EXCLUDED: the gallery pages. In prod Traefik routes /gallery* to a separate
-// static pod (nginx), so this server never serves them there; they stay on the
-// dev-only per-request rewrite path. Keys are the post-routing urlPath (see the
-// '/' -> /display/index.html and room-code -> /controller/index.html mapping).
+// EXCLUDED: the gallery pages. On deployed hosts Traefik routes /gallery* to a
+// separate static pod (nginx); they stay on the dev server's per-request path.
+// Keys are the post-routing urlPath (see the '/' -> /display/index.html and
+// room-code -> /controller/index.html mapping).
 const PRERENDERED_PAGES = [
   '/display/index.html',
   '/controller/index.html',

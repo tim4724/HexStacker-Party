@@ -69,6 +69,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: ${{ inputs.platforms || 'linux/amd64,linux/arm64' }}
+          # The pages' version label: bare on a release tag, with the commit
+          # everywhere else (see the Dockerfile).
+          build-args: |
+            APP_ENV=${{ startsWith(github.ref, 'refs/tags/') && 'production' || 'preview' }}
+            GIT_SHA=${{ github.sha }}
 
       # The sha tag is the one callers deploy: it names this exact commit's image
       # even on a branch whose moving tag has already been overwritten.

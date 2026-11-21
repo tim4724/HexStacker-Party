@@ -1,0 +1,74 @@
+# Server config of every deployed host: Apache 2.4 on Hetzner Webhosting, and
+# the Dockerfile's httpd image on k8s. Both serve site/ (scripts/build-site.js).
+# Local dev runs server/index.js instead, which mirrors the routes.
+
+RewriteEngine On
+RewriteBase /
+
+# www, then HTTPS. Host-scoped, so a local run stays plain HTTP. TLS ends at
+# the proxy in front of Apache (Hetzner's, or Traefik on previews), which says
+# so in X-Forwarded-Proto. ACME HTTP-01 challenges must stay reachable.
+RewriteCond %{HTTP_HOST} ^www\.hexstacker\.com$ [NC]
+RewriteRule ^ https://hexstacker.com%{REQUEST_URI} [R=301,L]
+RewriteCond %{HTTP_HOST} hexstacker\.com$ [NC]
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+RewriteCond %{REQUEST_URI} !^/\.well-known/acme-challenge/
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+# Never serve dotfiles, except /.well-known/ (app links, ACME).
+RewriteRule (^|/)\.(?!well-known/) - [R=404,L]
+
+# Liveness check for the k8s readiness probe and uptime monitoring.
+RewriteRule ^health$ health.txt [END]
+
+# The display at the root. The AirConsole entries also answer at the root,
+# where AirConsole's simulator loads them.
+RewriteRule ^$ display/index.html [END]
+RewriteRule ^screen\.html$ display/screen.html [END]
+RewriteRule ^controller\.html$ controller/controller.html [END]
+
+# Room join links (/<CODE>?pbp=web#<instance>): any single path segment without
+# a dot, as in the dev server. A mistyped code still reaches the controller,
+# which tells the player the room doesn't exist.
+RewriteRule ^[^/.]+$ controller/index.html [END]
+
+# App links (.well-known/): Apple's CDN only accepts the AASA as
+# application/json, and the file has no extension. assetlinks.json must list the
+# Play App Signing keys (Play Console > App integrity) besides the upload and
+# debug keys, or Play installs fail verification.
+<Files "apple-app-site-association">
+  ForceType application/json
+</Files>
+
+# Security headers, on every response.
+Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+Header always set X-Content-Type-Options "nosniff"
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+# CSP. connect-src: the relay on Fly.io. frame-ancestors 'self': the review
+# gallery on preview hosts frames the display and controller.
+Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' wss://ws.hexstacker.com https://ws.hexstacker.com; img-src 'self' data:; media-src 'self'; object-src 'none'; frame-src 'self'; frame-ancestors 'self'"
+
+# The AirConsole entries run inside AirConsole's frame: the published game, and
+# the plain-HTTP simulator used to try a preview.
+<FilesMatch "^(screen|controller)\.html$">
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' https://www.airconsole.com; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https://www.airconsole.com; img-src 'self' data: https://www.airconsole.com; object-src 'none'; frame-ancestors https://www.airconsole.com http://http.airconsole.com"
+</FilesMatch>
+
+# Only hexstacker.com is for search engines; main and the previews mirror it.
+Header always set X-Robots-Tag "noindex, nofollow" "expr=%{HTTP_HOST} != 'hexstacker.com'"
+
+# Caching. Pages are never stored, so a deploy shows at once and a page never
+# pairs with older bundles. Everything else is kept a day, hashed bundles for
+# good. No "always", so errors aren't cached.
+Header set Cache-Control "public, max-age=86400"
+<FilesMatch "\.html$">
+  Header set Cache-Control "no-store"
+</FilesMatch>
+<FilesMatch "\.[0-9a-f]{10}\.(js|css)(\.map)?$">
+  Header set Cache-Control "public, max-age=31536000, immutable"
+</FilesMatch>
+<Files "health.txt">
+  Header set Cache-Control "no-store"
+</Files>

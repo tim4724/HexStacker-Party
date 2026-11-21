@@ -59,11 +59,11 @@ npm run dev                   # serves individual scripts + restarts on change
 `npm run dev` is the inner loop: no bundling step, and `node --watch` restarts the
 server on every edit, so a browser reload is enough to see a change.
 
-For a production-style run, build the bundles first and start in production mode:
+To run what the deployed hosts serve, build the image: it assembles `site/` and
+serves it through Apache with `public/.htaccess`:
 
 ```bash
-npm run build                 # esbuild: one hashed bundle per app + dist/partycore.js (~0.3s)
-APP_ENV=production node server/index.js
+docker build -t hexstacker . && docker run --rm -p 4000:4000 hexstacker
 ```
 
 1. Open `http://localhost:4000` on a big screen.
@@ -99,13 +99,16 @@ scripts/     # build.js (esbuild bundles), asset-manifest.js (canonical script
              #   load order), AirConsole HTML generator, gallery/
 tests/       # Unit tests (node:test) and Playwright E2E
 dist/        # Build output (gitignored): partycore.js + web-manifest.json
+site/        # Deployed web root (gitignored), from npm run build:site
 artwork/     # Banner, favicon, icon and cover art generators (Playwright)
 ```
 
 Browser script load order lives in `scripts/asset-manifest.js`; the app `index.html`
-files use `<!--CONTROLLER_SCRIPTS-->` / `<!--DISPLAY_SCRIPTS-->` placeholders that the
-server expands to either one hashed bundle (production / `SERVE_BUNDLES=1`) or the
-individual files (dev).
+files use `<!--CONTROLLER_SCRIPTS-->` / `<!--DISPLAY_SCRIPTS-->` placeholders.
+`scripts/build-site.js` expands them to one hashed bundle per app for `site/`, the
+static files every deployed host serves through Apache with `public/.htaccess`
+(routes, CSP, cache headers). Locally, `server/index.js` expands them per request,
+to the individual files (dev) or the bundles (`SERVE_BUNDLES=1`, e2e).
 
 ## Native TV ports
 
@@ -147,21 +150,15 @@ phones are about to load is visible on screen.
 
 ## Configuration
 
-The display and controllers connect to a [Party-Sockets](https://github.com/tim4724/Party-Sockets) WebSocket relay for message forwarding. The relay URL is set in `public/shared/protocol.js`. If you run your own relay, update this value and the CSP `connect-src` directive in `server/index.js`.
+The display and controllers connect to a [Party-Sockets](https://github.com/tim4724/Party-Sockets) WebSocket relay for message forwarding. The relay URL is set in `public/shared/protocol.js`. If you run your own relay, update this value and the CSP `connect-src` directive in `public/.htaccess` and `server/index.js`.
 
 | Environment Variable | Default | Description |
 |---|---|---|
 | `PORT` | `4000` | HTTP server port |
 | `BASE_URL` | Auto-detected LAN IP | Base URL for join links and QR codes |
-| `APP_ENV` | `development` | `production` serves the hashed web bundles (immutable cache) instead of individual files |
+| `APP_ENV` | `development` | `production` serves the hashed web bundles (immutable cache) instead of individual files. For `npm run build:site`: `production` puts the bare version in the pages' version label, anything else appends the commit |
 | `SERVE_BUNDLES` | – | `1` forces bundle serving without full production mode (used by e2e; keeps the dev CSP the AirConsole mock needs) |
-| `GIT_SHA` | – | Git commit SHA shown in version endpoint |
-
-Build-time only:
-
-| Environment Variable | Default | Description |
-|---|---|---|
-| `BUILD_COMPRESSION` | fast | `max` spends brotli quality 11 on the precompressed `.br` siblings: ~9% smaller, for roughly double the build wall time. Set by the Dockerfile, since the image's bundles are the ones users download; every other build takes the fast tier |
+| `GIT_SHA` | – | Git commit SHA shown in the version endpoint, and appended to the version label by `npm run build:site` |
 
 ## Testing
 

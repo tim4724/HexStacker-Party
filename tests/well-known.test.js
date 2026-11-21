@@ -1,7 +1,8 @@
 'use strict';
 
-// Pins the app-link endpoints served inline by server/index.js. A regression
-// here (route lost, wrong content-type, malformed JSON) breaks iOS Universal
+// Pins the app-link files (public/.well-known/) as served by server/index.js;
+// public/.htaccess serves the same files when deployed. A regression here
+// (route lost, wrong content-type, malformed JSON) breaks iOS Universal
 // Links / Android App Links verification with no visible symptom in the web
 // app, so assert the invariants Apple's CDN and Android's verifier check:
 // HTTP 200, application/json, and the structural essentials of each payload.

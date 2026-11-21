@@ -1,0 +1,22 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "5ZH48MPAM3.games.paperballoon.controller"
+        ],
+        "components": [
+          {
+            "/": "/??????",
+            "comment": "6-char room code opens the app"
+          }
+        ]
+      }
+    ]
+  },
+  "appclips": {
+    "apps": [
+      "5ZH48MPAM3.games.paperballoon.controller.Clip"
+    ]
+  }
+}
