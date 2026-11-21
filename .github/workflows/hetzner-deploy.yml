@@ -1,0 +1,91 @@
+name: Hetzner Deploy
+
+# Uploads site/ (npm run build:site) to Hetzner Webhosting over SFTP: every push
+# to main goes to main.hexstacker.com, a release tag to hexstacker.com. Each
+# host is its own folder under public_html on the account that also hosts
+# paperballoon.games (account setup: that repo's README).
+on:
+  push:
+    branches: [main]
+    # Bare semver, the repo's release tag convention (matching release.yml).
+    tags: ['[0-9]+.[0-9]+.[0-9]+']
+    # The upload is the web app only. (Tag pushes ignore path filters.)
+    paths-ignore:
+      - 'android/**'
+      - 'appletv/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One upload per host at a time: a newer push waits instead of cutting an
+# upload off halfway.
+concurrency:
+  group: hetzner-deploy-${{ github.ref_type }}
+
+jobs:
+  # Tag pushes don't match the Tests workflow's branch filter, so this gates the
+  # rollout to users.
+  tests:
+    if: github.ref_type == 'tag'
+    uses: ./.github/workflows/test.yml
+    permissions:
+      contents: read
+
+  deploy:
+    needs: tests
+    # Tests passed, or were skipped (main).
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_type == 'tag' && 'production' || 'preview' }}
+    timeout-minutes: 15
+    env:
+      HOST: ${{ github.ref_type == 'tag' && 'hexstacker.com' || 'main.hexstacker.com' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build site
+        env:
+          APP_ENV: ${{ github.ref_type == 'tag' && 'production' || 'main' }}
+          GIT_SHA: ${{ github.sha }}
+        run: npm run build:site
+
+      - name: Install lftp
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+
+      # Three passes. Everything but the pages, then the pages, so a visitor
+      # never gets a page whose bundles aren't on the server yet. Then delete
+      # what the previous release left, or every push would add its hashed
+      # bundles for good. ACME challenges belong to Hetzner's cert renewal.
+      - name: Upload
+        # Key login with the server's host key pinned; the key's public half is
+        # registered under konsoleH > Logindaten > Öffentliche SFTP-Schlüssel.
+        env:
+          SFTP_HOST: ${{ secrets.HETZNER_SFTP_HOST }}
+          SFTP_USER: ${{ secrets.HETZNER_SFTP_USER }}
+          SFTP_KEY: ${{ secrets.HETZNER_SFTP_KEY }}
+          SFTP_KNOWN_HOSTS: ${{ secrets.HETZNER_SFTP_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 600 /dev/null "$RUNNER_TEMP/sftp_key"
+          printf '%s\n' "$SFTP_KEY" > "$RUNNER_TEMP/sftp_key"
+          printf '%s\n' "$SFTP_KNOWN_HOSTS" > "$RUNNER_TEMP/known_hosts"
+          REMOTE="public_html/$HOST"
+          lftp -u "$SFTP_USER," "sftp://$SFTP_HOST" -e "
+            set sftp:connect-program 'ssh -a -x -i $RUNNER_TEMP/sftp_key -o IdentitiesOnly=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts -o StrictHostKeyChecking=yes'
+            set net:max-retries 2
+            mirror --reverse --no-perms --parallel=4 --exclude-glob '*.html' site $REMOTE
+            mirror --reverse --no-perms --parallel=4 --include-glob '*.html' site $REMOTE
+            mirror --reverse --no-perms --delete --exclude-glob .well-known/acme-challenge/ site $REMOTE
+            bye"
+          {
+            echo "### Deployed to https://$HOST"
+            echo "- Uploaded \`site/\` to \`$REMOTE\` on the Hetzner webhosting"
+          } >> "$GITHUB_STEP_SUMMARY"
