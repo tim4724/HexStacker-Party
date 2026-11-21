@@ -16,6 +16,5 @@ COPY shots /usr/share/nginx/html/gallery-tv/shots
 # the workflow. Served at the host root (/gallery.html etc.) via the same
 # PathPrefix route; their iframes point at absolute paths (/?test=1&...) that
 # route to the app preview pod on the same host, so they keep driving the real
-# display app. These pages are excluded from the game image (.dockerignore);
-# this image is their home.
+# display app.
 COPY webshell /usr/share/nginx/html/

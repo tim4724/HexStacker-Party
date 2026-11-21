@@ -44,7 +44,6 @@ runs:
           | sed 's#[^a-z0-9-]#-#g' \
           | cut -c1-50 \
           | sed 's/-*$//')
-        # main too: main.hexstacker.com is the Hetzner stage (hetzner-deploy.yml).
         HOST="preview-${SLUG}.hexstacker.com"
         {
           echo "slug=$SLUG"

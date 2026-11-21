@@ -188,20 +188,6 @@ const DISPLAY_STYLES = [
   '/display/display.css',
 ];
 
-// Every page scripts/build-site.js renders into site/ (the server renders the
-// same pages per request in dev and e2e).
-//
-// EXCLUDED: the gallery pages. On deployed hosts Traefik routes /gallery* to a
-// separate static pod (nginx); they stay on the dev server's per-request path.
-// Keys are the post-routing urlPath (see the '/' -> /display/index.html and
-// room-code -> /controller/index.html mapping).
-const PRERENDERED_PAGES = [
-  '/display/index.html',
-  '/controller/index.html',
-  '/display/screen.html',        // AirConsole display entry
-  '/controller/controller.html', // AirConsole controller entry
-];
-
 function resolveAsset(urlPath) {
   if (urlPath.indexOf('/engine/') === 0) {
     return path.join(ROOT, 'server', urlPath.slice('/engine/'.length));
@@ -220,6 +206,5 @@ module.exports = {
   AC_DISPLAY_SCRIPTS: AC_DISPLAY_SCRIPTS,
   CONTROLLER_STYLES: CONTROLLER_STYLES,
   DISPLAY_STYLES: DISPLAY_STYLES,
-  PRERENDERED_PAGES: PRERENDERED_PAGES,
   resolveAsset: resolveAsset,
 };
