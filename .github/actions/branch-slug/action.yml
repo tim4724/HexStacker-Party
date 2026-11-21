@@ -22,7 +22,7 @@ outputs:
     description: Preview Kubernetes namespace for the branch (cg-<slug>).
     value: ${{ steps.resolve.outputs.namespace }}
   host:
-    description: Preview hostname for the branch (main gets its own host).
+    description: Preview hostname for the branch.
     value: ${{ steps.resolve.outputs.host }}
 
 runs:
@@ -44,11 +44,8 @@ runs:
           | sed 's#[^a-z0-9-]#-#g' \
           | cut -c1-50 \
           | sed 's/-*$//')
-        if [ "$BRANCH" = "main" ]; then
-          HOST="main.hexstacker.com"
-        else
-          HOST="preview-${SLUG}.hexstacker.com"
-        fi
+        # main too: main.hexstacker.com is the Hetzner stage (hetzner-deploy.yml).
+        HOST="preview-${SLUG}.hexstacker.com"
         {
           echo "slug=$SLUG"
           echo "namespace=cg-${SLUG}"
