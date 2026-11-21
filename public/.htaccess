@@ -28,9 +28,16 @@ RewriteRule ^$ display/index.html [END]
 RewriteRule ^screen\.html$ display/screen.html [END]
 RewriteRule ^controller\.html$ controller/controller.html [END]
 
+# Extensionless pages: /gallery serves gallery.html. Only the review galleries
+# (main and previews; production ships none).
+RewriteCond %{REQUEST_FILENAME}.html -f
+RewriteRule ^([^/.]+)$ $1.html [END]
+
 # Room join links (/<CODE>?pbp=web#<instance>): any single path segment without
 # a dot, as in the dev server. A mistyped code still reaches the controller,
-# which tells the player the room doesn't exist.
+# which tells the player the room doesn't exist. A folder (/gallery-tv on main)
+# gets Apache's trailing-slash redirect instead.
+RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^[^/.]+$ controller/index.html [END]
 
 # App links (.well-known/): Apple's CDN only accepts the AASA as

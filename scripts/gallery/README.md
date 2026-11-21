@@ -67,7 +67,8 @@ page.
 It ships two ways (the PR's preview comment carries the links):
 
 - **Browsable deployment**: `https://<preview-host>/gallery-tv/` (i.e.
-  `preview-<branch>.hexstacker.com/gallery-tv/`). A tiny static nginx image (`Dockerfile` here) path-routed onto
+  `preview-<branch>.hexstacker.com/gallery-tv/`; main's is uploaded to
+  `main.hexstacker.com/gallery-tv/` on Hetzner instead). A tiny static nginx image (`Dockerfile` here) path-routed onto
   the preview host from the same `cg-<branch>` Kubernetes namespace, so builds
   stay decoupled from the app image. Torn down with the namespace by the
   `Preview Cleanup` workflow on branch delete.

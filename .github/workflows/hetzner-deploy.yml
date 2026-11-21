@@ -59,32 +59,16 @@ jobs:
           GIT_SHA: ${{ github.sha }}
         run: npm run build:site
 
-      - name: Install lftp
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
-
-      # Three passes. Everything but the pages, then the pages, so a visitor
-      # never gets a page whose bundles aren't on the server yet. Then delete
-      # what the previous release left, or every push would add its hashed
-      # bundles for good. ACME challenges belong to Hetzner's cert renewal.
       - name: Upload
-        # Key login with the server's host key pinned; the key's public half is
-        # registered under konsoleH > Logindaten > Öffentliche SFTP-Schlüssel.
-        env:
-          SFTP_HOST: ${{ secrets.HETZNER_SFTP_HOST }}
-          SFTP_USER: ${{ secrets.HETZNER_SFTP_USER }}
-          SFTP_KEY: ${{ secrets.HETZNER_SFTP_KEY }}
-          SFTP_KNOWN_HOSTS: ${{ secrets.HETZNER_SFTP_KNOWN_HOSTS }}
-        run: |
-          set -euo pipefail
-          install -m 600 /dev/null "$RUNNER_TEMP/sftp_key"
-          printf '%s\n' "$SFTP_KEY" > "$RUNNER_TEMP/sftp_key"
-          printf '%s\n' "$SFTP_KNOWN_HOSTS" > "$RUNNER_TEMP/known_hosts"
-          REMOTE="public_html/$HOST"
-          lftp -u "$SFTP_USER," "sftp://$SFTP_HOST" -e "
-            set sftp:connect-program 'ssh -a -x -i $RUNNER_TEMP/sftp_key -o IdentitiesOnly=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts -o StrictHostKeyChecking=yes'
-            set net:max-retries 2
-            mirror --reverse --no-perms --parallel=4 --exclude-glob '*.html' site $REMOTE
-            mirror --reverse --no-perms --parallel=4 --include-glob '*.html' site $REMOTE
-            mirror --reverse --no-perms --delete --exclude-glob .well-known/acme-challenge/ site $REMOTE
-            bye"
-          echo "Deployed https://$HOST" >> "$GITHUB_STEP_SUMMARY"
+        uses: ./.github/actions/hetzner-upload
+        with:
+          source: site
+          remote: public_html/${{ env.HOST }}
+          # main's /gallery-tv/ is uploaded by tv-gallery.yml.
+          keep: gallery-tv/
+          host: ${{ secrets.HETZNER_SFTP_HOST }}
+          user: ${{ secrets.HETZNER_SFTP_USER }}
+          key: ${{ secrets.HETZNER_SFTP_KEY }}
+          known_hosts: ${{ secrets.HETZNER_SFTP_KNOWN_HOSTS }}
+
+      - run: echo "Deployed https://$HOST" >> "$GITHUB_STEP_SUMMARY"

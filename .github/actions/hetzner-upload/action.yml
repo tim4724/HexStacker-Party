@@ -1,0 +1,63 @@
+name: Hetzner upload
+description: >
+  Mirrors a local folder into a folder on the Hetzner Webhosting account over
+  SFTP. The one upload for every workflow that writes there (hetzner-deploy,
+  tv-gallery), so the key handling and pass order can't drift between them.
+
+inputs:
+  source:
+    description: Local folder to upload.
+    required: true
+  remote:
+    description: Target folder relative to the SFTP login, e.g. public_html/main.hexstacker.com.
+    required: true
+  keep:
+    description: Glob of a remote folder another workflow owns, spared by the delete pass (e.g. gallery-tv/).
+    required: false
+    default: ''
+  host:
+    required: true
+  user:
+    required: true
+  key:
+    required: true
+  known_hosts:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install lftp
+      shell: bash
+      run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+
+    # Three passes, stopping at the first failure. Everything but the pages, then
+    # the pages, so a visitor never gets a page whose files aren't on the server
+    # yet. Then delete what the previous upload left, or every push would add its
+    # hashed bundles for good. ACME challenges belong to Hetzner's cert renewal.
+    # Key login with the server's host key pinned; the key's public half is
+    # registered under konsoleH > Logindaten > Öffentliche SFTP-Schlüssel.
+    - name: Upload
+      shell: bash
+      env:
+        SOURCE: ${{ inputs.source }}
+        REMOTE: ${{ inputs.remote }}
+        KEEP: ${{ inputs.keep }}
+        SFTP_HOST: ${{ inputs.host }}
+        SFTP_USER: ${{ inputs.user }}
+        SFTP_KEY: ${{ inputs.key }}
+        SFTP_KNOWN_HOSTS: ${{ inputs.known_hosts }}
+      run: |
+        set -euo pipefail
+        install -m 600 /dev/null "$RUNNER_TEMP/sftp_key"
+        printf '%s\n' "$SFTP_KEY" > "$RUNNER_TEMP/sftp_key"
+        printf '%s\n' "$SFTP_KNOWN_HOSTS" > "$RUNNER_TEMP/known_hosts"
+        SPARE=${KEEP:+--exclude-glob $KEEP}
+        lftp -u "$SFTP_USER," "sftp://$SFTP_HOST" -e "
+          set sftp:connect-program 'ssh -a -x -i $RUNNER_TEMP/sftp_key -o IdentitiesOnly=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts -o StrictHostKeyChecking=yes'
+          set net:max-retries 2
+          set cmd:fail-exit yes
+          mirror --reverse --no-perms --parallel=4 --exclude-glob '*.html' $SOURCE $REMOTE
+          mirror --reverse --no-perms --parallel=4 --include-glob '*.html' $SOURCE $REMOTE
+          mirror --reverse --no-perms --delete --exclude-glob .well-known/acme-challenge/ $SPARE $SOURCE $REMOTE
+          bye"
