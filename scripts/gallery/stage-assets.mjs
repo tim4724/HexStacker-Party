@@ -1,14 +1,9 @@
 // Copies every local file the gallery pages (gallery*.html in DIR) reference
-// that DIR lacks: the /gallery-assets/* images, whose URL path is their path in
-// the repo (tvOS, Android and artwork source dirs), and the few files the app
-// bundles otherwise replace (theme CSS/JS, engine modules), resolved as the dev
-// server does.
-//
-// DIR is site/ (npm run build:site, for main and the preview images) or the
-// TV-gallery pod's webshell (tv-gallery.yml). Driven by the pages, so a new
-// gallery reference needs no change here. Sources missing from the checkout
-// (gitignored local-only art) are skipped; those cards show the page's "not
-// generated" hint.
+// that DIR lacks: the /gallery-assets/* images, whose URL path is their repo
+// path, and the files the app bundles otherwise replace (theme CSS/JS, engine
+// modules), resolved as the dev server does. DIR is site/ (npm run build:site)
+// or the TV-gallery pod's webshell. Sources missing from the checkout
+// (gitignored local art) are skipped; those cards show "not generated".
 
 import { readFileSync, existsSync, mkdirSync, copyFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -27,9 +22,10 @@ for (const page of pages) {
 
 let staged = 0;
 for (const url of [...urls].sort()) {
-  const dst = join(DIR, decodeURIComponent(url));
+  const file = decodeURIComponent(url);
+  const dst = join(DIR, file);
   if (existsSync(dst)) continue;
-  const src = url.startsWith(ASSETS) ? decodeURIComponent(url.slice(ASSETS.length)) : resolveAsset(url);
+  const src = file.startsWith(ASSETS) ? file.slice(ASSETS.length) : resolveAsset(file);
   if (!existsSync(src)) {
     console.log(`gallery: no source for '${url}' (skipped)`);
     continue;

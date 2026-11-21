@@ -77,10 +77,10 @@ It ships two ways (the PR's preview comment carries the links):
   being compared.
 
 That nginx image also hosts the LIVE web gallery entry pages (`public/gallery*`,
-served at `/gallery` on the same host), which `.dockerignore` excludes from the
-game image so production ships no review tooling. Their iframes use absolute
-paths that route to the app preview pod, so they still drive the real display
-app. (The display test harness itself does ship in the app bundle: it is inert
+served at `/gallery` on the same host), with the images they show. Production
+builds ship no review tooling (`scripts/build-site.js`); main serves the
+galleries from its own upload on Hetzner. Their iframes use absolute paths that
+route to the app preview pod, so they still drive the real display app. (The display test harness itself does ship in the app bundle: it is inert
 without its URL params, and e2e depends on it.) Hence the workflow runs on plain
 web pushes too, not just after the TV screenshot workflows. Locally nothing
 changes: the dev server serves `public/gallery*` from disk.

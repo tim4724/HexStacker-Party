@@ -200,15 +200,11 @@ jobs:
         if: github.ref_name != 'main'
         id: image
         run: |
-          # Stage the live web gallery entry pages (excluded from the game
-          # image by .dockerignore; this image is their home).
+          # Stage the live web gallery entry pages and what they load. The pod
+          # serves the /gallery* paths (its PathPrefix route), including the
+          # /gallery-assets/ images, whose repo dirs the app image lacks.
           mkdir -p scripts/gallery/webshell
           cp public/gallery* scripts/gallery/webshell/
-          # Stage the assets the gallery pages load via /gallery-assets/* so the
-          # pod serves them (its /gallery PathPrefix routes those requests here;
-          # the game image ships none of these repo dirs). The script parses the
-          # pages themselves, so adding a gallery asset never needs a change here;
-          # sources missing from the checkout (gitignored previews) are skipped.
           node scripts/gallery/stage-assets.mjs
           echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
           REPO_LC=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
