@@ -150,15 +150,22 @@ phones are about to load is visible on screen.
 
 ## Configuration
 
-The display and controllers connect to a [Party-Sockets](https://github.com/tim4724/Party-Sockets) WebSocket relay for message forwarding. The relay URL is set in `public/shared/protocol.js`. If you run your own relay, update this value and the CSP `connect-src` directive in `public/.htaccess` and `server/index.js`.
+The display and controllers connect to a [Party-Sockets](https://github.com/tim4724/Party-Sockets) WebSocket relay for message forwarding. The relay URL is set in `public/shared/protocol.js`. If you run your own relay, update this value and the CSP `connect-src` directive in `public/.htaccess`.
+
+The local server (`npm run dev`, e2e):
 
 | Environment Variable | Default | Description |
 |---|---|---|
 | `PORT` | `4000` | HTTP server port |
 | `BASE_URL` | Auto-detected LAN IP | Base URL for join links and QR codes |
-| `APP_ENV` | `development` | `production` serves the hashed web bundles (immutable cache) instead of individual files. For `npm run build:site`: `production` puts the bare version in the pages' version label, anything else appends the commit |
-| `SERVE_BUNDLES` | – | `1` forces bundle serving without full production mode (used by e2e; keeps the dev CSP the AirConsole mock needs) |
-| `GIT_SHA` | – | Git commit SHA shown in the version endpoint, and appended to the version label by `npm run build:site` |
+| `SERVE_BUNDLES` | – | `1` serves the hashed bundles (run `npm run build` first) instead of the individual files; used by e2e |
+
+`npm run build:site` (set through the Dockerfile's build args):
+
+| Environment Variable | Default | Description |
+|---|---|---|
+| `APP_ENV` | – | `production` puts the bare version in the pages' version label; anything else appends the commit |
+| `GIT_SHA` | – | The commit appended to the version label |
 
 ## Testing
 

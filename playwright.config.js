@@ -19,8 +19,7 @@ module.exports = defineConfig({
     // run against the real content-hashed bundles, exercising the concatenation
     // (strict-mode flattening, cross-file hoisting) that ships to users — the
     // e2e project gets the web bundles, e2e-airconsole the AC variants that go
-    // into the AirConsole ZIP. SERVE_BUNDLES (not APP_ENV=production) keeps the
-    // dev CSP the AC mock's http.airconsole.com framing needs.
+    // into the AirConsole ZIP.
     command: 'npm run build && node server/index.js',
     env: {
       ...process.env,

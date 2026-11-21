@@ -15,7 +15,6 @@ const fs = require('fs');
 const crypto = require('crypto');
 const esbuild = require('esbuild');
 const { ROOT, CONTROLLER_SCRIPTS, DISPLAY_SCRIPTS, AC_CONTROLLER_SCRIPTS, AC_DISPLAY_SCRIPTS, CONTROLLER_STYLES, DISPLAY_STYLES, resolveAsset } = require('./asset-manifest.js');
-const { writeCompressed } = require('./write-compressed.js');
 
 // Portable native core: server/core-entry.js -> dist/partycore.js as an iife
 // exposing globalThis.HexCore. platform:'neutral' so esbuild assumes neither
@@ -70,8 +69,8 @@ async function buildApp(appDir, name, scripts) {
   });
   // Hash the code only (NOT the trailing sourceMappingURL, which references the
   // hash — that would be circular). The .map sits beside the bundle so a prod
-  // stack trace resolves into source instead of minified output; the server
-  // serves both immutably (content-hashed names).
+  // stack trace resolves into source instead of minified output; both are
+  // cached immutably (content-hashed names).
   const hash = crypto.createHash('sha256').update(result.code).digest('hex').slice(0, 10);
   const file = name + '.' + hash + '.js';
   // Bundles live beside their source dir so the existing /controller/, /display/
@@ -89,24 +88,14 @@ async function buildApp(appDir, name, scripts) {
   }
   const js = result.code + '\n//# sourceMappingURL=' + file + '.map\n';
   const jsPath = path.join(dir, file);
-  // writeCompressed emits the .js plus `.br`/`.gz` siblings. server/index.js
-  // negotiates the siblings via Accept-Encoding, so a browser downloads ~1/4
-  // the bytes with zero per-request CPU. Only the .js is compressed — the .map
-  // is a rare, devtools-only fetch. The stale-sweep regex above already matches
-  // the siblings (they share the `<name>.<hash>.js` prefix), so old ones are
-  // cleaned on rebuild alongside the .js/.map.
-  await writeCompressed(jsPath, Buffer.from(js));
+  fs.writeFileSync(jsPath, js);
   fs.writeFileSync(jsPath + '.map', result.map);
   return file;
 }
 
 // Web CSS bundle: concatenate the app's stylesheets in cascade order, minify
-// (esbuild's css loader), content-hash, and emit `.br`/`.gz` siblings — the
-// exact treatment buildApp() gives the JS, and for the same reasons. CSS is
-// render-blocking and, unlike the JS, ships uncompressed from this server today
-// (only hashed bundles are Accept-Encoding-negotiated), so bundling both cuts
-// the request count and finally compresses it. No sourcemap: concatenated,
-// minified CSS has little debugging value and the map would be a rare fetch.
+// (esbuild's css loader) and content-hash, as buildApp() does for the JS. No
+// sourcemap: concatenated, minified CSS has little debugging value.
 async function buildStyles(name, styles) {
   let source = '';
   for (const urlPath of styles) {
@@ -121,14 +110,13 @@ async function buildStyles(name, styles) {
   const hash = crypto.createHash('sha256').update(result.code).digest('hex').slice(0, 10);
   const file = name + '.' + hash + '.css';
   const dir = path.join(ROOT, 'public', name);
-  // Sweep stale hashed CSS bundles (+ their .br/.gz) so local rebuilds don't
-  // orphan them. Prefix match (no `$`) also catches the compressed siblings;
-  // the un-hashed source `<name>.css` lacks the hash segment and is untouched.
+  // Sweep stale hashed CSS bundles so local rebuilds don't orphan them. The
+  // un-hashed source `<name>.css` lacks the hash segment and is untouched.
   const stale = new RegExp('^' + name + '\\.[0-9a-f]{10}\\.css');
   for (const f of fs.readdirSync(dir)) {
     if (stale.test(f)) fs.rmSync(path.join(dir, f));
   }
-  await writeCompressed(path.join(dir, file), Buffer.from(result.code));
+  fs.writeFileSync(path.join(dir, file), result.code);
   return file;
 }
 
@@ -144,9 +132,9 @@ async function main() {
   if (process.argv.includes('--core')) return;
 
   // Independent (different output files, no shared state), so build the JS and
-  // CSS bundles for both apps — plus the AirConsole JS variants — concurrently;
-  // `npm start` runs this on boot. The AC variants share the web CSS bundles
-  // (same style lists), so only the JS differs.
+  // CSS bundles for both apps, plus the AirConsole JS variants, concurrently.
+  // The AC variants share the web CSS bundles (same style lists), so only the
+  // JS differs.
   const [controller, display, controllerAc, displayAc, controllerCss, displayCss] = await Promise.all([
     buildApp('controller', 'controller', CONTROLLER_SCRIPTS),
     buildApp('display', 'display', DISPLAY_SCRIPTS),
