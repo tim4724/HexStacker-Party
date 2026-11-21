@@ -1,15 +1,15 @@
 name: Hetzner Deploy
 
-# Uploads site/ (npm run build:site) to Hetzner Webhosting over SFTP: every push
-# to main goes to main.hexstacker.com, a release tag to hexstacker.com. Each
-# host is its own folder under public_html on the account that also hosts
-# paperballoon.games (account setup: that repo's README).
+# Uploads site/ (npm run build:site) to Hetzner Webhosting over SFTP: main goes
+# to main.hexstacker.com on every push, a release tag to hexstacker.com (run by
+# hand until production-deploy.yml is retired: both calling test.yml on the
+# same tag would cancel each other's run). Each host is its own folder under
+# public_html on the account that also hosts paperballoon.games (account setup:
+# that repo's README).
 on:
   push:
     branches: [main]
-    # Bare semver, the repo's release tag convention (matching release.yml).
-    tags: ['[0-9]+.[0-9]+.[0-9]+']
-    # The upload is the web app only. (Tag pushes ignore path filters.)
+    # The upload is the web app only.
     paths-ignore:
       - 'android/**'
       - 'appletv/**'
@@ -24,18 +24,20 @@ concurrency:
   group: hetzner-deploy-${{ github.ref_type }}
 
 jobs:
-  # Tag pushes don't match the Tests workflow's branch filter, so this gates the
-  # rollout to users.
+  # A release tag gets no Tests run of its own, so this gates the rollout.
   tests:
     if: github.ref_type == 'tag'
     uses: ./.github/workflows/test.yml
-    permissions:
-      contents: read
 
   deploy:
     needs: tests
-    # Tests passed, or were skipped (main).
-    if: ${{ !failure() && !cancelled() }}
+    # Only main or a release tag (a manual run could start from any branch), and
+    # only once the tests passed or were skipped (main). A cancelled test run
+    # must block: failure() alone doesn't see it.
+    if: >-
+      !cancelled()
+      && (github.ref_name == 'main' || github.ref_type == 'tag')
+      && (needs.tests.result == 'success' || needs.tests.result == 'skipped')
     runs-on: ubuntu-latest
     environment: ${{ github.ref_type == 'tag' && 'production' || 'preview' }}
     timeout-minutes: 15
@@ -85,7 +87,4 @@ jobs:
             mirror --reverse --no-perms --parallel=4 --include-glob '*.html' site $REMOTE
             mirror --reverse --no-perms --delete --exclude-glob .well-known/acme-challenge/ site $REMOTE
             bye"
-          {
-            echo "### Deployed to https://$HOST"
-            echo "- Uploaded \`site/\` to \`$REMOTE\` on the Hetzner webhosting"
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Deployed https://$HOST" >> "$GITHUB_STEP_SUMMARY"
