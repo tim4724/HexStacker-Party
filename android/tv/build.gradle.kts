@@ -185,13 +185,9 @@ android {
             isIncludeAndroidResources = true
         }
     }
-    // The QuickJS test shim is identical for the JVM unit tests and the instrumentation
-    // tests, so it lives in one place both source sets read rather than as two copies that
-    // drift. (:core needs its own — different module, and Kotlin has no cross-module test
-    // visibility without publishing a fixtures artifact.)
-    // Plain File (not a Provider): AGP 9 disallows Provider in the legacy
+    // Plain path (not a Provider): AGP 9 disallows Provider in the legacy
     // SourceSet API. Ordering is carried by the preBuild dependency below.
-    sourceSets["main"].assets.srcDir(engineBundleAssets.get().asFile)
+    sourceSets["main"].assets.directories.add(engineBundleAssets.get().asFile.path)
 }
 
 kotlin {

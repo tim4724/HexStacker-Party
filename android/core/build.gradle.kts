@@ -13,7 +13,7 @@ plugins {
 
 kotlin {
     jvm()
-    androidLibrary {
+    android {
         namespace = "com.hexstacker.core"
         compileSdk = 37
         minSdk = 28
