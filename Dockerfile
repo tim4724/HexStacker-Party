@@ -8,9 +8,7 @@ COPY server/ ./server/
 COPY public/ ./public/
 COPY partyplug/ ./partyplug/
 COPY scripts/ ./scripts/
-# The image is for branch previews: their version label carries the commit
-# (docker-publish.yml passes it).
-ARG APP_ENV=preview
+# The commit in the pages' version label (docker-publish.yml passes it).
 ARG GIT_SHA=
 RUN npm run build:site
 
