@@ -5,9 +5,11 @@
 RewriteEngine On
 RewriteBase /
 
-# HTTPS. Host-scoped, so a local run stays plain HTTP. TLS ends at the proxy in
-# front of Apache (Hetzner's, or Traefik on previews), which says so in
-# X-Forwarded-Proto. ACME HTTP-01 challenges must stay reachable.
+# www, then HTTPS. Host-scoped, so a local run stays plain HTTP. TLS ends at
+# the proxy in front of Apache (Hetzner's, or Traefik on previews), which says
+# so in X-Forwarded-Proto. ACME HTTP-01 challenges must stay reachable.
+RewriteCond %{HTTP_HOST} ^www\.hexstacker\.com$ [NC]
+RewriteRule ^ https://hexstacker.com%{REQUEST_URI} [R=301,L]
 RewriteCond %{HTTP_HOST} hexstacker\.com$ [NC]
 RewriteCond %{HTTPS} !=on
 RewriteCond %{HTTP:X-Forwarded-Proto} !=https
