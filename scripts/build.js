@@ -132,7 +132,7 @@ async function main() {
   if (process.argv.includes('--core')) return;
 
   // Independent (different output files, no shared state), so build the JS and
-  // CSS bundles for both apps — plus the AirConsole JS variants — concurrently.
+  // CSS bundles for both apps, plus the AirConsole JS variants, concurrently.
   // The AC variants share the web CSS bundles (same style lists), so only the
   // JS differs.
   const [controller, display, controllerAc, displayAc, controllerCss, displayCss] = await Promise.all([

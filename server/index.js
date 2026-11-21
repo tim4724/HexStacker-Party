@@ -102,8 +102,7 @@ const server = http.createServer((req, res) => {
   }
 
   // Cross-platform TV gallery (scripts/gallery), so the gallery nav's TV link
-  // works in local dev after a local capture/assemble. Deployed hosts never
-  // reach this route: Traefik path-routes /gallery-tv to the static gallery pod.
+  // works in local dev after a local capture/assemble.
   if (urlPath === '/gallery-tv') {
     // Redirect to the slash form so the page's relative shots/ paths resolve.
     res.writeHead(301, { Location: '/gallery-tv/' });
@@ -182,7 +181,6 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-
   // AirConsole entry points at root
   if (urlPath === '/screen.html') {
     urlPath = '/display/screen.html';
@@ -194,10 +192,8 @@ const server = http.createServer((req, res) => {
   if (urlPath === '/') {
     urlPath = '/display/index.html';
   } else if (urlPath === '/gallery' || urlPath === '/gallery-controller' || urlPath === '/gallery-rotations' || urlPath === '/gallery-artwork') {
-    // Extensionless gallery URLs, carved out ahead of the room-code catch
-    // below. Deployed hosts never get here:
-    // Traefik routes /gallery* to the static gallery pod, whose nginx does the
-    // same $uri.html resolution.
+    // Extensionless gallery URLs, carved out ahead of the room-code catch below
+    // (on previews the gallery pod's nginx resolves them the same way).
     urlPath = urlPath + '.html';
   } else if (urlPath.length > 1 && !urlPath.includes('.') && urlPath.split('/').filter(Boolean).length === 1) {
     // Single path segment with no file extension -> room code -> serve controller
