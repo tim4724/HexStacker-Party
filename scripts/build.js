@@ -9,10 +9,6 @@
 // Run directly (`npm run build`) to write artifacts to disk. The build options
 // are also required() by tests so the runtime gate bundles with the exact same
 // config the artifact ships with, and can't drift.
-//
-// Speed: emitting the artifacts costs ~200ms; compressing them used to cost far
-// more than that. See scripts/write-compressed.js for the BUILD_COMPRESSION tier
-// that keeps max-effort brotli on the deploy path only.
 
 const path = require('path');
 const fs = require('fs');
@@ -98,8 +94,7 @@ async function buildApp(appDir, name, scripts) {
   // the bytes with zero per-request CPU. Only the .js is compressed — the .map
   // is a rare, devtools-only fetch. The stale-sweep regex above already matches
   // the siblings (they share the `<name>.<hash>.js` prefix), so old ones are
-  // cleaned on rebuild alongside the .js/.map. Brotli quality is tiered by
-  // BUILD_COMPRESSION (see write-compressed.js); max is a deploy-only cost.
+  // cleaned on rebuild alongside the .js/.map.
   await writeCompressed(jsPath, Buffer.from(js));
   fs.writeFileSync(jsPath + '.map', result.map);
   return file;
@@ -170,9 +165,8 @@ async function main() {
   console.log('build: public/controller/' + manifest.controller.js + ' + ' + manifest.controller.css);
   console.log('build: public/display/' + manifest.display.js + ' + ' + manifest.display.css);
   console.log('build: public/controller/' + manifest['controller-ac'].js + ' + public/display/' + manifest['display-ac'].js + ' (AirConsole)');
-  // The prod HTML pages are rendered + cached at server boot (server/index.js
-  // HTML_CACHE), not here — the version label they carry is per-deployment and
-  // only known at runtime.
+  // The deployed pages are rendered by scripts/build-site.js, which bakes in
+  // the per-deployment version label.
 }
 
 if (require.main === module) {

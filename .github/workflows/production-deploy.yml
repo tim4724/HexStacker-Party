@@ -50,28 +50,13 @@ jobs:
       - name: Deploy to production
         env:
           TAG: ${{ github.ref_name }}
-          GIT_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           IMAGE="ghcr.io/${REPO}:${TAG}"
 
           echo "Deploying ${TAG} to production"
-          # Single patch = single rollout; separate `set image` + `set env`
-          # calls each trigger their own pod replacement.
-          kubectl patch deployment/couch-games -n hexstacker-prod --patch "
-          spec:
-            template:
-              spec:
-                containers:
-                  - name: couch-games
-                    image: '${IMAGE}'
-                    env:
-                      - name: APP_ENV
-                        value: production
-                      - name: GIT_SHA
-                        value: '${GIT_SHA}'
-          "
+          kubectl set image deployment/couch-games -n hexstacker-prod couch-games="${IMAGE}"
           kubectl rollout status deployment/couch-games -n hexstacker-prod --timeout=180s
 
           {

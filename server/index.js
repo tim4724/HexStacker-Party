@@ -333,58 +333,15 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Apple Universal Links: an iOS Camera scan of https://hexstacker.com/<room>
-  // opens the installed Paper Balloon app instead of Safari. Apple's CDN fetches
-  // this over HTTPS as application/json with no redirect; the app ships the
-  // matching applinks:hexstacker.com entitlement. Served inline (not from disk)
-  // so it can't fall into the generic static path — the file would have no
-  // extension (octet-stream) and a bare two-segment dotpath is easy to overlook.
-  // The 6-'?' pattern matches exactly the 6-char room code as the sole path
-  // segment; marketing/asset paths fall through to Safari, and the launcher's
-  // JoinResolver rejects any 6-char non-room code at runtime.
-  if (urlPath === '/.well-known/apple-app-site-association') {
-    sendJson(res, 200, {
-      applinks: {
-        details: [
-          {
-            appIDs: ['5ZH48MPAM3.games.paperballoon.controller'],
-            components: [
-              { '/': '/??????', comment: '6-char room code opens the app' },
-            ],
-          },
-        ],
-      },
-      // The launcher's App Clip: a room link opens the controller without an
-      // install. App Clip domains can't be wildcards, so each game's own host
-      // lists it.
-      appclips: { apps: ['5ZH48MPAM3.games.paperballoon.controller.Clip'] },
+  // App-link statements (public/.well-known/, see the notes in public/.htaccess).
+  // Explicit route because the AASA has no extension: the generic static path
+  // would send it as octet-stream, and Apple's CDN only accepts application/json.
+  if (urlPath === '/.well-known/apple-app-site-association' || urlPath === '/.well-known/assetlinks.json') {
+    fs.readFile(path.join(PUBLIC_DIR, urlPath), (err, data) => {
+      if (err) { res.writeHead(404); res.end('Not Found'); return; }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(data);
     });
-    return;
-  }
-
-  // Android App Links: the Digital Asset Links statement lets a system QR scan /
-  // tapped hexstacker.com/<room> open the Paper Balloon app instead of Chrome, the
-  // counterpart to the AASA above. Fingerprints: the release/upload key, the
-  // debug key (for testing a locally-built install), and the Play App Signing
-  // keys (Play Console → App integrity) — without those, verified App Links
-  // break for Play-distributed installs.
-  if (urlPath === '/.well-known/assetlinks.json') {
-    sendJson(res, 200, [
-      {
-        relation: ['delegate_permission/common.handle_all_urls'],
-        target: {
-          namespace: 'android_app',
-          package_name: 'games.paperballoon.controller',
-          sha256_cert_fingerprints: [
-            'CF:3C:FF:CD:9E:68:1C:37:F0:35:24:9A:7B:F0:10:14:3D:EC:AE:0D:DD:18:D7:57:F0:6E:8F:7A:0C:52:A0:38',
-            '17:56:F5:01:B4:93:67:B9:7D:A7:C9:97:10:42:D7:88:E0:B0:0E:45:A6:55:D9:24:A5:53:BD:D2:D8:55:13:7F',
-            '55:CE:A4:64:74:37:3A:6D:23:8C:50:A2:C8:EB:E2:8A:68:FB:54:2B:D0:0E:7B:63:9A:02:66:A2:EC:AF:D9:14',
-            'F5:3B:3D:0A:3D:D1:DC:1B:EC:AC:9D:40:D0:E6:93:BF:EB:C3:B6:4B:D3:5C:9C:69:0F:4D:FD:6F:43:CA:1C:20',
-            'C0:FA:AA:CB:9B:B1:C1:37:86:7B:01:16:E9:0E:8C:6A:94:02:7F:C5:84:9E:6B:E1:73:6E:9D:70:2D:DB:1C:30',
-          ],
-        },
-      },
-    ]);
     return;
   }
 
