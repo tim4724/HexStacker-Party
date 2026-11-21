@@ -50,7 +50,7 @@ const pb = (page) => page.evaluate(() => window.__pb);
 
 // Fabricate the relay's answer for a room that must not exist, so the test
 // doesn't depend on production-relay state for the negative path: the HTTP
-// probe a browser's name screen runs, and the socket the shell joins on.
+// probe the name screen runs, and the socket the controller joins on.
 async function fakeRoomNotFound(page) {
   await page.route(/\/room\/ZZZZ/, (route) => route.fulfill({ status: 404, body: '' }));
   await page.routeWebSocket(/ws\.hexstacker\.com/, (ws) => {
@@ -58,6 +58,15 @@ async function fakeRoomNotFound(page) {
       ws.send(JSON.stringify({ type: 'error', message: 'Room not found' }));
     });
   });
+}
+
+// A link pinned (#<instance>) to a relay machine that's gone: Fly answers the
+// probe with a 400 that lacks CORS headers, which the page only sees as a
+// network error. The socket never answers.
+const GONE_PIN_URL = '/ZZZZ?test=1#d8901edb095111';
+async function fakeGonePin(page) {
+  await page.route(/\/room\/ZZZZ/, (route) => route.abort());
+  await page.routeWebSocket(/ws\.hexstacker\.com/, () => {});
 }
 
 test.describe('Paper Balloon shell contract', () => {
@@ -258,6 +267,23 @@ test.describe('Paper Balloon shell contract', () => {
     // load, which can land before waitForURL attaches under CI timing.
     const bail = controller.waitForRequest(/\/\?bail=room_not_found$/, { timeout: 10000 });
     await controller.goto('/ZZZZ?test=1');
+    await bail;
+  });
+
+  test('a pin to a gone relay machine surfaces room_not_found through gameEnded', async ({ context }) => {
+    const controller = await context.newPage();
+    await controller.addInitScript(hostStub, 'Ada');
+    await fakeGonePin(controller);
+    await controller.goto(GONE_PIN_URL);
+    await controller.waitForFunction(() => window.__pb.ended.length > 0, null, { timeout: 10000 });
+    expect((await pb(controller)).ended).toEqual(['room_not_found']);
+  });
+
+  test('without the host bridge, a pin to a gone relay machine bails too', async ({ context }) => {
+    const controller = await context.newPage();
+    await fakeGonePin(controller);
+    const bail = controller.waitForRequest(/\/\?bail=room_not_found$/, { timeout: 10000 });
+    await controller.goto(GONE_PIN_URL);
     await bail;
   });
 });

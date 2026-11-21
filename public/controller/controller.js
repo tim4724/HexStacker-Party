@@ -103,10 +103,11 @@ clientId = hadStoredId || generateClientId();
 
 // Probe the relay for an existence check so an invalid room code surfaces
 // immediately instead of only after the user types a name and hits JOIN.
-// AirConsole parses /controller.html into roomCode and owns its own identity
-// (skipNameScreen); gallery iframes carry ?scenario= and never hit a relay.
+// Runs in the Paper Balloon shell too, where the name screen shows only its
+// connecting state. AirConsole has no relay to ask; gallery iframes carry
+// ?scenario= and never hit a relay.
 var isScenario = !!new URLSearchParams(location.search).get('scenario');
-if (!skipNameScreen && !isScenario) {
+if (!window.airconsole && !isScenario) {
   var isNewClient = !hadStoredId && !rejoinToken && !legacyRejoinId;
   var relayHttpUrl = RELAY_URL.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
   fetch(relayHttpUrl + '/room/' + encodeURIComponent(roomCode) + (instanceId ? '?instance=' + encodeURIComponent(instanceId) : ''))
@@ -123,7 +124,13 @@ if (!skipNameScreen && !isScenario) {
         if (info && info.clients >= info.maxClients) bailToWelcome('game_full');
       });
     })
-    .catch(function () { /* network error — connect() will surface it */ });
+    .catch(function () {
+      // A pin (#<instance>) to a relay machine that no longer exists gets Fly's
+      // bare 400 without CORS headers, seen here as a network error, and the
+      // WebSocket fails silently too. A gone machine means a gone room (a real
+      // network blip bails too, accepted). Unpinned links get a readable 404.
+      if (instanceId && currentScreen === 'name') bailToWelcome('room_not_found');
+    });
 }
 
 // =====================================================================
