@@ -1,15 +1,15 @@
 name: Hetzner Deploy
 
 # Uploads site/ (npm run build:site) to Hetzner Webhosting over SFTP: main goes
-# to main.hexstacker.com on every push, a release tag to hexstacker.com (run by
-# hand until production-deploy.yml is retired: both calling test.yml on the
-# same tag would cancel each other's run). Each host is its own folder under
-# public_html on the account that also hosts paperballoon.games (account setup:
-# that repo's README).
+# to main.hexstacker.com on every push, a release tag to hexstacker.com. Each
+# host is its own folder under public_html on the account that also hosts
+# paperballoon.games (account setup: that repo's README).
 on:
   push:
     branches: [main]
-    # The upload is the web app only.
+    # Bare semver, the repo's release tag convention (matching release.yml).
+    tags: ['[0-9]+.[0-9]+.[0-9]+']
+    # The upload is the web app only. (Tag pushes ignore path filters.)
     paths-ignore:
       - 'android/**'
       - 'appletv/**'

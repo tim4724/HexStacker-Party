@@ -160,7 +160,7 @@ The local server (`npm run dev`, e2e):
 | `BASE_URL` | Auto-detected LAN IP | Base URL for join links and QR codes |
 | `SERVE_BUNDLES` | – | `1` serves the hashed bundles (run `npm run build` first) instead of the individual files; used by e2e |
 
-`npm run build:site` (set through the Dockerfile's build args):
+`npm run build:site` (set by `hetzner-deploy.yml`, and by the Dockerfile for previews):
 
 | Environment Variable | Default | Description |
 |---|---|---|
