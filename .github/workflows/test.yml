@@ -7,7 +7,7 @@ on:
   # entirely. Same-repo PRs are already covered by that trigger, hence the fork
   # filter on the jobs: without it every branch with an open PR runs twice.
   pull_request:
-  # Release tags don't match the push filter, so Production Deploy calls this
+  # Release tags don't match the push filter, so Hetzner Deploy calls this
   # workflow directly to gate the rollout on a green suite.
   workflow_call:
   workflow_dispatch:

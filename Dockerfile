@@ -8,9 +8,7 @@ COPY server/ ./server/
 COPY public/ ./public/
 COPY partyplug/ ./partyplug/
 COPY scripts/ ./scripts/
-# Baked into the pages' version label: production shows the bare version,
-# anything else appends the commit. docker-publish.yml sets both.
-ARG APP_ENV=preview
+# The commit in the pages' version label (docker-publish.yml passes it).
 ARG GIT_SHA=
 RUN npm run build:site
 
