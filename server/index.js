@@ -1,146 +1,57 @@
 'use strict';
 
+// Local dev and e2e server. Deployed hosts serve the static site/ through Apache
+// instead (scripts/build-site.js, public/.htaccess); the routes here mirror it.
+
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const zlib = require('zlib');
 
 const PORT = parseInt(process.env.PORT, 10) || 4000;
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
-// Build-time ad-clip composite rig — loaded only by artwork/ad-clip/capture.js
-// driving Playwright against the running dev server. The artwork/ tree is not
-// copied into the Docker image, so /artwork/ad-clip/* naturally 404s in prod.
+// Build-time ad-clip composite rig, loaded only by artwork/ad-clip/capture.js
+// driving Playwright against this server.
 const AD_CLIP_COMPOSITE_DIR = path.join(__dirname, '..', 'artwork', 'ad-clip', 'composite');
 // PartyPlug — reusable party-game framework (transport layer), shared across
 // games and intentionally outside public/ so it isn't tied to this one app's
 // assets. Served under /partyplug/ via the baseDir remap below.
 const PARTYPLUG_DIR = path.join(__dirname, '..', 'partyplug');
 const APP_VERSION = require('../package.json').version;
-const APP_ENV = String(process.env.APP_ENV || (process.env.NODE_ENV === 'production' ? 'production' : 'development')).toLowerCase();
-const GIT_SHA = String(process.env.GIT_SHA || '').trim();
 
-function getShortSha(sha) {
-  return sha ? sha.slice(0, 7) : null;
-}
+// The pages' script and style tags. SERVE_BUNDLES=1 (e2e) serves one hashed
+// bundle per app, the concatenated artifact users get, where strict-mode
+// flattening and cross-file hoisting live; it needs `npm run build` first.
+// Otherwise the individual files in their canonical order, for instant edits.
+const { CONTROLLER_SCRIPTS, DISPLAY_SCRIPTS, AC_CONTROLLER_SCRIPTS, AC_DISPLAY_SCRIPTS, CONTROLLER_STYLES, DISPLAY_STYLES } = require('../scripts/asset-manifest.js');
+const { renderShell, bundleSubs } = require('../scripts/render-shell.js');
 
-// Computed once at boot — same for every HTML response.
-const VERSION_LABEL = APP_VERSION + (APP_ENV !== 'production' && getShortSha(GIT_SHA) ? ' (#' + getShortSha(GIT_SHA) + ')' : '');
-
-// Web bundles: in production we serve one content-hashed, immutably-cached
-// bundle per app instead of ~20 no-store script tags (see scripts/build.js). The
-// canonical load order is single-sourced in scripts/asset-manifest.js so dev
-// (which serves the individual files for instant edits) can't drift from the
-// build. WEB_MANIFEST maps app -> hashed filename; it's absent until `npm run
-// build` has run, so dev and an unbuilt prod both fall back to individual tags.
-//
-// SERVE_BUNDLES=1 forces bundle serving independent of APP_ENV: it lets the e2e
-// suite exercise the real concatenated artifact (where strict-mode flattening /
-// cross-file hoisting live) without flipping the rest of production mode — most
-// importantly keeping the dev CSP that the AirConsole mock's http.airconsole.com
-// framing relies on.
-const { CONTROLLER_SCRIPTS, DISPLAY_SCRIPTS, AC_CONTROLLER_SCRIPTS, AC_DISPLAY_SCRIPTS, CONTROLLER_STYLES, DISPLAY_STYLES, PRERENDERED_PAGES, resolveAsset } = require('../scripts/asset-manifest.js');
-const { renderShell } = require('../scripts/render-shell.js');
-const SERVE_BUNDLES = APP_ENV === 'production' || process.env.SERVE_BUNDLES === '1';
-const WEB_MANIFEST = (function () {
-  try {
-    return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'dist', 'web-manifest.json'), 'utf8'));
-  } catch (_) {
-    return null;
-  }
-})();
-// Loud about the dangerous case: bundles asked for but not built. Without this a
-// prod deploy that skipped `npm run build` boots "healthy" and silently serves
-// the ~20 no-store tags this whole change exists to eliminate.
-if (SERVE_BUNDLES && !WEB_MANIFEST) {
-  console.warn('[warn] SERVE_BUNDLES/production is set but dist/web-manifest.json is missing — run `npm run build`. Serving individual no-store script tags as a fallback.');
-}
-
-// Build the <script> markup that replaces an app's <!--*_SCRIPTS--> placeholder.
-// Bundle mode with a built manifest -> a single hashed tag; otherwise the files.
-// `dir` is the public/ directory the bundle lives in — it matches `app` for the
-// web bundles but not for the AC variants ('controller-ac' lives in controller/).
-function scriptTagsFor(app, dir, scripts) {
-  if (SERVE_BUNDLES && WEB_MANIFEST && WEB_MANIFEST[app]) {
-    return '<script src="/' + dir + '/' + WEB_MANIFEST[app].js + '"></script>';
-  }
+function scriptTags(scripts) {
   return scripts.map(function (s) { return '<script src="' + s + '"></script>'; }).join('\n  ');
 }
-
-// Build the <link> markup that replaces an app's <!--*_STYLES--> placeholder.
-// Bundle mode -> one hashed, immutably-cached, compressed stylesheet; otherwise
-// the individual files, each ?v=-busted against the 24h cache (APP_VERSION is
-// baked in here directly so this is independent of the __APP_V__ HTML pass).
-// The @font-face stylesheets are NOT here (see asset-manifest.js) — they remain
-// their own <link>s in the HTML in both modes.
-function styleTagsFor(app, styles) {
-  if (SERVE_BUNDLES && WEB_MANIFEST && WEB_MANIFEST[app] && WEB_MANIFEST[app].css) {
-    return '<link rel="stylesheet" href="/' + app + '/' + WEB_MANIFEST[app].css + '">';
-  }
-  return styles.map(function (s) {
-    return '<link rel="stylesheet" href="' + s + '?v=' + APP_VERSION + '">';
-  }).join('\n  ');
+function styleTags(styles) {
+  return styles.map(function (s) { return '<link rel="stylesheet" href="' + s + '">'; }).join('\n  ');
 }
 
-// Expand all shell placeholders for a page. Single entry point for both the
-// boot-time cache (below) and the request-time rewrite (in the handler), so a
-// page renders identically whichever path produces it. Every value here is
-// constant per process EXCEPT versionLabel, which carries the non-prod "(#sha)"
-// suffix and is only known at runtime (APP_ENV + GIT_SHA are container env vars;
-// prod and preview run the same image) — which is exactly why the version can't
-// be baked at build time and these pages are finalized at boot instead.
-function renderPage(html) {
-  return renderShell(html, {
-    versionLabel: VERSION_LABEL,
-    appVersion: APP_VERSION,
-    controllerScripts: scriptTagsFor('controller', 'controller', CONTROLLER_SCRIPTS),
-    displayScripts: scriptTagsFor('display', 'display', DISPLAY_SCRIPTS),
-    acControllerScripts: scriptTagsFor('controller-ac', 'controller', AC_CONTROLLER_SCRIPTS),
-    acDisplayScripts: scriptTagsFor('display-ac', 'display', AC_DISPLAY_SCRIPTS),
-    controllerStyles: styleTagsFor('controller', CONTROLLER_STYLES),
-    displayStyles: styleTagsFor('display', DISPLAY_STYLES),
-  });
-}
-
-// Compress `buf` to `.br`/`.gz` at max quality. Boot-time one-shot per page, so
-// spending brotli 11 / gzip 9 is free — the result is reused for every request.
-function compressVariants(buf) {
-  return {
-    identity: buf,
-    br: zlib.brotliCompressSync(buf, {
-      params: {
-        [zlib.constants.BROTLI_PARAM_QUALITY]: 11,
-        [zlib.constants.BROTLI_PARAM_SIZE_HINT]: buf.length,
-      },
-    }),
-    gzip: zlib.gzipSync(buf, { level: 9 }),
+const TAGS = process.env.SERVE_BUNDLES === '1'
+  ? bundleSubs(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'dist', 'web-manifest.json'), 'utf8')))
+  : {
+    controllerScripts: scriptTags(CONTROLLER_SCRIPTS),
+    displayScripts: scriptTags(DISPLAY_SCRIPTS),
+    acControllerScripts: scriptTags(AC_CONTROLLER_SCRIPTS),
+    acDisplayScripts: scriptTags(AC_DISPLAY_SCRIPTS),
+    controllerStyles: styleTags(CONTROLLER_STYLES),
+    displayStyles: styleTags(DISPLAY_STYLES),
   };
-}
 
-// Prod-only: render every prod-served HTML page (PRERENDERED_PAGES in
-// asset-manifest.js) once at boot and cache its identity + `.br`/`.gz` bytes, so
-// requests serve static, negotiated, pre-compressed HTML with zero per-request
-// templating or compression. This runs at boot rather than build time precisely
-// because renderPage bakes VERSION_LABEL, which is per-deployment (same image,
-// prod vs preview) and thus only known now. Empty in dev / when bundles aren't
-// served, so the runtime rewrite in the handler covers every page there. A page
-// whose source is missing (e.g. AC entries not generated) is skipped and falls
-// back to that runtime path.
-const HTML_CACHE = (function () {
-  if (!SERVE_BUNDLES) return {};
-  const cache = {};
-  for (const url of PRERENDERED_PAGES) {
-    let src;
-    try { src = fs.readFileSync(resolveAsset(url), 'utf8'); } catch (_) { continue; }
-    cache[url] = compressVariants(Buffer.from(renderPage(src)));
-  }
-  return cache;
-})();
+function renderPage(html) {
+  return renderShell(html, Object.assign({ versionLabel: APP_VERSION, appVersion: APP_VERSION }, TAGS));
+}
 
 // Allowlist of engine modules serveable via the /engine/ route, derived from the
 // canonical script lists so it can't drift from them. A hand-kept copy did: when
 // RoomCore.js joined DISPLAY_SCRIPTS it was missing here, and dev mode (individual
-// tags) 404'd it while the prod bundle (which inlines the file) stayed fine.
+// tags) 404'd it while the bundle (which inlines the file) stayed fine.
 const ENGINE_FILES = new Set(
   [].concat(CONTROLLER_SCRIPTS, DISPLAY_SCRIPTS, AC_CONTROLLER_SCRIPTS, AC_DISPLAY_SCRIPTS)
     .filter((p) => p.startsWith('/engine/'))
@@ -170,90 +81,6 @@ function sendJson(res, statusCode, payload) {
   res.end(JSON.stringify(payload));
 }
 
-// Content-hashed web bundle (foo.<10-hex>.js or .css), NOT the .js.map. Only
-// these carry build-time pre-compressed `.br`/`.gz` siblings, so only these are
-// candidates for Accept-Encoding negotiation; every other request skips the
-// sibling probe.
-const HASHED_BUNDLE = /\.[0-9a-f]{10}\.(?:js|css)$/;
-
-// Text assets outside the hashed bundles that the pages fetch on every first
-// visit — the font CSS, the SVG marks, the favicon — and that compress well.
-// They carry no build-time siblings, so the first request compresses each one
-// (off the event loop) and the result is kept for as long as the file's ETag
-// holds. Smaller files aren't worth a Vary split.
-const COMPRESSIBLE_EXT = new Set(['.css', '.svg', '.ico', '.json']);
-const MIN_COMPRESS_BYTES = 1024;
-const MAX_COMPRESS_BYTES = 1024 * 1024;
-const compressedStatic = new Map(); // filePath -> { etag, variants: Promise }
-
-// Weak validator from size + mtime: no read or hash needed to answer a
-// revalidation. Docker COPY keeps the build checkout's mtimes, so every
-// replica of one image agrees; a new image re-stamps them, which costs one
-// full re-download per deploy, never a stale 304.
-function staticEtag(stat) {
-  return 'W/"' + stat.size.toString(36) + '-' + Math.floor(stat.mtimeMs).toString(36) + '"';
-}
-
-// RFC 9110 If-None-Match: weak comparison against a comma-separated list or `*`.
-function etagMatches(ifNoneMatch, etag) {
-  if (!ifNoneMatch) return false;
-  const bare = etag.replace(/^W\//, '');
-  return String(ifNoneMatch).split(',').some((tag) => {
-    const t = tag.trim();
-    return t === '*' || t.replace(/^W\//, '') === bare;
-  });
-}
-
-// identity + whichever encodings come out smaller, at max quality (once per
-// file version, so brotli 11 is free).
-function compressStatic(filePath, etag) {
-  const cached = compressedStatic.get(filePath);
-  if (cached && cached.etag === etag) return cached.variants;
-  const variants = fs.promises.readFile(filePath).then((buf) => Promise.all([
-    new Promise((resolve, reject) => zlib.brotliCompress(buf, {
-      params: {
-        [zlib.constants.BROTLI_PARAM_QUALITY]: 11,
-        [zlib.constants.BROTLI_PARAM_SIZE_HINT]: buf.length,
-      },
-    }, (err, out) => (err ? reject(err) : resolve(out)))),
-    new Promise((resolve, reject) => zlib.gzip(buf, { level: 9 }, (err, out) => (err ? reject(err) : resolve(out)))),
-  ]).then(([br, gzip]) => ({
-    identity: buf,
-    br: br.length < buf.length ? br : null,
-    gzip: gzip.length < buf.length ? gzip : null,
-  })));
-  compressedStatic.set(filePath, { etag, variants });
-  // A failed read must not stick: drop it so the next request retries.
-  variants.catch(() => {
-    if (compressedStatic.get(filePath)?.variants === variants) compressedStatic.delete(filePath);
-  });
-  return variants;
-}
-
-// Pick the best encoding we ship a pre-compressed sibling for (brotli first),
-// or null if the client accepts neither. Parses q-values so an explicit refusal
-// (`br;q=0`) is honored per RFC 9110, and the `*` wildcard sets the default for
-// encodings not named. Keys are exact tokens, so a substring can't spoof support.
-function pickEncoding(acceptEncoding) {
-  const q = {};
-  for (const part of String(acceptEncoding || '').toLowerCase().split(',')) {
-    const segs = part.trim().split(';');
-    const token = segs[0].trim();
-    if (!token) continue;
-    let qval = 1;
-    for (let i = 1; i < segs.length; i++) {
-      const m = /^\s*q=([\d.]+)/.exec(segs[i]);
-      if (m) qval = parseFloat(m[1]);
-    }
-    q[token] = qval;
-  }
-  const brQ = 'br' in q ? q.br : q['*'];
-  const gzipQ = 'gzip' in q ? q.gzip : q['*'];
-  if (brQ > 0) return { ext: '.br', name: 'br' };
-  if (gzipQ > 0) return { ext: '.gz', name: 'gzip' };
-  return null;
-}
-
 const server = http.createServer((req, res) => {
   let urlPath = req.url.split('?')[0];
 
@@ -276,8 +103,7 @@ const server = http.createServer((req, res) => {
 
   // Cross-platform TV gallery (scripts/gallery), so the gallery nav's TV link
   // works in local dev after a local capture/assemble. Deployed hosts never
-  // reach this route: Traefik path-routes /gallery-tv to the static gallery
-  // pod, and the game image ships without these files anyway (404s here).
+  // reach this route: Traefik path-routes /gallery-tv to the static gallery pod.
   if (urlPath === '/gallery-tv') {
     // Redirect to the slash form so the page's relative shots/ paths resolve.
     res.writeHead(301, { Location: '/gallery-tv/' });
@@ -306,10 +132,8 @@ const server = http.createServer((req, res) => {
   // Brand-asset gallery (public/gallery-artwork.html) shows icons/key art that
   // live OUTSIDE public/: the tvOS + Android icon sources and the artwork/ tree.
   // Expose just those three repo dirs, image files only, read-only — allowlisted
-  // by top-level dir + extension so source code stays unreachable. Dev-only in
-  // practice: the prod image ships none of these dirs, so the cards 404 and the
-  // page's onerror handler marks them "not generated". urlPath is un-decoded
-  // (req.url), and the appletv paths carry %20/%26, so decode before resolving.
+  // by top-level dir + extension so source code stays unreachable. urlPath is
+  // un-decoded (req.url), and the appletv paths carry %20/%26, so decode first.
   if (urlPath.startsWith('/gallery-assets/')) {
     let rest;
     try { rest = decodeURIComponent(urlPath.slice('/gallery-assets/'.length)); }
@@ -348,17 +172,6 @@ const server = http.createServer((req, res) => {
   // Health check endpoint
   if (urlPath === '/health') {
     sendJson(res, 200, { status: 'ok' });
-    return;
-  }
-
-  // Version endpoint
-  if (urlPath === '/api/version') {
-    sendJson(res, 200, {
-      version: APP_VERSION,
-      env: APP_ENV,
-      isProduction: APP_ENV === 'production',
-      commit: getShortSha(GIT_SHA)
-    });
     return;
   }
 
@@ -420,12 +233,6 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Prod: this page has boot-cached, finalized, pre-compressed bytes (below the
-  // deliver() definition). preRendered signals the request-time HTML rewrite to
-  // stand down. CSP/cache headers key off urlPath + ext (unchanged), so serving
-  // from cache is invisible to them.
-  const preRendered = !!HTML_CACHE[urlPath];
-
   // MP4: serve via streaming with Range support so the <video> element can
   // seek. fs.readFile + res.end (the path below) sends the whole buffer
   // without an Accept-Ranges header, which disables seeking in the browser
@@ -434,11 +241,10 @@ const server = http.createServer((req, res) => {
     fs.stat(filePath, (err, stat) => {
       if (err) { res.writeHead(404); res.end('Not Found'); return; }
       const fileSize = stat.size;
-      const isProd = APP_ENV === 'production';
       const baseHeaders = {
         'Content-Type': MIME_TYPES['.mp4'],
         'Accept-Ranges': 'bytes',
-        'Cache-Control': isProd ? 'public, max-age=86400' : 'no-store',
+        'Cache-Control': 'no-store',
       };
       const rangeHeader = req.headers.range;
       if (rangeHeader) {
@@ -475,146 +281,14 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Never cached, so an edit shows on the next reload.
   const ext = path.extname(filePath).toLowerCase();
-  // Which responses carry pre-compressed `.br`/`.gz` variants and can negotiate
-  // Content-Encoding: content-hashed bundles (from disk siblings the build
-  // emits) and boot-cached HTML (from in-memory variants). Everything else skips
-  // the probe — the dev-only runtime-rewritten source HTML has no sibling, and
-  // the small static text files compress in memory (compressStatic, below).
-  const negotiable = preRendered || HASHED_BUNDLE.test(filePath);
-  const encoding = negotiable ? pickEncoding(req.headers['accept-encoding']) : null;
-
-  // Non-production: never cache — file edits take effect on the next
-  // request with no hard-reload needed. Production: HTML + JS are
-  // already uncached to avoid stale-version mismatches (see commit
-  // b08563d); other static files (CSS, images, fonts) keep a 24h cache
-  // for bandwidth. The /engine/ route sends its own no-store header
-  // above, so its dev/prod behavior matches what we set here.
-  //
-  // Exception: content-hashed bundles (foo.<10-hex>.js/.css from
-  // scripts/build.js) and the JS sidecar .js.map are immutable — the hash
-  // changes when the bytes change, so a new build gets a new URL and a stale
-  // copy is never served. This is what lets the bundled JS and CSS escape
-  // no-store / the 24h cache and be cached for a year.
-  var isHashedBundle = /\.[0-9a-f]{10}\.(?:js|css)(\.map)?$/.test(filePath);
-  var isNonProd = APP_ENV !== 'production';
-  var noCache = isNonProd || ext === '.html' || (ext === '.js' && !isHashedBundle);
-  const cacheControl = isHashedBundle
-    ? 'public, max-age=31536000, immutable'
-    : (noCache ? 'no-store' : 'public, max-age=86400');
-
-  // `extra`: validator / Vary headers from the generic static path below.
-  const deliver = (data, usedEncoding, extra) => {
-    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-    const headers = Object.assign({ 'Content-Type': contentType }, extra);
-
-    // Dev path (and the no-build fallback): expand the placeholders at request
-    // time — version into the <meta name="app-version"> tag (the atomic "what
-    // version is this page" anchor for staleness detection AND footer display,
-    // with the dev " (#sha)" suffix), the ?v= font cache-bust, and the
-    // script/style markers (individual files in dev, one hashed bundle in the
-    // fallback). In prod the prerendered pages are served from HTML_CACHE
-    // (preRendered), so this never runs for them. Gallery pages (dev-only here)
-    // and any placeholder-less HTML pass through renderPage unchanged.
-    if (ext === '.html' && !preRendered) {
-      data = Buffer.from(renderPage(data.toString('utf8')));
-    }
-
-    headers['Cache-Control'] = cacheControl;
-
-    if (ext === '.html') {
-      const isAirConsole = urlPath === '/display/screen.html' || urlPath === '/controller/controller.html';
-      if (isAirConsole) {
-        headers['Content-Security-Policy'] = [
-          "default-src 'self'",
-          "script-src 'self' https://www.airconsole.com",
-          "style-src 'self' 'unsafe-inline'",
-          "font-src 'self'",
-          "connect-src 'self' https://www.airconsole.com",
-          "img-src 'self' data: https://www.airconsole.com",
-          "object-src 'none'",
-          "frame-ancestors https://www.airconsole.com" + (APP_ENV !== 'production' ? " http://http.airconsole.com" : ""),
-        ].join('; ');
-      } else {
-        // Pages that are iframed by the UI gallery (/gallery.html and
-        // /gallery-controller.html) need `frame-ancestors 'self'`; the
-        // gallery pages themselves — and any other HTML — stay at 'none'.
-        // NOTE: this list pairs with the routing block above (/ → display,
-        //       / + single segment → controller). Keep them in sync if
-        //       those mappings ever change.
-        const iframeable =
-          urlPath === '/display/index.html' ||
-          urlPath === '/controller/index.html';
-        const frameAncestors = iframeable ? "'self'" : "'none'";
-        // Note on stun.hexstacker.com: WebRTC's STUN traffic is UDP and not
-        // subject to connect-src in any major browser (Chrome ignores
-        // `stun:` schemes there with a warning). No CSP directive is needed
-        // for the fastlane's iceServers config.
-        headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' wss://ws.hexstacker.com https://ws.hexstacker.com; img-src 'self' data:; media-src 'self'; object-src 'none'; frame-src 'self'; frame-ancestors " + frameAncestors;
-      }
-    }
-
-    // Any negotiable resource Varies on Accept-Encoding (including the plain
-    // fallback) so a shared cache never serves an un-encoded body to a client
-    // that would have taken compression, nor a br/gzip body to one that only
-    // asked for plain. The immutable content-hashed URL keeps stale bytes from
-    // ever being served regardless.
-    if (negotiable) headers['Vary'] = 'Accept-Encoding';
-    if (usedEncoding) headers['Content-Encoding'] = usedEncoding;
-
-    res.writeHead(200, headers);
+  fs.readFile(filePath, (err, data) => {
+    if (err) { res.writeHead(404); res.end('Not Found'); return; }
+    if (ext === '.html') data = renderPage(data.toString('utf8'));
+    res.writeHead(200, { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream', 'Cache-Control': 'no-store' });
     res.end(data);
-  };
-
-  // Boot-cached pages: serve the finalized, pre-compressed buffer straight from
-  // memory (encoding was picked above since preRendered pages are negotiable).
-  // deliver() still stamps CSP/cache/Vary and skips the rewrite (preRendered).
-  if (preRendered) {
-    const variants = HTML_CACHE[urlPath];
-    if (encoding && variants[encoding.name]) { deliver(variants[encoding.name], encoding.name); return; }
-    deliver(variants.identity, null);
-    return;
-  }
-
-  if (encoding) {
-    fs.readFile(filePath + encoding.ext, (err, data) => {
-      if (!err) { deliver(data, encoding.name); return; }
-      // Sibling missing (partial build, etc.) — serve the plain bundle.
-      fs.readFile(filePath, (plainErr, plainData) => {
-        if (plainErr) { res.writeHead(404); res.end('Not Found'); return; }
-        deliver(plainData, null);
-      });
-    });
-  } else {
-    fs.stat(filePath, (statErr, stat) => {
-      if (statErr || !stat.isFile()) { res.writeHead(404); res.end('Not Found'); return; }
-      // Day-cached assets (fonts, images, icons, CSS) get a validator, so a
-      // visit after the 24h expiry costs a 304 instead of the full file.
-      // no-store and immutable responses never revalidate, so they skip it.
-      const extra = {};
-      if (cacheControl === 'public, max-age=86400') extra['ETag'] = staticEtag(stat);
-      const compressible = !negotiable && COMPRESSIBLE_EXT.has(ext) &&
-        stat.size >= MIN_COMPRESS_BYTES && stat.size <= MAX_COMPRESS_BYTES;
-      if (compressible) extra['Vary'] = 'Accept-Encoding';
-      if (extra['ETag'] && etagMatches(req.headers['if-none-match'], extra['ETag'])) {
-        res.writeHead(304, Object.assign({ 'Cache-Control': cacheControl }, extra));
-        res.end();
-        return;
-      }
-      if (compressible) {
-        const enc = pickEncoding(req.headers['accept-encoding']);
-        compressStatic(filePath, staticEtag(stat)).then((variants) => {
-          if (enc && variants[enc.name]) deliver(variants[enc.name], enc.name, extra);
-          else deliver(variants.identity, null, extra);
-        }, () => { res.writeHead(404); res.end('Not Found'); });
-        return;
-      }
-      fs.readFile(filePath, (err, data) => {
-        if (err) { res.writeHead(404); res.end('Not Found'); return; }
-        deliver(data, null, extra);
-      });
-    });
-  }
+  });
 });
 
 // --- Get local network IP ---
@@ -631,9 +305,7 @@ function getLocalIP() {
 }
 
 // --- Start server ---
-// Guarded so unit tests can require this module (for pickEncoding /
-// HASHED_BUNDLE) without binding a port. `node server/index.js` (npm start,
-// Docker CMD, the e2e webServer) is still the main module and listens.
+// Guarded so tests can require this module and listen on a port of their own.
 if (require.main === module) {
   server.listen(PORT, () => {
     const localIP = getLocalIP();
@@ -641,15 +313,6 @@ if (require.main === module) {
     console.log(`Local network: http://${localIP}:${PORT}`);
     console.log(`Display: http://localhost:${PORT}/`);
   });
-
-  // Node runs as PID 1 in the container, where SIGTERM's default disposition
-  // is ignored — without this handler every pod hangs for the full
-  // terminationGracePeriodSeconds until SIGKILL on each deploy.
-  process.on('SIGTERM', () => {
-    server.close(() => process.exit(0));
-    server.closeIdleConnections();
-    setTimeout(() => process.exit(0), 5000).unref();
-  });
 }
 
-module.exports = { pickEncoding, HASHED_BUNDLE, etagMatches, server };
+module.exports = { server };

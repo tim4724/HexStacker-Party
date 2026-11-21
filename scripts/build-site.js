@@ -4,9 +4,8 @@
 // Assembles site/, the static files every deployed host serves through Apache
 // with public/.htaccess. `npm run build:site` runs `npm run build` first.
 //
-// site/ is public/ minus the build inputs, with the pages rendered. Also left
-// out: the .br/.gz siblings (Apache compresses on the fly) and the review
-// galleries (served by their own pod on previews).
+// site/ is public/ minus the build inputs, with the pages rendered. The review
+// galleries are left out too: previews serve them from their own pod.
 //
 // The version label is baked into the pages here: APP_ENV=production shows the
 // bare version, anything else appends the commit from GIT_SHA.
@@ -38,7 +37,7 @@ for (const [app, files] of Object.entries(manifest)) {
 
 function shipped(rel) {
   const name = path.basename(rel);
-  if (name === '.DS_Store' || rel.startsWith('gallery') || /\.(br|gz)$/.test(name)) return false;
+  if (name === '.DS_Store' || rel.startsWith('gallery')) return false;
   if (HASHED.test(name)) return bundles.has(rel);
   if (name.endsWith('.js')) return false;
   return !bundledStyles.has(rel);

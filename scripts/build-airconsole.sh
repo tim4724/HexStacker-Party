@@ -38,8 +38,8 @@ cp -r "$PROJECT_DIR/public/display" "$BUILD_DIR/display"
 cp -r "$PROJECT_DIR/public/controller" "$BUILD_DIR/controller"
 
 # Drop everything the bundles replace: all source JS, plus the web bundle
-# artifacts / sourcemaps / precompressed siblings the tree copy picked up.
-find "$BUILD_DIR" -type f \( -name '*.js' -o -name '*.js.map' -o -name '*.br' -o -name '*.gz' \) -delete
+# artifacts and sourcemaps the tree copy picked up.
+find "$BUILD_DIR" -type f \( -name '*.js' -o -name '*.js.map' \) -delete
 # Same for the bundled stylesheets and the web-only legal css. The @font-face
 # sheets (shared/fonts/*.css) stay: they're linked directly and carry relative
 # url() references to their woff2 siblings.
