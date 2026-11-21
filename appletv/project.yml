@@ -23,7 +23,7 @@ packages:
   # FastlaneTests (`swift test`); the adapter is built for the tvOS Simulator here.
   LiveKitWebRTC:
     url: https://github.com/livekit/webrtc-xcframework
-    exactVersion: "150.7871.03"
+    exactVersion: "150.7871.06"
 
 targets:
   HexStackerTV:
