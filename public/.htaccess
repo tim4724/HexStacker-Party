@@ -33,14 +33,10 @@ RewriteRule ^controller\.html$ controller/controller.html [END]
 # which tells the player the room doesn't exist.
 RewriteRule ^[^/.]+$ controller/index.html [END]
 
-# App links: a scanned or tapped hexstacker.com/<CODE> opens the Paper Balloon
-# controller app instead of the browser. Apple's CDN fetches the AASA over HTTPS
-# as application/json with no redirect. It claims exactly the 6-character paths
-# and names the App Clip, which each game's own host must list (App Clip
-# domains can't be wildcards). assetlinks.json is the Android counterpart; its
-# fingerprints are the upload key, the debug key (local builds) and the Play App
-# Signing keys (Play Console > App integrity), without which Play installs fail
-# verification.
+# App links (.well-known/): Apple's CDN only accepts the AASA as
+# application/json, and the file has no extension. assetlinks.json must list the
+# Play App Signing keys (Play Console > App integrity) besides the upload and
+# debug keys, or Play installs fail verification.
 <Files "apple-app-site-association">
   ForceType application/json
 </Files>
@@ -64,9 +60,8 @@ Header always set Content-Security-Policy "default-src 'self'; script-src 'self'
 Header always set X-Robots-Tag "noindex, nofollow" "expr=%{HTTP_HOST} != 'hexstacker.com'"
 
 # Caching. Pages are never stored, so a deploy shows at once and a page never
-# pairs with older bundles. Hashed bundles never change under their name.
-# Everything else is kept a day, then revalidated. Not "always": an error
-# response must not be cached for a day.
+# pairs with older bundles. Everything else is kept a day, hashed bundles for
+# good. No "always", so errors aren't cached.
 Header set Cache-Control "public, max-age=86400"
 <FilesMatch "\.html$">
   Header set Cache-Control "no-store"

@@ -1,14 +1,12 @@
 #!/usr/bin/env node
 'use strict';
 
-// Assembles site/: the static files every deployed host serves through Apache
-// with public/.htaccess (Hetzner for prod and main, the Dockerfile's httpd image
-// for branch previews). `npm run build:site` runs `npm run build` first.
+// Assembles site/, the static files every deployed host serves through Apache
+// with public/.htaccess. `npm run build:site` runs `npm run build` first.
 //
-// site/ is public/ with the pages rendered and the build inputs left out: the
-// source JS and CSS the hashed bundles replace, hashed bundles from earlier
-// local builds, the precompressed siblings (the server compresses) and the
-// review galleries (served by their own pod on previews).
+// site/ is public/ minus the build inputs, with the pages rendered. Also left
+// out: the .br/.gz siblings (Apache compresses on the fly) and the review
+// galleries (served by their own pod on previews).
 //
 // The version label is baked into the pages here: APP_ENV=production shows the
 // bare version, anything else appends the commit from GIT_SHA.

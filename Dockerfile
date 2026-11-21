@@ -14,8 +14,7 @@ ARG APP_ENV=preview
 ARG GIT_SHA=
 RUN npm run build:site
 
-# Runtime: Apache with public/.htaccess, the config Hetzner Webhosting runs
-# too, so every branch preview exercises it (httpd.conf has the rest).
+# Runtime: Apache serving site/ with public/.htaccess (httpd.conf has the rest).
 FROM httpd:2.4-alpine
 COPY httpd.conf /usr/local/apache2/conf/httpd.conf
 COPY --from=builder /app/site/ /usr/local/apache2/htdocs/

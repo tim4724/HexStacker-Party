@@ -60,7 +60,7 @@ npm run dev                   # serves individual scripts + restarts on change
 server on every edit, so a browser reload is enough to see a change.
 
 To run what the deployed hosts serve, build the image: it assembles `site/` and
-serves it through Apache with `public/.htaccess`, the config Hetzner Webhosting runs too:
+serves it through Apache with `public/.htaccess`:
 
 ```bash
 docker build -t hexstacker . && docker run --rm -p 4000:4000 hexstacker
@@ -156,16 +156,9 @@ The display and controllers connect to a [Party-Sockets](https://github.com/tim4
 |---|---|---|
 | `PORT` | `4000` | HTTP server port |
 | `BASE_URL` | Auto-detected LAN IP | Base URL for join links and QR codes |
-| `APP_ENV` | `development` | `production` serves the hashed web bundles (immutable cache) instead of individual files |
+| `APP_ENV` | `development` | `production` serves the hashed web bundles (immutable cache) instead of individual files. For `npm run build:site`: `production` puts the bare version in the pages' version label, anything else appends the commit |
 | `SERVE_BUNDLES` | – | `1` forces bundle serving without full production mode (used by e2e; keeps the dev CSP the AirConsole mock needs) |
-| `GIT_SHA` | – | Git commit SHA shown in version endpoint |
-
-`npm run build:site` (set by `docker-publish.yml` through the Dockerfile):
-
-| Environment Variable | Default | Description |
-|---|---|---|
-| `APP_ENV` | – | `production` puts the bare version in the pages' version label; anything else appends the commit |
-| `GIT_SHA` | – | The commit appended to the version label |
+| `GIT_SHA` | – | Git commit SHA shown in the version endpoint, and appended to the version label by `npm run build:site` |
 
 ## Testing
 
