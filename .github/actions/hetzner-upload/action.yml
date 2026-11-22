@@ -31,10 +31,20 @@ runs:
       shell: bash
       run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
 
-    # Three passes, stopping at the first failure. Everything but the pages, then
-    # the pages, so a visitor never gets a page whose files aren't on the server
-    # yet. Then delete what the previous upload left, or every push would add its
-    # hashed bundles for good. ACME challenges belong to Hetzner's cert renewal.
+    # Every file goes up as .in.<name> and is renamed over the old one, so a
+    # request sees the old or the new file, never a half-written one. Passes in
+    # order, stopping at the first failure, so a visitor never gets a page whose
+    # files aren't on the server yet:
+    #  1. New hashed bundles only. One that exists is identical (its name is its
+    #     content), so it is never touched.
+    #  2. The other files the pages use. A fresh checkout makes every file look
+    #     newer, so these go up each time.
+    #  3. The pages, with the .htaccess whose CSP and routes belong to them.
+    #  4. A minute later, delete what the previous upload left, or every push
+    #     would add its bundles for good. The minute lets a page that loaded just
+    #     before the switch still fetch its bundles. --only-missing keeps this
+    #     pass from re-uploading the bundles pass 1 skipped. ACME challenges
+    #     belong to Hetzner's cert renewal.
     # Key login with the server's host key pinned; the key's public half is
     # registered under konsoleH > Logindaten > Öffentliche SFTP-Schlüssel.
     - name: Upload
@@ -53,11 +63,16 @@ runs:
         printf '%s\n' "$SFTP_KEY" > "$RUNNER_TEMP/sftp_key"
         printf '%s\n' "$SFTP_KNOWN_HOSTS" > "$RUNNER_TEMP/known_hosts"
         SPARE=${KEEP:+--exclude-glob $KEEP}
+        # Same as HASHED in scripts/build-site.js and the immutable FilesMatch in public/.htaccess.
+        HASHED='\.[0-9a-f]{10}\.(js|css)(\.map)?$'
         lftp -u "$SFTP_USER," "sftp://$SFTP_HOST" -e "
           set sftp:connect-program 'ssh -a -x -i $RUNNER_TEMP/sftp_key -o IdentitiesOnly=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts -o StrictHostKeyChecking=yes'
           set net:max-retries 2
           set cmd:fail-exit yes
-          mirror --reverse --no-perms --parallel=4 --exclude-glob '*.html' $SOURCE $REMOTE
-          mirror --reverse --no-perms --parallel=4 --include-glob '*.html' $SOURCE $REMOTE
-          mirror --reverse --no-perms --delete --exclude-glob .well-known/acme-challenge/ $SPARE $SOURCE $REMOTE
+          set xfer:use-temp-file yes
+          mirror --reverse --no-perms --parallel=4 --only-missing --include '$HASHED' $SOURCE $REMOTE
+          mirror --reverse --no-perms --parallel=4 --exclude '$HASHED' --exclude-glob '*.html' --exclude-glob .htaccess $SOURCE $REMOTE
+          mirror --reverse --no-perms --parallel=4 --include-glob '*.html' --include-glob .htaccess $SOURCE $REMOTE
+          sleep 60
+          mirror --reverse --no-perms --only-missing --delete --exclude-glob .well-known/acme-challenge/ $SPARE $SOURCE $REMOTE
           bye"
