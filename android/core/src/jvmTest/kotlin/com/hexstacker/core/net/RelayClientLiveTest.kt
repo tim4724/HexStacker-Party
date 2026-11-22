@@ -1,9 +1,21 @@
 package com.hexstacker.core.net
 
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -16,6 +28,62 @@ import kotlin.test.assertTrue
  *   ./gradlew :core:jvmTest -Dhexcore.relay.live=1
  */
 class RelayClientLiveTest {
+
+    /**
+     * Slot 0 is held by the secret minted at create, not a guessable constant: a
+     * stranger holding only the room code who joins as the old "display" id lands in
+     * a slot of its own instead of evicting us (close 4000). Our own suspend/resume
+     * still rejoins slot 0, which the stranger sees as peer_left/peer_joined index 0.
+     */
+    @Test
+    fun strangerWithTheRoomCodeCannotTakeSlot0AndResumeStillRejoinsIt() {
+        if (System.getProperty("hexcore.relay.live") != "1") return // opt-in only
+
+        val created = CountDownLatch(1)
+        val room = AtomicReference<String?>(null)
+        val instance = AtomicReference<String?>(null)
+        val replaced = CountDownLatch(1)
+        val client = RelayClient(callbackPoster = { it() })
+        client.onCreated = { r, inst, _ -> room.set(r); instance.set(inst); created.countDown() }
+        client.onReplaced = { replaced.countDown() }
+        client.connect()
+        assertTrue(created.await(15, TimeUnit.SECONDS), "no 'created' within 15s")
+
+        val frames = LinkedBlockingQueue<JsonObject>()
+        val http = OkHttpClient()
+        val url = instance.get()?.let { "${RelayConfig.RELAY_URL}/${room.get()}?instance=$it" } ?: RelayConfig.RELAY_URL
+        val stranger = http.newWebSocket(
+            Request.Builder().url(url).build(),
+            object : WebSocketListener() {
+                override fun onOpen(webSocket: WebSocket, response: Response) {
+                    webSocket.send("""{"type":"join","clientId":"display","room":"${room.get()}"}""")
+                }
+                override fun onMessage(webSocket: WebSocket, text: String) {
+                    frames.add(RelayJson.parseToJsonElement(text).jsonObject)
+                }
+            },
+        )
+        fun next(type: String): JsonObject? {
+            while (true) {
+                val f = frames.poll(10, TimeUnit.SECONDS) ?: return null
+                if (f["type"]?.jsonPrimitive?.contentOrNull == type) return f
+            }
+        }
+        fun JsonObject?.index() = this?.get("index")?.jsonPrimitive?.intOrNull
+
+        val joined = next("joined")
+        assertTrue(joined != null && joined.index() != 0, "stranger must not get slot 0: $joined")
+        assertTrue(!replaced.await(2, TimeUnit.SECONDS), "the display was evicted by a guessed clientId")
+
+        client.suspendSocket()
+        assertEquals(0, next("peer_left").index(), "suspend vacates slot 0")
+        client.reconnect()
+        assertEquals(0, next("peer_joined").index(), "resume rejoins slot 0 with the minted secret")
+
+        stranger.close(1000, null)
+        http.dispatcher.executorService.shutdown()
+        client.shutdown()
+    }
 
     @Test
     fun createsARoomOnLiveRelay() {

@@ -30,11 +30,17 @@ import Foundation
         return cond()
     }
 
+    /// The display's clientId is slot 0's bearer secret, so it must be the
+    /// unguessable shape every display mints ("display-" + 128 bits of hex).
+    private func isSlotSecret(_ id: String?) -> Bool {
+        id?.wholeMatch(of: #/display-[0-9a-f]{32}/#) != nil
+    }
+
     @Test func createHandshakeAndInboundDispatch() throws {
         let server = try MockRelayServer(); try server.start()
         defer { server.stop() }
 
-        let client = RelayClient(baseURL: server.baseURL, clientId: "display", callbackQueue: cbQueue)
+        let client = RelayClient(baseURL: server.baseURL, callbackQueue: cbQueue)
         defer { client.disconnect() }
 
         let state = Captured()
@@ -51,8 +57,9 @@ import Foundation
         #expect(state.get().room == server.roomCode)
         #expect(state.get().instance == server.instance)
         #expect(waitUntil { !server.receivedEnvelopes(type: "create").isEmpty }, "server saw a create")
-        #expect(server.receivedEnvelopes(type: "create").first?["clientId"] as? String == "display",
-                "create carries the display clientId")
+        let clientId = server.receivedEnvelopes(type: "create").first?["clientId"] as? String
+        #expect(isSlotSecret(clientId),
+                "create carries a 128-bit random clientId, not a guessable constant: \(clientId ?? "nil")")
         #expect(server.receivedEnvelopes(type: "create").first?["url"] as? String == HexStackerKit.Protocol.controllerURLTemplate,
                 "create registers the controller-URL template for code-only joins")
 
@@ -86,7 +93,7 @@ import Foundation
         defer { server.stop() }
         server.peersOnJoin = [1]
 
-        let client = RelayClient(baseURL: server.baseURL, clientId: "display", callbackQueue: cbQueue)
+        let client = RelayClient(baseURL: server.baseURL, callbackQueue: cbQueue)
         defer { client.disconnect() }
 
         let state = Captured()
@@ -104,7 +111,9 @@ import Foundation
         #expect(waitUntil(8) { server.connectionCount >= 2 }, "client reopened a socket")
         #expect(waitUntil(8) { !server.receivedEnvelopes(type: "join").isEmpty }, "reconnect sent join")
         let join = server.receivedEnvelopes(type: "join").first
-        #expect(join?["clientId"] as? String == "display", "join carries the display clientId (slot-0 restore)")
+        let created = server.receivedEnvelopes(type: "create").first?["clientId"] as? String
+        #expect(isSlotSecret(created))
+        #expect(join?["clientId"] as? String == created, "join re-presents the create's clientId (slot-0 restore)")
         #expect(join?["room"] as? String == server.roomCode, "join re-pins the created room")
         #expect(server.receivedEnvelopes(type: "create").count == 1, "reconnect does not create a second room")
         #expect(waitUntil(3) { state.get().rejoinPeers == [1] }, "onJoined delivered the reconnect roster")
@@ -114,7 +123,7 @@ import Foundation
         let server = try MockRelayServer(); try server.start()
         defer { server.stop() }
 
-        let client = RelayClient(baseURL: server.baseURL, clientId: "display", callbackQueue: cbQueue)
+        let client = RelayClient(baseURL: server.baseURL, callbackQueue: cbQueue)
         defer { client.disconnect() }
 
         let state = Captured()
@@ -136,7 +145,9 @@ import Foundation
         #expect(waitUntil(8) { server.connectionCount == 2 }, "resume opened a new socket")
         #expect(waitUntil(8) { !server.receivedEnvelopes(type: "join").isEmpty }, "resume sent join")
         let join = server.receivedEnvelopes(type: "join").first
-        #expect(join?["clientId"] as? String == "display", "join carries the display clientId")
+        let created = server.receivedEnvelopes(type: "create").first?["clientId"] as? String
+        #expect(isSlotSecret(created))
+        #expect(join?["clientId"] as? String == created, "join re-presents the create's clientId")
         #expect(join?["room"] as? String == server.roomCode, "join re-pins the suspended room")
         #expect(server.receivedEnvelopes(type: "create").count == 1, "resume does not create a second room")
         #expect(waitUntil(3) { state.get().rejoinPeers != nil }, "onJoined fired on resume")
@@ -146,7 +157,7 @@ import Foundation
         let server = try MockRelayServer(); try server.start()
         defer { server.stop() }
 
-        let client = RelayClient(baseURL: server.baseURL, clientId: "display", callbackQueue: cbQueue)
+        let client = RelayClient(baseURL: server.baseURL, callbackQueue: cbQueue)
         defer { client.disconnect() }
 
         let state = Captured()
@@ -162,13 +173,15 @@ import Foundation
         #expect(waitUntil(8) { server.connectionCount >= 2 }, "client reconnected after 4001")
         #expect(waitUntil(8) { server.receivedEnvelopes(type: "create").count == 2 }, "reconnect sent a fresh create")
         #expect(server.receivedEnvelopes(type: "join").isEmpty, "no join against the closed room")
+        let ids = server.receivedEnvelopes(type: "create").map { $0["clientId"] as? String }
+        #expect(ids.count == 2 && ids.allSatisfy(isSlotSecret) && ids[0] != ids[1], "a fresh room gets a fresh clientId: \(ids)")
     }
 
     @Test func evictionCloseFiresOnReplacedWithoutReconnect() throws {
         let server = try MockRelayServer(); try server.start()
         defer { server.stop() }
 
-        let client = RelayClient(baseURL: server.baseURL, clientId: "display", callbackQueue: cbQueue)
+        let client = RelayClient(baseURL: server.baseURL, callbackQueue: cbQueue)
         defer { client.disconnect() }
 
         let state = Captured()
@@ -178,7 +191,7 @@ import Foundation
         client.connect()
         #expect(waitUntil(15) { state.get().room != nil }, "initial create landed")
 
-        // The relay evicts this display (another client claimed the "display"
+        // The relay evicts this display (another socket joined with our
         // clientId): the 4000 close must surface as onReplaced (regardless of
         // whether URLSession reports it via the didCloseWith delegate or the
         // pending receive's failure) and must NOT auto-rejoin, which would
@@ -219,7 +232,7 @@ import Foundation
         let baseURL = server.baseURL
 
         // Tight budget: same 5-attempt shape, milliseconds instead of ~13s.
-        let client = RelayClient(baseURL: baseURL, clientId: "display", callbackQueue: cbQueue,
+        let client = RelayClient(baseURL: baseURL, callbackQueue: cbQueue,
                                  maxReconnectAttempts: 5,
                                  reconnectBaseSeconds: 0.02, reconnectCapSeconds: 0.05,
                                  reachability: reach)
@@ -272,7 +285,7 @@ import Foundation
         let server = try MockRelayServer(); try server.start()
         defer { server.stop() }
 
-        let client = RelayClient(baseURL: server.baseURL, clientId: "display", callbackQueue: cbQueue,
+        let client = RelayClient(baseURL: server.baseURL, callbackQueue: cbQueue,
                                  reachability: reach)
         defer { client.disconnect() }
 

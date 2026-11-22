@@ -7,10 +7,6 @@ public enum Protocol {
     public static let relayURL = "wss://ws.hexstacker.com"
     public static let stunURL = "stun:stun.hexstacker.com:3478"
 
-    /// The display's clientId is the literal "display" so the relay always
-    /// restores it to slot 0 across reconnects.
-    public static let displayClientId = "display"
-
     /// Slot 0 (display) + up to 8 players (MAX_PLAYERS).
     public static let maxClients = 9
 

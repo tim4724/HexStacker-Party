@@ -14,6 +14,7 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
+import java.security.SecureRandom
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.ScheduledThreadPoolExecutor
@@ -33,7 +34,6 @@ import kotlin.math.pow
  */
 class RelayClient(
     private val baseURL: String = RelayConfig.RELAY_URL,
-    private val clientId: String = RelayConfig.DISPLAY_CLIENT_ID,
     private val maxClients: Int = RelayConfig.MAX_CLIENTS,
     private val callbackPoster: (block: () -> Unit) -> Unit = { it() },
     private val httpClient: OkHttpClient = defaultClient(),
@@ -57,6 +57,12 @@ class RelayClient(
     @Volatile private var webSocket: WebSocket? = null
     private var lastRoom: String? = null
     private var lastInstance: String? = null
+    /** Slot 0's bearer secret: the relay hands slot 0 to any socket that joins with it,
+     *  closing ours with 4000. The room code is on screen, so a guessable id would let
+     *  anyone in the room take the TV over. Minted fresh for every `create`
+     *  ([newClientId]) and reused by every `join` of that room (drop, suspend/resume),
+     *  so it is pinned exactly as long as [lastRoom]. Mirrors appletv RelayClient. */
+    private var clientId = ""
     private var reconnectAttempt = 0
     private var shouldReconnect = true
     private var dropHandled = false
@@ -195,6 +201,7 @@ class RelayClient(
         if (room != null) {
             sendEnvelope(RelayJson.encodeToString(JoinFrame(clientId = clientId, room = room)))
         } else {
+            clientId = newClientId()
             // The create registers the controller-URL template so clients holding
             // only the room code can resolve the controller page from the relay.
             sendEnvelope(
@@ -414,6 +421,15 @@ class RelayClient(
             .readTimeout(0, TimeUnit.MILLISECONDS)
             .pingInterval(0, TimeUnit.MILLISECONDS)
             .build()
+
+        private val secureRandom = SecureRandom()
+
+        /** "display-" + 128 bits of hex from the CSPRNG. Same shape as the web and
+         *  Apple TV displays. */
+        internal fun newClientId(): String {
+            val bytes = ByteArray(16).also(secureRandom::nextBytes)
+            return "display-" + bytes.joinToString("") { (it.toInt() and 0xFF).toString(16).padStart(2, '0') }
+        }
 
         /** encodeURIComponent semantics (NOT java.net.URLEncoder, which form-encodes). */
         private val UNRESERVED: Set<Char> =

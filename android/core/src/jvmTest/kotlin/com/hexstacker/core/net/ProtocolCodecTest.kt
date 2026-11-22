@@ -100,6 +100,16 @@ class ProtocolCodecTest {
     }
 
     @Test
+    fun displayClientIdIsAnUnguessablePerRoomSecret() {
+        // Slot 0's bearer secret: same shape as the web and Apple TV displays, and
+        // different for every room (each create mints one).
+        val a = RelayClient.newClientId()
+        val b = RelayClient.newClientId()
+        assertTrue(Regex("display-[0-9a-f]{32}").matches(a), "128-bit hex secret, got $a")
+        assertTrue(a != b, "every create mints a fresh secret")
+    }
+
+    @Test
     fun sendFrameSerializesTypeFirst() {
         // The relay `send` envelope must encode `type` first to match the web byte layout.
         val json = RelayJson.encodeToString(SendFrame.serializer(), SendFrame(data = buildJsonObject { put("k", 1) }, to = 2))

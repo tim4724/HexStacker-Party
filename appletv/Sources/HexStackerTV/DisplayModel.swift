@@ -203,7 +203,7 @@ final class DisplayModel: ObservableObject {
                 withAnimation(Self.fade) { self.state.qrPending = true }
             }
         }
-        // Evicted because another client claimed the "display" slot: reconnecting
+        // Evicted because another socket joined with our clientId: reconnecting
         // would start a takeover war, so show a terminal disconnect with no button.
         relay.onReplaced = { [weak self] in
             guard let self else { return }

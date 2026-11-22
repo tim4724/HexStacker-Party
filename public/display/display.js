@@ -21,6 +21,7 @@ function resetToWelcome() {
   stopLivenessCheck();
   lastRoomCode = null;
   lastInstance = null;
+  displayClientId = null;
   roomCode = null;
   joinUrl = null;
   setRoomState(ROOM_STATE.LOBBY);

@@ -67,12 +67,39 @@ test('MSG strings mirror protocol.js MSG', () => {
   assert.deepStrictEqual(problems, []);
 });
 
-test('the display heartbeat canary and clientId match the web display', () => {
+test('the display heartbeat canary matches the web display', () => {
   const displayConnection = read('public/display/DisplayConnection.js');
   assert.strictEqual(swiftStringConsts(swiftEnum('MSG')).heartbeat, '_heartbeat');
   assert.ok(displayConnection.includes("'_heartbeat'"), 'web display no longer uses _heartbeat');
-  assert.strictEqual(swiftStringConsts(swiftEnum('Protocol')).displayClientId, 'display');
-  assert.ok(displayConnection.includes("clientId: 'display'"), "web display no longer uses clientId 'display'");
+});
+
+test('the display clientId is a per-room CSPRNG secret, minted like the web display', () => {
+  // The clientId is slot 0's bearer secret: the relay hands slot 0 to any socket
+  // that joins with it, and the room code is public. A constant (it used to be
+  // 'display' on every platform) lets anyone with the code take over the display.
+  const web = read('public/display/DisplayConnection.js');
+  const relay = read('appletv/Sources/HexStackerKit/Net/RelayClient.swift');
+  assert.ok(!/displayClientId/.test(SWIFT + relay), 'Swift is back to a constant display clientId');
+
+  const w = web.match(/function genDisplayClientId\(\) \{[\s\S]*?crypto\.getRandomValues\(new Uint8Array\((\d+)\)\)[\s\S]*?return '([^']*)' \+/);
+  // SystemRandomNumberGenerator is the CSPRNG (arc4random_buf) on Apple platforms;
+  // each %016llx renders one UInt64 draw, i.e. 8 bytes.
+  const s = relay.match(/static func newClientId\(\) -> String \{\s*var rng = SystemRandomNumberGenerator\(\)\s*return "([^"]*)" \+ String\(format: "((?:%016llx)+)"/);
+  assert.ok(w, 'web genDisplayClientId no longer draws from crypto.getRandomValues');
+  assert.ok(s, 'Swift newClientId no longer draws from SystemRandomNumberGenerator');
+  assert.ok(Number(w[1]) >= 16, 'web display clientId is under 128 bits');
+  assert.deepStrictEqual([s[2].length / '%016llx'.length * 8, s[1]], [Number(w[1]), w[2]],
+    'Swift and web mint different clientId shapes');
+
+  // Minted on every create (a fresh room gets a fresh secret); joins reuse it. On
+  // web the secret lives beside lastRoomCode, and every PartyConnection the display
+  // builds is handed it, so a join from a fresh instance cannot land on a new slot.
+  assert.match(web, /displayClientId = genDisplayClientId\(\);\s*party\.clientId = displayClientId;\s*party\.create\(/,
+    'web no longer mints per create');
+  assert.deepStrictEqual(web.match(/new PartyConnection\([^)]*\)/g),
+    ['new PartyConnection(initialUrl, { clientId: displayClientId })'],
+    'web builds a PartyConnection without the pinned room\'s secret');
+  assert.match(relay, /clientId = Self\.newClientId\(\)\s*sendEnvelope\(\["type": "create"/, 'Swift no longer mints per create');
 });
 
 test('RoomState and InputAction wire values mirror protocol.js', () => {

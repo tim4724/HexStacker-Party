@@ -17,9 +17,6 @@ object RelayConfig {
     const val RELAY_URL = "wss://ws.hexstacker.com"
     const val STUN_URL = "stun:stun.hexstacker.com:3478"
 
-    /** The display's clientId is the literal "display" so the relay restores slot 0 across reconnects. */
-    const val DISPLAY_CLIENT_ID = "display"
-
     /** Slot 0 (display) + MAX_PLAYERS(8) controllers. */
     const val MAX_CLIENTS = 9
 
