@@ -20,7 +20,8 @@ name: Release
 # reachable by pushers. Each signing step fails fast with a named error when a
 # secret is missing, rather than silently producing a debug-signed artifact.
 #
-# Secrets (repo Settings > Secrets and variables > Actions):
+# Secrets (Settings > Environments > release, which admits only main and
+# release tags, so no other branch can read them):
 #   ANDROID_KEYSTORE_B64       base64 of the upload keystore .jks
 #   ANDROID_KEYSTORE_PASSWORD  keystore store password
 #   ANDROID_KEY_ALIAS          key alias (hexstacker-tv)
@@ -49,6 +50,7 @@ permissions:
 jobs:
   android:
     runs-on: ubuntu-latest
+    environment: release
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -182,6 +184,7 @@ jobs:
 
   tvos:
     runs-on: macos-26
+    environment: release
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
