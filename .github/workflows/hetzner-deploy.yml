@@ -71,4 +71,17 @@ jobs:
           key: ${{ secrets.HETZNER_SFTP_KEY }}
           known_hosts: ${{ secrets.HETZNER_SFTP_KNOWN_HOSTS }}
 
-      - run: echo "Deployed https://$HOST" >> "$GITHUB_STEP_SUMMARY"
+      # From GitHub's network, not from home: Hetzner blocks an address that
+      # sends many requests. A bad .htaccess is a 500 on every path, and the
+      # page names this build, so this is the upload just made.
+      - name: Check
+        run: |
+          set -euo pipefail
+          # As scripts/build-site.js labels the pages: the bare version on
+          # production, with the commit elsewhere.
+          LABEL=$(node -p "require('./package.json').version")
+          [ "$GITHUB_REF_TYPE" = tag ] || LABEL="$LABEL (#${GITHUB_SHA:0:7})"
+          curl -fsS -o /dev/null "https://$HOST/health"
+          PAGE=$(curl -fsS "https://$HOST/")
+          grep -qF "name=\"app-version\" content=\"$LABEL\"" <<< "$PAGE"
+          echo "Deployed https://$HOST ($LABEL)" >> "$GITHUB_STEP_SUMMARY"
