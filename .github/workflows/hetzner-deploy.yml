@@ -68,6 +68,8 @@ jobs:
 
   deploy:
     needs: build
+    # Spelled out: the implicit success() also sees tests, skipped on main.
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     # Holds the SFTP secrets; only main and release tags may use it.
     environment: hetzner
