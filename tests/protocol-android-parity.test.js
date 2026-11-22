@@ -85,8 +85,14 @@ test('the display clientId is a per-room CSPRNG secret, minted like the web disp
   assert.ok(Number(w[1]) >= 16, 'web display clientId is under 128 bits');
   assert.deepStrictEqual([Number(k[1]), k[2]], [Number(w[1]), w[2]], 'Kotlin and web mint different clientId shapes');
 
-  // Minted on every create (a fresh room gets a fresh secret); joins reuse it.
-  assert.match(web, /party\.clientId = genDisplayClientId\(\);\s*party\.create\(/, 'web no longer mints per create');
+  // Minted on every create (a fresh room gets a fresh secret); joins reuse it. On
+  // web the secret lives beside lastRoomCode, and every PartyConnection the display
+  // builds is handed it, so a join from a fresh instance cannot land on a new slot.
+  assert.match(web, /displayClientId = genDisplayClientId\(\);\s*party\.clientId = displayClientId;\s*party\.create\(/,
+    'web no longer mints per create');
+  assert.deepStrictEqual(web.match(/new PartyConnection\([^)]*\)/g),
+    ['new PartyConnection(initialUrl, { clientId: displayClientId })'],
+    'web builds a PartyConnection without the pinned room\'s secret');
   assert.match(relay, /clientId = newClientId\(\)\s*(\/\/.*\s*)*sendEnvelope\(\s*RelayJson\.encodeToString\(\s*CreateFrame\(/,
     'Kotlin no longer mints per create');
 });

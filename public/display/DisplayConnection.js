@@ -31,9 +31,10 @@ function armCreateTimeout() {
 // The display's clientId is slot 0's bearer secret: the relay hands slot 0 to any
 // socket that joins with it, closing ours with 4000. The room code is on screen,
 // so a guessable id would let anyone in the room take the display over. Minted
-// fresh (128 bits, CSPRNG) for every room this display creates and kept on `party`,
-// whose reconnects rejoin with it. tvOS and Android mint the same shape in their
-// RelayClient.
+// fresh (128 bits, CSPRNG) for every room this display creates and kept in
+// displayClientId beside lastRoomCode, so every rejoin presents it, including one
+// from a freshly built PartyConnection. tvOS and Android mint the same shape in
+// their RelayClient.
 function genDisplayClientId() {
   var bytes = crypto.getRandomValues(new Uint8Array(16));
   return 'display-' + Array.from(bytes, function (b) { return (b < 16 ? '0' : '') + b.toString(16); }).join('');
@@ -51,8 +52,9 @@ function connectAndCreateRoom() {
   var initialUrl = (lastRoomCode && lastInstance)
     ? RELAY_URL + '/' + encodeURIComponent(lastRoomCode) + '?instance=' + encodeURIComponent(lastInstance)
     : RELAY_URL;
-  // No clientId here: onOpen mints one for each create (genDisplayClientId).
-  party = new PartyConnection(initialUrl);
+  // The pinned room's secret, so a join from this new instance reclaims slot 0.
+  // Null without a room: onOpen's create branch mints one.
+  party = new PartyConnection(initialUrl, { clientId: displayClientId });
 
   // Display is always slot 0. Controllers initiate the SDP/ICE handshake on
   // join; the display only needs to auto-accept inbound offers and forward
@@ -75,7 +77,8 @@ function connectAndCreateRoom() {
     if (lastRoomCode) {
       party.join(lastRoomCode);
     } else {
-      party.clientId = genDisplayClientId();
+      displayClientId = genDisplayClientId();
+      party.clientId = displayClientId;
       party.create(9, controllerUrlTemplate());
       armCreateTimeout();
     }

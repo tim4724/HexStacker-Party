@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { createRoom } = require('./helpers');
+const { createRoom, joinController, waitForDisplayPlayers } = require('./helpers');
 const { RELAY_URL } = require('../../public/shared/protocol.js');
 
 /**
@@ -61,6 +61,27 @@ test.describe('Display relay clientId', () => {
     } finally {
       stranger.close();
     }
+  });
+
+  // connectAndCreateRoom() keeps a rejoin branch for a pinned room (sharded URL +
+  // join). No shipped caller takes it today (a welcome-screen pre-create leaves
+  // lastRoomCode unset, so Start creates), but if one does, the brand-new
+  // PartyConnection must present the room's secret: under any other id the relay
+  // seats the display as a new peer and leaves slot 0 vacant.
+  test('a connection rebuilt for the pinned room rejoins slot 0 with its secret', async ({ page, context }) => {
+    const state = { links: [], sent: [], received: [] };
+    await interceptRelay(page, state);
+    const { roomCode } = await createRoom(page);
+    const clientId = ofType(state.sent, 'create')[0].clientId;
+    // A seated player keeps the room alive while the display's socket is swapped
+    // (a memberless room dies with the display's socket).
+    await joinController(context, roomCode, 'Alice');
+    await waitForDisplayPlayers(page, 1);
+
+    await page.evaluate(() => connectAndCreateRoom());
+    await expect.poll(() => ofType(state.received, 'joined').length, { timeout: 15000 }).toBe(1);
+    expect(ofType(state.sent, 'join')[0]).toMatchObject({ clientId, room: roomCode });
+    expect(ofType(state.received, 'joined')[0].index).toBe(0);
   });
 
   test('a fresh room gets a fresh clientId', async ({ page }) => {

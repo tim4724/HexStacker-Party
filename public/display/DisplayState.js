@@ -23,6 +23,7 @@ var roomCode = null;
 var joinUrl = null;
 var lastRoomCode = null;
 var lastInstance = null;       // relay instance id from `created` — pins reconnect / controller WS to the same shard
+var displayClientId = null;    // slot-0 secret the room was created with (genDisplayClientId); every rejoin presents it
 var gameState = null;
 // RoomCore (server/RoomCore.js, shipped in dist/partycore.js) is the single
 // source of truth for everything a controller renders: roster identity and join
