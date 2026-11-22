@@ -29,7 +29,9 @@ jobs:
     if: github.ref_type == 'tag'
     uses: ./.github/workflows/test.yml
 
-  deploy:
+  # npm ci runs every dependency's install scripts, so the build stays out of
+  # the job that holds the deploy key.
+  build:
     needs: tests
     # Only main or a release tag (a manual run could start from any branch), and
     # only once the tests passed or were skipped (main). A cancelled test run
@@ -39,10 +41,7 @@ jobs:
       && (github.ref_name == 'main' || github.ref_type == 'tag')
       && (needs.tests.result == 'success' || needs.tests.result == 'skipped')
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_type == 'tag' && 'production' || 'preview' }}
     timeout-minutes: 15
-    env:
-      HOST: ${{ github.ref_type == 'tag' && 'hexstacker.com' || 'main.hexstacker.com' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -58,6 +57,31 @@ jobs:
           APP_ENV: ${{ github.ref_type == 'tag' && 'production' || 'main' }}
           GIT_SHA: ${{ github.sha }}
         run: npm run build:site
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: site
+          path: site
+          include-hidden-files: true   # .htaccess and .well-known/
+          if-no-files-found: error
+          retention-days: 1
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    # Holds the SFTP secrets; only main and release tags may use it.
+    environment: hetzner
+    timeout-minutes: 15
+    env:
+      HOST: ${{ github.ref_type == 'tag' && 'hexstacker.com' || 'main.hexstacker.com' }}
+    steps:
+      # For the upload action and package.json.
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: site
+          path: site
 
       - name: Upload
         uses: ./.github/actions/hetzner-upload

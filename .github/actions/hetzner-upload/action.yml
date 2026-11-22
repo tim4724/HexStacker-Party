@@ -46,7 +46,10 @@ runs:
     #     pass from re-uploading the bundles pass 1 skipped. ACME challenges
     #     belong to Hetzner's cert renewal.
     # Key login with the server's host key pinned; the key's public half is
-    # registered under konsoleH > Logindaten > Öffentliche SFTP-Schlüssel.
+    # registered under konsoleH > Logindaten > Öffentliche SFTP-Schlüssel. The
+    # secrets live in the `hetzner` environment, which admits main and release
+    # tags only. Call this from a job with no npm or build step: an earlier
+    # step could rewrite what runs here.
     - name: Upload
       shell: bash
       env:
