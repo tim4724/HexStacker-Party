@@ -66,7 +66,7 @@ public final class RelayClient: NSObject, RelayTransport {
     public var onPeerLeft: ((_ index: Int) -> Void)?
     public var onMessage: ((_ from: Int, _ data: [String: Any]) -> Void)?
     public var onRelayError: ((_ message: String) -> Void)?
-    /// Relay evicted us because another client claimed "display" (close 4000).
+    /// Relay evicted us because another socket joined with our clientId (close 4000).
     public var onReplaced: (() -> Void)?
     public var onConnectionState: ((ConnectionState) -> Void)?
     /// Fired when a reconnect is scheduled, carrying the 1-based attempt and the
@@ -74,7 +74,6 @@ public final class RelayClient: NSObject, RelayTransport {
     public var onReconnecting: ((_ attempt: Int, _ max: Int) -> Void)?
 
     private let baseURL: String
-    private let clientId: String
     private let maxClients: Int
     private let callbackQueue: DispatchQueue
 
@@ -90,6 +89,12 @@ public final class RelayClient: NSObject, RelayTransport {
 
     private var lastRoom: String?
     private var lastInstance: String?
+    /// Slot 0's bearer secret: the relay hands slot 0 to any socket that joins with
+    /// it, closing ours with 4000. The room code is on screen, so a guessable id
+    /// would let anyone in the room take the TV over. Minted fresh for every
+    /// `create` (`newClientId`) and reused by every `join` of that room (drop,
+    /// suspend/resume), so it is pinned exactly as long as `lastRoom`.
+    private var clientId = ""
 
     // Injectable so tests can exercise the whole budget in milliseconds instead of
     // the ~13s the production curve takes. Defaults are the shipped values.
@@ -123,7 +128,6 @@ public final class RelayClient: NSObject, RelayTransport {
     private static let handshakeTimeoutSeconds: TimeInterval = 6.0
 
     public init(baseURL: String = Protocol.relayURL,
-                clientId: String = Protocol.displayClientId,
                 maxClients: Int = Protocol.maxClients,
                 callbackQueue: DispatchQueue = .main,
                 maxReconnectAttempts: Int = 5,
@@ -131,7 +135,6 @@ public final class RelayClient: NSObject, RelayTransport {
                 reconnectCapSeconds: TimeInterval = 5.0,
                 reachability: NetworkReachability? = PathMonitorReachability()) {
         self.baseURL = baseURL
-        self.clientId = clientId
         self.maxClients = maxClients
         self.callbackQueue = callbackQueue
         self.maxReconnectAttempts = maxReconnectAttempts
@@ -510,6 +513,7 @@ public final class RelayClient: NSObject, RelayTransport {
             sendEnvelope(["type": "join", "clientId": clientId, "room": room])
         } else {
             relayLog.notice("socket open -> sending create")
+            clientId = Self.newClientId()
             sendEnvelope(["type": "create", "clientId": clientId, "maxClients": maxClients,
                           "url": Protocol.controllerURLTemplate])
         }
@@ -573,6 +577,13 @@ public final class RelayClient: NSObject, RelayTransport {
     }
 
     // MARK: - Helpers
+
+    /// "display-" + 128 bits of hex from the system CSPRNG (arc4random_buf on Apple
+    /// platforms). Same shape as the web and Android displays.
+    static func newClientId() -> String {
+        var rng = SystemRandomNumberGenerator()
+        return "display-" + String(format: "%016llx%016llx", rng.next() as UInt64, rng.next() as UInt64)
+    }
 
     private func setState(_ s: ConnectionState) {
         currentState = s

@@ -58,19 +58,37 @@ test('Msg strings mirror protocol.js MSG', () => {
     const [, name, value] = m;
     if (!/^[a-z_]+$/.test(value)) continue; // RelayConfig URLs etc., checked below
     if (name === 'HEARTBEAT') continue; // display-internal, not in MSG (checked below)
-    if (name === 'DISPLAY_CLIENT_ID') continue; // relay slot-0 anchor, checked below
     if (MSG[name] === undefined) problems.push(`Msg.${name}: no MSG.${name} in protocol.js`);
     else if (MSG[name] !== value) problems.push(`Msg.${name}: '${value}' != web '${MSG[name]}'`);
   }
   assert.deepStrictEqual(problems, []);
 });
 
-test('the display heartbeat canary and clientId match the web display', () => {
+test('the display heartbeat canary matches the web display', () => {
   const displayConnection = read('public/display/DisplayConnection.js');
   assert.strictEqual(kotlinConst(KOTLIN.protocol, 'HEARTBEAT'), '_heartbeat');
   assert.ok(displayConnection.includes("'_heartbeat'"), 'web display no longer uses _heartbeat');
-  assert.strictEqual(kotlinConst(KOTLIN.protocol, 'DISPLAY_CLIENT_ID'), 'display');
-  assert.ok(displayConnection.includes("clientId: 'display'"), "web display no longer uses clientId 'display'");
+});
+
+test('the display clientId is a per-room CSPRNG secret, minted like the web display', () => {
+  // The clientId is slot 0's bearer secret: the relay hands slot 0 to any socket
+  // that joins with it, and the room code is public. A constant (it used to be
+  // 'display' on every platform) lets anyone with the code take over the display.
+  const web = read('public/display/DisplayConnection.js');
+  const relay = read('android/core/src/jvmAndroidMain/kotlin/com/hexstacker/core/net/RelayClient.kt');
+  assert.ok(!/DISPLAY_CLIENT_ID/.test(KOTLIN.protocol + relay), 'Kotlin is back to a constant display clientId');
+
+  const w = web.match(/function genDisplayClientId\(\) \{[\s\S]*?crypto\.getRandomValues\(new Uint8Array\((\d+)\)\)[\s\S]*?return '([^']*)' \+/);
+  const k = relay.match(/private val secureRandom = SecureRandom\(\)[\s\S]*?fun newClientId\(\): String \{[\s\S]*?ByteArray\((\d+)\)\.also\(secureRandom::nextBytes\)[\s\S]*?return "([^"]*)" \+/);
+  assert.ok(w, 'web genDisplayClientId no longer draws from crypto.getRandomValues');
+  assert.ok(k, 'Kotlin newClientId no longer draws from SecureRandom');
+  assert.ok(Number(w[1]) >= 16, 'web display clientId is under 128 bits');
+  assert.deepStrictEqual([Number(k[1]), k[2]], [Number(w[1]), w[2]], 'Kotlin and web mint different clientId shapes');
+
+  // Minted on every create (a fresh room gets a fresh secret); joins reuse it.
+  assert.match(web, /party\.clientId = genDisplayClientId\(\);\s*party\.create\(/, 'web no longer mints per create');
+  assert.match(relay, /clientId = newClientId\(\)\s*(\/\/.*\s*)*sendEnvelope\(\s*RelayJson\.encodeToString\(\s*CreateFrame\(/,
+    'Kotlin no longer mints per create');
 });
 
 test('RoomState and InputAction wire values mirror protocol.js', () => {

@@ -47,7 +47,7 @@ state transitions yourself. Your game owns the URLs and the countdown.
 
 ```js
 // 1. Connect. The game owns the relay / STUN URLs (the kit just receives them).
-const party = new PartyConnection(RELAY_URL + '/' + roomCode, { clientId: 'display' });
+const party = new PartyConnection(RELAY_URL + '/' + roomCode);
 const fastlane = new PartyFastlane({ iceServers: [{ urls: STUN_URL }], /* ... */ });
 
 // 2. The room/lobby/host brain.
@@ -160,6 +160,11 @@ The relay requires a `clientId`; if you omit it, one is auto-generated. An
 auto-generated id is stable for this instance (in-session reconnects keep the
 same slot) but not across page reloads — to reconnect across a reload, persist a
 `clientId` (e.g. `localStorage`) and pass it in.
+
+The `clientId` is the slot's bearer secret: a socket that joins with it takes the
+slot over and the incumbent is closed with 4000. The room code is public, so a
+`clientId` must never be a constant or anything else guessable, least of all the
+host's (slot 0), which would hand the whole room to anyone holding the code.
 
 ### `AirConsoleAdapter` — drop-in `PartyConnection` over the AirConsole SDK
 
