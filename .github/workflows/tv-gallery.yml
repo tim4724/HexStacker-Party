@@ -41,6 +41,10 @@ concurrency:
   group: tv-gallery-${{ github.ref_name }}
   cancel-in-progress: true
 
+# Jobs that need more say so themselves.
+permissions:
+  contents: read
+
 jobs:
   assemble:
     runs-on: ubuntu-latest

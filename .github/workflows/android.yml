@@ -26,6 +26,10 @@ concurrency:
   group: android-${{ github.ref }}
   cancel-in-progress: true
 
+# Jobs that need more say so themselves.
+permissions:
+  contents: read
+
 jobs:
   build-test-screenshots:
     runs-on: ubuntu-latest
