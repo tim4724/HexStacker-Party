@@ -66,7 +66,6 @@ runs:
         # Same as HASHED in scripts/build-site.js and the immutable FilesMatch in public/.htaccess.
         HASHED='\.[0-9a-f]{10}\.(js|css)(\.map)?$'
         lftp -u "$SFTP_USER," "sftp://$SFTP_HOST" -e "
-          debug -o $RUNNER_TEMP/lftp-debug.log 9
           set sftp:connect-program 'ssh -a -x -i $RUNNER_TEMP/sftp_key -o IdentitiesOnly=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts -o StrictHostKeyChecking=yes'
           set net:max-retries 2
           set cmd:fail-exit yes
@@ -77,4 +76,3 @@ runs:
           sleep 60
           mirror --reverse --no-perms --only-missing --delete --exclude-glob .well-known/acme-challenge/ $SPARE $SOURCE $REMOTE
           bye"
-        grep 'protocol version' "$RUNNER_TEMP/lftp-debug.log" | sort | uniq -c || echo "no protocol version line"
