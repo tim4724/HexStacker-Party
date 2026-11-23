@@ -49,8 +49,7 @@ test('the advertisement carries nothing but the room code', () => {
 });
 
 test('Android TV names the record after the model, never the owner-set device name', () => {
-  // The device name is user data leaving the device. Play's Data safety check
-  // rejected 4.10.19 for broadcasting it here (flagged as an undeclared email address).
+  // The owner-set device name is personal data, announced to everyone on the network.
   assert.doesNotMatch(KOTLIN, /DEVICE_NAME/, 'Android TV advertises the owner-set device name again');
   assert.match(KOTLIN, /var label = Build\.MODEL/, 'Android TV instance name no longer starts from the model');
 });

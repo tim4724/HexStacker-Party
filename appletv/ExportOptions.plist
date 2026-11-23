@@ -8,8 +8,8 @@
      .ipa is written. For a one-off local .ipa, export with
      -exportOptionsPlist <(plutil -replace destination -string export -o - ExportOptions.plist).
      manageAppVersionAndBuildNumber=false keeps xcodebuild from second-guessing
-     the version: release builds stamp MARKETING_VERSION (from the git tag) and
-     CURRENT_PROJECT_VERSION (run number) explicitly at archive time. -->
+     the version: release.yml stamps MARKETING_VERSION and
+     CURRENT_PROJECT_VERSION explicitly at archive time. -->
 <plist version="1.0">
 <dict>
 	<key>method</key>

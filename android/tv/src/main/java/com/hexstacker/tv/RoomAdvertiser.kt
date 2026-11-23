@@ -20,13 +20,11 @@ import java.net.ServerSocket
  * is no version key either: `_paperballoon._tcp` plus a code some relay knows is the whole gate.
  *
  * The service instance name is the hardware model ("Chromecast") plus [LABEL_SUFFIX]; the
- * launcher drops the suffix and shows the model. NOT the owner-set device name: that is user
- * data broadcast off the device, and Play's automated Data safety check flagged it as an
- * undeclared email address (4.10.19, the first release where this registration succeeded on
- * Android TV), presumably because test devices are named after their account. Two TVs of one
- * model still differ by room code and NsdManager's clash rename. NsdManager needs a port to
- * register, and the launcher never dials it, so a throwaway [ServerSocket] supplies one that
- * nothing serves.
+ * launcher drops the suffix and shows the model. NOT the owner-set device name: owners often
+ * name a TV after themselves, so it is personal data, and mDNS would announce it to everyone
+ * on the network. Two TVs of one model still differ by room code and NsdManager's clash
+ * rename. NsdManager needs a port to register, and the launcher never dials it, so a
+ * throwaway [ServerSocket] supplies one that nothing serves.
  *
  * Everything here is an accelerator, never the only route in. mDNS is blocked on
  * AP-isolated and guest networks, so failures are logged and swallowed and the on-screen QR
