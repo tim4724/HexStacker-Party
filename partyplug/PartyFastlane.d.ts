@@ -7,6 +7,9 @@ export = PartyFastlane;
 declare class PartyFastlane {
   constructor(options?: PartyFastlane.Options);
 
+  /** Resend cadence (ms) while the ring holds unacked events. */
+  static readonly TICK_MS: number;
+
   selfIndex: number | null;
 
   setSelfIndex(idx: number): void;
@@ -15,8 +18,12 @@ declare class PartyFastlane {
   open(peerIdx: number, opts?: any): Promise<void>;
   close(peerIdx: number): void;
   closeAll(): void;
-  /** Enqueue an input event to a peer over the data channel. */
-  enqueue(peerIdx: number, ev: any): void;
+  /**
+   * Enqueue an input event to a peer over the data channel: 'p2p' when it
+   * entered the send ring, 'dropped' when the channel isn't open (fall back
+   * to the relay).
+   */
+  enqueue(peerIdx: number, ev: any): 'p2p' | 'dropped';
   isOpen(peerIdx: number): boolean;
   getStats(peerIdx: number): any;
   getAllStats(): any;
@@ -35,6 +42,11 @@ declare namespace PartyFastlane {
     onPeerClosed?: (peerIdx: number) => void;
     onConnectionState?: (peerIdx: number, state: string) => void;
     onRtt?: (peerIdx: number, rttHalfMs: number) => void;
+    /** The peer confirmed applying a payload. Fires once per ack, for the newest entry it covers (es = the
+     *  sender-side event seq assigned at enqueue); silent when that entry already expired from the ring. */
+    onAcked?: (peerIdx: number, ev: any, es: number) => void;
     emitIdleHeartbeat?: boolean;
+    /** Cap on events kept for resend (1 = latest-only). Default: uncapped, so only TTL_MS bounds the ring. */
+    maxRing?: number;
   }
 }

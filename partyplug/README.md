@@ -136,6 +136,7 @@ new PartyConnection(relayUrl, { clientId?, maxReconnectAttempts = 5 })
 | `setState(data)` | Publish the retained room snapshot (host/slot-0 only; ≤ 16 KiB serialized) |
 | `closeRoom()` | Tear the room down for everyone (host/slot-0 only): the relay deletes it (`GET /room/:code` turns 404) and closes every member socket with 4001, surfaced to them as `onClose` `{ roomClosed }` |
 | `reconnectNow()` / `resetReconnectCount()` | Manual reconnect control |
+| `failAttempt()` | Count the current socket as a failed attempt and run the normal backoff/give-up path — for failures only the caller can see (e.g. a socket that opened but the relay never answered create/join); no-op after `close()`, and notifies `onClose` like an unexpected close |
 | `close()` | Tear down, stop reconnecting |
 
 Callbacks (assigned as properties):
@@ -217,14 +218,19 @@ react once persisted values hydrate.
 new PartyFastlane({
   iceServers, selfIndex?, sendSignal,        // signaling piggybacks on the relay
   onInput, onPeerReady, onPeerClosed,
-  onConnectionState, onRtt, emitIdleHeartbeat
+  onConnectionState, onRtt, emitIdleHeartbeat,
+  onAcked,       // the peer confirmed applying a payload
+  maxRing        // cap on the resend ring (1 = latest-only)
 })
 ```
 
 Methods: `setSelfIndex(idx)`, `handleSignal(from, data)`, `open(peerIdx, opts)`
-(async), `close(peerIdx)`, `closeAll()`, `enqueue(peerIdx, ev)` (send input),
+(async), `close(peerIdx)`, `closeAll()`, `enqueue(peerIdx, ev)` (send input;
+returns `'p2p'` or `'dropped'` — fall back to the relay on `'dropped'`),
 `isOpen(peerIdx)`, `getStats(peerIdx)`, `getAllStats()`. Controllers initiate,
 the display auto-accepts. 3s of silence fires `onPeerClosed`.
+`PartyFastlane.TICK_MS` is the resend cadence, for a caller or wrapper that
+drives its own resend tick.
 
 ### `RoomFlow` — headless room/lobby/host state machine
 
@@ -266,7 +272,9 @@ message with `onSeen(peerIndex, nowMs)` and polls the pure predicates
 `isExpired`, `expiredPeers` (always empty in `LOBBY`),
 `allParticipantsDisconnected`, `hasLateJoiners`, and `graceTick` (arms a
 `graceMs` return-to-lobby deadline while every participant is gone but late
-joiners wait; fires `true` exactly once).
+joiners wait; fires `true` when it elapses, then re-arms: a caller still polling
+under the same condition gets another `true` every `graceMs`, so acting once is
+the caller's job).
 
 The detectors never mutate presence and never emit — the host applies an expiry
 through the normal `markDisconnected` path, keeping the single-writer invariant.
