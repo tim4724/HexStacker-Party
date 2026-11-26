@@ -36,6 +36,13 @@ function transform(html, { scriptsMarker, acScriptsMarker }) {
   html = html.replace(/^\s*<meta\s+(property="og:|name="twitter:|name="description"|name="theme-color"|name="apple-mobile-web-app-capable"|name="mobile-web-app-capable")[^>]*>\n/gm, '');
   html = html.replace(/^\s*<link\s+rel="(icon|apple-touch-icon)"[^>]*>\n/gm, '');
 
+  // Neither entry is for search engines: the web host also serves them at
+  // /screen.html and /controller.html, copies of the display and the
+  // controller. Both get a noindex (the controller's comes with its source),
+  // and the display's canonical goes, as it would contradict it.
+  html = html.replace(/^\s*<link\s+rel="canonical"[^>]*>\n/m, '');
+  if (!html.includes('name="robots"')) html = html.replace('<title>', '<meta name="robots" content="noindex">\n  <title>');
+
   // Strip the controller name-screen legal-links footer (dead DOM in AC).
   html = html.replace(/^\s*<div class="legal-links">[\s\S]*?<\/div>\n/m, '');
 
