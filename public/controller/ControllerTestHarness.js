@@ -21,6 +21,14 @@
   // but its only side-effect that reaches the network is connect() — already
   // stubbed above.
 
+  // ?platform=paperballoon|airconsole renders that host's chrome via its body
+  // class; the real bootstraps are inert here (no PaperBalloonHost, and the
+  // web bundle has no AirConsole one). AirConsole's status overlay is
+  // dismissed by its bootstrap once the SDK is ready, so dismiss it here.
+  var platform = params.get('platform');
+  if (platform === 'paperballoon' || platform === 'airconsole') document.body.classList.add(platform);
+  if (platform === 'airconsole') document.getElementById('ac-status-overlay').classList.add('hidden');
+
   var scenario = params.get('scenario');
   var colorIdx = Math.max(0, Math.min(parseInt(params.get('color'), 10) || 0, 7));
   var levelParam = parseInt(params.get('level'), 10);

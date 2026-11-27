@@ -9,16 +9,19 @@
 // size via the mobile CSS media query.
 //
 // Card shape:
-//   { key, title, perColor?, extra?, isDisplayPage? }
+//   { key, title, perColor?, extra?, isDisplayPage?, browser? }
 // `extra` is merged into the URL (e.g. host=1 flags the host variant of a
-// screen that otherwise looks the same for host/non-host).
+// screen that otherwise looks the same for host/non-host). The "Browser"
+// toggle picks browser or phone-app rendering; `browser` (and isDisplayPage,
+// the website) pins a card to the browser, whatever the toggle says.
 var CONTROLLER_CARDS = [
   { key: '',                    title: 'Device choice (homepage)', isDisplayPage: true },
   { key: 'bail-room-not-found', title: 'Bail · Room not found',    isDisplayPage: true, replayable: true },
   { key: 'bail-game-full',      title: 'Bail · Room full',         isDisplayPage: true, replayable: true },
   { key: 'bail-game-ended',     title: 'Bail · Game ended',        isDisplayPage: true, replayable: true },
-  { key: 'app-offer',        title: 'App offer' },
-  { key: 'name',             title: 'Name input' },
+  // The app never offers itself, and the launcher owns the name.
+  { key: 'app-offer',        title: 'App offer',  browser: true },
+  { key: 'name',             title: 'Name input', browser: true },
   { key: 'name-connecting',  title: 'Connecting…', perColor: true },
   { key: 'lobby-host',                title: 'Lobby (host)',           perColor: true },
   { key: 'lobby-waiting',             title: 'Lobby (waiting)',        perColor: true },
@@ -34,7 +37,7 @@ var CONTROLLER_CARDS = [
   { key: 'reconnecting',     title: 'Reconnecting',        perColor: true },
   { key: 'disconnected',     title: 'Disconnected',        perColor: true },
   { key: 'results-winner',   title: 'Results (host)',      perColor: true, replayable: true },
-  { key: 'results-winner',   title: 'Results (AirConsole highscores)', perColor: true, extra: { highscores: '1' } },
+  { key: 'results-winner',   title: 'Results (AirConsole highscores)', perColor: true, extra: { highscores: '1', platform: 'airconsole' } },
   { key: 'results-loser',    title: 'Results (non-host)',  perColor: true }
 ];
 
@@ -61,8 +64,13 @@ function clampViewAs(v) {
 
 state.viewAs = clampViewAs(parseInt(state.viewAs, 10) || 0);
 
-function dims() {
-  var d = Gallery.computeControllerDims(state);
+function cardState(c) {
+  if (!c.browser && !c.isDisplayPage) return state;
+  return Object.assign({}, state, { controllerBrowserChrome: true });
+}
+
+function dims(c) {
+  var d = Gallery.computeControllerDims(cardState(c));
   return { logical: { w: d.iframeW, h: d.iframeH }, chromePx: d.chromePx };
 }
 
@@ -74,7 +82,7 @@ var perColorCards = [];
 function cardURL(c) {
   if (c.isDisplayPage) return Gallery.displayURL(state, c.key || undefined, undefined, c.extra || null);
   var colorIdx = c.perColor ? state.viewAs : 0;
-  return Gallery.controllerURL(state, c.key, colorIdx, c.extra || null);
+  return Gallery.controllerURL(cardState(c), c.key, colorIdx, c.extra || null);
 }
 
 function cardTag(c) {
@@ -93,9 +101,9 @@ function render() {
 
   allCards = [];
   perColorCards = [];
-  var d = dims();
   for (var i = 0; i < CONTROLLER_CARDS.length; i++) {
     var c = CONTROLLER_CARDS[i];
+    var d = dims(c);
     var card = Gallery.makeCard({
       title: c.title,
       tag: cardTag(c),
@@ -130,11 +138,11 @@ function updateViewAs() {
   }
 }
 
-// Device / orientation / chrome don't change iframe URLs — just re-layout
-// the existing cards so the loaded content is preserved.
+// Device / orientation don't change iframe URLs — just re-layout the
+// existing cards so the loaded content is preserved.
 function updateDims() {
-  var d = dims();
   for (var i = 0; i < allCards.length; i++) {
+    var d = dims(CONTROLLER_CARDS[i]);
     if (allCards[i]._applyDims) allCards[i]._applyDims(d.logical, d.chromePx);
   }
 }
@@ -148,7 +156,8 @@ function updateLayout() {
 
 Gallery.bindSelect(state, 'controller-device', 'controllerDevice', updateDims);
 Gallery.bindSelect(state, 'controller-orientation', 'controllerOrientation', updateDims);
-Gallery.bindCheckbox(state, 'controller-chrome', 'controllerBrowserChrome', updateDims);
+// Browser vs app is a URL param, so the toggle reloads the cards.
+Gallery.bindCheckbox(state, 'controller-chrome', 'controllerBrowserChrome', render);
 Gallery.bindSelect(state, 'player-count', 'controllerPlayers', function() {
   state.players = state.controllerPlayers;
   render();

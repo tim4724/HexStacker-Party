@@ -109,7 +109,9 @@ var Gallery = (function() {
       color: colorIdx,
       level: state.level,
       players: state.players,
-      names: namesParam(state)
+      names: namesParam(state),
+      // Not a browser means the phone app (Paper Balloon launcher).
+      platform: state.controllerBrowserChrome ? '' : 'paperballoon'
     };
     if (extra) for (var k in extra) p[k] = extra[k];
     // First path segment is the controller's roomCode — any value works in test mode.
@@ -254,8 +256,8 @@ var Gallery = (function() {
     card.appendChild(wrap);
 
     // Mutable dim state — applyDims lets callers re-layout an existing card
-    // (device swap, orientation flip, chrome toggle) without rebuilding the
-    // iframe, preserving its loaded content.
+    // (device swap, orientation flip) without rebuilding the iframe,
+    // preserving its loaded content.
     var curW = opts.logical.w, curH = opts.logical.h, curChrome = opts.chromePx || 0;
 
     function applyDims(logical, chromePx) {
