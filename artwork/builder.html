@@ -277,6 +277,10 @@
             <span class="range-value" id="p-subtitle-y-v">0</span>
           </div>
         </div>
+        <div class="field">
+          <label>Banner</label>
+          <input type="text" id="p-ribbon" value="" placeholder="none">
+        </div>
       </section>
 
       <section class="panel">
@@ -1002,6 +1006,38 @@
     }
   }
 
+  // Store-update banner (params.ribbon, empty = none): a band along the
+  // bottom edge in the honey of the PARTY line and the logo's yellow hex,
+  // with dark text. Honey stood out most against AirConsole's dark games
+  // list at tile size.
+  function drawRibbon(ctx, W, H, params) {
+    const text = (params.ribbon || '').toUpperCase();
+    if (!text) return;
+    const thick = 0.17 * H;
+
+    ctx.save();
+    ctx.translate(W / 2, H - thick / 2);
+    const grad = ctx.createLinearGradient(0, -thick / 2, 0, thick / 2);
+    grad.addColorStop(0, '#FFE066');
+    grad.addColorStop(1, '#F2C94C');
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+    ctx.shadowBlur = 0.03 * W;
+    ctx.fillStyle = grad;
+    ctx.fillRect(-W / 2, -thick / 2, W, thick);
+    ctx.shadowColor = 'transparent';
+
+    let size = 0.5 * thick;
+    for (let i = 0; i < 60; i++) {
+      ctx.font = `800 ${size}px 'Baloo 2', sans-serif`;
+      ctx.letterSpacing = (0.06 * size) + 'px';
+      if (ctx.measureText(text).width <= 0.86 * W) break;
+      size *= 0.96;
+    }
+    const cap = balooCapHeight(ctx, size, 800);
+    drawBalooLine(ctx, text, 0, cap / 2, size, { weight: 800, color: '#1E1A2B', ls: 0.06 });
+    ctx.restore();
+  }
+
   // ============================================================
 
   // ============================================================
@@ -1024,6 +1060,19 @@
       // slides the triad right toward its centroid (matches the app icons); the
       // gaps give the enlarged mark room to breathe above the wordmark.
       markScale: 2.6, markOpticalK: 0.4, gapMark: 0.8, gapSub: 0.32,
+      pieces: [],
+      selectedPiece: -1,
+    },
+    // The cover with a banner for the AirConsole games list while highscores
+    // are new (cover-art-highscores.png). The lockup moves up to clear it.
+    highscores: {
+      canvasW: 1024, canvasH: 1024,
+      bgStyle: 'radial', palette: 'classic', cellStyle: 'pillow',
+      title: 'HEX STACKER', subtitle: 'PARTY',
+      subtitleColor: '#FFF3C2',
+      showTitle: true, titleSize: 150, titleY: 450,
+      markScale: 2.6, markOpticalK: 0.4, gapMark: 0.8, gapSub: 0.32,
+      ribbon: 'NEW · HIGHSCORES',
       pieces: [],
       selectedPiece: -1,
     },
@@ -1065,6 +1114,7 @@
       const d = STATE.pieces[i];
       drawPiece(ctx, d.x, d.y, d.type, effectiveSize(d), { outline: i === STATE.selectedPiece, rot: d.rot || 0 });
     }
+    drawRibbon(ctx, W, H, STATE);
     if (STATE.selectedPiece >= 0 && STATE.pieces && STATE.pieces[STATE.selectedPiece]) {
       drawPieceHandles(ctx, STATE.pieces[STATE.selectedPiece]);
     }
@@ -1460,6 +1510,7 @@
     }
     render();
   });
+  document.getElementById('p-ribbon').addEventListener('input', (e) => { STATE.ribbon = e.target.value; render(); });
   document.getElementById('p-bg-style').addEventListener('change', (e) => { STATE.bgStyle = e.target.value; render(); });
   document.getElementById('p-palette').addEventListener('change', (e) => {
     STATE.palette = e.target.value;
@@ -1531,6 +1582,7 @@
     document.getElementById('p-subtitle-y').value = STATE.subtitleYOffset ?? 0;
     document.getElementById('p-subtitle-y-v').textContent = STATE.subtitleYOffset ?? 0;
     document.getElementById('p-subtitle-color').value = STATE.subtitleColor || '#f7f1e8';
+    document.getElementById('p-ribbon').value = STATE.ribbon ?? '';
     document.getElementById('p-bg-style').value = STATE.bgStyle ?? 'radial';
     document.getElementById('p-palette').value = STATE.palette ?? 'classic';
     document.getElementById('p-cell-style').value = STATE.cellStyle ?? 'normal';

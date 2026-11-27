@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 'use strict';
 
-// Captures artwork/builder.html in headless mode using the `cover` STAGES
-// entry and writes artwork/cover-art.png (1024×1024). Not served over
-// HTTP, so no public/ copy is made.
-// Usage: node artwork/generate-cover.js
+// Captures artwork/builder.html in headless mode using a square STAGES
+// entry: `cover` (the default) writes artwork/cover-art.png, any other stage
+// artwork/cover-art-<stage>.png (1024×1024). Not served over HTTP, so no
+// public/ copy is made.
+// Usage: node artwork/generate-cover.js [stage]   e.g. highscores
 // Note: builder.html also accepts ?w=N&h=N to override the stage's canvas
 // dims for hi-res or non-canonical captures.
 
@@ -13,9 +14,10 @@ const path = require('path');
 
 const COVER_WIDTH = 1024;
 const COVER_HEIGHT = 1024;
+const STAGE = process.argv[2] || 'cover';
 const ARTWORK_DIR = __dirname;
 const BUILDER = path.resolve(ARTWORK_DIR, 'builder.html');
-const ARTWORK_OUT = path.resolve(ARTWORK_DIR, 'cover-art.png');
+const ARTWORK_OUT = path.resolve(ARTWORK_DIR, STAGE === 'cover' ? 'cover-art.png' : `cover-art-${STAGE}.png`);
 
 (async () => {
   const browser = await chromium.launch();
@@ -24,7 +26,7 @@ const ARTWORK_OUT = path.resolve(ARTWORK_DIR, 'cover-art.png');
     deviceScaleFactor: 2,
   });
   const page = await context.newPage();
-  await page.goto(`file://${BUILDER}?headless=cover`);
+  await page.goto(`file://${BUILDER}?headless=${STAGE}`);
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(300);
   const err = await page.evaluate(() => window.__BUILDER_ERROR__);
