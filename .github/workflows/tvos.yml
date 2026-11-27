@@ -75,6 +75,10 @@ jobs:
     timeout-minutes: 40
     permissions:
       contents: read
+    env:
+      # 1920x1080, as the plain "Apple TV" simulator was; tvOS 27 dropped that
+      # device type.
+      TV_DEVICE: Apple TV 4K (4th generation) (at 1080p)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -100,19 +104,19 @@ jobs:
       # both steps are guaranteed to mean the same device — with two runtimes
       # installed, a name+OS=latest destination could resolve to a different
       # simulator than the one pre-booted here, and the runner would boot two.
-      # Best-effort: if no device matches, xcodebuild falls back to booting
-      # its own by name.
+      # The image pre-creates only some device types, so a missing one is
+      # created here, on the newest tvOS runtime.
       - name: Pre-boot the Apple TV simulator (background)
         run: |
           UDID=$(xcrun simctl list devices available --json \
-            | jq -r '[.devices | to_entries[] | select(.key | contains("tvOS")) | .value[] | select(.name == "Apple TV")] | last | .udid // empty')
-          if [ -n "$UDID" ]; then
-            echo "pre-booting Apple TV simulator $UDID"
-            echo "TV_UDID=$UDID" >> "$GITHUB_ENV"
-            nohup xcrun simctl bootstatus "$UDID" -b >/dev/null 2>&1 &
-          else
-            echo "no 'Apple TV' simulator found; xcodebuild will boot its own"
+            | jq -r --arg name "$TV_DEVICE" '[.devices | to_entries[] | select(.key | contains("tvOS")) | .value[] | select(.name == $name)] | last | .udid // empty')
+          if [ -z "$UDID" ]; then
+            UDID=$(xcrun simctl create "$TV_DEVICE" "$TV_DEVICE")
+            echo "created $TV_DEVICE simulator $UDID"
           fi
+          echo "pre-booting $TV_DEVICE simulator $UDID"
+          echo "TV_UDID=$UDID" >> "$GITHUB_ENV"
+          nohup xcrun simctl bootstatus "$UDID" -b >/dev/null 2>&1 &
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
@@ -167,8 +171,6 @@ jobs:
         working-directory: appletv
         run: |
           set -o pipefail
-          DEST="id=${TV_UDID}"
-          [ -n "$TV_UDID" ] || DEST='platform=tvOS Simulator,name=Apple TV,OS=latest'
           # Join the pre-boot before capturing. The pre-boot step backgrounds
           # bootstatus so the boot overlaps npm ci + compile, but nothing waited
           # for it, and XCUITest only ever gates on the app's accessibility tree,
@@ -180,12 +182,12 @@ jobs:
           # NO -b here, unlike the pre-boot: -b re-boots, and against a device that
           # is still booting simctl exits 149 ("Unable to boot device in current
           # state: Booted"), failing hardest in exactly the case this guards.
-          if [ -n "$TV_UDID" ]; then xcrun simctl bootstatus "$TV_UDID"; fi
+          xcrun simctl bootstatus "$TV_UDID"
           xcodebuild test \
             -project HexStacker.xcodeproj \
             -scheme HexStackerTV \
             -sdk appletvsimulator \
-            -destination "$DEST" \
+            -destination "id=$TV_UDID" \
             -derivedDataPath .build-xcode \
             -resultBundlePath TestResults.xcresult \
             -skip-testing:HexStackerTVUITests/HomeScreenTests
