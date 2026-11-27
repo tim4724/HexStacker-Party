@@ -3,7 +3,9 @@
 #
 # The deploy jobs run on the k8s cluster's own runner, a label actionlint can't
 # know about; without this every one of them reports an unknown-label error and
-# buries the real findings.
+# buries the real findings. xcode-27 is GitHub's hosted Xcode 27 image, newer
+# than actionlint's built-in label list.
 self-hosted-runner:
   labels:
     - k8s
+    - xcode-27

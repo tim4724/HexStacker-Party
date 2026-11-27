@@ -42,12 +42,24 @@ permissions:
 jobs:
   # Parallel to the screenshot job: separate build dirs, no shared artifacts.
   kit-tests:
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 20
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # The Xcode release.yml ships with.
+      - name: Select latest stable Xcode 27
+        run: |
+          # Real bundles only (the image's Xcode_27.2.app is a symlink to a beta), no
+          # betas, newest by the bundle's own version (the RC folder name sorts badly).
+          XCODE="$(find /Applications -maxdepth 1 -type d -name 'Xcode_27*.app' ! -name '*beta*' \
+            | while read -r x; do echo "$(defaults read "$x/Contents/Info" CFBundleShortVersionString) $x"; done \
+            | sort -V | tail -1 | cut -d' ' -f2-)"
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE"
+
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
@@ -59,12 +71,24 @@ jobs:
         run: swift test
 
   build-test-screenshots:
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 40
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # The Xcode release.yml ships with. First, so the simulator pre-booted
+      # below belongs to it.
+      - name: Select latest stable Xcode 27
+        run: |
+          # Real bundles only (the image's Xcode_27.2.app is a symlink to a beta), no
+          # betas, newest by the bundle's own version (the RC folder name sorts badly).
+          XCODE="$(find /Applications -maxdepth 1 -type d -name 'Xcode_27*.app' ! -name '*beta*' \
+            | while read -r x; do echo "$(defaults read "$x/Contents/Info" CFBundleShortVersionString) $x"; done \
+            | sort -V | tail -1 | cut -d' ' -f2-)"
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE"
 
       # Boot the simulator NOW, in the background: xcodebuild otherwise
       # cold-boots it after the ~2 min of npm ci + project generation + app

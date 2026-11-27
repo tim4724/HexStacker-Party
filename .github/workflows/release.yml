@@ -2,7 +2,7 @@ name: Release
 
 # Signed store builds:
 #   - Android: .aab signed with the Play upload keystore, kept as a workflow
-#     artifact, and released to Play's Android TV closed testing track.
+#     artifact, and released to Play's Android TV open testing track.
 #     Versioned like tvOS below (tag -> versionName, run number -> versionCode,
 #     offset to dodge hand-uploaded phoneTest codes), via -P overrides.
 #   - tvOS: signed with the Apple Distribution cert + App Store profile and
@@ -18,9 +18,11 @@ name: Release
 # Never runs for pull requests, so the signing secrets are only
 # reachable by pushers. Each signing step fails fast with a named error when a
 # secret is missing, rather than silently producing a debug-signed artifact.
+# Each store upload is the last step of its job, so a failed upload has used up
+# no build number and "Re-run failed jobs" is the retry; a fix needs a new tag.
 #
-# Secrets (Settings > Environments > release, which admits only main and
-# release tags, so no other branch can read them):
+# Secrets (Settings > Environments > release, which admits only release tags,
+# so no branch can read them):
 #   ANDROID_KEYSTORE_B64       base64 of the upload keystore .jks
 #   ANDROID_KEYSTORE_PASSWORD  keystore store password
 #   ANDROID_KEY_ALIAS          key alias (hexstacker-tv)
@@ -72,19 +74,15 @@ jobs:
       # :tv's release signing reads android/keystore.properties (gitignored;
       # storeFile must be an absolute path). Keep the decoded keystore outside
       # the workspace.
-      - name: Materialize upload keystore from secrets
+      - name: Materialize the upload keystore from secrets
         env:
           ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          set -eu
           for v in ANDROID_KEYSTORE_B64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
-            if [ -z "$(eval "echo \"\$$v\"")" ]; then
-              echo "::error::secret $v is not set"
-              exit 1
-            fi
+            [ -n "${!v}" ] || { echo "::error::Secret $v is not set"; exit 1; }
           done
           echo "$ANDROID_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/upload-keystore.jks"
           cat > android/keystore.properties <<EOF
@@ -111,15 +109,24 @@ jobs:
             "-PhexVersionCode=$((GITHUB_RUN_NUMBER + 100))" "-PhexVersionName=$GITHUB_REF_NAME"
 
       # The Gradle build falls back to debug signing when keystore.properties is
-      # absent or unreadable, which would produce an artifact Play rejects.
-      # Verify the bundle really carries the upload key before publishing it.
-      - name: Verify release signature
+      # absent or unreadable, which would produce an artifact Play rejects, so
+      # prove the upload key was picked up. An equality against the keystore's
+      # own certificate, not a search for "Android Debug": that also passes when
+      # keytool prints nothing at all.
+      - name: Verify the release signature
+        env:
+          AAB: android/tv/build/outputs/bundle/release/tv-release.aab
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
-          set -eu
-          CERT=$(keytool -printcert -jarfile android/tv/build/outputs/bundle/release/tv-release.aab)
-          echo "$CERT"
-          if echo "$CERT" | grep -q "Android Debug"; then
-            echo "::error::AAB is debug-signed; the upload keystore was not picked up"
+          want=$(keytool -exportcert -keystore "$RUNNER_TEMP/upload-keystore.jks" \
+              -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" -rfc |
+            keytool -printcert | grep -m1 'SHA256:' | tr -d ' ')
+          got=$(keytool -printcert -jarfile "$AAB" | grep -m1 'SHA256:' | tr -d ' ')
+          echo "keystore $want"
+          echo "bundle   $got"
+          if [ -z "$got" ] || [ "$want" != "$got" ]; then
+            echo "::error::$AAB is not signed with the upload key"
             exit 1
           fi
 
@@ -133,16 +140,21 @@ jobs:
           if-no-files-found: error
 
       # "tv:" is the Android TV form factor prefix (tracks are named
-      # "<prefix>:<track>", and the suffix is the track's console name verbatim,
-      # capital A included). The app is leanback-only, so it belongs on the TV
-      # track, not the mobile one it shares a console with. Read the live list
-      # with androidpublisher edits.tracks.list before changing this.
+      # "<prefix>:<track>"); tv:beta is that form factor's open testing track.
+      # The app is leanback-only, so it belongs on the TV tracks, not the mobile
+      # ones it shares a console with. Read the live list with androidpublisher
+      # edits.tracks.list before changing this. tv:Alpha, the closed track, is
+      # no longer published to; production is promoted in Play Console.
       #
-      # Closed testing goes out completed, not draft: testers opted in, and Play
-      # still reviews the release. Point this at tv:production and the draft
-      # gate has to come back. mapping.txt goes with it or every crash report
-      # from an R8 build is unreadable.
-      - name: Publish to Play (Android TV closed testing)
+      # Open testing goes out completed, not draft: joining is the tester's
+      # choice, and Play still reviews the release. Point this at tv:production
+      # and the draft gate has to come back. mapping.txt goes with it or every
+      # crash report from an R8 build is unreadable.
+      #
+      # A commit while other changes are in review cancels that review and
+      # resubmits everything together (Play's default; the action has no switch
+      # for it), so don't tag while a production release is in review.
+      - name: Publish to Play (Android TV open testing)
         id: play
         continue-on-error: true
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
@@ -151,7 +163,7 @@ jobs:
           packageName: com.couchgames.stacker
           releaseFiles: android/tv/build/outputs/bundle/release/tv-release.aab
           mappingFile: android/tv/build/outputs/mapping/release/mapping.txt
-          tracks: tv:Alpha
+          tracks: tv:beta
           status: completed
 
       # While the app has an open rejection, Play refuses an edit that sends
@@ -165,22 +177,24 @@ jobs:
           packageName: com.couchgames.stacker
           releaseFiles: android/tv/build/outputs/bundle/release/tv-release.aab
           mappingFile: android/tv/build/outputs/mapping/release/mapping.txt
-          tracks: tv:Alpha
+          tracks: tv:beta
           status: completed
           changesNotSentForReview: true
 
   tvos:
-    runs-on: macos-26
+    runs-on: xcode-27
     environment: release
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      # App Store Connect rejects binaries built with older SDKs (tvOS apps must
-      # use the tvOS 26 SDK), and the runner's default Xcode lags behind.
-      - name: Select latest Xcode 26
+      - name: Select latest stable Xcode 27
         run: |
-          XCODE="$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)"
+          # Real bundles only (the image's Xcode_27.2.app is a symlink to a beta), no
+          # betas, newest by the bundle's own version (the RC folder name sorts badly).
+          XCODE="$(find /Applications -maxdepth 1 -type d -name 'Xcode_27*.app' ! -name '*beta*' \
+            | while read -r x; do echo "$(defaults read "$x/Contents/Info" CFBundleShortVersionString) $x"; done \
+            | sort -V | tail -1 | cut -d' ' -f2-)"
           echo "Using $XCODE"
           sudo xcode-select -s "$XCODE"
 
@@ -216,13 +230,15 @@ jobs:
           APPLE_CERT_P12_B64: ${{ secrets.APPLE_CERT_P12_B64 }}
           APPLE_CERT_P12_PASSWORD: ${{ secrets.APPLE_CERT_P12_PASSWORD }}
           APPLE_PROFILE_B64: ${{ secrets.APPLE_PROFILE_B64 }}
+          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
         run: |
           set -eu
-          for v in APPLE_CERT_P12_B64 APPLE_CERT_P12_PASSWORD APPLE_PROFILE_B64; do
-            if [ -z "$(eval "echo \"\$$v\"")" ]; then
-              echo "::error::secret $v is not set"
-              exit 1
-            fi
+          # The upload's key too, so a missing one fails here and not after the archive.
+          for v in APPLE_CERT_P12_B64 APPLE_CERT_P12_PASSWORD APPLE_PROFILE_B64 \
+                   ASC_API_KEY_P8_BASE64 ASC_API_KEY_ID ASC_API_ISSUER_ID; do
+            [ -n "${!v}" ] || { echo "::error::Secret $v is not set"; exit 1; }
           done
 
           KEYCHAIN_PATH="$RUNNER_TEMP/release.keychain-db"
@@ -269,6 +285,16 @@ jobs:
             -derivedDataPath .build-xcode \
             "CURRENT_PROJECT_VERSION=$GITHUB_RUN_NUMBER" "MARKETING_VERSION=$GITHUB_REF_NAME"
 
+      # Keep the debug symbols with the build, needed to symbolicate crash
+      # reports for exactly this binary once the .ipa itself lives in TestFlight.
+      # Before the upload, which stays the job's last step.
+      - name: Upload dSYMs artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: hexstacker-tvos-dsyms
+          path: appletv/build/HexStacker.xcarchive/dSYMs
+          if-no-files-found: error
+
       # ExportOptions.plist has destination=upload, so "exporting" the archive
       # pushes the build to App Store Connect via the ASC API key.
       - name: Upload to App Store Connect
@@ -279,12 +305,6 @@ jobs:
           ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
         run: |
           set -o pipefail
-          for v in ASC_API_KEY_P8_BASE64 ASC_API_KEY_ID ASC_API_ISSUER_ID; do
-            if [ -z "$(eval "echo \"\$$v\"")" ]; then
-              echo "::error::secret $v is not set"
-              exit 1
-            fi
-          done
           echo "$ASC_API_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
           xcodebuild -exportArchive \
             -archivePath build/HexStacker.xcarchive \
@@ -292,12 +312,3 @@ jobs:
             -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" \
             -authenticationKeyID "$ASC_API_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_API_ISSUER_ID"
-
-      # Keep the debug symbols with the build, needed to symbolicate crash
-      # reports for exactly this binary once the .ipa itself lives in TestFlight.
-      - name: Upload dSYMs artifact
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: hexstacker-tvos-dsyms
-          path: appletv/build/HexStacker.xcarchive/dSYMs
-          if-no-files-found: error
