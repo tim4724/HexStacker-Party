@@ -31,10 +31,10 @@ jobs:
       # Delete events run on the default branch, so this checks out main (the
       # deleted ref comes from the event payload). Needed for the local action.
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install kubectl
-        uses: azure/setup-kubectl@v5
+        uses: azure/setup-kubectl@bda439f5f36b99b262ebdcd3613869bddb064c8e # v5
         with:
           version: v1.37.2
 

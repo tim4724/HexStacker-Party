@@ -47,8 +47,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
           cache: 'npm'
@@ -64,7 +64,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # Boot the simulator NOW, in the background: xcodebuild otherwise
       # cold-boots it after the ~2 min of npm ci + project generation + app
@@ -90,7 +90,7 @@ jobs:
             echo "no 'Apple TV' simulator found; xcodebuild will boot its own"
           fi
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
           cache: 'npm'
@@ -127,7 +127,7 @@ jobs:
       # xcframework) so we don't re-download it on every run. A project.yml edit
       # shouldn't re-download it: restore the previous cache and let SPM re-resolve.
       - name: Cache SPM artifacts
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: appletv/.build-xcode/SourcePackages
           key: spm-${{ runner.os }}-${{ hashFiles('appletv/project.yml') }}
@@ -180,7 +180,7 @@ jobs:
 
       - name: Upload screenshots
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: tvos-screenshots
           path: appletv/screenshots
