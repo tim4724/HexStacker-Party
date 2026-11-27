@@ -123,9 +123,12 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
 }
 /* Privacy + Imprint stay together: if a long locale (fr, ru) still can't
    fit on one line at the font floor, the break falls between the credit
-   and the legal pair, never between the two legal links. */
+   and the legal pair. The pair itself wraps only when it alone is wider
+   than the screen (Russian on a 280px Fold cover, wide system fonts). */
 .device-choice__legal-group {
   display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
   column-gap: 6px;
 }
