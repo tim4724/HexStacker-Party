@@ -168,7 +168,7 @@ describe('i18n', function () {
       'badge_apple_tv', 'badge_google_play',
     ];
 
-    for (var locale of Object.keys(LOCALES)) {
+    for (const locale of Object.keys(LOCALES)) {
       it('locale "' + locale + '" has all required keys', function () {
         for (var key of requiredKeys) {
           assert.ok(
@@ -198,7 +198,7 @@ describe('i18n', function () {
     // {name}. Every locale must contain {name} exactly once or the colored
     // span renders adjacent to the template text instead of replacing it.
     var bannerKeys = ['waiting_for_host_to_start', 'waiting_for_host_to_continue'];
-    for (var locale of Object.keys(LOCALES)) {
+    for (const locale of Object.keys(LOCALES)) {
       it('locale "' + locale + '" colored-name template keys contain exactly one {name}', function () {
         for (var key of bannerKeys) {
           var val = LOCALES[locale][key];
