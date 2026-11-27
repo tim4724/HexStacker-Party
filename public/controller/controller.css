@@ -1832,7 +1832,7 @@ body.airconsole #ac-status-overlay.hidden { display: none; }
    either the viewport is short, or the ranking list is long (5+ players)
    and every reclaimed row of height shows another placement. Same
    "wordmark alone still brands the page" reasoning as the device-choice
-   overlay's ≤640px rule. */
+   overlay's first fit tier. */
 .controller-shell__frame--results:has(.result-row:nth-child(5)) .brand-lockup__mark {
   display: none;
 }

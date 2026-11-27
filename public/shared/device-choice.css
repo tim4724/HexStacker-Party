@@ -6,8 +6,9 @@
    Self-contained.
 
    Structure (visual groups spaced by auto margins on the outer flex
-   column; toast floats absolute above the CTA block, the legal footer
-   is the last in-flow item, pushed to the bottom):
+   column; the toast floats absolute above the CTA block (in flow at
+   fit-5), the legal footer is the last in-flow item, pushed to the
+   bottom):
      .device-choice
        .device-choice__intro          — title + hero (tight block)
          .device-choice__brand          — title
@@ -15,7 +16,7 @@
            picture                        — screenshot
            .device-choice__chips          — 4 feature chips (2x2 on narrow)
        .device-choice__cta            — banner + continue (tight block)
-         .device-choice__toast          — bail reason (absolute, above CTA)
+         .device-choice__toast          — bail reason (absolute, above CTA; static at fit-5)
          .device-choice__banner         — tappable hexstacker.com + share icon
          .device-choice__continue       — link-style "Continue on this device"
        .device-choice__legal          — footer (in flow, pushed to bottom)
@@ -33,13 +34,13 @@
      and cta groups (below), not `justify-content`. `gap` stays as a floor
      so items keep breathing room even when free space collapses, and
      `overflow-y: auto` (below) scrolls whatever still doesn't fit. */
-  gap: clamp(14px, 2.5vh, 24px);
+  gap: clamp(14px, 2.5svh, 24px);
   /* Fully opaque so the safe-area strips (status bar, home indicator)
      stay a consistent solid color for OS nav-bar sampling. */
   background: var(--bg-primary);
   text-align: center;
   padding:
-    calc(clamp(20px, 4vh, 40px) + env(safe-area-inset-top))
+    calc(clamp(20px, 4svh, 40px) + env(safe-area-inset-top))
     0.75rem
     calc(8px + env(safe-area-inset-bottom));
   overflow-y: auto;
@@ -86,7 +87,7 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(10px, 2vh, 16px);
+  gap: clamp(10px, 2svh, 16px);
   width: min(100%, 440px);
 }
 .device-choice__intro,
@@ -98,7 +99,7 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
    breathing room on tall viewports without feeling detached; the 14px
    floor keeps short viewports as tight as before. */
 .device-choice__intro {
-  gap: clamp(14px, 4.5vh, 40px);
+  gap: clamp(14px, 4.5svh, 40px);
 }
 
 /* --- Store badges (the TV apps), between the CTA and the footer. Looks
@@ -147,11 +148,11 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
 }
 /* 2:1 cinematic crop — short enough that the whole overlay fits above
    the fold on typical phones while still showing all three player
-   boards. When the chips collapse (tier 2 below) `max-height` grows. */
+   boards. When the chips collapse (tier 3 below) `max-height` grows. */
 .device-choice__screenshot {
   display: block;
   width: 100%;
-  max-height: 28vh;
+  max-height: 28svh;
   height: auto;
   object-fit: contain;
 }
@@ -233,9 +234,11 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
   color: var(--btn-primary-text);
   border: none;
   border-radius: var(--radius-md);
-  /* Symmetric padding so URL + subtitle stay horizontally centered across
-     the full banner width; the share icon floats on top at the right edge. */
-  padding: 9px 16px;
+  /* Symmetric padding so URL + subtitle stay horizontally centered; the
+     share icon floats on top at the right edge (14px inset + 24px wide), so
+     the inline padding clears it on both sides and narrow screens wrap the
+     text instead of running it under the icon. */
+  padding: 9px 42px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -331,7 +334,8 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
 /* --- Toast (bail reason). Floats absolute just above the CTA block —
        a child of `.device-choice__cta` (which is positioned: relative
        below) so it anchors to the top edge of the CTA without taking
-       layout space. Toggling visibility never reflows the buttons. --- */
+       layout space, and toggling it doesn't reflow the buttons. Once the
+       title is dropped (fit-5, below) it joins the column instead. --- */
 .device-choice__cta { position: relative; }
 .device-choice__toast {
   position: absolute;
@@ -361,57 +365,56 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
 }
 .device-choice__toast.hidden { display: none; }
 
-/* Responsive behaviour: the vertical column stays in place at every
-   size, and non-essential content is dropped in priority order as
-   vertical space runs out — mark, then chips, then screenshot, then
-   title. Banner + Continue link + store badges + footer are always
-   preserved — they carry the interaction. Chips drop before the
-   screenshot because the screenshot shows the product at a glance, while
-   the chips repeat the selling points the banner's CTA already implies.
+/* Responsive behaviour: the column never scrolls. Non-essential content
+   is dropped in priority order until it fits: mark, then (after one round
+   of tighter spacing) chips, then screenshot, then title, then, only in
+   windows too short for anything else, the store badges. Banner, Continue
+   link and footer always stay, they carry the interaction. Chips drop
+   before the screenshot because the screenshot shows the product at a
+   glance, while the chips repeat the selling points the banner's CTA
+   already implies.
 
-   The thresholds are measured, not guessed. Title, screenshot, chip and
-   banner type all scale with WIDTH, so the height at which the column
-   stops fitting grows with width too: each of the first three tiers is a
-   plain height cap OR'd with a taller cap gated on a wider aspect ratio
-   (tablets, laptop windows, phablets). Re-measure when changing sizes
-   in the column — the goal is zero overflow at every viewport. */
+   fitDeviceChoice() (display.js) measures the column and sets the
+   cumulative .fit-N classes. Media-query thresholds can't do this job:
+   the height the column needs depends on the locale (Russian wraps the
+   footer) and on the platform's system fonts, so any fixed cap either
+   clips somewhere or drops content that would have fit.
 
-/* Tier 1 — first thing to go: the triad mark above the wordmark. The
-   wordmark alone still brands the page, and dropping the mark (~75px at
-   full size) is enough on its own across most of the phone range, so
-   the chips survive longer. */
-@media (max-height: 760px), (max-height: 880px) and (min-aspect-ratio: 1/2) {
-  .device-choice__brand .brand-lockup__mark { display: none; }
+   Sizes above use svh, not vh: the overlay never scrolls, so mobile
+   browser toolbars never collapse, and vh (sized as if they had) would
+   oversize every gap by the toolbar height. */
+
+/* Tier 1: the triad mark above the wordmark. The wordmark alone still
+   brands the page. */
+.device-choice.fit-1 .brand-lockup__mark { display: none; }
+
+/* Tier 2: tighter spacing, so content a few pixels short of fitting
+   keeps its chips. */
+.device-choice.fit-2 {
+  gap: clamp(10px, 2svh, 18px);
+  padding-top: calc(clamp(12px, 2svh, 24px) + env(safe-area-inset-top));
 }
+.device-choice.fit-2 .device-choice__banner { padding-block: 7px; }
 
-/* Tier 2 — tight height: trim spacing and hide the chips (the mark is
-   re-hidden here so the order holds even if tier 1 is retuned). The
-   screenshot + banner together still communicate what the app is. With
-   chips gone, the screenshot gets more vertical room (up from 28vh →
-   37vh) so it reads as the hero. */
-@media (max-height: 690px), (max-height: 780px) and (min-aspect-ratio: 11/20) {
-  .device-choice {
-    gap: clamp(10px, 2vh, 18px);
-    padding-top: calc(clamp(12px, 2vh, 24px) + env(safe-area-inset-top));
-  }
-  .device-choice__brand .brand-lockup__mark,
-  .device-choice__chips { display: none; }
-  .device-choice__screenshot { max-height: 37vh; }
-  .device-choice__banner { padding: 7px 14px; }
-}
+/* Tier 3: hide the chips. The screenshot + banner still say what the app
+   is, and the screenshot gets more room (28svh up to 37svh) so it reads
+   as the hero. */
+.device-choice.fit-3 .device-choice__chips { display: none; }
+.device-choice.fit-3 .device-choice__screenshot { max-height: 37svh; }
 
-/* Tier 3 — very tight: drop the screenshot too — title + banner + link +
-   badges + footer only. The toast stays visible at every tier. */
-@media (max-height: 460px), (max-height: 550px) and (min-aspect-ratio: 3/4) {
-  .device-choice__hero picture { display: none; }
-  .device-choice { gap: clamp(8px, 2vh, 14px); }
-}
+/* Tier 4: drop the screenshot too. */
+.device-choice.fit-4 { gap: clamp(8px, 2svh, 14px); }
+.device-choice.fit-4 .device-choice__hero picture { display: none; }
 
-/* Tier 4 — absolute minimum (≤320px, e.g. iPhone SE landscape): drop
-   the title too — banner + link + footer only. */
-@media (max-height: 320px) {
-  .device-choice__brand { display: none; }
-}
+/* Tier 5: drop the title. That leaves no room above the CTA for the bail
+   toast to float in, so it joins the column where the title was (and
+   showBailToast re-fits). */
+.device-choice.fit-5 .device-choice__brand { display: none; }
+.device-choice.fit-5 .device-choice__toast { position: static; transform: none; }
+
+/* Tier 6: drop the store badges (landscape split-screen and similar). Should
+   even that overflow, overflow-y: auto scrolls the rest. */
+.device-choice.fit-6 .store-badges { display: none; }
 
 /* AirConsole: never show the device-choice overlay */
 body.airconsole .device-choice { display: none !important; }

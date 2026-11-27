@@ -127,9 +127,11 @@ function showBailToast(key) {
   if (!deviceChoiceToast) return;
   deviceChoiceToast.textContent = t(key);
   deviceChoiceToast.classList.remove('hidden');
+  fitDeviceChoice();
   clearTimeout(_bailToastTimer);
   _bailToastTimer = setTimeout(function() {
     deviceChoiceToast.classList.add('hidden');
+    fitDeviceChoice();
   }, 5000);
 }
 
@@ -156,6 +158,26 @@ var BAIL_KEYS = ['room_not_found', 'game_full', 'game_ended'];
   // width > 0), which is desktop-safe — the media query hides it there.
   restoreDeviceChoice();
 })();
+
+// Drop the overlay's optional content tier by tier (.fit-1 … .fit-6 in
+// device-choice.css) until the column fits without scrolling. Re-fit
+// whenever the overlay's box changes (viewport resize, shown/hidden) or
+// its content does: web fonts and the store badges, whose width is
+// unknown until they load, can change what wraps.
+function fitDeviceChoice() {
+  for (var i = 1; i <= 6; i++) deviceChoice.classList.remove('fit-' + i);
+  for (var tier = 1; tier <= 6 && deviceChoice.scrollHeight > deviceChoice.clientHeight; tier++) {
+    deviceChoice.classList.add('fit-' + tier);
+  }
+}
+if (deviceChoice && typeof ResizeObserver === 'function') {
+  // Border box: the fit's own padding change must not re-trigger the observer.
+  new ResizeObserver(fitDeviceChoice).observe(deviceChoice, { box: 'border-box' });
+  document.fonts.addEventListener('loadingdone', fitDeviceChoice);
+  deviceChoice.querySelectorAll('.store-badge img').forEach(function(img) {
+    img.addEventListener('load', fitDeviceChoice);
+  });
+}
 
 var trailerModal = document.getElementById('trailer-modal');
 var trailerVideo = document.getElementById('trailer-video');
