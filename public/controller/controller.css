@@ -153,7 +153,9 @@ html, body {
   display: flex;
   align-items: center;
   gap: 8px;
+  font-family: var(--font-brand);
   font-size: clamp(0.85rem, 4vw, 1rem);
+  font-weight: 500;
   color: var(--text-secondary);
   white-space: nowrap;
 }
@@ -365,6 +367,7 @@ body.paperballoon .leave-btn__close { display: block; }
 
 .app-offer__line {
   margin-top: 5px;
+  font-family: var(--font-brand);
   font-size: 0.95rem;
   font-weight: 600;
   line-height: 1.2;
@@ -378,6 +381,7 @@ body.paperballoon .leave-btn__close { display: block; }
   align-items: center;
   gap: 4px;
   margin-top: 4px;
+  font-family: var(--font-brand);
   font-size: 0.8rem;
   font-weight: 600;
   line-height: 1.2;
