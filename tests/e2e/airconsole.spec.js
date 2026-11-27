@@ -714,4 +714,128 @@ test.describe('AirConsole Integration', () => {
     expect(await s.ctrlFrame.evaluate(() => currentScreen)).toBe('game');
     expect(await s.ctrlFrame.evaluate(() => touchInput === window.__tiBefore)).toBe(true);
   });
+
+  test('highscores: a scoring player is stored to both boards, one SDK call at a time', async ({ page, context }) => {
+    if (!USE_MOCK) {
+      test.skip(true, 'Highscore tests only in mock mode');
+      return;
+    }
+    const s = await createSession(context, page);
+    await s.screenFrame.waitForFunction(() => players.size >= 1, null, { timeout: 15000 });
+
+    // A scorer, a player who cleared nothing, and a late joiner who sat out.
+    await s.screenFrame.evaluate(() => storeHighScores([
+      { playerId: 101, rank: 1, lines: 12 },
+      { playerId: 102, rank: 2, lines: 0 },
+      { playerId: 103, newPlayer: true },
+    ]));
+    await s.screenFrame.waitForFunction(() => _hsBoards.month !== undefined, null, { timeout: 5000 });
+
+    const stored = await s.screenFrame.evaluate(() => window.__AC_STORED);
+    expect(stored.map((e) => [e.uid, e.score, e.score_string])).toEqual([
+      ['uid_101', 12, '12 lines'],
+      ['uid_101', 12, '12 lines'],
+    ]);
+    expect(stored[0].level_version).toBe('v1-all');
+    expect(stored[1].level_version).toMatch(/^v1-\d{4}-\d{2}$/);
+    expect(await s.screenFrame.evaluate(() => window.__AC_HS_OVERLAP)).toBeUndefined();
+    // AirConsole answered the stores with a new best, so the entry carries it.
+    expect(await s.screenFrame.evaluate(() => _hsBoards.all)).toEqual([
+      { rank: 1, name: 'TestPlayer', lines: 12, playerId: 101, best: true },
+    ]);
+    // Not on the results screen, so nothing shows.
+    await expect(s.screenFrame.locator('#global-board')).toBeHidden();
+  });
+
+  test('highscores: the global top 10 rotates beside the results until Play Again', async ({ page, context }) => {
+    if (!USE_MOCK) {
+      test.skip(true, 'Highscore tests only in mock mode');
+      return;
+    }
+    const s = await createSession(context, page);
+    await s.screenFrame.waitForFunction(() => players.size >= 1, null, { timeout: 15000 });
+    await s.ctrlFrame.waitForFunction(() => currentScreen === 'lobby' && playerColor !== null, null, { timeout: 15000 });
+
+    // All-time: 12 strangers, the player never scored. This month: the
+    // player's prior best is #2.
+    await s.screenFrame.evaluate(() => {
+      const d = new Date();
+      const m = d.getUTCMonth() + 1;
+      const month = 'v1-' + d.getUTCFullYear() + '-' + (m < 10 ? '0' : '') + m;
+      const strangers = (n) => Array.from({ length: n }, (_, i) => ({ uid: 'uid_s' + i, nickname: 'Stranger ' + i, score: 200 - i * 10 }));
+      window.__AC_HIGHSCORES = {
+        'HexStacker Party|v1-all': strangers(12),
+        ['HexStacker Party|' + month]: strangers(3).concat({ uid: 'uid_101', nickname: 'TestPlayer', score: 195 }),
+      };
+    });
+
+    // High start level: the board tops out fast with no lines cleared, so
+    // the round stores nothing and the seeded boards are what shows.
+    await s.ctrlFrame.evaluate(() => {
+      const plus = document.getElementById('level-plus-btn');
+      for (let i = 0; i < 14; i++) plus.click();
+    });
+    await s.ctrlPage.waitForTimeout(300);
+    await s.ctrlFrame.locator('#start-btn').click();
+    await s.screenFrame.waitForSelector('#results-screen:not(.hidden)', { timeout: 60000 });
+    // Laid out for the boards from the first paint, so nothing moves when they land.
+    await expect(s.screenFrame.locator('#results-screen')).toHaveClass(/has-global/);
+
+    const board = s.screenFrame.locator('#global-board');
+    const rows = s.screenFrame.locator('#global-board-list .result-row');
+    await expect(board).toBeVisible({ timeout: 5000 });
+    await expect(s.screenFrame.locator('.global-board-tab.active')).toHaveAttribute('data-board', 'all');
+    // Shown even though nobody from this round is on it.
+    await expect(rows).toHaveCount(10);
+    await expect(rows.first()).toContainText('Stranger 0');
+    expect(await rows.evaluateAll((els) => els.filter((el) => el.style.getPropertyValue('--player-color')).length)).toBe(0);
+
+    // Both boards have scores, so the panel rotates to the month, where the
+    // player's row takes their colour. The shown label carries the switch
+    // timer; a prior best stored no score this round, so nothing is new.
+    await expect(s.screenFrame.locator('.global-board-tab.active')).toHaveAttribute('data-board', 'month', { timeout: 10000 });
+    await expect(s.screenFrame.locator('.global-board-tab.active')).toHaveClass(/timed/);
+    // Four scores, then ranks 5 to 10 as empty slots.
+    await expect(rows).toHaveCount(10);
+    await expect(s.screenFrame.locator('#global-board-list .global-board-empty')).toHaveCount(6);
+    await expect(rows.nth(4)).toContainText('5');
+    await expect(rows.nth(1)).toContainText('TestPlayer');
+    await expect(s.screenFrame.locator('.global-board-best')).toHaveCount(0);
+    expect(await rows.nth(1).evaluate((el) => el.style.getPropertyValue('--player-color'))).not.toBe('');
+    expect(await rows.nth(0).evaluate((el) => el.style.getPropertyValue('--player-color'))).toBe('');
+
+    await s.ctrlFrame.locator('#play-again-btn').click();
+    await s.screenFrame.waitForFunction(() => roomState !== 'results', null, { timeout: 15000 });
+    await expect(board).toBeHidden();
+    expect(await s.screenFrame.evaluate(() => globalBoardTimer)).toBeNull();
+    // The layout stays as it was while the results fade out, so nothing jumps.
+    await expect(s.screenFrame.locator('#results-screen')).toHaveClass(/has-global/);
+  });
+
+  test('highscores: the lobby shows each board\'s #1 once AirConsole is ready', async ({ page, context }) => {
+    if (!USE_MOCK) {
+      test.skip(true, 'Highscore tests only in mock mode');
+      return;
+    }
+    // Seeded before load: the boards are requested as soon as AirConsole is ready.
+    await page.addInitScript(() => {
+      const d = new Date();
+      const m = d.getUTCMonth() + 1;
+      const month = 'v1-' + d.getUTCFullYear() + '-' + (m < 10 ? '0' : '') + m;
+      window.__AC_HIGHSCORES = {
+        'HexStacker Party|v1-all': [
+          { uid: 'uid_s0', nickname: 'Nova', score: 149 },
+          { uid: 'uid_s1', nickname: 'Pixel', score: 138 },
+        ],
+        ['HexStacker Party|' + month]: [{ uid: 'uid_s2', nickname: 'Echo', score: 79 }],
+      };
+    });
+    const s = await createSession(context, page);
+
+    const records = s.screenFrame.locator('#lobby-records');
+    await expect(records).toBeVisible({ timeout: 5000 });
+    await expect(records.locator('.lobby-record')).toHaveCount(2);
+    await expect(records.locator('.lobby-record').first()).toHaveText(/All-time #1\s*Nova\s*149 lines/);
+    await expect(records.locator('.lobby-record').nth(1)).toHaveText(/Monthly #1\s*Echo\s*79 lines/);
+  });
 });

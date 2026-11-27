@@ -612,6 +612,141 @@ function renderResults(results) {
   }
 }
 
+// --- Global Boards (AirConsole) ---
+// The global top 10 beside the standings, fed by display-airconsole.js.
+// boards: { all, month }, each [{ rank, name, lines, playerId, best }] or
+// missing while empty; playerId is set on this round's players so their row
+// takes their colour, best on a new personal best from this round. Shows the
+// first board with scores and rotates once both have them. Called again as
+// boards arrive; stopGlobalBoards ends the rotation.
+var GLOBAL_BOARD_ROTATE_MS = 6000;
+var globalBoardShown = null;
+var globalBoardTimer = null;
+
+function showGlobalBoards(boards) {
+  if (!globalBoardShown) {
+    globalBoardShown = boards.all ? 'all' : boards.month ? 'month' : null;
+    if (!globalBoardShown) return;
+    renderGlobalBoard(boards[globalBoardShown]);
+  }
+  if (boards.all && boards.month && !globalBoardTimer) {
+    globalBoard.style.setProperty('--board-rotate', GLOBAL_BOARD_ROTATE_MS + 'ms');
+    globalBoardTimer = setInterval(function() {
+      globalBoardShown = globalBoardShown === 'all' ? 'month' : 'all';
+      renderGlobalBoard(boards[globalBoardShown]);
+    }, GLOBAL_BOARD_ROTATE_MS);
+    markGlobalBoardTabs();
+  }
+}
+
+// The shown board's label is underlined; while the boards rotate, the
+// underline fills up until the switch.
+function markGlobalBoardTabs() {
+  var tabs = globalBoard.querySelectorAll('.global-board-tab');
+  for (var j = 0; j < tabs.length; j++) {
+    var shown = tabs[j].getAttribute('data-board') === globalBoardShown;
+    tabs[j].classList.toggle('active', shown);
+    tabs[j].classList.toggle('timed', shown && globalBoardTimer !== null);
+  }
+}
+
+function renderGlobalBoard(entries) {
+  globalBoardList.innerHTML = '';
+  for (var i = 0; i < entries.length; i++) {
+    var e = entries[i];
+    var row = document.createElement('li');
+    row.className = e.best ? 'result-row new-best' : 'result-row';
+    row.style.setProperty('--row-delay', (i * 0.04) + 's');
+    var pInfo = e.playerId != null ? players.get(e.playerId) : null;
+    if (pInfo) row.style.setProperty('--player-color', PLAYER_COLORS[pInfo.playerIndex]);
+
+    var rank = document.createElement('span');
+    rank.className = 'result-rank';
+    rank.textContent = String(e.rank);
+
+    var info = document.createElement('div');
+    info.className = 'result-info';
+    var nameEl = document.createElement('span');
+    nameEl.className = 'result-name';
+    nameEl.textContent = e.name || t('player');
+    var stats = document.createElement('span');
+    stats.className = 'result-stats';
+    stats.textContent = t('n_lines', { count: e.lines });
+
+    info.appendChild(nameEl);
+    if (e.best) {
+      var best = document.createElement('span');
+      best.className = 'global-board-best';
+      best.textContent = t('leaderboard_new_best');
+      info.appendChild(best);
+    }
+    info.appendChild(stats);
+    row.appendChild(rank);
+    row.appendChild(info);
+    globalBoardList.appendChild(row);
+  }
+  // Ranks nobody holds yet (a young month) as empty slots, so it reads as ten.
+  for (var r = entries.length + 1; r <= 10; r++) {
+    var slot = document.createElement('li');
+    slot.className = 'result-row global-board-empty';
+    slot.style.setProperty('--row-delay', ((r - 1) * 0.04) + 's');
+    var slotRank = document.createElement('span');
+    slotRank.className = 'result-rank';
+    slotRank.textContent = String(r);
+    var slotName = document.createElement('span');
+    slotName.className = 'result-name';
+    slotName.textContent = '–';
+    slot.appendChild(slotRank);
+    slot.appendChild(slotName);
+    globalBoardList.appendChild(slot);
+  }
+  markGlobalBoardTabs();
+  globalBoard.classList.remove('hidden');
+  resultsScreen.classList.add('has-global');
+}
+
+// AirConsole lobby: each board's #1 on one line, the score to beat. Same
+// boards object as showGlobalBoards; a board without scores is left out.
+function showLobbyRecords(boards) {
+  lobbyRecords.innerHTML = '';
+  ['all', 'month'].forEach(function(key) {
+    var top = boards[key] && boards[key][0];
+    if (!top) return;
+    var record = document.createElement('span');
+    record.className = 'lobby-record';
+    var label = document.createElement('span');
+    label.className = 'lobby-record__label';
+    label.textContent = t(key === 'all' ? 'leaderboard_alltime' : 'leaderboard_monthly') + ' #1';
+    var name = document.createElement('span');
+    name.className = 'lobby-record__name';
+    name.textContent = top.name || t('player');
+    var lines = document.createElement('span');
+    lines.className = 'lobby-record__lines';
+    lines.textContent = t('n_lines', { count: top.lines });
+    record.appendChild(label);
+    record.appendChild(name);
+    record.appendChild(lines);
+    lobbyRecords.appendChild(record);
+  });
+  lobbyRecords.classList.toggle('hidden', !lobbyRecords.firstChild);
+}
+
+// As results open, before the boards arrive: lays the results out for the
+// panel, so nothing moves when it fades in, and clears last round's board.
+function reserveGlobalBoard() {
+  stopGlobalBoards();
+  globalBoard.classList.add('hidden');
+  resultsScreen.classList.add('has-global');
+}
+
+// As results close: only the rotation stops, so the screen stays still
+// while it fades out.
+function stopGlobalBoards() {
+  clearInterval(globalBoardTimer);
+  globalBoardTimer = null;
+  globalBoardShown = null;
+}
+
 // --- Timer Rendering ---
 function drawTimer(elapsedMs) {
   var totalSeconds = Math.floor(elapsedMs / 1000);

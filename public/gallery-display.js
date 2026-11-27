@@ -36,7 +36,8 @@ var DISPLAY_CARDS = [
   { key: 'pause',            title: 'Paused',                hostVariant: true },
   { key: 'disconnected',     title: 'Disconnected', hostVariant: true },
   { key: 'disconnected-controller', title: 'Disconnected (one controller)' },
-  { key: 'results',          title: 'Results',      hostVariant: true }
+  { key: 'results',          title: 'Results',      hostVariant: true },
+  { key: 'airconsole-results', title: 'Results (AirConsole)', hostVariant: true }
 ];
 
 var state = Gallery.loadState();

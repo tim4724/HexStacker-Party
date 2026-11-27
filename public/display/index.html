@@ -160,6 +160,8 @@
   <div id="lobby-screen" class="screen hidden">
     <img class="brand-badge" src="/shared/brand-mark.svg" alt="" width="37" height="35">
     <span id="lobby-version-label"></span>
+    <!-- AirConsole only: each global board's #1 (showLobbyRecords) -->
+    <p id="lobby-records" class="hidden"></p>
     <h1 class="brand-lockup"><span class="brand-lockup__text">HEX STACKER<span class="brand-lockup__sub">party</span></span></h1>
     <div id="lobby-body">
       <div id="lobby-main">
@@ -231,7 +233,24 @@
   <div id="results-screen" class="screen hidden">
     <img class="brand-badge" src="/shared/brand-mark.svg" alt="" width="37" height="35">
     <h1 class="brand-lockup"><span class="brand-lockup__text">HEX STACKER<span class="brand-lockup__sub">party</span></span></h1>
-    <div id="results-list"></div>
+    <div id="results-body">
+      <section id="round-board">
+        <!-- Shown only beside the global board -->
+        <div class="board-head"><h2 data-i18n="leaderboard_round">This match</h2></div>
+        <div id="results-list"></div>
+      </section>
+      <!-- AirConsole only: showGlobalBoards reveals it beside the standings -->
+      <section id="global-board" class="hidden">
+        <div class="board-head">
+          <h2 data-i18n="leaderboard_heading">Global Top 10</h2>
+          <div id="global-board-tabs">
+            <span class="global-board-tab" data-board="all" data-i18n="leaderboard_alltime">All-time</span>
+            <span class="global-board-tab" data-board="month" data-i18n="leaderboard_monthly">Monthly</span>
+          </div>
+        </div>
+        <ol id="global-board-list"></ol>
+      </section>
+    </div>
     <div id="results-buttons">
       <button id="play-again-btn" class="btn btn-primary" data-i18n="play_again">Play Again</button>
       <button id="new-game-results-btn" class="btn btn-secondary" data-i18n="new_game">New Game</button>

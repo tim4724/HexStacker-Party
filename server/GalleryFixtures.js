@@ -301,6 +301,34 @@ function results(count, longNames) {
   return { elapsed: 123456, results: list };
 }
 
+// AirConsole's global boards beside the results (web only). 'all': world
+// ranks 1-10 with the round's top two players (results' playerIds) at #3
+// and #7 among strangers (playerId null). 'month': a younger board of six
+// where they rank #1 and #6, the #6 being this round's 27 lines (results'
+// second place), so it shows as a new personal best.
+var STRANGERS = ['Nova', 'Pixel', 'Echo', 'Volt', 'Zen', 'Kira', 'Rune', 'Wren', 'Juno'];
+var MONTH_LINES = [79, 68, 57, 41, 33, 27];
+
+function globalBoard(count, longNames, board) {
+  var names = longNames ? LONG_NAMES : NAMES;
+  var month = board === 'month';
+  var seats = month ? [1, 6] : [3, 7];
+  var list = [];
+  var s = 0;
+  for (var rank = 1; rank <= (month ? 6 : 10); rank++) {
+    var id = seats.indexOf(rank);
+    if (id >= count) id = -1;
+    list.push({
+      rank: rank,
+      name: id >= 0 ? names[id] : STRANGERS[s++],
+      lines: month ? MONTH_LINES[rank - 1] : 160 - rank * 11,
+      playerId: id >= 0 ? id : null,
+      best: month && id === 1
+    });
+  }
+  return list;
+}
+
 exports.GalleryFixtures = {
   SEED: SEED,
   JOIN: JOIN,
@@ -310,7 +338,8 @@ exports.GalleryFixtures = {
   gameVariant: gameVariant,
   gameSnapshot: gameSnapshot,
   ambientPieces: ambientPieces,
-  results: results
+  results: results,
+  globalBoard: globalBoard
 };
 
 })(typeof module !== 'undefined' ? module.exports : (window.GameEngine = window.GameEngine || {}));

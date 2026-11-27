@@ -29,14 +29,22 @@ var airconsole = new AirConsole({
 // localStorage calls inside the AC iframe storage partition.
 AirConsoleStorage.install(airconsole, { allowlist: [] });
 
-// Apply the AC-profile locale before the lobby's first paint. Passed to the
-// adapter as its onReady hook so the kit stays i18n-agnostic.
+// Apply the AC-profile locale before the lobby's first paint. Part of the
+// adapter's onReady hook so the kit stays i18n-agnostic.
 function applyAcLocale() {
   if (typeof airconsole.getLanguage !== 'function') return;
   if (typeof LOCALES === 'undefined' || typeof setLocale !== 'function' || typeof translatePage !== 'function') return;
   var acLang = airconsole.getLanguage();
   var acCode = acLang && acLang.toLowerCase().split('-')[0];
   if (acCode && LOCALES[acCode]) { setLocale(acLang); translatePage(); }
+}
+
+// The locale first, so the lobby's records line renders in it, then the
+// boards for that line. Runs again for each fresh adapter (New Game,
+// reconnect), which keeps the line current.
+function onAcReady() {
+  applyAcLocale();
+  requestBoards(hsVersions());
 }
 
 // AirConsole fires onReady at most once per page load. The display needs
@@ -112,15 +120,139 @@ setRoomState = function(newState) {
   if (ok && before !== ROOM_STATE.RESULTS && newState === ROOM_STATE.RESULTS) {
     try { airconsole.showAd(); } catch (e) {}
   }
+  if (ok && before === ROOM_STATE.RESULTS && newState !== ROOM_STATE.RESULTS) {
+    stopGlobalBoards();
+  }
   return ok;
 };
+
+// =====================================================================
+// Global highscores (AirConsole High Score API)
+// Every round stores each player's lines to two boards: all-time and the
+// current UTC month. AirConsole has no time ranges, so the month rides in
+// level_version. The results screen then shows each board's global top 10
+// beside the standings, rotating between the two. Scores are public, so
+// nothing personal is stored.
+// =====================================================================
+
+var HS_LEVEL = 'HexStacker Party';  // shown in AirConsole's share image
+var HS_SCHEMA = 'v1-';              // scoring schema: bump it to fork both boards
+
+// The SDK posts every store and request to the platform as a keyed `set`, and
+// its callbacks don't say which call they answer, so the calls run one at a
+// time. Stores queue first, so the requests read this round's scores.
+var _hsQueue = [];
+var _hsOp = null;      // the call awaiting its callback
+var _hsPlayers = {};   // uid -> playerId, so this round's players stand out
+var _hsBoards = {};    // board -> top 10, absent while the board is empty
+var _hsNewBest = {};   // 'board|uid' -> true when this round set a new best
+
+function hsRun(op) {
+  _hsQueue.push(op);
+  hsNext();
+}
+
+function hsNext() {
+  if (_hsOp || !_hsQueue.length) return;
+  var op = _hsOp = _hsQueue.shift();
+  if (op.store) {
+    airconsole.storeHighScore(HS_LEVEL, op.version, op.lines, op.uid, undefined, op.lines + ' lines');
+  } else {
+    airconsole.requestHighScores(HS_LEVEL, op.version, undefined, ['world'], 10, 10);
+  }
+}
+
+// onGameEnd is the one funnel into results (match end and the engine-error
+// salvage both call it once per round). The layout is set before the results
+// paint, so the boards fade in later without moving anything.
+var _origOnGameEnd = onGameEnd;
+onGameEnd = function(msg) {
+  reserveGlobalBoard();
+  _origOnGameEnd(msg);
+  storeHighScores(msg.results || []);
+};
+
+function hsVersions() {
+  var d = new Date();
+  var m = d.getUTCMonth() + 1;
+  return { all: HS_SCHEMA + 'all', month: HS_SCHEMA + d.getUTCFullYear() + '-' + (m < 10 ? '0' : '') + m };
+}
+
+// Both boards' top 10: for the lobby line on ready, and for the results after
+// each round's stores.
+function requestBoards(versions) {
+  hsRun({ board: 'all', version: versions.all });
+  hsRun({ board: 'month', version: versions.month });
+}
+
+function storeHighScores(results) {
+  var versions = hsVersions();
+  _hsQueue = [];
+  _hsOp = null;
+  _hsPlayers = {};
+  _hsBoards = {};
+  _hsNewBest = {};
+  for (var i = 0; i < results.length; i++) {
+    var r = results[i];
+    if (r.newPlayer) continue;  // sat this round out
+    var uid = airconsole.getUID(r.playerId);
+    if (!uid) continue;         // gone, no account to file it under
+    _hsPlayers[uid] = r.playerId;
+    if (!(r.lines > 0)) continue;  // a 0 would only add an empty entry
+    hsRun({ store: true, board: 'all', version: versions.all, uid: uid, lines: r.lines });
+    hsRun({ store: true, board: 'month', version: versions.month, uid: uid, lines: r.lines });
+  }
+  requestBoards(versions);
+}
+
+// Called with the stored entry when it is the player's new best, else null.
+airconsole.onHighScoreStored = function(highScore) {
+  if (!_hsOp || !_hsOp.store) return;
+  if (highScore) _hsNewBest[_hsOp.board + '|' + _hsOp.uid] = true;
+  _hsOp = null;
+  hsNext();
+};
+
+airconsole.onHighScores = function(list) {
+  if (!_hsOp || _hsOp.store) return;
+  var board = _hsOp.board;
+  _hsOp = null;
+  hsNext();  // first, so an odd entry can't stop the queue
+  hsIngest(board, list || []);
+  showLobbyRecords(_hsBoards);
+  if (roomState === ROOM_STATE.RESULTS) showGlobalBoards(_hsBoards);
+};
+
+// Documented as '|'-joined strings, sent as arrays by the live SDK. Our
+// scores are single-player, so the first entry is the one.
+function hsFirst(v) {
+  return Array.isArray(v) ? v[0] : String(v || '').split('|')[0];
+}
+
+function hsIngest(board, list) {
+  // An empty board drops the old one: a new month starts empty.
+  if (!list.length) {
+    delete _hsBoards[board];
+    return;
+  }
+  _hsBoards[board] = list.map(function(e) {
+    var uid = hsFirst(e.uids);
+    return {
+      rank: e.ranks.world,
+      name: hsFirst(e.nicknames),
+      lines: e.score,
+      playerId: _hsPlayers[uid],
+      best: !!_hsNewBest[board + '|' + uid]
+    };
+  }).sort(function(a, b) { return a.rank - b.rank; });
+}
 
 // Replace PartyConnection with a factory that returns AirConsoleAdapter.
 // `window.` qualifier is required: PartyConnection.js is stripped from the AC
 // build, so no prior binding exists and strict-mode would reject a bare
 // assignment with ReferenceError.
 window.PartyConnection = function() {
-  var adapter = new AirConsoleAdapter(airconsole, { role: 'display', onReady: applyAcLocale });
+  var adapter = new AirConsoleAdapter(airconsole, { role: 'display', onReady: onAcReady });
   var adapterOnReady = airconsole.onReady;
   airconsole.onReady = function(code) {
     _cachedAcReadyCode = code;

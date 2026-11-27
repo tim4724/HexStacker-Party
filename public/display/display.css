@@ -990,7 +990,8 @@ body.airconsole #qr-container,
 #results-list {
   --gap: 1.9vh;
   --list-h: 57vh;
-  --row-h: min(13.3vh, 11.3vw, calc((var(--list-h) - (var(--n, 1) - 1) * var(--gap)) / var(--n, 1)));
+  --row-cap: 11.3vw;
+  --row-h: min(13.3vh, var(--row-cap), calc((var(--list-h) - (var(--n, 1) - 1) * var(--gap)) / var(--n, 1)));
   display: flex;
   flex-direction: column;
   gap: var(--gap);
@@ -1011,6 +1012,272 @@ body.airconsole #qr-container,
 
 #results-list::-webkit-scrollbar {
   display: none;
+}
+
+/* AirConsole: the round's standings and the global top 10 side by side, two
+   equal columns, each under its heading. The round's heading and list are
+   centred against the board, which is usually the longer of the two.
+   .has-global lays this out as results open, before the boards arrive, so
+   nothing moves when the board fades in (its rows slide in on their own).
+   The title and the big buttons give their height to the lists: the
+   buttons shrink to a slim row. */
+#results-body {
+  display: flex;
+  gap: 3vw;
+  min-height: 0;
+}
+
+#round-board {
+  display: flex;
+  flex-direction: column;
+  gap: 1.6vh;
+  min-height: 0;
+}
+
+/* --col-w: each column's width. --board-h: the board's ten rows, which
+   also caps the round's list. */
+#results-screen.has-global {
+  --col-w: min(42vw, 75vh);
+  --board-h: 72vh;
+  gap: 4vh;
+}
+
+#results-screen.has-global #round-board {
+  justify-content: center;
+}
+
+#results-screen.has-global h1,
+#results-screen:not(.has-global) #round-board .board-head {
+  display: none;
+}
+
+#results-screen.has-global #round-board,
+#global-board {
+  width: var(--col-w);
+}
+
+/* The regular screen's card proportion (756 x 96 at 16:9) in the narrower
+   column, so long names fit as they do there. */
+#results-screen.has-global #results-list {
+  --list-h: var(--board-h);
+  --row-cap: calc(var(--col-w) / 7.9);
+  width: auto;
+}
+
+#results-screen.has-global #play-again-btn,
+#results-screen.has-global #new-game-results-btn {
+  min-width: 13vw;
+  padding: 1.4vh 1.5vw;
+  font-size: max(0.75rem, 1.6vh);
+}
+
+/* Laid out only beside the AirConsole results; .hidden below just fades it,
+   so this display pair is what keeps it out of the web layout. */
+#global-board {
+  display: none;
+  flex-direction: column;
+  gap: 1.6vh;
+  transition: opacity 0.4s ease;
+}
+
+#results-screen.has-global #global-board {
+  display: flex;
+}
+
+#global-board.hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* Column headings: the round's, and "GLOBAL TOP 10" with the two board
+   labels. The headings pad like the labels' underline, so with a full
+   round (8 players) both lists start level. Long translations push the
+   labels onto a second line. */
+.board-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4em 1.2em;
+  white-space: nowrap;
+  font-family: var(--font-hud);
+  font-weight: 700;
+  font-size: max(0.8rem, 2vh);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.board-head h2 {
+  flex: 1;
+  margin: 0;
+  padding-bottom: calc(0.2em + 2px);
+  font: inherit;
+  color: var(--text-primary);
+}
+
+#global-board-tabs {
+  display: flex;
+  gap: 1.2em;
+}
+
+.global-board-tab {
+  position: relative;
+  padding-bottom: 0.2em;
+  border-bottom: 2px solid transparent;
+  transition: color 0.3s, border-color 0.3s;
+}
+
+.global-board-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent-primary);
+}
+
+/* While the boards rotate, the shown board's underline fills up until the
+   switch (--board-rotate comes from GLOBAL_BOARD_ROTATE_MS). */
+.global-board-tab.timed {
+  border-bottom-color: rgba(var(--accent-primary-rgb), 0.22);
+}
+
+.global-board-tab.timed::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 0;
+  height: 2px;
+  background: var(--accent-primary);
+  animation: boardTimer var(--board-rotate) linear forwards;
+}
+
+@keyframes boardTimer {
+  to { width: 100%; }
+}
+
+/* Ten rows in the height the standings get, held at that height so a
+   shorter board (a young month) doesn't shift the screen as the boards
+   rotate. Rows are .result-row cards; only this round's players set
+   --player-color, so the body-level host tint must not reach the
+   strangers' rows. */
+#global-board-list {
+  --player-color: initial;
+  --gap: 0.8vh;
+  --row-h: calc((var(--board-h) - 9 * var(--gap)) / 10);
+  height: var(--board-h);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Room for "10", so the names line up. */
+#global-board-list .result-rank {
+  min-width: 1.5em;
+}
+
+/* Ranks nobody holds yet: the recessed socket of the lobby's empty slots. */
+#global-board-list .global-board-empty {
+  background: rgba(21, 18, 31, 0.55);
+  border: 1px solid rgba(255, 248, 236, 0.05);
+}
+
+#global-board-list .global-board-empty .result-rank,
+#global-board-list .global-board-empty .result-name {
+  color: var(--text-faint);
+}
+
+/* AirConsole lobby: each board's #1 in a slim strip along the top edge,
+   between the logo badge and the version, where screen-wide information
+   sits. It's out of the layout, so it fades in without moving anything. */
+#lobby-records {
+  display: none;
+  position: absolute;
+  top: clamp(1rem, 2.5vh, 1.5rem);
+  left: 12vw;
+  right: 12vw;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.4em 3em;
+  margin: 0;
+  pointer-events: none;
+  font-family: var(--font-hud);
+  font-weight: 700;
+  font-size: max(0.8rem, 1.9vh);
+  line-height: 1;  /* level with the version label */
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  transition: opacity 0.4s ease;
+}
+
+body.airconsole #lobby-records {
+  display: flex;
+}
+
+#lobby-records.hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.lobby-record {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+  white-space: nowrap;
+}
+
+.lobby-record__label {
+  text-transform: uppercase;
+}
+
+.lobby-record__name {
+  font-family: var(--font-brand);
+  font-weight: 800;
+  font-size: 1.2em;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+}
+
+.lobby-record__lines::before {
+  content: '· ';
+}
+
+/* A new personal best set this round (AirConsole says so when storing it):
+   a tag in the player's colour, and the row glows twice as it lands. */
+.global-board-best {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 0.35em 0.6em 0.3em;
+  border-radius: 999px;
+  background: var(--player-color);
+  color: var(--btn-primary-text);
+  font-family: var(--font-hud);
+  font-weight: 700;
+  font-size: 0.6em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+#global-board-list .result-row.new-best {
+  animation: resultRowIn 0.4s ease-out both, newBestGlow 1.3s ease-in-out 2;
+  animation-delay: var(--row-delay), calc(var(--row-delay) + 0.6s);
+}
+
+@keyframes newBestGlow {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  45% { box-shadow: 0 0 0 0.35vh var(--player-color), 0 0 2.6vh color-mix(in srgb, var(--player-color) 55%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .global-board-tab.timed::after {
+    animation: none;
+    width: 100%;
+  }
+
+  #global-board-list .result-row.new-best {
+    animation: none;
+  }
 }
 
 /* Tonal fill comes from /shared/results.css; the display sizes the row. */

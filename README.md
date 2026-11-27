@@ -47,7 +47,7 @@ graph LR
 - Per-player level selection (1–15) and color picker in lobby
 - Controller settings: audio, haptics, touch sensitivity
 - Localized UI (11 languages)
-- AirConsole platform support
+- AirConsole platform support, with global all-time and monthly highscores
 
 ## Quick Start
 

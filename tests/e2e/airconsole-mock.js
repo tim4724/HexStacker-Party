@@ -50,6 +50,8 @@
     this.onPersistentDataLoaded = null;
     this.onDeviceProfileChange = null;
     this.onCustomDeviceStateChange = null;
+    this.onHighScoreStored = null;
+    this.onHighScores = null;
 
     var self = this;
 
@@ -210,6 +212,49 @@
     setTimeout(function() {
       if (self.onPersistentDataLoaded) self.onPersistentDataLoaded(data);
     }, 0);
+  };
+
+  // High Score API, in memory on the calling page (only the screen calls it).
+  // Boards live in window.__AC_HIGHSCORES ({ 'level|version': [{ uid,
+  // nickname, score }] }) so tests can seed them; stores are logged to
+  // window.__AC_STORED. Responses take the live SDK's shape (uids/nicknames
+  // as arrays). A call made before the previous one answered sets
+  // window.__AC_HS_OVERLAP, since the real SDK can't tell them apart.
+  function hsBoard(level_name, level_version) {
+    var boards = window.__AC_HIGHSCORES = window.__AC_HIGHSCORES || {};
+    var key = level_name + '|' + level_version;
+    return boards[key] = boards[key] || [];
+  }
+  function hsCall(self, callback, arg) {
+    if (self._hsPending) window.__AC_HS_OVERLAP = true;
+    self._hsPending = true;
+    setTimeout(function() {
+      self._hsPending = false;
+      if (self[callback]) self[callback](arg);
+    }, 10);
+  }
+
+  AirConsole.prototype.storeHighScore = function(level_name, level_version, score, uid, data, score_string) {
+    var board = hsBoard(level_name, level_version);
+    var entry = board.find(function(e) { return e.uid === uid; });
+    var best = !entry || score >= entry.score;
+    if (!entry) {
+      entry = { uid: uid, nickname: this._nicknames[uid.replace('uid_', '')] || 'Player', score: score };
+      board.push(entry);
+    } else if (best) {
+      entry.score = score;
+    }
+    (window.__AC_STORED = window.__AC_STORED || []).push({ level_version: level_version, uid: uid, score: score, score_string: score_string });
+    hsCall(this, 'onHighScoreStored', best ? { level_name: level_name, level_version: level_version, score: score } : null);
+  };
+
+  // Top `top` only: the game never asks for players outside it.
+  AirConsole.prototype.requestHighScores = function(level_name, level_version, uids, ranks, total, top) {
+    var sorted = hsBoard(level_name, level_version).slice().sort(function(a, b) { return b.score - a.score; });
+    var list = sorted.slice(0, top).map(function(e, i) {
+      return { level_name: level_name, level_version: level_version, score: e.score, uids: [e.uid], nicknames: [e.nickname], ranks: { world: i + 1 } };
+    });
+    hsCall(this, 'onHighScores', list);
   };
 
   // Test helpers — trigger SDK lifecycle events

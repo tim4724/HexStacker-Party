@@ -484,7 +484,7 @@ function initScenario(opts) {
   // AirConsole sessions don't use our relay, so the chip is hidden there
   // — gallery should match), and the create-error states (the room was never
   // created, so there is no relay link and the chip stays hidden).
-  var noRelayChip = scenario === 'welcome' || scenario === 'airconsole-lobby' ||
+  var noRelayChip = scenario === 'welcome' || scenario === 'airconsole-lobby' || scenario === 'airconsole-results' ||
     scenario === 'create-error' || scenario === 'create-error-retry';
   if (!noRelayChip) {
     relayRegion = 'fra';
@@ -517,10 +517,14 @@ function initScenario(opts) {
 
   // AirConsole lobby variant — adds `body.airconsole` so the CSS overrides
   // in display.css hide QR/join URL and collapse the player list into the
-  // compact AirConsole layout.
+  // compact AirConsole layout, with each global board's #1 underneath.
   if (scenario === 'airconsole-lobby') {
     document.body.classList.add('airconsole');
     window.__TEST__.addPlayers(_buildDebugPlayers(playerCount, level, hostSlot, longNames));
+    showLobbyRecords({
+      all: GameEngine.GalleryFixtures.globalBoard(playerCount, longNames, 'all'),
+      month: GameEngine.GalleryFixtures.globalBoard(playerCount, longNames, 'month')
+    });
     showScreen(SCREEN.LOBBY);
     _freezeWelcomeBg();
     return;
@@ -930,7 +934,7 @@ function initScenario(opts) {
     showDisconnectQR('debug1');
     return;
   }
-  if (scenario === 'results') {
+  if (scenario === 'results' || scenario === 'airconsole-results') {
     // Canonical ranking from the shared fixture module, remapped onto the
     // harness's debug roster ids.
     var results = GameEngine.GalleryFixtures.results(playerCount, longNames);
@@ -938,6 +942,19 @@ function initScenario(opts) {
       results.results[i].playerId = 'debug' + results.results[i].playerId;
     }
     window.__TEST__.injectResults(results);
+    // AirConsole adds the global boards beside the standings, rotating
+    // between all-time and monthly as in a live session.
+    if (scenario === 'airconsole-results') {
+      document.body.classList.add('airconsole');
+      var boards = {};
+      ['all', 'month'].forEach(function(key) {
+        boards[key] = GameEngine.GalleryFixtures.globalBoard(playerCount, longNames, key);
+        boards[key].forEach(function(e) {
+          if (e.playerId !== null) e.playerId = 'debug' + e.playerId;
+        });
+      });
+      showGlobalBoards(boards);
+    }
     _freezeWelcomeBg();
     return;
   }
