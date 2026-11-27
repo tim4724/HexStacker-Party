@@ -34,6 +34,7 @@ var CONTROLLER_CARDS = [
   { key: 'reconnecting',     title: 'Reconnecting',        perColor: true },
   { key: 'disconnected',     title: 'Disconnected',        perColor: true },
   { key: 'results-winner',   title: 'Results (host)',      perColor: true, replayable: true },
+  { key: 'results-winner',   title: 'Results (AirConsole highscores)', perColor: true, extra: { highscores: '1' } },
   { key: 'results-loser',    title: 'Results (non-host)',  perColor: true }
 ];
 

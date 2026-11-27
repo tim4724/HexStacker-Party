@@ -145,6 +145,7 @@ var _hsQueue = [];
 var _hsOp = null;      // the call awaiting its callback
 var _hsPlayers = {};   // uid -> playerId, so this round's players stand out
 var _hsBoards = {};    // board -> top 10, absent while the board is empty
+var _hsMine = {};      // board -> playerId -> { lines, rank, best }, for the phones
 var _hsNewBest = {};   // 'board|uid' -> true when this round set a new best
 
 function hsRun(op) {
@@ -158,13 +159,15 @@ function hsNext() {
   if (op.store) {
     airconsole.storeHighScore(HS_LEVEL, op.version, op.lines, op.uid, undefined, op.lines + ' lines');
   } else {
-    airconsole.requestHighScores(HS_LEVEL, op.version, undefined, ['world'], 10, 10);
+    // The top 10, plus this round's players wherever they rank (for their phones).
+    var uids = Object.keys(_hsPlayers);
+    airconsole.requestHighScores(HS_LEVEL, op.version, uids, ['world'], 10 + uids.length, 10);
   }
 }
 
 // onGameEnd is the one funnel into results (match end and the engine-error
-// salvage both call it once per round). The layout is set before the results
-// paint, so the boards fade in later without moving anything.
+// salvage both call it once per round). The board is laid out, empty, before
+// the results paint, so it fills in later without anything moving.
 var _origOnGameEnd = onGameEnd;
 onGameEnd = function(msg) {
   reserveGlobalBoard();
@@ -191,6 +194,7 @@ function storeHighScores(results) {
   _hsOp = null;
   _hsPlayers = {};
   _hsBoards = {};
+  _hsMine = {};
   _hsNewBest = {};
   for (var i = 0; i < results.length; i++) {
     var r = results[i];
@@ -227,9 +231,35 @@ airconsole.onHighScores = function(list) {
   _hsOp = null;
   hsNext();  // first, so an odd entry can't stop the queue
   hsIngest(board, list || []);
-  showLobbyRecords(_hsBoards);
+  // The month is requested last. A month holding exactly the all-time entries
+  // (the game's first month) would only repeat it, so only all-time shows.
+  if (board === 'month') {
+    if (hsSameBoard(_hsBoards.all, _hsBoards.month)) delete _hsBoards.month;
+    showLobbyRecords(_hsBoards);  // once both have answered: built in one go
+    if (roomState === ROOM_STATE.RESULTS) sendMyHighScores();
+  }
   if (roomState === ROOM_STATE.RESULTS) showGlobalBoards(_hsBoards);
 };
+
+// Each of this round's players gets their own entries on their phone. The
+// month is left out where it only repeats all-time (same lines and rank).
+function sendMyHighScores() {
+  for (var uid in _hsPlayers) {
+    var playerId = _hsPlayers[uid];
+    var all = _hsMine.all && _hsMine.all[playerId];
+    var month = _hsMine.month && _hsMine.month[playerId];
+    if (all && month && all.lines === month.lines && all.rank === month.rank) month = undefined;
+    if (all || month) party.sendTo(playerId, { type: MSG.HIGHSCORE, all: all, month: month });
+  }
+}
+
+function hsSameBoard(a, b) {
+  if (!a || !b || a.length !== b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i].name !== b[i].name || a[i].lines !== b[i].lines) return false;
+  }
+  return true;
+}
 
 // Documented as '|'-joined strings, sent as arrays by the live SDK. Our
 // scores are single-player, so the first entry is the one.
@@ -237,22 +267,31 @@ function hsFirst(v) {
   return Array.isArray(v) ? v[0] : String(v || '').split('|')[0];
 }
 
+// The list holds the top 10 and this round's players (a player in the top 10
+// may come twice): the board keeps the top 10, the phones their own entries.
 function hsIngest(board, list) {
-  // An empty board drops the old one: a new month starts empty.
-  if (!list.length) {
-    delete _hsBoards[board];
-    return;
-  }
-  _hsBoards[board] = list.map(function(e) {
-    var uid = hsFirst(e.uids);
-    return {
-      rank: e.ranks.world,
-      name: hsFirst(e.nicknames),
-      lines: e.score,
+  var seen = {};
+  var entries = [];
+  var mine = {};
+  for (var i = 0; i < list.length; i++) {
+    var uid = hsFirst(list[i].uids);
+    if (seen[uid]) continue;
+    seen[uid] = true;
+    var e = {
+      rank: list[i].ranks.world,
+      name: hsFirst(list[i].nicknames),
+      lines: list[i].score,
       playerId: _hsPlayers[uid],
       best: !!_hsNewBest[board + '|' + uid]
     };
-  }).sort(function(a, b) { return a.rank - b.rank; });
+    entries.push(e);
+    if (e.playerId !== undefined) mine[e.playerId] = { lines: e.lines, rank: e.rank, best: e.best };
+  }
+  entries.sort(function(a, b) { return a.rank - b.rank; });
+  _hsMine[board] = mine;
+  // An empty board drops the old one: a new month starts empty.
+  if (entries.length) _hsBoards[board] = entries.slice(0, 10);
+  else delete _hsBoards[board];
 }
 
 // Replace PartyConnection with a factory that returns AirConsoleAdapter.

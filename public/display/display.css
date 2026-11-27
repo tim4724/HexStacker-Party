@@ -1017,8 +1017,8 @@ body.airconsole #qr-container,
 /* AirConsole: the round's standings and the global top 10 side by side, two
    equal columns, each under its heading. The round's heading and list are
    centred against the board, which is usually the longer of the two.
-   .has-global lays this out as results open, before the boards arrive, so
-   nothing moves when the board fades in (its rows slide in on their own).
+   .has-global lays this out as results open, with the board as ten empty
+   slots that its rows slide into when the scores arrive, so nothing moves.
    The title and the big buttons give their height to the lists: the
    buttons shrink to a slim row. */
 #results-body {
@@ -1071,25 +1071,18 @@ body.airconsole #qr-container,
   font-size: max(0.75rem, 1.6vh);
 }
 
-/* Laid out only beside the AirConsole results; .hidden below just fades it,
-   so this display pair is what keeps it out of the web layout. */
+/* Laid out only beside the AirConsole results. */
 #global-board {
   display: none;
   flex-direction: column;
   gap: 1.6vh;
-  transition: opacity 0.4s ease;
 }
 
 #results-screen.has-global #global-board {
   display: flex;
 }
 
-#global-board.hidden {
-  opacity: 0;
-  visibility: hidden;
-}
-
-/* Column headings: the round's, and "GLOBAL TOP 10" with the two board
+/* Column headings: the round's, and "HIGHSCORES" with the two board
    labels. The headings pad like the labels' underline, so with a full
    round (8 players) both lists start level. Long translations push the
    labels onto a second line. */

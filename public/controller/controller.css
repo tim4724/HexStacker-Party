@@ -1141,6 +1141,105 @@ body.paperballoon .leave-btn__close { display: block; }
   box-shadow: inset 0 0 0 2px var(--player-color);
 }
 
+/* The player's own highscores, one row per board in their colour, take the
+   brand lockup's place once they arrive (onHighscore, AirConsole only). Both
+   share one grid cell and crossfade, and the block is no taller than the
+   lockup, so the ranking below never moves. The grid applies to every build
+   but changes nothing until #my-highscores shows. The AirConsole phone is
+   portrait-only, so the landscape layout doesn't come into it. */
+#gameover-screen .controller-shell__brand {
+  display: grid;
+  grid-template-columns: 100%;
+  justify-items: center;
+}
+
+#gameover-screen .controller-shell__brand > * {
+  grid-area: 1 / 1;
+}
+
+/* filter, not opacity: the lockup's fadeDown entrance holds its opacity. */
+#gameover-screen .controller-shell__title {
+  transition: filter 0.3s ease;
+}
+
+#gameover-screen .controller-shell__brand:has(#my-highscores:not(.hidden)) .controller-shell__title {
+  filter: opacity(0);
+}
+
+#my-highscores {
+  align-self: center;
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: fadeIn 0.4s ease-out both;
+}
+
+.my-highscores__heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0 0 2px;
+  font-family: var(--font-hud);
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.my-highscore {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 14px;
+  border-radius: 14px;
+  background: var(--bg-card);
+  background: color-mix(in oklab, var(--player-color) 14%, var(--bg-card));
+  font-family: var(--font-hud);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.my-highscore.is-best {
+  box-shadow: inset 0 0 0 2px var(--player-color);
+}
+
+.my-highscore__label {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.my-highscores__best {
+  padding: 3px 7px 2px;
+  border-radius: 999px;
+  background: var(--player-color);
+  color: var(--btn-primary-text);
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.my-highscore__lines {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.my-highscore__rank {
+  min-width: 3ch;
+  text-align: right;
+  font-size: 1.1rem;
+  color: var(--player-color);
+}
+
 .result-info {
   flex: 1;
   display: flex;

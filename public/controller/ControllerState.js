@@ -200,6 +200,7 @@ var playerIdentityName = document.getElementById('player-identity-name');
 var touchArea = document.getElementById('touch-area');
 var feedbackLayer = document.getElementById('feedback-layer');
 var resultsList = document.getElementById('results-list');
+var myHighscores = document.getElementById('my-highscores');
 var gameoverButtons = document.getElementById('gameover-buttons');
 var playAgainBtn = document.getElementById('play-again-btn');
 var newGameBtn = document.getElementById('new-game-btn');

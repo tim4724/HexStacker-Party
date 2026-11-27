@@ -729,7 +729,8 @@ test.describe('AirConsole Integration', () => {
       { playerId: 102, rank: 2, lines: 0 },
       { playerId: 103, newPlayer: true },
     ]));
-    await s.screenFrame.waitForFunction(() => _hsBoards.month !== undefined, null, { timeout: 5000 });
+    const idle = () => _hsOp === null && _hsQueue.length === 0 && _hsBoards.all !== undefined;
+    await s.screenFrame.waitForFunction(idle, null, { timeout: 5000 });
 
     const stored = await s.screenFrame.evaluate(() => window.__AC_STORED);
     expect(stored.map((e) => [e.uid, e.score, e.score_string])).toEqual([
@@ -746,11 +747,16 @@ test.describe('AirConsole Integration', () => {
     ]);
     // Not on the results screen, so nothing shows.
     await expect(s.screenFrame.locator('#global-board')).toBeHidden();
+    // Both boards now hold the same single entry (a game's first month): the
+    // month would only repeat all-time, so only all-time is kept, in the lobby too.
+    expect(await s.screenFrame.evaluate(() => _hsBoards.month)).toBeUndefined();
+    await expect(s.screenFrame.locator('#lobby-records .lobby-record')).toHaveCount(1);
+    await expect(s.screenFrame.locator('#lobby-records')).toContainText('TestPlayer');
 
     // A lower score next round isn't a monthly best, so the all-time store is
     // skipped: one more store, the month's, and no new-best flag.
     await s.screenFrame.evaluate(() => storeHighScores([{ playerId: 101, rank: 1, lines: 5 }]));
-    await s.screenFrame.waitForFunction(() => _hsBoards.month !== undefined, null, { timeout: 5000 });
+    await s.screenFrame.waitForFunction(idle, null, { timeout: 5000 });
     const after = await s.screenFrame.evaluate(() => window.__AC_STORED.slice(2));
     expect(after.map((e) => [e.level_version, e.score])).toEqual([[expect.stringMatching(/^v1-\d{4}-\d{2}$/), 5]]);
     expect(await s.screenFrame.evaluate(() => _hsBoards.all[0].best)).toBe(false);
@@ -812,6 +818,14 @@ test.describe('AirConsole Integration', () => {
     await expect(s.screenFrame.locator('.global-board-best')).toHaveCount(0);
     expect(await rows.nth(1).evaluate((el) => el.style.getPropertyValue('--player-color'))).not.toBe('');
     expect(await rows.nth(0).evaluate((el) => el.style.getPropertyValue('--player-color'))).toBe('');
+
+    // The player's own entries reach their phone: only this month's, since
+    // they have no all-time score.
+    const mine = s.ctrlFrame.locator('#my-highscores');
+    await expect(mine).toBeVisible({ timeout: 5000 });
+    await expect(mine.locator('.my-highscore')).toHaveCount(1);
+    await expect(mine.locator('.my-highscore')).toContainText('195');
+    await expect(mine.locator('.my-highscore__rank')).toHaveText('#2');
 
     await s.ctrlFrame.locator('#play-again-btn').click();
     await s.screenFrame.waitForFunction(() => roomState !== 'results', null, { timeout: 15000 });

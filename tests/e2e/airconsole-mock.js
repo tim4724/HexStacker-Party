@@ -248,11 +248,14 @@
     hsCall(this, 'onHighScoreStored', best ? { level_name: level_name, level_version: level_version, score: score } : null);
   };
 
-  // Top `top` only: the game never asks for players outside it.
+  // The top `top` entries, plus the requested players wherever they rank.
   AirConsole.prototype.requestHighScores = function(level_name, level_version, uids, ranks, total, top) {
     var sorted = hsBoard(level_name, level_version).slice().sort(function(a, b) { return b.score - a.score; });
-    var list = sorted.slice(0, top).map(function(e, i) {
-      return { level_name: level_name, level_version: level_version, score: e.score, uids: [e.uid], nicknames: [e.nickname], ranks: { world: i + 1 } };
+    var list = [];
+    sorted.forEach(function(e, i) {
+      if (i < top || (uids || []).indexOf(e.uid) !== -1) {
+        list.push({ level_name: level_name, level_version: level_version, score: e.score, uids: [e.uid], nicknames: [e.nickname], ranks: { world: i + 1 } });
+      }
     });
     hsCall(this, 'onHighScores', list);
   };

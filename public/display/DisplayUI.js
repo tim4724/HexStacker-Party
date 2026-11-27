@@ -701,7 +701,6 @@ function renderGlobalBoard(entries) {
     globalBoardList.appendChild(slot);
   }
   markGlobalBoardTabs();
-  globalBoard.classList.remove('hidden');
   resultsScreen.classList.add('has-global');
 }
 
@@ -731,12 +730,11 @@ function showLobbyRecords(boards) {
   lobbyRecords.classList.toggle('hidden', !lobbyRecords.firstChild);
 }
 
-// As results open, before the boards arrive: lays the results out for the
-// panel, so nothing moves when it fades in, and clears last round's board.
+// As results open, before the boards arrive: the panel enters with the
+// standings as ten empty slots, which the boards fill in when they land.
 function reserveGlobalBoard() {
   stopGlobalBoards();
-  globalBoard.classList.add('hidden');
-  resultsScreen.classList.add('has-global');
+  renderGlobalBoard([]);
 }
 
 // As results close: only the rotation stops, so the screen stays still

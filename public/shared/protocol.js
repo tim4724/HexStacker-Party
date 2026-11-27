@@ -42,6 +42,11 @@ var MSG = {
   // (they ship together), and leaving the constants around invites a new send.
   PONG: 'pong',
   PLAYER_STATE: 'player_state',
+  // AirConsole only: the player's own entries on the global highscore boards,
+  // { all, month } each { lines, rank, best } or absent, sent once both boards
+  // have answered after a round (display-airconsole.js). Per player, like
+  // player_state.
+  HIGHSCORE: 'highscore',
   // Unicast as well, not a broadcast. The only sender is the room-full rejection
   // answering one HELLO (DisplayInput.js#onHello, and the same line on tvOS and
   // Android TV); broadcasting it would tell seven seated players that somebody

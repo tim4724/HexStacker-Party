@@ -763,6 +763,7 @@ function onGameResumed() {
 // can't reach the click handlers.
 function renderGameResults(results) {
   resultsList.innerHTML = '';
+  myHighscores.classList.add('hidden');  // this round's arrive in onHighscore
   gameoverStatus.textContent = '';
   gameoverStatus.style.color = '';
   if (isHost) {
@@ -841,6 +842,48 @@ function renderGameResults(results) {
     row.appendChild(info);
     resultsList.appendChild(row);
   }
+}
+
+// AirConsole: the player's own entries on the global boards, under the
+// round's ranking. data: { all, month }, each { lines, rank, best } or absent
+// (MSG.HIGHSCORE, sent once the display has stored this round's scores).
+function onHighscore(data) {
+  myHighscores.innerHTML = '';
+  // A new best puts the tag on the heading line (the rows have no room for
+  // it) and rings the row that set it.
+  var heading = document.createElement('div');
+  heading.className = 'my-highscores__heading';
+  var title = document.createElement('span');
+  title.textContent = t('leaderboard_yours');
+  heading.appendChild(title);
+  if ((data.all && data.all.best) || (data.month && data.month.best)) {
+    var best = document.createElement('span');
+    best.className = 'my-highscores__best';
+    best.textContent = t('leaderboard_new_best');
+    heading.appendChild(best);
+  }
+  myHighscores.appendChild(heading);
+  [['all', 'leaderboard_alltime'], ['month', 'leaderboard_monthly']].forEach(function(board) {
+    var e = data[board[0]];
+    if (!e) return;
+    var row = document.createElement('div');
+    row.className = e.best ? 'my-highscore is-best' : 'my-highscore';
+    var label = document.createElement('span');
+    label.className = 'my-highscore__label';
+    label.textContent = t(board[1]);
+    row.appendChild(label);
+    var lines = document.createElement('span');
+    lines.className = 'my-highscore__lines';
+    lines.textContent = t('n_lines', { count: e.lines });
+    row.appendChild(lines);
+    var rank = document.createElement('span');
+    rank.className = 'my-highscore__rank';
+    rank.textContent = '#' + e.rank;
+    row.appendChild(rank);
+    myHighscores.appendChild(row);
+  });
+  myHighscores.style.setProperty('--player-color', playerColor);
+  myHighscores.classList.remove('hidden');
 }
 
 // =====================================================================

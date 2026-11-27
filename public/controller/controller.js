@@ -35,6 +35,9 @@ function handleMessage(data) {
       case MSG.PLAYER_STATE:
         onPlayerState(data);
         break;
+      case MSG.HIGHSCORE:
+        onHighscore(data);
+        break;
       case MSG.PONG:
         lastPongTime = Date.now();
         // Only drive the chip from WS when the fastlane isn't already feeding it

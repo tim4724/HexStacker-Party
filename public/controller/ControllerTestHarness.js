@@ -224,6 +224,11 @@
       var resultsW = buildFakeResults(1, countW);
       lastGameResults = resultsW;
       renderGameResults(resultsW);
+      // AirConsole: the winner's own highscores, this round's lines a new
+      // monthly best.
+      if (params.get('highscores') === '1') {
+        onHighscore({ all: { lines: 127, rank: 23, best: false }, month: { lines: resultsW[0].lines, rank: 4, best: true } });
+      }
       showScreen('gameover');
       window.__TEST__.replay = function() { restartAnimation(gameoverButtons); };
       break;
