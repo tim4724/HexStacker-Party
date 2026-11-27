@@ -42,12 +42,24 @@ permissions:
 jobs:
   # Parallel to the screenshot job: separate build dirs, no shared artifacts.
   kit-tests:
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 20
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # The Xcode release.yml ships with.
+      - name: Select latest stable Xcode 27
+        run: |
+          # Real bundles only (the image's Xcode_27.2.app is a symlink to a beta), no
+          # betas, newest by the bundle's own version (the RC folder name sorts badly).
+          XCODE="$(find /Applications -maxdepth 1 -type d -name 'Xcode_27*.app' ! -name '*beta*' \
+            | while read -r x; do echo "$(defaults read "$x/Contents/Info" CFBundleShortVersionString) $x"; done \
+            | sort -V | tail -1 | cut -d' ' -f2-)"
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE"
+
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
@@ -59,12 +71,28 @@ jobs:
         run: swift test
 
   build-test-screenshots:
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 40
     permissions:
       contents: read
+    env:
+      # 1920x1080, as the plain "Apple TV" simulator was; tvOS 27 dropped that
+      # device type.
+      TV_DEVICE: Apple TV 4K (4th generation) (at 1080p)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # The Xcode release.yml ships with. First, so the simulator pre-booted
+      # below belongs to it.
+      - name: Select latest stable Xcode 27
+        run: |
+          # Real bundles only (the image's Xcode_27.2.app is a symlink to a beta), no
+          # betas, newest by the bundle's own version (the RC folder name sorts badly).
+          XCODE="$(find /Applications -maxdepth 1 -type d -name 'Xcode_27*.app' ! -name '*beta*' \
+            | while read -r x; do echo "$(defaults read "$x/Contents/Info" CFBundleShortVersionString) $x"; done \
+            | sort -V | tail -1 | cut -d' ' -f2-)"
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE"
 
       # Boot the simulator NOW, in the background: xcodebuild otherwise
       # cold-boots it after the ~2 min of npm ci + project generation + app
@@ -76,19 +104,19 @@ jobs:
       # both steps are guaranteed to mean the same device — with two runtimes
       # installed, a name+OS=latest destination could resolve to a different
       # simulator than the one pre-booted here, and the runner would boot two.
-      # Best-effort: if no device matches, xcodebuild falls back to booting
-      # its own by name.
+      # The image pre-creates only some device types, so a missing one is
+      # created here, on the newest tvOS runtime.
       - name: Pre-boot the Apple TV simulator (background)
         run: |
           UDID=$(xcrun simctl list devices available --json \
-            | jq -r '[.devices | to_entries[] | select(.key | contains("tvOS")) | .value[] | select(.name == "Apple TV")] | last | .udid // empty')
-          if [ -n "$UDID" ]; then
-            echo "pre-booting Apple TV simulator $UDID"
-            echo "TV_UDID=$UDID" >> "$GITHUB_ENV"
-            nohup xcrun simctl bootstatus "$UDID" -b >/dev/null 2>&1 &
-          else
-            echo "no 'Apple TV' simulator found; xcodebuild will boot its own"
+            | jq -r --arg name "$TV_DEVICE" '[.devices | to_entries[] | select(.key | contains("tvOS")) | .value[] | select(.name == $name)] | last | .udid // empty')
+          if [ -z "$UDID" ]; then
+            UDID=$(xcrun simctl create "$TV_DEVICE" "$TV_DEVICE")
+            echo "created $TV_DEVICE simulator $UDID"
           fi
+          echo "pre-booting $TV_DEVICE simulator $UDID"
+          echo "TV_UDID=$UDID" >> "$GITHUB_ENV"
+          nohup xcrun simctl bootstatus "$UDID" -b >/dev/null 2>&1 &
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
@@ -98,26 +126,8 @@ jobs:
       # scripts/sync-engine.sh.
       - run: npm ci
 
-      - name: Install XcodeGen + xcparse
-        run: |
-          set -e
-          brew install --quiet xcodegen
-          # xcparse pulls the named screenshot attachments out of the .xcresult.
-          # Its Homebrew tap compiles it from source (~40s); grab the prebuilt
-          # release binary instead and fall back to brew only if that asset ever
-          # changes shape (verified by checking the download is a Mach-O binary).
-          mkdir -p "$HOME/.local/bin"
-          if curl -fsSL https://github.com/ChargePoint/xcparse/releases/download/2.3.2/xcparse.zip -o /tmp/xcparse.zip \
-             && unzip -o -j /tmp/xcparse.zip -d "$HOME/.local/bin" \
-             && [ -f "$HOME/.local/bin/xcparse" ] \
-             && file "$HOME/.local/bin/xcparse" | grep -q 'Mach-O'; then
-            chmod +x "$HOME/.local/bin/xcparse"
-            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-            echo "installed xcparse from the prebuilt release binary"
-          else
-            echo "prebuilt xcparse unavailable; falling back to the Homebrew tap"
-            brew install --quiet chargepoint/xcparse/xcparse
-          fi
+      - name: Install XcodeGen
+        run: brew install --quiet xcodegen
 
       - name: Generate the Xcode project
         working-directory: appletv
@@ -143,8 +153,6 @@ jobs:
         working-directory: appletv
         run: |
           set -o pipefail
-          DEST="id=${TV_UDID}"
-          [ -n "$TV_UDID" ] || DEST='platform=tvOS Simulator,name=Apple TV,OS=latest'
           # Join the pre-boot before capturing. The pre-boot step backgrounds
           # bootstatus so the boot overlaps npm ci + compile, but nothing waited
           # for it, and XCUITest only ever gates on the app's accessibility tree,
@@ -156,32 +164,48 @@ jobs:
           # NO -b here, unlike the pre-boot: -b re-boots, and against a device that
           # is still booting simctl exits 149 ("Unable to boot device in current
           # state: Booted"), failing hardest in exactly the case this guards.
-          if [ -n "$TV_UDID" ]; then xcrun simctl bootstatus "$TV_UDID"; fi
+          xcrun simctl bootstatus "$TV_UDID"
           xcodebuild test \
             -project HexStacker.xcodeproj \
             -scheme HexStackerTV \
             -sdk appletvsimulator \
-            -destination "$DEST" \
+            -destination "id=$TV_UDID" \
             -derivedDataPath .build-xcode \
             -resultBundlePath TestResults.xcresult \
             -skip-testing:HexStackerTVUITests/HomeScreenTests
 
-      # Pull the named screenshot attachments out of the result bundle. Runs even
-      # if a test failed, so a regressed screen still ships its capture for review.
-      # No sticky PR comment: the TV Gallery workflow consumes the
+      # Pull the named screenshot attachments out of the result bundle with
+      # Xcode's own xcresulttool (xcparse can't read Xcode 27's bundles). Runs
+      # even if a test failed, so a regressed screen still ships its capture for
+      # review. The exported files are UUID-named; manifest.json carries each
+      # attachment's name, `<key>_<n>_<uuid>.png`, which collect-shots.mjs
+      # matches on. No sticky PR comment: the TV Gallery workflow consumes the
       # tvos-screenshots artifact and posts the one browsable web/tvOS/Android
       # gallery comment.
       - name: Extract screenshots
         if: always()
         working-directory: appletv
         run: |
-          xcparse screenshots TestResults.xcresult screenshots/
-          ls -R screenshots || true
+          xcrun xcresulttool export attachments --path TestResults.xcresult --output-path screenshots
+          node - <<'EOF'
+          const fs = require('fs');
+          for (const test of JSON.parse(fs.readFileSync('screenshots/manifest.json', 'utf8'))) {
+            for (const a of test.attachments) {
+              const file = `screenshots/${a.exportedFileName}`;
+              if (a.suggestedHumanReadableName.endsWith('.png')) fs.renameSync(file, `screenshots/${a.suggestedHumanReadableName}`);
+              else fs.rmSync(file);
+            }
+          }
+          fs.rmSync('screenshots/manifest.json');
+          EOF
+          ls screenshots
 
+      # error, not warn: a run that exports nothing must not pass, as one did
+      # when xcparse stopped reading the bundle.
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: tvos-screenshots
           path: appletv/screenshots
-          if-no-files-found: warn
+          if-no-files-found: error

@@ -143,8 +143,10 @@ and `node artwork/generate-tvos-topshelf.js`. Orbitron ships in
 The Simulator runs unsigned. Manual App Store distribution signing is
 committed in `project.yml` (see the comment there; local archives need the
 "HexStacker tvOS App Store" profile in the login keychain). Pushing a
-bare-semver tag runs `.github/workflows/release.yml`, which archives and
-uploads straight to TestFlight.
+bare-semver tag runs `.github/workflows/release.yml`, which archives,
+uploads straight to TestFlight and readies the App Store version with that
+build (`scripts/prepare-release.js`); What's New and the submission stay in
+App Store Connect.
 
 ## Profiling on real hardware
 

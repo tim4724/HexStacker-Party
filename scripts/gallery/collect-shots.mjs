@@ -2,11 +2,11 @@
 // gen-gallery.mjs (and the CI artifact) see one canonical name per scenario.
 //
 //   node collect-shots.mjs android [srcDir]   # Roborazzi PNGs (flat dir)
-//   node collect-shots.mjs tvos [srcDir]      # xcparse output (recursive, uuid-suffixed)
+//   node collect-shots.mjs tvos [srcDir]      # tvos.yml's xcresulttool export (uuid-suffixed)
 //
 // Default srcDir is where each toolchain drops its output locally:
 //   android -> android/tv/build/outputs/roborazzi
-//   tvos    -> appletv/screenshots            (xcparse; capture-tvos.sh writes
+//   tvos    -> appletv/screenshots            (tvos.yml; capture-tvos.sh writes
 //                                              canonical names directly instead)
 // Missing scenarios are reported but not fatal: the gallery renders the gap.
 import { fileURLToPath } from 'node:url';
@@ -40,7 +40,7 @@ const walk = (dir) => readdirSync(dir).flatMap((name) => {
 const pngs = walk(srcDir);
 
 // android: exact Roborazzi filename from the manifest.
-// tvos: XCTAttachment name == canonical key, but xcparse may suffix it
+// tvos: XCTAttachment name == canonical key, but the export may suffix it
 // (`<key>_<n>_<uuid>.png`); an underscore suffix can't collide across keys
 // because key variants use dashes (lobby vs lobby-2p).
 const findFor = (s) => {
