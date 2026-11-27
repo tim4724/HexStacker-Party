@@ -639,14 +639,17 @@ function showGlobalBoards(boards) {
   }
 }
 
-// The shown board's label is underlined; while the boards rotate, the
-// underline fills up until the switch.
+// The labels only show while the boards rotate: a single list (one board
+// with scores, or a month that only repeated all-time) is just "Highscores".
+// The shown board's label is underlined, filling up until the switch.
 function markGlobalBoardTabs() {
-  var tabs = globalBoard.querySelectorAll('.global-board-tab');
+  var rotating = globalBoardTimer !== null;
+  globalBoardTabs.classList.toggle('hidden', !rotating);
+  var tabs = globalBoardTabs.querySelectorAll('.global-board-tab');
   for (var j = 0; j < tabs.length; j++) {
     var shown = tabs[j].getAttribute('data-board') === globalBoardShown;
     tabs[j].classList.toggle('active', shown);
-    tabs[j].classList.toggle('timed', shown && globalBoardTimer !== null);
+    tabs[j].classList.toggle('timed', shown && rotating);
   }
 }
 

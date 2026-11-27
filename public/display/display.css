@@ -1113,6 +1113,12 @@ body.airconsole #qr-container,
   gap: 1.2em;
 }
 
+/* Hidden without rotation (markGlobalBoardTabs), but still laid out, so the
+   heading line keeps its height when the labels come in. */
+#global-board-tabs.hidden {
+  visibility: hidden;
+}
+
 .global-board-tab {
   position: relative;
   padding-bottom: 0.2em;

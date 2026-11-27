@@ -274,6 +274,7 @@ var countdownNumber = document.getElementById('countdown-number');
 var resultsList = document.getElementById('results-list');
 var globalBoard = document.getElementById('global-board');
 var globalBoardList = document.getElementById('global-board-list');
+var globalBoardTabs = document.getElementById('global-board-tabs');
 var playAgainBtn = document.getElementById('play-again-btn');
 var newGameResultsBtn = document.getElementById('new-game-results-btn');
 var gameToolbar = document.getElementById('game-toolbar');

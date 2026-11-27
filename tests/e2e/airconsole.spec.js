@@ -752,6 +752,9 @@ test.describe('AirConsole Integration', () => {
     expect(await s.screenFrame.evaluate(() => _hsBoards.month)).toBeUndefined();
     await expect(s.screenFrame.locator('#lobby-records .lobby-record')).toHaveCount(1);
     await expect(s.screenFrame.locator('#lobby-records')).toContainText('TestPlayer');
+    // On the results, that one list is just "Highscores": no board labels.
+    await s.screenFrame.evaluate(() => showGlobalBoards(_hsBoards));
+    await expect(s.screenFrame.locator('#global-board-tabs')).toHaveClass(/hidden/);
 
     // A lower score next round isn't a monthly best, so the all-time store is
     // skipped: one more store, the month's, and no new-best flag.
@@ -810,6 +813,7 @@ test.describe('AirConsole Integration', () => {
     // timer; a prior best stored no score this round, so nothing is new.
     await expect(s.screenFrame.locator('.global-board-tab.active')).toHaveAttribute('data-board', 'month', { timeout: 10000 });
     await expect(s.screenFrame.locator('.global-board-tab.active')).toHaveClass(/timed/);
+    await expect(s.screenFrame.locator('#global-board-tabs')).not.toHaveClass(/hidden/);
     // Four scores, then ranks 5 to 10 as empty slots.
     await expect(rows).toHaveCount(10);
     await expect(s.screenFrame.locator('#global-board-list .global-board-empty')).toHaveCount(6);
