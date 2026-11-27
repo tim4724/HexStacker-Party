@@ -126,26 +126,8 @@ jobs:
       # scripts/sync-engine.sh.
       - run: npm ci
 
-      - name: Install XcodeGen + xcparse
-        run: |
-          set -e
-          brew install --quiet xcodegen
-          # xcparse pulls the named screenshot attachments out of the .xcresult.
-          # Its Homebrew tap compiles it from source (~40s); grab the prebuilt
-          # release binary instead and fall back to brew only if that asset ever
-          # changes shape (verified by checking the download is a Mach-O binary).
-          mkdir -p "$HOME/.local/bin"
-          if curl -fsSL https://github.com/ChargePoint/xcparse/releases/download/2.3.2/xcparse.zip -o /tmp/xcparse.zip \
-             && unzip -o -j /tmp/xcparse.zip -d "$HOME/.local/bin" \
-             && [ -f "$HOME/.local/bin/xcparse" ] \
-             && file "$HOME/.local/bin/xcparse" | grep -q 'Mach-O'; then
-            chmod +x "$HOME/.local/bin/xcparse"
-            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-            echo "installed xcparse from the prebuilt release binary"
-          else
-            echo "prebuilt xcparse unavailable; falling back to the Homebrew tap"
-            brew install --quiet chargepoint/xcparse/xcparse
-          fi
+      - name: Install XcodeGen
+        run: brew install --quiet xcodegen
 
       - name: Generate the Xcode project
         working-directory: appletv
@@ -192,22 +174,38 @@ jobs:
             -resultBundlePath TestResults.xcresult \
             -skip-testing:HexStackerTVUITests/HomeScreenTests
 
-      # Pull the named screenshot attachments out of the result bundle. Runs even
-      # if a test failed, so a regressed screen still ships its capture for review.
-      # No sticky PR comment: the TV Gallery workflow consumes the
+      # Pull the named screenshot attachments out of the result bundle with
+      # Xcode's own xcresulttool (xcparse can't read Xcode 27's bundles). Runs
+      # even if a test failed, so a regressed screen still ships its capture for
+      # review. The exported files are UUID-named; manifest.json carries each
+      # attachment's name, `<key>_<n>_<uuid>.png`, which collect-shots.mjs
+      # matches on. No sticky PR comment: the TV Gallery workflow consumes the
       # tvos-screenshots artifact and posts the one browsable web/tvOS/Android
       # gallery comment.
       - name: Extract screenshots
         if: always()
         working-directory: appletv
         run: |
-          xcparse screenshots TestResults.xcresult screenshots/
-          ls -R screenshots || true
+          xcrun xcresulttool export attachments --path TestResults.xcresult --output-path screenshots
+          node - <<'EOF'
+          const fs = require('fs');
+          for (const test of JSON.parse(fs.readFileSync('screenshots/manifest.json', 'utf8'))) {
+            for (const a of test.attachments) {
+              const file = `screenshots/${a.exportedFileName}`;
+              if (a.suggestedHumanReadableName.endsWith('.png')) fs.renameSync(file, `screenshots/${a.suggestedHumanReadableName}`);
+              else fs.rmSync(file);
+            }
+          }
+          fs.rmSync('screenshots/manifest.json');
+          EOF
+          ls screenshots
 
+      # error, not warn: a run that exports nothing must not pass, as one did
+      # when xcparse stopped reading the bundle.
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: tvos-screenshots
           path: appletv/screenshots
-          if-no-files-found: warn
+          if-no-files-found: error
