@@ -101,6 +101,10 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
   gap: clamp(14px, 4.5vh, 40px);
 }
 
+/* --- Store badges (the TV apps), between the CTA and the footer. Looks
+       come from the welcome screen's .store-badges rules (display.css). --- */
+.device-choice .store-badges { flex-shrink: 0; }
+
 /* --- Footer: the last in-flow item, pushed to the bottom by the auto
        margins above. Kept in flow (not absolute) so it can never sit on
        top of the CTA: if the column overflows, it scrolls below it. --- */
@@ -360,14 +364,14 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
 /* Responsive behaviour: the vertical column stays in place at every
    size, and non-essential content is dropped in priority order as
    vertical space runs out — mark, then chips, then screenshot, then
-   title. Banner + Continue link + footer are always preserved — they
-   carry the interaction. Chips drop before the screenshot because the
-   screenshot shows the product at a glance, while the chips repeat the
-   selling points the banner's CTA already implies.
+   title. Banner + Continue link + store badges + footer are always
+   preserved — they carry the interaction. Chips drop before the
+   screenshot because the screenshot shows the product at a glance, while
+   the chips repeat the selling points the banner's CTA already implies.
 
    The thresholds are measured, not guessed. Title, screenshot, chip and
    banner type all scale with WIDTH, so the height at which the column
-   stops fitting grows with width too: each of the first two tiers is a
+   stops fitting grows with width too: each of the first three tiers is a
    plain height cap OR'd with a taller cap gated on a wider aspect ratio
    (tablets, laptop windows, phablets). Re-measure when changing sizes
    in the column — the goal is zero overflow at every viewport. */
@@ -376,7 +380,7 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
    wordmark alone still brands the page, and dropping the mark (~75px at
    full size) is enough on its own across most of the phone range, so
    the chips survive longer. */
-@media (max-height: 700px), (max-height: 820px) and (min-aspect-ratio: 11/20) {
+@media (max-height: 760px), (max-height: 880px) and (min-aspect-ratio: 1/2) {
   .device-choice__brand .brand-lockup__mark { display: none; }
 }
 
@@ -385,7 +389,7 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
    screenshot + banner together still communicate what the app is. With
    chips gone, the screenshot gets more vertical room (up from 28vh →
    37vh) so it reads as the hero. */
-@media (max-height: 620px), (max-height: 700px) and (min-aspect-ratio: 5/8) {
+@media (max-height: 690px), (max-height: 780px) and (min-aspect-ratio: 11/20) {
   .device-choice {
     gap: clamp(10px, 2vh, 18px);
     padding-top: calc(clamp(12px, 2vh, 24px) + env(safe-area-inset-top));
@@ -396,9 +400,9 @@ body:has(#device-choice:not(.hidden)) .screen { display: none !important; }
   .device-choice__banner { padding: 7px 14px; }
 }
 
-/* Tier 3 — very tight (≤460px): drop the screenshot too — title +
-   banner + link + footer only. The toast stays visible at every tier. */
-@media (max-height: 460px) {
+/* Tier 3 — very tight: drop the screenshot too — title + banner + link +
+   badges + footer only. The toast stays visible at every tier. */
+@media (max-height: 460px), (max-height: 550px) and (min-aspect-ratio: 3/4) {
   .device-choice__hero picture { display: none; }
   .device-choice { gap: clamp(8px, 2vh, 14px); }
 }

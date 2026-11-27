@@ -37,6 +37,7 @@ public/artwork/*
 !public/artwork/gameplay-2p-1x1.webp
 !public/artwork/social-preview.png
 !public/artwork/trailer.mp4
+!public/artwork/badges/
 artwork/ad-clip/output/raw/
 # Transition-tour review renders (scripts/record-transitions.js)
 recordings/

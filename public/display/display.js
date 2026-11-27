@@ -197,6 +197,10 @@ if (watchTrailerBtn) {
   });
 }
 
+document.querySelectorAll('.store-badge img').forEach(function(img) {
+  img.src = img.dataset.src.replace('{lang}', getLocale());
+});
+
 // --- Button Event Listeners ---
 newGameBtn.addEventListener('click', function() {
   // Trailer modal is fixed-position and not focus-trapped, so a keyboard

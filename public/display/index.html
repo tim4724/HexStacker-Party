@@ -71,7 +71,7 @@
         </picture>
         <ul class="device-choice__chips">
           <li><strong data-i18n="chip_players">1&ndash;8</strong><span data-i18n="chip_players_sub">Players</span></li>
-          <li><strong data-i18n="chip_install">No install</strong><span data-i18n="chip_install_sub">Any device</span></li>
+          <li><strong data-i18n="chip_browser">Browser</strong><span data-i18n="chip_browser_sub">or TV app</span></li>
           <li><strong data-i18n="chip_controller">Phone</strong><span data-i18n="chip_controller_sub">As controller</span></li>
           <li><strong data-i18n="chip_rounds">3 min</strong><span data-i18n="chip_rounds_sub">Per match</span></li>
         </ul>
@@ -96,6 +96,11 @@
       </button>
       <button id="device-choice-continue" type="button" class="device-choice__continue" data-i18n="device_choice_continue">Continue on this device</button>
     </div>
+    <!-- Same badges as #welcome-footer (see the note there). -->
+    <div class="store-badges">
+      <a class="store-badge" href="https://apps.apple.com/app/id6788876779" target="_blank" rel="noopener" data-i18n-aria-label="badge_apple_tv" aria-label="Download on Apple TV"><img data-src="/artwork/badges/apple-tv-{lang}.svg" alt="" loading="lazy"></a>
+      <a class="store-badge" href="https://play.google.com/store/apps/details?id=com.couchgames.stacker" target="_blank" rel="noopener" data-i18n-aria-label="badge_google_play" aria-label="Get it on Google Play"><img data-src="/artwork/badges/google-play-{lang}.png" alt="" loading="lazy"></a>
+    </div>
     <div class="device-choice__legal">
       <a href="https://github.com/tim4724/HexStacker-Party" target="_blank" rel="noopener" data-i18n="stacked_by">Stacked by Tim</a>
       <span aria-hidden="true">&middot;</span>
@@ -119,6 +124,13 @@
       </button>
     </div>
     <div id="welcome-footer">
+      <!-- Official store artwork, one file per UI language: display.js fills
+           each src from data-src. Lazy, so AirConsole (footer hidden) never
+           fetches them. -->
+      <div class="store-badges">
+        <a class="store-badge" href="https://apps.apple.com/app/id6788876779" target="_blank" rel="noopener" data-i18n-aria-label="badge_apple_tv" aria-label="Download on Apple TV"><img data-src="/artwork/badges/apple-tv-{lang}.svg" alt="" loading="lazy"></a>
+        <a class="store-badge" href="https://play.google.com/store/apps/details?id=com.couchgames.stacker" target="_blank" rel="noopener" data-i18n-aria-label="badge_google_play" aria-label="Get it on Google Play"><img data-src="/artwork/badges/google-play-{lang}.png" alt="" loading="lazy"></a>
+      </div>
       <div class="footer-row">
         <span class="footer-group">
           <a id="github-link" href="https://github.com/tim4724/HexStacker-Party" target="_blank" rel="noopener" data-i18n="stacked_by">Stacked by Tim</a>

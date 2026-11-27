@@ -2,6 +2,8 @@
 
 const { describe, it, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('fs');
+const path = require('path');
 const { t, setLocale, getLocale, LOCALES } = require('../public/shared/i18n.js');
 
 describe('i18n', function () {
@@ -143,7 +145,7 @@ describe('i18n', function () {
       'attempt_n_of_m', 'display_reconnecting', 'bad_connection',
       'paused', 'device_choice_continue',
       'chip_players', 'chip_players_sub',
-      'chip_install', 'chip_install_sub',
+      'chip_browser', 'chip_browser_sub',
       'chip_controller', 'chip_controller_sub',
       'chip_rounds', 'chip_rounds_sub',
       'banner_open_large',
@@ -163,6 +165,7 @@ describe('i18n', function () {
       'fullscreen', 'pause', 'copy_url', 'share_text',
       'level_minus', 'level_plus',
       'app_offer_title', 'app_offer_size', 'app_offer_get', 'app_offer_browser',
+      'badge_apple_tv', 'badge_google_play',
     ];
 
     for (var locale of Object.keys(LOCALES)) {
@@ -172,6 +175,19 @@ describe('i18n', function () {
             LOCALES[locale][key] !== undefined,
             'Missing key "' + key + '" in locale "' + locale + '"'
           );
+        }
+      });
+    }
+  });
+
+  describe('store badges', function () {
+    // The welcome screen loads /artwork/badges/<name>-<locale>.<ext> for the
+    // active locale, so a new locale needs its official badge files too.
+    var dir = path.join(__dirname, '..', 'public', 'artwork', 'badges');
+    for (const locale of Object.keys(LOCALES)) {
+      it('locale "' + locale + '" has both badge files', function () {
+        for (const file of ['apple-tv-' + locale + '.svg', 'google-play-' + locale + '.png']) {
+          assert.ok(fs.existsSync(path.join(dir, file)), 'missing public/artwork/badges/' + file);
         }
       });
     }

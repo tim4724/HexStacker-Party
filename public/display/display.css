@@ -205,13 +205,47 @@ body.airconsole #lobby-version-label { display: block; }
 }
 
 #welcome-footer {
+  --store-badge-h: clamp(40px, 5.5vh, 48px);
   position: absolute;
   bottom: clamp(1.2rem, 3vh, 2.5rem);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: calc(var(--store-badge-h) / 3);
   animation: fadeUp 0.6s 0.6s ease-out both;
+}
+
+/* The stores' badge rules: Apple wants at least 40px on screen, clear space of
+   a quarter of the height (both gaps here stay above that) and no animation;
+   Google wants its badge no smaller than the ones beside it, so both share
+   one height. */
+.store-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(var(--store-badge-h, 40px) * 0.4);
+}
+
+.store-badge {
+  display: block;
+  border-radius: var(--radius-sm);
+}
+
+.store-badge img {
+  display: block;
+  height: var(--store-badge-h, 40px);
+  width: auto;
+}
+
+.store-badge:focus-visible {
+  outline: 2px solid var(--accent-secondary);
+  outline-offset: 3px;
+}
+
+/* Short landscape screens (where phones get the device-choice overlay
+   instead): no room under the CTA. */
+@media (max-height: 500px) {
+  #welcome-footer .store-badges { display: none; }
 }
 
 .footer-row {
