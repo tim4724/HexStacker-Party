@@ -128,7 +128,7 @@ setRoomState = function(newState) {
 
 // =====================================================================
 // Global highscores (AirConsole High Score API)
-// Every round stores each player's lines to two boards: all-time and the
+// Every round offers each player's lines to two boards: all-time and the
 // current UTC month. AirConsole has no time ranges, so the month rides in
 // level_version. The results screen then shows each board's global top 10
 // beside the standings, rotating between the two. Scores are public, so
@@ -199,17 +199,25 @@ function storeHighScores(results) {
     if (!uid) continue;         // gone, no account to file it under
     _hsPlayers[uid] = r.playerId;
     if (!(r.lines > 0)) continue;  // a 0 would only add an empty entry
-    hsRun({ store: true, board: 'all', version: versions.all, uid: uid, lines: r.lines });
+    // Month first: onHighScoreStored may drop the all-time store.
     hsRun({ store: true, board: 'month', version: versions.month, uid: uid, lines: r.lines });
+    hsRun({ store: true, board: 'all', version: versions.all, uid: uid, lines: r.lines });
   }
   requestBoards(versions);
 }
 
 // Called with the stored entry when it is the player's new best, else null.
+// Every score goes to both boards, so one that isn't the player's best this
+// month can't be their all-time best either: that store is dropped.
 airconsole.onHighScoreStored = function(highScore) {
   if (!_hsOp || !_hsOp.store) return;
-  if (highScore) _hsNewBest[_hsOp.board + '|' + _hsOp.uid] = true;
+  var op = _hsOp;
   _hsOp = null;
+  if (highScore) {
+    _hsNewBest[op.board + '|' + op.uid] = true;
+  } else if (op.board === 'month') {
+    _hsQueue = _hsQueue.filter(function(q) { return !(q.board === 'all' && q.uid === op.uid); });
+  }
   hsNext();
 };
 

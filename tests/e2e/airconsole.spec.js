@@ -736,8 +736,9 @@ test.describe('AirConsole Integration', () => {
       ['uid_101', 12, '12 lines'],
       ['uid_101', 12, '12 lines'],
     ]);
-    expect(stored[0].level_version).toBe('v1-all');
-    expect(stored[1].level_version).toMatch(/^v1-\d{4}-\d{2}$/);
+    // The month first: its answer decides whether the all-time store runs.
+    expect(stored[0].level_version).toMatch(/^v1-\d{4}-\d{2}$/);
+    expect(stored[1].level_version).toBe('v1-all');
     expect(await s.screenFrame.evaluate(() => window.__AC_HS_OVERLAP)).toBeUndefined();
     // AirConsole answered the stores with a new best, so the entry carries it.
     expect(await s.screenFrame.evaluate(() => _hsBoards.all)).toEqual([
@@ -745,6 +746,14 @@ test.describe('AirConsole Integration', () => {
     ]);
     // Not on the results screen, so nothing shows.
     await expect(s.screenFrame.locator('#global-board')).toBeHidden();
+
+    // A lower score next round isn't a monthly best, so the all-time store is
+    // skipped: one more store, the month's, and no new-best flag.
+    await s.screenFrame.evaluate(() => storeHighScores([{ playerId: 101, rank: 1, lines: 5 }]));
+    await s.screenFrame.waitForFunction(() => _hsBoards.month !== undefined, null, { timeout: 5000 });
+    const after = await s.screenFrame.evaluate(() => window.__AC_STORED.slice(2));
+    expect(after.map((e) => [e.level_version, e.score])).toEqual([[expect.stringMatching(/^v1-\d{4}-\d{2}$/), 5]]);
+    expect(await s.screenFrame.evaluate(() => _hsBoards.all[0].best)).toBe(false);
   });
 
   test('highscores: the global top 10 rotates beside the results until Play Again', async ({ page, context }) => {
