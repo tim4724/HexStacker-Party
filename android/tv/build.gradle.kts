@@ -88,7 +88,9 @@ val hasReleaseKeystore = releaseStoreFile != null
 
 android {
     namespace = "com.hexstacker.tv"
+    // Compose 1.13 (BOM 2026.11) refuses to build against plain 37; it needs 37.1+.
     compileSdk = 37
+    compileSdkMinor = 2
     signingConfigs {
         if (hasReleaseKeystore) {
             create("release") {
