@@ -11,7 +11,8 @@ name: Release
 #     and the run number the build number; project.yml's static values are
 #     xcodebuild-overridden, not edited. The TestFlight build IS the release
 #     candidate: there is no .ipa artifact, only the dSYMs for crash
-#     symbolication.
+#     symbolication. The appstore job then readies the App Store version with
+#     that build; submitting it for review stays a step in App Store Connect.
 #
 # Trigger: a bare-semver release tag (the repo's tag convention). There is no
 # manual run, so a change to this pipeline is tested by cutting a patch tag.
@@ -312,3 +313,28 @@ jobs:
             -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" \
             -authenticationKeyID "$ASC_API_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_API_ISSUER_ID"
+
+  # Turns the TestFlight upload into an App Store version ready to submit
+  # (appletv/scripts/prepare-release.js). Its own job on a cheap runner, since it
+  # mostly waits for Apple to process the build, and so "Re-run failed jobs"
+  # retries it alone with the build number the upload used.
+  appstore:
+    needs: tvos
+    runs-on: ubuntu-latest
+    environment: release
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # Node builtins only: no npm ci.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+      - name: Prepare the App Store version
+        env:
+          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+        run: |
+          KEY="$RUNNER_TEMP/AuthKey_$ASC_API_KEY_ID.p8"
+          echo "$ASC_API_KEY_P8_BASE64" | base64 --decode > "$KEY"
+          node appletv/scripts/prepare-release.js "$KEY" "$ASC_API_ISSUER_ID" "$GITHUB_REF_NAME" "$GITHUB_RUN_NUMBER"
