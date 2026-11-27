@@ -37,13 +37,13 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # The native core the app runs in QuickJS is the canonical JS engine bundle,
       # so the engine + conformance-golden bundles must be built before Gradle:
       # :tv's preBuild copies dist/partycore.js into assets, and :core:jvmTest loads
       # dist/partycore.js + dist/partycore-frame-test.js as its cross-engine oracles.
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
           cache: 'npm'
@@ -51,11 +51,11 @@ jobs:
       - name: Build engine bundles (QuickJS core + conformance golden driver)
         run: npm run build:native
 
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6
         with:
           distribution: temurin
           java-version: 25
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6
 
       # One --continue invocation so a test failure still runs the rest and the
       # screenshots/reports below always upload:
@@ -81,7 +81,7 @@ jobs:
       - name: Upload TV screenshots
         id: screenshots
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: tv-screenshots
           path: android/tv/build/outputs/roborazzi/*.png
@@ -94,7 +94,7 @@ jobs:
 
       - name: Upload test reports
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: android-test-reports
           path: |

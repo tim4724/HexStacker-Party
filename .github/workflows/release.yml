@@ -51,11 +51,11 @@ jobs:
     environment: release
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # The canonical engine bundle ships inside the app (see :tv's
       # syncEngineBundle task), so it must exist before Gradle runs.
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
           cache: 'npm'
@@ -63,11 +63,11 @@ jobs:
       - name: Build engine bundle (QuickJS core)
         run: npm run build:core
 
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6
         with:
           distribution: temurin
           java-version: 25
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6
 
       # :tv's release signing reads android/keystore.properties (gitignored;
       # storeFile must be an absolute path). Keep the decoded keystore outside
@@ -126,7 +126,7 @@ jobs:
       # Before publishing, so a Play-side rejection still leaves the bundle
       # downloadable from the run.
       - name: Upload .aab artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: hexstacker-android-tv-aab
           path: android/tv/build/outputs/bundle/release/tv-release.aab
@@ -174,7 +174,7 @@ jobs:
     environment: release
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # App Store Connect rejects binaries built with older SDKs (tvOS apps must
       # use the tvOS 26 SDK), and the runner's default Xcode lags behind.
@@ -186,7 +186,7 @@ jobs:
 
       # The app's "Sync engine JS" pre-build phase runs npm run build:core, so
       # the repo-root deps must be installed before xcodebuild archives.
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
           cache: 'npm'
@@ -201,7 +201,7 @@ jobs:
 
       # Same cache as tvos.yml: LiveKitWebRTC is a large binary xcframework.
       - name: Cache SPM artifacts
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: appletv/.build-xcode/SourcePackages
           key: spm-${{ runner.os }}-${{ hashFiles('appletv/project.yml') }}
@@ -296,7 +296,7 @@ jobs:
       # Keep the debug symbols with the build, needed to symbolicate crash
       # reports for exactly this binary once the .ipa itself lives in TestFlight.
       - name: Upload dSYMs artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: hexstacker-tvos-dsyms
           path: appletv/build/HexStacker.xcarchive/dSYMs
